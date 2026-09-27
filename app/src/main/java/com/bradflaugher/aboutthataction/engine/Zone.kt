@@ -14,13 +14,13 @@ enum class Zone(
     val heatBonus: Float,
 ) {
     ROOFTOP("ROOFTOP", "insertion point", 0, 0f),
-    TOWER("NEON TOWER", "floors 1–24 · corporate", 1, 0f),
-    LABS("BLACK LABS", "floors 25–49 · research", 25, 0.1f),
-    METRO("DEEP METRO", "floors 50–74 · underground", 50, 0.2f),
-    MINES("IRON MINES", "floors 75–99 · the crust", 75, 0.35f),
-    MAGMA("MAGMA CORE", "floors 100–149 · the mantle", 100, 0.6f),
-    HELL("HELL", "floors 150–199 · abandon hope", 150, 2.5f),
-    VOID("THE VOID", "floor 200+ · anything goes", 200, 1.5f);
+    TOWER("NEON TOWER", "49F–26F · corporate", 1, 0f),
+    LABS("BLACK LABS", "25F–1F · research", 25, 0.1f),
+    METRO("DEEP METRO", "B0–B24 · underground", 50, 0.2f),
+    MINES("IRON MINES", "B25–B49 · the crust", 75, 0.35f),
+    MAGMA("MAGMA CORE", "B50–B99 · the mantle", 100, 0.6f),
+    HELL("HELL", "B100–B149 · abandon hope", 150, 2.5f),
+    VOID("THE VOID", "B150+ · anything goes", 200, 1.5f);
 
     companion object {
         /** Zones a VOID block may impersonate. */
