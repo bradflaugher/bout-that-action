@@ -1245,7 +1245,7 @@ class World(val config: RunConfig) {
      * reacts, and the draw ([AUTO_FIRE_DRAW]) only starts once he's aiming (or has fired). At
      * low heat that's a fair duel, near guards lose it and far ones get their shot off; at high
      * heat they aim faster than you draw. Point-blank threats and melee chargers are answered
-     * at once. Without this the gun, which sees as far as they do, dropped every guard the
+     * at once; drones and turrets are drawn on as soon as they're in range. Without this the gun, which sees as far as they do, dropped every guard the
      * instant he noticed you, and on the gentle presets nobody ever fired.
      */
     private fun autoFire(dt: Float) {
@@ -1263,8 +1263,10 @@ class World(val config: RunConfig) {
         }
         val pointBlank = abs(target.x - p.x) <= AUTO_FIRE_POINT_BLANK
         val melee = target.kind == EnemyKind.NINJA || target.kind == EnemyKind.DEMON && abs(target.x - p.x) <= 3f
-        val gunUp = target.state == EnemyState.AIM || target.fireCooldown > 0f
-        if (target !== drawOn || !(gunUp || melee)) {
+        // Drones and turrets are always fair game: drawn on from the moment they're in range.
+        val automated = target.kind == EnemyKind.DRONE || target.kind == EnemyKind.TURRET
+        val gunUp = automated || target.state == EnemyState.AIM || target.fireCooldown > 0f
+        if (target !== drawOn || !gunUp) {
             drawOn = target
             drawTime = 0f
         } else {
@@ -1272,7 +1274,7 @@ class World(val config: RunConfig) {
         }
         if (p.fireCooldown > 0f) return
         if (target.state == EnemyState.EMERGING && target.stateTime < 0.25f) return
-        if (!pointBlank && drawTime < AUTO_FIRE_DRAW) return
+        if (!pointBlank && !melee && drawTime < AUTO_FIRE_DRAW) return
         fire(target)
     }
 

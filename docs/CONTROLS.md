@@ -190,7 +190,8 @@ turns on them. Hidden (box, doorway, boxed in the car) the gun holds.
 **The gun answers a raised gun (`AUTO_FIRE_DRAW` = 0.3 s).** A ranged
 enemy who has spotted you is left alone while he reacts; once his gun is up
 (aiming, or he has already fired) the gun takes 0.3 s to line up, then fires.
-Anything within 2.5 u, and melee chargers, are answered at once. At low heat
+Anything within 2.5 u, and melee chargers, are answered at once; drones
+and turrets are drawn on as soon as they're in range, seen or not. At low heat
 that's a fair duel: a guard across the hallway gets his shot off first (dodge
 it, hide from it, or take the hit), a near one loses it. At high heat they aim
 faster than you draw. Without this the gun, which sees exactly as far as the

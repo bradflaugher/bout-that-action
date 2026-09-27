@@ -292,6 +292,29 @@ class ControlsTest {
     }
 
     @Test
+    fun aDroneThatHasntSeenYouIsStillShotAfterTheDraw() {
+        val w = world(silent = false)
+        w.player.x = 2f
+        w.player.facing = 1
+        val d = enemy(w, EnemyKind.DRONE, 6.5f, facing = 1) // patrolling, looking away
+        d.hp = 99
+        run(w, World.AUTO_FIRE_DRAW + 0.15f) { it.enemies.forEach { e -> if (e === d) e.state = EnemyState.PATROL } }
+        assertTrue(w.bullets.any { it.byPlayer } || w.events.any { it is GameEvent.Shot && it.byPlayer })
+    }
+
+    @Test
+    fun aChargingNinjaIsShotAtOnceWithNoDraw() {
+        val w = world(silent = false)
+        w.player.x = 2f
+        w.player.facing = 1
+        val n = enemy(w, EnemyKind.NINJA, 6f, facing = -1)
+        n.state = EnemyState.ALERT
+        n.hp = 99
+        w.step(dt)
+        assertTrue(w.bullets.any { it.byPlayer })
+    }
+
+    @Test
     fun autoFireTakesAMomentToDrawOnAGuardWhoSpotsYou() {
         val w = world(silent = false)
         w.player.x = 2f
