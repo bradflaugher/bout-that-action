@@ -132,6 +132,8 @@ policy. The only permission is vibration.
 ```sh
 ./gradlew lint test assembleDebug   # what CI runs (plus assembleRelease)
 ./gradlew :app:screenshots          # re-render docs/screenshots
+./gradlew :app:menuShots            # render the Compose menus to app/build/menushots
+                                    # (Robolectric; -PallDevices, -Ponly=title,pause)
 ```
 
 The whole game (simulation, touch controls, renderer and synth) is pure

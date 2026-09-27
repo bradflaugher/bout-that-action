@@ -67,6 +67,11 @@ android {
     buildFeatures {
         compose = true
     }
+
+    // Robolectric (menu screenshots only) needs the merged resources: fonts.
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 kotlin {
@@ -79,6 +84,13 @@ tasks.withType<Test>().configureEach {
         events("failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
+    // The Robolectric menu screenshots run only in :app:menuShots, never in `test`.
+    if (name != "menuShots") {
+        filter {
+            excludeTestsMatching("*MenuShots*")
+            isFailOnNoMatchingTests = false
+        }
+    }
 }
 
 dependencies {
@@ -90,6 +102,8 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.ext.junit)
@@ -107,5 +121,30 @@ tasks.register<Test>("screenshots") {
     systemProperty("ata.screenshots", rootProject.file("docs/screenshots").absolutePath)
     systemProperty("java.awt.headless", "true")
     filter { includeTestsMatching("*ScreenshotTest*") }
+    outputs.upToDateWhen { false }
+}
+
+// Headless menu screenshots: renders the real Compose menus over a real game
+// frame with Robolectric native graphics, into app/build/menushots/.
+//   ./gradlew :app:menuShots
+tasks.register<Test>("menuShots") {
+    description = "Renders the Compose menus into app/build/menushots."
+    group = "documentation"
+    val unitTest = tasks.named<Test>("testDebugUnitTest")
+    testClassesDirs = unitTest.get().testClassesDirs
+    classpath = unitTest.get().classpath
+    systemProperty("ata.menushots", layout.buildDirectory.dir("menushots").get().asFile.absolutePath)
+    systemProperty("robolectric.graphicsMode", "NATIVE")
+    // -ea turns on coroutine debug mode, which renames the thread on every dispatch: very slow here.
+    systemProperty("kotlinx.coroutines.debug", "off")
+    if (project.hasProperty("allDevices")) systemProperty("ata.menushots.all", "true")
+    systemProperty("ata.menushots.only", (project.findProperty("only") ?: "").toString())
+    jvmArgs(
+        "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
+        "--add-opens=java.base/jdk.internal.access=ALL-UNNAMED",
+        "--add-opens=java.base/java.io=ALL-UNNAMED",
+    )
+    maxHeapSize = "3g"
+    filter { includeTestsMatching("*MenuShots*") }
     outputs.upToDateWhen { false }
 }
