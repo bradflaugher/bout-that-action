@@ -67,7 +67,8 @@ the JVM.
   sequence. Never use wall-clock time or unseeded randomness in `engine/`.
 - The game is portrait-only and the floor exactly fills the screen width.
 - Screenshots in `docs/screenshots/` come from `./gradlew :app:screenshots`,
-  which renders real scenes through the real renderer. Regenerate them when
+  which renders real scenes through the real renderer and then runs
+  `:app:menuShots` for the Compose menus (Robolectric). Regenerate them when
   the look changes.
 
 ## Invariants

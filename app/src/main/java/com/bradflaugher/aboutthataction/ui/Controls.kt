@@ -174,10 +174,12 @@ fun LevelMeter(
     onChange: (Float) -> Unit,
 ) {
     val latest by rememberUpdatedState(onChange)
+    // The gesture handlers outlive recompositions: always compare against the current value.
+    val current by rememberUpdatedState(value)
     val lit = (value * steps).roundToInt()
     fun set(x: Float, width: Int) {
         val v = ((x / width) * steps + 0.35f).toInt().coerceIn(0, steps) / steps.toFloat()
-        if (v != value) latest(v)
+        if (v != current) latest(v)
     }
     Row(
         Modifier.fillMaxWidth().heightIn(min = Space.touch)

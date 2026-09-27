@@ -122,6 +122,8 @@ tasks.register<Test>("screenshots") {
     systemProperty("java.awt.headless", "true")
     filter { includeTestsMatching("*ScreenshotTest*") }
     outputs.upToDateWhen { false }
+    // One command refreshes every README image, menus included.
+    finalizedBy("menuShots")
 }
 
 // Headless menu screenshots: renders the real Compose menus over a real game
@@ -134,6 +136,8 @@ tasks.register<Test>("menuShots") {
     testClassesDirs = unitTest.get().testClassesDirs
     classpath = unitTest.get().classpath
     systemProperty("ata.menushots", layout.buildDirectory.dir("menushots").get().asFile.absolutePath)
+    // The README's menu images are regenerated here too (half size, like the game shots).
+    systemProperty("ata.menushots.docs", rootProject.file("docs/screenshots").absolutePath)
     systemProperty("robolectric.graphicsMode", "NATIVE")
     // -ea turns on coroutine debug mode, which renames the thread on every dispatch: very slow here.
     systemProperty("kotlinx.coroutines.debug", "off")

@@ -177,8 +177,27 @@ class MenuShotsTest {
         val f = File(outDir, "$name.png")
         FileOutputStream(f).use { out.compress(Bitmap.CompressFormat.PNG, 100, it) }
         println("wrote $f (${out.width}x${out.height})")
+        // The README shows three of these; refresh them in docs/screenshots at half width.
+        val docName = README_SHOTS[name]
+        val docs = System.getProperty("ata.menushots.docs")
+        if (docName != null && docs != null) {
+            val w = 540
+            val small = Bitmap.createScaledBitmap(out, w, out.height * w / out.width, true)
+            val d = File(docs, "$docName.png")
+            FileOutputStream(d).use { small.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            println("wrote $d (${small.width}x${small.height})")
+        }
         recomposer.cancel()
         scope.cancel()
         controller.pause().stop().destroy()
+    }
+
+    private companion object {
+        /** Menu shots the README embeds, by render name. */
+        val README_SHOTS = mapOf(
+            "phone-title" to "menu-title",
+            "phone-gameover-best" to "menu-gameover",
+            "phone-settings-custom" to "menu-settings",
+        )
     }
 }

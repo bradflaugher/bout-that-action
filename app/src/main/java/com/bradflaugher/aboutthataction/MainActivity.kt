@@ -105,6 +105,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
                 AndroidView(factory = { gameView }, modifier = Modifier.fillMaxSize())
                 AnimatedContent(
                     targetState = screen,
+                    // Full size even while PLAYING shows nothing, so menus never grow from 0×0.
+                    modifier = Modifier.fillMaxSize(),
                     transitionSpec = { menuTransition(initialState, targetState) },
                     contentAlignment = Alignment.Center,
                     label = "screen",
