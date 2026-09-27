@@ -181,7 +181,7 @@ class MechanicsTest {
         assertFalse(victim.alive)
         assertEquals(EnemyState.PATROL, listener.state)
         // Go loud: the gun opens up on a drone, and the noise wakes him.
-        enemy(w, EnemyKind.DRONE, w.player.x - 3f).hp = 99
+        enemy(w, EnemyKind.DRONE, w.player.x - 2f).hp = 99 // point-blank: no draw to wait out
         w.moveAxis = 0
         w.commands += Command.TOGGLE_MODE
         run(w, World.AUTO_FIRE_DRAW + 0.3f)

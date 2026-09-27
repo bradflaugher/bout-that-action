@@ -187,12 +187,15 @@ sneaking past or walking in for the takedown (drones and turrets are always
 fair game). Guards stepping out of a door get a quarter-second before the gun
 turns on them. Hidden (box, doorway, boxed in the car) the gun holds.
 
-**The draw (`AUTO_FIRE_DRAW` = 0.45 s).** A new target takes 0.45 s to line
-up before the first shot; anything within 2.5 u is shot at once. Without it
-the gun, which sees exactly as far as the guards do, dropped a guard the
-instant he noticed you, long before his own aim finished, so on the gentler
-presets nobody ever got a shot off. Now a guard who spots you gets one real
-chance: dodge it, hide from it, or take the hit.
+**The gun answers a raised gun (`AUTO_FIRE_DRAW` = 0.3 s).** A ranged
+enemy who has spotted you is left alone while he reacts; once his gun is up
+(aiming, or he has already fired) the gun takes 0.3 s to line up, then fires.
+Anything within 2.5 u, and melee chargers, are answered at once. At low heat
+that's a fair duel: a guard across the hallway gets his shot off first (dodge
+it, hide from it, or take the hit), a near one loses it. At high heat they aim
+faster than you draw. Without this the gun, which sees exactly as far as the
+guards do, dropped every guard the instant he noticed you, and on the gentler
+presets nobody ever fired.
 
 **SILENT.** The gun never fires. Guards only notice what they see, see a
 little less far (6.5 u instead of 7.5, `SILENT_SIGHT_RANGE`) and take 35%

@@ -16,8 +16,8 @@ class ControlsTest {
     private val dt = 1f / 120f
 
     /** A world past its intro, hallway A cleared. SILENT unless [silent] = false (so the gun stays out of the way). */
-    private fun world(floor: Int = 3, seed: Long = 11L, silent: Boolean = true): World {
-        val w = World(RunConfig(seed, Difficulty(startFloor = floor), silent = silent))
+    private fun world(floor: Int = 3, seed: Long = 11L, silent: Boolean = true, difficulty: Difficulty = Difficulty(startFloor = floor)): World {
+        val w = World(RunConfig(seed, difficulty, silent = silent))
         run(w, 1.5f)
         w.enemies.clear()
         w.bullets.clear()
@@ -248,6 +248,47 @@ class ControlsTest {
         }
         val shot = w.bullets.single { it.byPlayer }
         assertTrue(shot.vx < 0f)
+    }
+
+    @Test
+    fun anEarlyChillGuardWhoSpotsYouGetsHisShotOff() {
+        // The gun waits for his rifle to come up, then draws: at low heat a guard across the
+        // hallway fires once before he drops. (Near ones lose the duel; see below.)
+        for (seed in 1L..5L) {
+            val w = world(seed = seed, silent = false, difficulty = Difficulty.Preset.CHILL.difficulty.copy(startFloor = 3))
+            w.player.x = 1.5f
+            w.player.facing = 1
+            val e = enemy(w, EnemyKind.AGENT, 7.5f, facing = -1)
+            var guardFired = false
+            var t = 0f
+            while (e.alive && t < 4f) {
+                w.step(dt)
+                w.player.invuln = 1f
+                if (w.events.any { it is GameEvent.Shot && !it.byPlayer }) guardFired = true
+                w.events.clear()
+                t += dt
+            }
+            assertTrue("seed $seed: he fired before he fell", guardFired)
+            assertFalse("seed $seed: and the gun still got him", e.alive)
+        }
+    }
+
+    @Test
+    fun autoFireHoldsWhileAGuardReactsThenDrawsOnceHisGunIsUp() {
+        val w = world(silent = false)
+        w.player.x = 2f
+        w.player.facing = 1
+        val e = enemy(w, EnemyKind.AGENT, 7f, facing = -1)
+        e.state = EnemyState.ALERT
+        e.timer = 99f // still reacting: gun down
+        run(w, 1f)
+        assertTrue("no shot at a guard who hasn't raised his gun", w.bullets.none { it.byPlayer })
+        e.state = EnemyState.AIM
+        e.stateTime = -99f
+        run(w, World.AUTO_FIRE_DRAW - 0.1f)
+        assertTrue(w.bullets.none { it.byPlayer })
+        run(w, 0.2f)
+        assertTrue(w.bullets.any { it.byPlayer })
     }
 
     @Test

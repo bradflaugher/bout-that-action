@@ -1240,8 +1240,13 @@ class World(val config: RunConfig) {
 
     /**
      * GUNS HOT: fire at the top threat in range once the gun is drawn on it. SILENT never fires.
-     * A new target takes [AUTO_FIRE_DRAW] to line up (point-blank ones don't wait), so a guard
-     * who spots you gets a real chance to shoot first instead of dropping the instant he looks up.
+     *
+     * The gun answers a raised gun: a ranged enemy who has spotted you is left alone while he
+     * reacts, and the draw ([AUTO_FIRE_DRAW]) only starts once he's aiming (or has fired). At
+     * low heat that's a fair duel, near guards lose it and far ones get their shot off; at high
+     * heat they aim faster than you draw. Point-blank threats and melee chargers are answered
+     * at once. Without this the gun, which sees as far as they do, dropped every guard the
+     * instant he noticed you, and on the gentle presets nobody ever fired.
      */
     private fun autoFire(dt: Float) {
         val p = player
@@ -1256,7 +1261,10 @@ class World(val config: RunConfig) {
             drawOn = null
             return
         }
-        if (target !== drawOn) {
+        val pointBlank = abs(target.x - p.x) <= AUTO_FIRE_POINT_BLANK
+        val melee = target.kind == EnemyKind.NINJA || target.kind == EnemyKind.DEMON && abs(target.x - p.x) <= 3f
+        val gunUp = target.state == EnemyState.AIM || target.fireCooldown > 0f
+        if (target !== drawOn || !(gunUp || melee)) {
             drawOn = target
             drawTime = 0f
         } else {
@@ -1264,7 +1272,7 @@ class World(val config: RunConfig) {
         }
         if (p.fireCooldown > 0f) return
         if (target.state == EnemyState.EMERGING && target.stateTime < 0.25f) return
-        if (drawTime < AUTO_FIRE_DRAW && abs(target.x - p.x) > AUTO_FIRE_POINT_BLANK) return
+        if (!pointBlank && drawTime < AUTO_FIRE_DRAW) return
         fire(target)
     }
 
@@ -2331,8 +2339,8 @@ class World(val config: RunConfig) {
         const val AUTO_FIRE_RANGE = 7.5f
         /** GUNS HOT also fires at an unaware guard this close (he's about to bump into you). */
         const val AUTO_FIRE_POINT_BLANK = 2.5f
-        /** A new auto-fire target takes this long to line up (beyond point-blank). */
-        const val AUTO_FIRE_DRAW = 0.45f
+        /** Beyond point-blank, auto-fire lines up this long on a threat whose gun is up. */
+        const val AUTO_FIRE_DRAW = 0.3f
         /** How far guards see down a lit hallway (darkness cuts it). */
         const val SIGHT_RANGE = 7.5f
         /** ...and in SILENT, where nothing gives you away but being seen. */
