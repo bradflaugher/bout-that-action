@@ -116,6 +116,19 @@ class LevelGenTest {
     }
 
     @Test
+    fun floorsAreLabelledLikeARealBuilding() {
+        assertEquals("ROOF", FloorLabel.of(0))
+        assertEquals("49F", FloorLabel.of(1))
+        assertEquals("1F", FloorLabel.of(49))
+        assertEquals("B0", FloorLabel.of(50))
+        assertEquals("B100", FloorLabel.of(Zone.HELL.startFloor))
+        assertEquals("B150", FloorLabel.of(Zone.VOID.startFloor))
+        assertEquals("R", FloorLabel.short(0))
+        assertEquals("42", FloorLabel.short(8))
+        assertEquals("B7", FloorLabel.short(57))
+    }
+
+    @Test
     fun seedTextIsStable() {
         assertEquals(Rng.seedFromText("banana"), Rng.seedFromText(" BANANA "))
         assertEquals(1234L, Rng.seedFromText("1234"))
