@@ -753,7 +753,10 @@ internal class ActorCast(
     }
 
     private fun robeBody(L: Look, trim: Int) {
-        val gnd = k.ground + 0.0f
+        // Hem at the feet, in the rig's own frame. The death ragdoll poses from the hip with a
+        // dummy ground far below, and anchoring to k.ground alone gave dying robes a 10 u skirt
+        // that swept through the floor below. Standing, the planted foot is at k.ground anyway.
+        val gnd = min(k.ground, max(k.legF.ey, k.legB.ey) + 0.03f * k.hs)
         val fx = k.legF.ex
         val bx = k.legB.ex
         val front = if ((fx - bx) * k.dir > 0f) fx else bx

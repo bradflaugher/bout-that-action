@@ -240,9 +240,40 @@ class ControlsTest {
         val aimer = enemy(w, EnemyKind.AGENT, 1.5f, facing = 1) // behind you, gun up
         aimer.state = EnemyState.AIM
         aimer.stateTime = 0f
-        w.step(dt)
+        aimer.fireCooldown = 99f
+        var t = 0f
+        while (w.bullets.none { it.byPlayer } && t < World.AUTO_FIRE_DRAW + 0.2f) {
+            w.step(dt)
+            t += dt
+        }
         val shot = w.bullets.single { it.byPlayer }
         assertTrue(shot.vx < 0f)
+    }
+
+    @Test
+    fun autoFireTakesAMomentToDrawOnAGuardWhoSpotsYou() {
+        val w = world(silent = false)
+        w.player.x = 2f
+        w.player.facing = 1
+        val e = enemy(w, EnemyKind.AGENT, 7f, facing = -1)
+        e.state = EnemyState.ALERT
+        e.fireCooldown = 99f
+        run(w, World.AUTO_FIRE_DRAW - 0.1f)
+        assertTrue("no instant shot: he gets a chance", w.bullets.none { it.byPlayer })
+        run(w, 0.2f)
+        assertTrue(w.bullets.any { it.byPlayer } || !e.alive)
+    }
+
+    @Test
+    fun aPointBlankThreatIsShotAtOnce() {
+        val w = world(silent = false)
+        w.player.x = 5f
+        w.player.facing = 1
+        val e = enemy(w, EnemyKind.AGENT, 7f, facing = -1)
+        e.state = EnemyState.AIM
+        e.fireCooldown = 99f
+        w.step(dt)
+        assertTrue(w.bullets.any { it.byPlayer })
     }
 
     @Test

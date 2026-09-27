@@ -182,8 +182,9 @@ class MechanicsTest {
         assertEquals(EnemyState.PATROL, listener.state)
         // Go loud: the gun opens up on a drone, and the noise wakes him.
         enemy(w, EnemyKind.DRONE, w.player.x - 3f).hp = 99
+        w.moveAxis = 0
         w.commands += Command.TOGGLE_MODE
-        run(w, 0.3f)
+        run(w, World.AUTO_FIRE_DRAW + 0.3f)
         assertTrue(w.events.any { it is GameEvent.Shot && it.byPlayer })
         assertTrue(listener.state == EnemyState.ALERT || listener.state == EnemyState.AIM || !listener.alive)
     }
@@ -436,6 +437,39 @@ class MechanicsTest {
         // Used up: now it's just a doorway to hide in.
         assertEquals(null, w.tapAction())
         assertEquals(ContextAction.DOOR, w.hideAction())
+    }
+
+    @Test
+    fun aPerkStacksToItsCapSaysMaxAndIsNeverOfferedAgain() {
+        val w = world(floor = 1)
+        // Everything else maxed, RICOCHET at 1 of 2: it's the only thing left to offer.
+        for (p in Perk.entries) w.perks[p] = p.maxStacks
+        w.perks[Perk.RICOCHET] = 1
+        val stash = toHallWith(w, DoorKind.STASH)
+        w.player.x = stash.x
+        w.commands += Command.TAP
+        run(w, 0.05f)
+        assertEquals(listOf(Perk.RICOCHET), w.perkOffer)
+        w.choosePerk(0)
+        assertEquals(2, w.stacks(Perk.RICOCHET))
+        assertTrue(w.fx.texts.any { it.text == "RICOCHET MAX" })
+        assertEquals("RICOCHET LV 1", w.perkLabel(Perk.RICOCHET, 1))
+        assertEquals("SPLIT SHOT", w.perkLabel(Perk.SPLIT_SHOT, 1))
+    }
+
+    @Test
+    fun withEveryPerkMaxedAStashPaysOutInstead() {
+        val w = world(floor = 1)
+        for (p in Perk.entries) w.perks[p] = p.maxStacks
+        val stash = toHallWith(w, DoorKind.STASH)
+        w.player.x = stash.x
+        val before = w.score
+        w.commands += Command.TAP
+        run(w, 0.05f)
+        assertEquals(Phase.PLAYING, w.phase)
+        assertTrue(w.perkOffer.isEmpty())
+        assertTrue(w.score >= before + 2000)
+        assertTrue(Perk.entries.all { w.stacks(it) == it.maxStacks })
     }
 
     // ------------------------------------------------------------ descent

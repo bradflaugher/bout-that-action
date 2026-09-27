@@ -1121,7 +1121,12 @@ internal class Hud(private val f: Frame) {
             }
             px += 4.6f * u
         }
-        val lvl = if (perk.maxStacks == 1) "UNIQUE" else "LV " + (stacks + 1) + " / " + perk.maxStacks
+        val lvl = when {
+            perk.maxStacks == 1 -> "UNIQUE"
+            // This pick tops it out: say so, so nobody expects a level 3 that isn't coming.
+            stacks + 1 == perk.maxStacks -> "LV " + (stacks + 1) + " / " + perk.maxStacks + " · MAX"
+            else -> "LV " + (stacks + 1) + " / " + perk.maxStacks
+        }
         HudType.tracked(g, lvl, px + 1f * u, sy - 0.1f * u, 2.2f * u, Col.alpha(pc, 0.8f * a), Gfx.Font.HUD, Gfx.Align.LEFT, 0.3f * u)
 
         // Tap chevron on the right edge, nudging.

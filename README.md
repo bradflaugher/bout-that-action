@@ -61,7 +61,8 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   their doors once on the way, onto someone waiting. Cars wait behind closed
   landing doors until called: tap a landing to call one, and hide while it comes.
 - **Guns hot or silent.** In GUNS HOT the gun fires itself at whoever is about
-  to hurt you first, and leaves guards who haven't spotted you to you. In SILENT you never fire: take guards from behind, drop
+  to hurt you first (after a split second to line up, so a guard who spots
+  you gets his shot), and leaves guards who haven't spotted you to you. In SILENT you never fire: take guards from behind, drop
   from above, wait them out in a doorway or under the box, lure them into
   hazards, or black out the lights. Guards take longer to react to a shadow,
   and every quiet kill is worth double. Flip modes any time.

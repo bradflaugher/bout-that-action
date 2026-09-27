@@ -966,7 +966,7 @@ class World(val config: RunConfig) {
                 if (p.z == 0f) p.vz = 0f
             }
         }
-        if (p.state == PlayerState.NORMAL || p.state == PlayerState.ELEVATOR) autoFire()
+        if (p.state == PlayerState.NORMAL || p.state == PlayerState.ELEVATOR) autoFire(dt) else drawOn = null
     }
 
     private fun exitElevator(car: Elevator, dir: Int) {
@@ -1234,14 +1234,37 @@ class World(val config: RunConfig) {
         }
     }
 
-    /** GUNS HOT: fire at the top threat in range the moment the gun is ready. SILENT never fires. */
-    private fun autoFire() {
+    /** The threat auto-fire is drawing on, and for how long (see [AUTO_FIRE_DRAW]). */
+    private var drawOn: Enemy? = null
+    private var drawTime = 0f
+
+    /**
+     * GUNS HOT: fire at the top threat in range once the gun is drawn on it. SILENT never fires.
+     * A new target takes [AUTO_FIRE_DRAW] to line up (point-blank ones don't wait), so a guard
+     * who spots you gets a real chance to shoot first instead of dropping the instant he looks up.
+     */
+    private fun autoFire(dt: Float) {
         val p = player
-        if (silent || p.fireCooldown > 0f || p.carBox) return
+        if (silent || p.carBox) {
+            drawOn = null
+            return
+        }
         // Threats only: a guard who hasn't noticed you is yours to choose: sneak past, walk in
         // for the takedown, or wait for him to turn.
-        val target = pickTarget(if (p.weapon == PickupKind.MINIGUN) 11f else AUTO_FIRE_RANGE, ::fireable) ?: return
+        val target = pickTarget(if (p.weapon == PickupKind.MINIGUN) 11f else AUTO_FIRE_RANGE, ::fireable)
+        if (target == null) {
+            drawOn = null
+            return
+        }
+        if (target !== drawOn) {
+            drawOn = target
+            drawTime = 0f
+        } else {
+            drawTime += dt
+        }
+        if (p.fireCooldown > 0f) return
         if (target.state == EnemyState.EMERGING && target.stateTime < 0.25f) return
+        if (drawTime < AUTO_FIRE_DRAW && abs(target.x - p.x) > AUTO_FIRE_POINT_BLANK) return
         fire(target)
     }
 
@@ -2258,8 +2281,15 @@ class World(val config: RunConfig) {
         p.invuln = 1f
         flash = Flash.GOLD
         flashAmount = 0.5f
-        fx.text(perk.title, p.x, Geo.groundY(p.floor) - 2.2f, TextStyle.BIG, 1.6f)
+        fx.text(perkLabel(perk, stacks(perk)), p.x, Geo.groundY(p.floor) - 2.2f, TextStyle.BIG, 1.6f)
         fx.text(perk.flavor.uppercase(), p.x, Geo.groundY(p.floor) - 1.6f, TextStyle.PICKUP, 1.6f)
+    }
+
+    /** "RICOCHET", "RICOCHET LV 2" or, at its cap, "RICOCHET MAX": what a pick just gave you. */
+    fun perkLabel(perk: Perk, level: Int): String = when {
+        perk.maxStacks == 1 -> perk.title
+        level >= perk.maxStacks -> perk.title + " MAX"
+        else -> perk.title + " LV " + level
     }
 
     /** -1..1 stereo position of a world x. */
@@ -2301,6 +2331,8 @@ class World(val config: RunConfig) {
         const val AUTO_FIRE_RANGE = 7.5f
         /** GUNS HOT also fires at an unaware guard this close (he's about to bump into you). */
         const val AUTO_FIRE_POINT_BLANK = 2.5f
+        /** A new auto-fire target takes this long to line up (beyond point-blank). */
+        const val AUTO_FIRE_DRAW = 0.45f
         /** How far guards see down a lit hallway (darkness cuts it). */
         const val SIGHT_RANGE = 7.5f
         /** ...and in SILENT, where nothing gives you away but being seen. */
