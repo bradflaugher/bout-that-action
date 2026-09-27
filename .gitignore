@@ -32,3 +32,6 @@ google-services.json
 
 # Android Profiling
 *.hprof
+.emu/
+.signing/
+tools/icon/preview.html
