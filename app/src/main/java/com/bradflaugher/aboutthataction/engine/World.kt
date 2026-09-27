@@ -966,7 +966,7 @@ class World(val config: RunConfig) {
                 if (p.z == 0f) p.vz = 0f
             }
         }
-        if (p.state == PlayerState.NORMAL || p.state == PlayerState.ELEVATOR) autoFire()
+        if (p.state == PlayerState.NORMAL || p.state == PlayerState.ELEVATOR) autoFire(dt) else drawOn = null
     }
 
     private fun exitElevator(car: Elevator, dir: Int) {
@@ -1234,14 +1234,47 @@ class World(val config: RunConfig) {
         }
     }
 
-    /** GUNS HOT: fire at the top threat in range the moment the gun is ready. SILENT never fires. */
-    private fun autoFire() {
+    /** The threat auto-fire is drawing on, and for how long (see [AUTO_FIRE_DRAW]). */
+    private var drawOn: Enemy? = null
+    private var drawTime = 0f
+
+    /**
+     * GUNS HOT: fire at the top threat in range once the gun is drawn on it. SILENT never fires.
+     *
+     * The gun answers a raised gun: a ranged enemy who has spotted you is left alone while he
+     * reacts, and the draw ([AUTO_FIRE_DRAW]) only starts once he's aiming (or has fired). At
+     * low heat that's a fair duel, near guards lose it and far ones get their shot off; at high
+     * heat they aim faster than you draw. Point-blank threats and melee chargers are answered
+     * at once; drones and turrets are drawn on as soon as they're in range. Without this the gun, which sees as far as they do, dropped every guard the
+     * instant he noticed you, and on the gentle presets nobody ever fired.
+     */
+    private fun autoFire(dt: Float) {
         val p = player
-        if (silent || p.fireCooldown > 0f || p.carBox) return
+        if (silent || p.carBox) {
+            drawOn = null
+            return
+        }
         // Threats only: a guard who hasn't noticed you is yours to choose: sneak past, walk in
         // for the takedown, or wait for him to turn.
-        val target = pickTarget(if (p.weapon == PickupKind.MINIGUN) 11f else AUTO_FIRE_RANGE, ::fireable) ?: return
+        val target = pickTarget(if (p.weapon == PickupKind.MINIGUN) 11f else AUTO_FIRE_RANGE, ::fireable)
+        if (target == null) {
+            drawOn = null
+            return
+        }
+        val pointBlank = abs(target.x - p.x) <= AUTO_FIRE_POINT_BLANK
+        val melee = target.kind == EnemyKind.NINJA || target.kind == EnemyKind.DEMON && abs(target.x - p.x) <= 3f
+        // Drones and turrets are always fair game: drawn on from the moment they're in range.
+        val automated = target.kind == EnemyKind.DRONE || target.kind == EnemyKind.TURRET
+        val gunUp = automated || target.state == EnemyState.AIM || target.fireCooldown > 0f
+        if (target !== drawOn || !gunUp) {
+            drawOn = target
+            drawTime = 0f
+        } else {
+            drawTime += dt
+        }
+        if (p.fireCooldown > 0f) return
         if (target.state == EnemyState.EMERGING && target.stateTime < 0.25f) return
+        if (!pointBlank && !melee && drawTime < AUTO_FIRE_DRAW) return
         fire(target)
     }
 
@@ -2258,8 +2291,15 @@ class World(val config: RunConfig) {
         p.invuln = 1f
         flash = Flash.GOLD
         flashAmount = 0.5f
-        fx.text(perk.title, p.x, Geo.groundY(p.floor) - 2.2f, TextStyle.BIG, 1.6f)
+        fx.text(perkLabel(perk, stacks(perk)), p.x, Geo.groundY(p.floor) - 2.2f, TextStyle.BIG, 1.6f)
         fx.text(perk.flavor.uppercase(), p.x, Geo.groundY(p.floor) - 1.6f, TextStyle.PICKUP, 1.6f)
+    }
+
+    /** "RICOCHET", "RICOCHET LV 2" or, at its cap, "RICOCHET MAX": what a pick just gave you. */
+    fun perkLabel(perk: Perk, level: Int): String = when {
+        perk.maxStacks == 1 -> perk.title
+        level >= perk.maxStacks -> perk.title + " MAX"
+        else -> perk.title + " LV " + level
     }
 
     /** -1..1 stereo position of a world x. */
@@ -2301,6 +2341,8 @@ class World(val config: RunConfig) {
         const val AUTO_FIRE_RANGE = 7.5f
         /** GUNS HOT also fires at an unaware guard this close (he's about to bump into you). */
         const val AUTO_FIRE_POINT_BLANK = 2.5f
+        /** Beyond point-blank, auto-fire lines up this long on a threat whose gun is up. */
+        const val AUTO_FIRE_DRAW = 0.3f
         /** How far guards see down a lit hallway (darkness cuts it). */
         const val SIGHT_RANGE = 7.5f
         /** ...and in SILENT, where nothing gives you away but being seen. */
