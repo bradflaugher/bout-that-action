@@ -40,17 +40,17 @@ internal class Actors(private val f: Frame) {
     private var watchT = 0f
 
     companion object {
-        const val SUIT = 0xFF2A3454.toInt()
-        const val SUIT_LIT = 0xFF53669C.toInt()
-        const val SUIT_DARK = 0xFF1A2038.toInt()
+        const val SUIT = 0xFF2E3C68.toInt()
+        const val SUIT_LIT = 0xFF6F8AD0.toInt()
+        const val SUIT_DARK = 0xFF1A2140.toInt()
         const val ARMOR = 0xFF0F121C.toInt()
         const val VISOR = 0xFF3CF4FF.toInt()
         const val RIM = 0xFF7CF4FF.toInt()
         const val SCARF = 0xFFFF2E3E.toInt()
         const val SCARF_LIT = 0xFFFFB0A0.toInt()
         const val SCARF_DARK = 0xFFB0102A.toInt()
-        /** The agent reads a touch larger than the guards: the hero scale. */
-        const val HS = 1.06f
+        /** The agent reads larger than the guards: the hero scale (visual only; hitboxes are the engine's). */
+        const val HS = 1.12f
     }
 
     // ================================================================= player
@@ -89,28 +89,20 @@ internal class Actors(private val f: Frame) {
             }
         }
 
-        val inDoor = pl.state == PlayerState.DOOR || pl.state == PlayerState.PASSAGE
-        if (!inDoor && pl.state != PlayerState.ELEVATOR) {
-            val hw = if (pl.state == PlayerState.BOX) 0.62f else 0.4f
+        val hidden = pl.state == PlayerState.DOOR
+        // Stepping through a passage: into the dark doorway, then out of the far one.
+        val passing = if (pl.state == PlayerState.PASSAGE) {
+            val half = World.PASSAGE_TIME * 0.5f
+            Rig.smooth(if (pl.stateTime < half) pl.stateTime / half else (World.PASSAGE_TIME - pl.stateTime) / half)
+        } else 0f
+        if (!hidden && pl.state != PlayerState.ELEVATOR) {
+            val hw = if (pl.state == PlayerState.BOX) 0.62f else 0.42f
+            val keepA = p.alphaMul
+            p.alphaMul = keepA * (1f - passing)
             p.contactShadow(pl.x, gy, hw, pl.z)
+            p.alphaMul = keepA
         }
-        // Backlight halo: the player is always the easiest thing to find.
-        if (!inDoor && pl.state != PlayerState.DEAD) {
-            val cy = if (pl.state == PlayerState.BOX) foot - 0.4f else foot - 0.8f
-            val a = p.alphaMul
-            g.blend(Gfx.Blend.ADD)
-            g.glow(pl.x, cy, 1.5f, Col.alpha(VISOR, 0.32f * a))
-            // Cyan pool on the floor under the agent.
-            val fz = (1f - pl.z / 2.5f).coerceIn(0f, 1f)
-            if (fz > 0f) {
-                g.save()
-                g.translate(pl.x, gy - 0.02f)
-                g.scale(1f, 0.2f)
-                g.glow(0f, 0f, 0.95f, Col.alpha(VISOR, 0.6f * a * fz))
-                g.restore()
-            }
-            g.blend(Gfx.Blend.NORMAL)
-        }
+        if (!hidden && pl.state != PlayerState.DEAD) signature(pl.x, gy, foot, pl.z, pl.state == PlayerState.BOX || pl.carBox, 1f - passing)
 
         if (pl.state == PlayerState.ELEVATOR && pl.carBox) {
             // Boxed up in the lift.
@@ -120,7 +112,20 @@ internal class Actors(private val f: Frame) {
         }
         when (pl.state) {
             PlayerState.BOX -> box(pl.x, gy, dir, pl.vx, pl.stateTime)
-            PlayerState.DOOR, PlayerState.PASSAGE -> doorHide(pl.x, foot, dir)
+            PlayerState.DOOR -> doorHide(pl.x, foot, dir)
+            PlayerState.PASSAGE -> {
+                // Walking into the doorway's dark (a touch smaller: deeper in), then out.
+                poseHero(pl.x, foot, dir)
+                p.flat = 0xFF04050A.toInt()
+                p.flatAmt = 0.92f * passing
+                val sc = 1f - 0.07f * passing
+                g.save()
+                g.translate(pl.x, foot)
+                g.scale(sc, sc)
+                g.translate(-pl.x, -foot)
+                drawHero(ghost = false)
+                g.restore()
+            }
             PlayerState.DEAD -> deadHero(pl.x, gy, dir)
             else -> {
                 // Slow-mo afterimages: flat, unoutlined echoes.
@@ -174,6 +179,34 @@ internal class Actors(private val f: Frame) {
 
     private var heroNeckX = 0f
     private var heroNeckY = 0f
+
+    /**
+     * The agent's beacon, so he's found in half a second on any floor: a cyan backlight hugging
+     * the silhouette and a crisp cyan ring on the floor under him. Three calls, all additive.
+     */
+    private fun signature(x: Float, gy: Float, foot: Float, z: Float, boxed: Boolean, k: Float) {
+        val a = p.alphaMul * k
+        if (a <= 0.01f) return
+        val cy = if (boxed) foot - 0.4f else foot - 0.85f
+        g.blend(Gfx.Blend.ADD)
+        g.save()
+        g.translate(x, cy)
+        g.scale(if (boxed) 1f else 0.62f, 1f)
+        g.glow(0f, 0f, if (boxed) 1.1f else 1.55f, Col.alpha(VISOR, 0.34f * a))
+        g.restore()
+        val fz = (1f - z / 2.5f).coerceIn(0f, 1f)
+        if (fz > 0f) {
+            val pulse = 0.85f + 0.15f * sin(f.t * 3.2f)
+            val r = if (boxed) 0.66f else 0.5f
+            g.save()
+            g.translate(x, gy - 0.02f)
+            g.scale(1f, 0.24f)
+            g.glow(0f, 0f, r * 1.7f, Col.alpha(VISOR, 0.42f * a * fz))
+            g.strokeCircle(0f, 0f, r, 0.1f, Col.alpha(RIM, 0.55f * a * fz * pulse))
+            g.restore()
+        }
+        g.blend(Gfx.Blend.NORMAL)
+    }
 
     private fun takedownVictim(): Enemy? {
         val id = f.w.player.takedownTarget
@@ -244,6 +277,9 @@ internal class Actors(private val f: Frame) {
                 }
             }
         }
+        // SILENT holsters the gun: no firing in that mode, so the hands are free for takedowns.
+        val silent = f.w.silent && !pl.reloading && (state == PlayerState.NORMAL || state == PlayerState.ELEVATOR || state == PlayerState.PASSAGE)
+        if (silent) showGun = false
         var lean: Float
         var nod = 0f
         when {
@@ -298,6 +334,17 @@ internal class Actors(private val f: Frame) {
                 k.ik(k.armB, vx - 0.02f * dir, vy - 0.2f, false)
                 showGun = false
             }
+            speed > 0.6f && state == PlayerState.NORMAL && silent -> {
+                // SILENT: the sneak. Low, leaning in, hands up and ready for a grab.
+                val runBlend = ((speed - 1f) / 2.8f).coerceIn(0f, 1f)
+                val u = pl.runTime * 2.05f
+                k.locomote(x, u, runBlend * 0.8f, 0.5f)
+                lean = 0.34f + 0.16f * runBlend
+                k.spine(lean, -0.25f)
+                val sw = sin(u * Rig.TAU) * 0.12f
+                k.armFK(k.armF, 0.75f + sw, 1.35f)
+                k.armFK(k.armB, 0.35f - sw, 1.55f)
+            }
             speed > 0.6f && state == PlayerState.NORMAL -> {
                 val runBlend = ((speed - 1f) / 2.8f).coerceIn(0f, 1f)
                 val u = pl.runTime * 2.05f
@@ -305,6 +352,14 @@ internal class Actors(private val f: Frame) {
                 lean = 0.1f + 0.22f * runBlend
                 k.spine(lean, -0.05f)
                 k.swingArms(u, runBlend)
+            }
+            silent && state == PlayerState.NORMAL -> {
+                // SILENT idle: a low CQC guard, weight forward, open hands.
+                k.stand(x, 0.1f + breathe * 0.006f, 0.17f, -0.2f)
+                lean = 0.2f + breathe * 0.01f
+                k.spine(lean, -0.12f)
+                k.armFK(k.armF, 0.85f, 1.2f)
+                k.armFK(k.armB, 0.45f, 1.5f)
             }
             else -> {
                 // Idle: weight settled, slow breath; landing squash on top.
@@ -388,6 +443,7 @@ internal class Actors(private val f: Frame) {
                 val fa = atan2(-(k.armF.ey - k.armF.jy), (k.armF.ex - k.armF.jx) * dir)
                 gunUp = (fa + 0.35f).coerceIn(-1.0f, 0.2f)
             }
+            silent -> Unit
             else -> {
                 // Low ready: muzzle down and forward.
                 gunX = k.hipX + 0.2f * dir
@@ -472,101 +528,82 @@ internal class Actors(private val f: Frame) {
         heroLook(ghost)
         val pl = f.w.player
         val dir = k.dir
-        if (!ghost) scarfTail(dir, pl.vx, pl.vz, back = true)
         p.twoPass {
             body.arm(k.armB, look, far = true)
             if (magInHand && !p.ink) g.fillRect(k.armB.ex - 0.025f, k.armB.ey - 0.09f, k.armB.ex + 0.025f, k.armB.ey, p.c(0xFF2A2E3A.toInt()))
             body.leg(k.legB, look, far = true)
         }
-        if (!ghost) scarfTail(dir, pl.vx, pl.vz, back = false)
+        if (!ghost) scarfTail(dir, pl.vx, pl.vz)
         p.twoPass {
             body.leg(k.legF, look, far = false)
             body.torso(look)
-            heroDetails(dir)
-            body.neck(SUIT_DARK)
+            heroDetails(dir, ghost)
             heroHead(dir, ghost)
             scarfKnot(dir)
         }
         if (skipFrontArm) return
         p.twoPass {
             if (showGun) {
-                body.gun(gunKind, gunX, gunY, gunUp, VISOR, spin = f.t * 60f)
+                // A size up on the agent: GUNS HOT has to read against SILENT's empty hands.
+                body.gun(gunKind, gunX, gunY, gunUp, VISOR, spin = f.t * 60f, scale = if (gunKind == 0) 1.3f else 1.1f)
             }
             body.arm(k.armF, look, far = false, hand = true)
-            shoulderPad(dir)
         }
+        if (!ghost && !p.ink) heroStrips(dir)
         if (flash && !ghost) body.muzzleFlash(gunUp, if (gunKind == 1) 0.2f else if (gunKind == 2) 0.17f else 0.15f, (f.t * 30f).toInt())
     }
 
-    private fun shoulderPad(dir: Int) {
-        val sx = k.armF.ax
-        val sy = k.armF.ay
-        val ax = k.armF.jx - sx
-        val ay = k.armF.jy - sy
-        p.begin()
-            .add(sx - 0.07f * dir, sy - 0.05f).add(sx + 0.06f * dir, sy - 0.07f)
-            .add(sx + ax * 0.36f + 0.045f * dir, sy + ay * 0.36f)
-            .add(sx + ax * 0.36f - 0.05f * dir, sy + ay * 0.36f + 0.01f)
-            .shape(ARMOR, sep = true)
-        if (!p.ink) p.detail(sx - 0.05f * dir, sy - 0.045f, sx + 0.05f * dir, sy - 0.06f, 0.018f, SUIT_LIT)
-    }
-
-    private fun heroDetails(dir: Int) {
+    private fun heroDetails(dir: Int, ghost: Boolean) {
         if (p.ink) return
         val hs = k.hs
-        // Belt with a cyan buckle light, harness strap, thigh holster.
+        // Belt, and SILENT's holstered pistol on the near thigh (hands free for CQC).
         val bx1 = body.ptX(0.05f, -k.waistD * 0.5f); val by1 = body.ptY(0.05f, -k.waistD * 0.5f)
         val bx2 = body.ptX(0.05f, k.waistD * 0.5f); val by2 = body.ptY(0.05f, k.waistD * 0.5f)
-        p.detail(bx1, by1, bx2, by2, 0.05f * hs, ARMOR)
-        p.dot(body.ptX(0.05f, k.waistD * 0.42f), body.ptY(0.05f, k.waistD * 0.42f), 0.018f, VISOR)
-        p.detail(body.ptX(0.95f, k.chestD * 0.2f), body.ptY(0.95f, k.chestD * 0.2f), body.ptX(0.12f, -k.waistD * 0.35f), body.ptY(0.12f, -k.waistD * 0.35f), 0.032f, 0xFF10131E.toInt())
-        // Chest plate seam.
-        p.detail(body.ptX(0.72f, k.chestD * 0.5f), body.ptY(0.72f, k.chestD * 0.5f), body.ptX(0.55f, -k.chestD * 0.05f), body.ptY(0.55f, -k.chestD * 0.05f), 0.016f, SUIT_DARK)
-        // Emissive cyan light strips down the near shin and forearm: the agent glows.
+        p.detail(bx1, by1, bx2, by2, 0.055f * hs, ARMOR)
+        if (!showGun && !ghost && f.w.silent) {
+            val l = k.legF
+            p.detail(Rig.mix(l.ax, l.jx, 0.2f) - 0.03f * dir, Rig.mix(l.ay, l.jy, 0.2f), Rig.mix(l.ax, l.jx, 0.62f) - 0.035f * dir, Rig.mix(l.ay, l.jy, 0.62f), 0.1f, ARMOR)
+        }
+    }
+
+    /** Emissive cyan strips down the near shin and forearm: the agent glows. One additive batch. */
+    private fun heroStrips(dir: Int) {
         val lf = k.legF
         val af = k.armF
         g.blend(Gfx.Blend.ADD)
-        val strip = p.c(Col.alpha(VISOR, 0.9f))
-        g.line(Rig.mix(lf.jx, lf.ex, 0.2f) + 0.02f * dir, Rig.mix(lf.jy, lf.ey, 0.2f), Rig.mix(lf.jx, lf.ex, 0.7f) + 0.02f * dir, Rig.mix(lf.jy, lf.ey, 0.7f), 0.02f, strip)
-        g.line(Rig.mix(af.jx, af.ex, 0.25f), Rig.mix(af.jy, af.ey, 0.25f) - 0.01f, Rig.mix(af.jx, af.ex, 0.7f), Rig.mix(af.jy, af.ey, 0.7f) - 0.01f, 0.018f, strip)
+        val strip = p.c(Col.alpha(VISOR, 0.95f))
+        g.line(Rig.mix(lf.jx, lf.ex, 0.15f) + 0.025f * dir, Rig.mix(lf.jy, lf.ey, 0.15f), Rig.mix(lf.jx, lf.ex, 0.75f) + 0.025f * dir, Rig.mix(lf.jy, lf.ey, 0.75f), 0.034f, strip)
+        g.line(Rig.mix(af.jx, af.ex, 0.2f), Rig.mix(af.jy, af.ey, 0.2f) - 0.01f, Rig.mix(af.jx, af.ex, 0.75f), Rig.mix(af.jy, af.ey, 0.75f) - 0.01f, 0.03f, strip)
         g.blend(Gfx.Blend.NORMAL)
-        // Knee pad on the near leg.
-        p.dot(k.legF.jx + 0.01f * dir, k.legF.jy, 0.05f, ARMOR)
-        p.dot(k.legF.jx + 0.018f * dir, k.legF.jy - 0.015f, 0.018f, SUIT_LIT)
     }
 
     private fun heroHead(dir: Int, ghost: Boolean) {
         val hx = k.headX
         val hy = k.headY
         val r = k.headR
-        // Hood: skull, a swept cowl point at the back, a jaw guard.
-        // Swept antenna fin: the silhouette's signature spike, lit at the tip.
+        // The swept antenna fin: the silhouette's signature spike, lit at the tip.
         p.begin()
-            .add(hx - r * 0.25f * dir, hy - r * 0.98f)
-            .add(hx - r * 1.85f * dir, hy - r * 1.45f)
-            .add(hx - r * 0.95f * dir, hy - r * 0.3f)
+            .add(hx - r * 0.2f * dir, hy - r * 0.98f)
+            .add(hx - r * 2.0f * dir, hy - r * 1.55f)
+            .add(hx - r * 0.95f * dir, hy - r * 0.25f)
             .shape(SUIT_DARK)
-        if (!p.ink && !ghost) p.dot(hx - r * 1.7f * dir, hy - r * 1.38f, 0.02f, VISOR)
+        // Hood and jaw guard.
         p.disc(hx, hy, r, SUIT)
         p.disc(hx + r * 0.35f * dir, hy + r * 0.45f, r * 0.62f, SUIT)
         if (p.ink) return
-        // Key light on the crown.
-        p.detail(hx - r * 0.5f * dir, hy - r * 0.72f, hx + r * 0.25f * dir, hy - r * 0.85f, 0.03f, SUIT_LIT)
-        // Rim on the back of the hood.
-        if (!ghost) p.detail(hx - r * 0.92f * dir, hy - r * 0.2f, hx - r * 0.55f * dir, hy - r * 0.78f, ActorPaint.RIM_W, RIM)
-        // Visor: a band wrapping the front of the head.
+        // Visor: a wide band wrapping the front of the head, a hot core line.
         p.begin()
-            .add(hx - r * 0.15f * dir, hy - r * 0.34f)
-            .add(hx + r * 1.08f * dir, hy - r * 0.3f)
-            .add(hx + r * 1.12f * dir, hy + r * 0.22f)
-            .add(hx - r * 0.05f * dir, hy + r * 0.26f)
+            .add(hx - r * 0.2f * dir, hy - r * 0.42f)
+            .add(hx + r * 1.14f * dir, hy - r * 0.36f)
+            .add(hx + r * 1.16f * dir, hy + r * 0.26f)
+            .add(hx - r * 0.1f * dir, hy + r * 0.3f)
             .shapeDetail(VISOR)
-        p.detail(hx + r * 0.2f * dir, hy - r * 0.18f, hx + r * 0.85f * dir, hy - r * 0.16f, 0.018f, 0xFFFFFFFF.toInt())
+        p.detail(hx + r * 0.15f * dir, hy - r * 0.1f, hx + r * 0.95f * dir, hy - r * 0.08f, 0.026f, 0xFFE8FFFF.toInt())
         if (!ghost) {
             val a = p.alphaMul * (1f - p.flatAmt) * (if (f.w.player.state == PlayerState.DEAD) 0.3f else 1f)
             g.blend(Gfx.Blend.ADD)
-            g.glow(hx + r * 0.7f * dir, hy - r * 0.02f, r * 1.9f, Col.alpha(VISOR, 0.6f * a))
-            g.glow(hx - r * 1.7f * dir, hy - r * 1.38f, r * 0.75f, Col.alpha(VISOR, 0.85f * a))
+            g.glow(hx + r * 0.7f * dir, hy - r * 0.02f, r * 2.3f, Col.alpha(VISOR, 0.75f * a))
+            g.glow(hx - r * 1.85f * dir, hy - r * 1.5f, r * 0.9f, Col.alpha(VISOR, 0.95f * a))
             g.blend(Gfx.Blend.NORMAL)
         }
     }
@@ -574,62 +611,67 @@ internal class Actors(private val f: Frame) {
     private fun scarfKnot(dir: Int) {
         val nx = k.neckX
         val ny = k.neckY
-        p.seg(nx - 0.08f * dir, ny + 0.0f, nx + 0.07f * dir, ny + 0.02f, 0.1f, SCARF)
-        if (!p.ink) p.detail(nx - 0.06f * dir, ny - 0.025f, nx + 0.05f * dir, ny - 0.01f, 0.025f, SCARF_LIT)
+        p.seg(nx - 0.09f * dir, ny - 0.01f, nx + 0.08f * dir, ny + 0.02f, 0.13f, SCARF)
     }
 
     private val scarfX = FloatArray(9)
     private val scarfY = FloatArray(9)
 
-    /** The long red scarf: procedural ribbon trailing from the back of the neck. */
-    private fun scarfTail(dir: Int, vx: Float, vz: Float, back: Boolean) {
+    /**
+     * The long red scarf, the agent's colour flag: a procedural ribbon trailing from the back of
+     * the neck, drawn as one tapered polygon (one call per pass), a lit edge and a faint bloom.
+     */
+    private fun scarfTail(dir: Int, vx: Float, vz: Float) {
         val pl = f.w.player
-        val n = 7
+        val n = 6
         val air = pl.state == PlayerState.NORMAL && pl.z > 0.01f
         val speed = min(1f, abs(vx) / 4f + (if (air) 0.35f else 0f))
         val rise = if (pl.state == PlayerState.INTRO) 0.9f else (-vz * 0.07f).coerceIn(-0.35f, 0.9f)
         // Angle from straight down, positive = trailing behind.
-        val baseA = Rig.mix(0.2f, 1.0f, speed) + rise
-        val amp = Rig.mix(0.07f, 0.3f, speed)
+        val baseA = Rig.mix(0.42f, 1.1f, speed) + rise
+        val amp = Rig.mix(0.08f, 0.3f, speed)
         val freq = Rig.mix(3.0f, 12f, speed)
-        val seg = if (back) 0.1f else 0.12f
-        val phase = if (back) 2.1f else 0f
+        val seg = Rig.mix(0.12f, 0.16f, speed) * k.hs
         val floor = k.ground + 0.02f
-        var x = k.neckX - 0.07f * dir
-        var y = k.neckY + 0.03f
+        var x = k.neckX - 0.08f * dir
+        var y = k.neckY + 0.02f
         scarfX[0] = x; scarfY[0] = y
         for (i in 1..n) {
             val t = i / n.toFloat()
-            val a = baseA + t * 0.35f + sin(f.t * freq - i * 0.75f + phase) * amp * (0.25f + t * 1.1f)
+            val a = baseA + t * 0.35f + sin(f.t * freq - i * 0.75f) * amp * (0.25f + t * 1.1f)
             x += sin(a) * seg * -dir
             y += cos(a) * seg
             if (y > floor) y = floor
             scarfX[i] = x; scarfY[i] = y
         }
-        val len = if (back) n - 3 else n - 1
-        val base = if (back) SCARF_DARK else SCARF
         p.twoPass {
-            for (i in 0 until len) {
-                val w = (0.1f - i * 0.01f) * (if (back) 0.85f else 1f)
-                p.seg(scarfX[i], scarfY[i], scarfX[i + 1], scarfY[i + 1], w, base)
-            }
-            // Split end.
-            val ex = scarfX[len]
-            val ey = scarfY[len]
-            p.seg(ex, ey, ex - dir * 0.1f, ey + 0.05f + sin(f.t * 13f) * 0.02f, 0.035f, base)
+            p.begin()
+            // Down one edge, a split-end tip, back up the other.
+            for (i in 0..n) ribbonEdge(i, n, 1f)
+            p.add(scarfX[n] - dir * 0.09f, scarfY[n] + 0.06f + sin(f.t * 13f) * 0.02f)
+            for (i in n downTo 0) ribbonEdge(i, n, -1f)
+            p.shape(SCARF)
         }
-        if (!back) {
-            for (i in 0 until len - 1) {
-                p.detail(scarfX[i], scarfY[i] - 0.025f, scarfX[i + 1], scarfY[i + 1] - 0.025f, 0.02f, SCARF_LIT)
-            }
-            // A faint bloom so the scarf carries as a colour accent at phone scale.
-            if (!p.noInk) {
-                g.blend(Gfx.Blend.ADD)
-                val bc = p.c(Col.alpha(SCARF, 0.2f))
-                for (i in 0 until len step 2) g.line(scarfX[i], scarfY[i], scarfX[min(len, i + 2)], scarfY[min(len, i + 2)], 0.2f, bc)
-                g.blend(Gfx.Blend.NORMAL)
-            }
-        }
+        if (p.noInk) return
+        p.detail(scarfX[0], scarfY[0] - 0.035f, scarfX[2], scarfY[2] - 0.03f, 0.028f, SCARF_LIT)
+        // A bloom so the scarf carries as a colour flag at phone scale.
+        g.blend(Gfx.Blend.ADD)
+        val bc = p.c(Col.alpha(SCARF, 0.26f))
+        g.line(scarfX[0], scarfY[0], scarfX[3], scarfY[3], 0.3f, bc)
+        g.line(scarfX[3], scarfY[3], scarfX[n], scarfY[n], 0.24f, bc)
+        g.blend(Gfx.Blend.NORMAL)
+    }
+
+    /** One side of the scarf ribbon at point [i] ([side] +1 / -1), tapering toward the end. */
+    private fun ribbonEdge(i: Int, n: Int, side: Float) {
+        val a = if (i == 0) 0 else i - 1
+        val b = if (i == n) n else i + 1
+        var dx = scarfX[b] - scarfX[a]
+        var dy = scarfY[b] - scarfY[a]
+        val l = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1e-4f)
+        dx /= l; dy /= l
+        val hw = (0.062f - 0.034f * i / n) * side
+        p.add(scarfX[i] - dy * hw, scarfY[i] + dx * hw)
     }
 
     // ------------------------------------------------------------ hide, die
@@ -752,51 +794,38 @@ internal class Actors(private val f: Frame) {
             p.begin().add(hw, -h).add(hw - 0.34f, -h).add(hw - 0.22f, -h - 0.12f + fl).add(hw + 0.08f, -h - 0.09f).shape(0xFFB07A46.toInt())
             p.begin().add(-hw, -h).add(hw, -h).add(hw, 0f).add(-hw, 0f).shape(cb)
         }
-        // Shading and print.
+        // Shading and print: only what survives the zoomed-out camera.
         g.fillRect(-hw, -0.12f, hw, 0f, p.c(0x40000000))
         g.fillRect(-hw, -h, hw, -h + 0.05f, p.c(0x30FFFFFF))
-        for (i in 1..4) g.line(-hw + 0.02f, -h + i * 0.16f, hw - 0.02f, -h + i * 0.16f, 0.006f, p.c(0x16000000))
-        g.fillRect(-0.055f, -h, 0.055f, 0f, p.c(0xFFD9B77C.toInt()))
-        g.line(-0.055f, -h, -0.055f, 0f, 0.008f, p.c(0x30000000))
-        // "This side up" arrows and a fragile glass on the trailing half.
+        g.fillRect(-0.06f, -h, 0.06f, 0f, p.c(0xFFD9B77C.toInt()))
+        // "This side up" arrows on the trailing half.
         val px = -0.27f * dir
-        Glyphs.arrow(g, px - 0.06f, -0.3f, 0.09f, 0f, -1f, 0.028f, p.c(print))
-        Glyphs.arrow(g, px + 0.06f, -0.3f, 0.09f, 0f, -1f, 0.028f, p.c(print))
-        g.line(px - 0.12f, -0.18f, px + 0.12f, -0.18f, 0.02f, p.c(print))
-        val gx = -0.27f * dir
-        g.line(gx - 0.05f, -0.62f, gx + 0.05f, -0.62f, 0.022f, p.c(print))
-        g.line(gx - 0.05f, -0.62f, gx - 0.01f, -0.53f, 0.02f, p.c(print))
-        g.line(gx + 0.05f, -0.62f, gx + 0.01f, -0.53f, 0.02f, p.c(print))
-        g.line(gx, -0.53f, gx, -0.45f, 0.018f, p.c(print))
-        g.line(gx - 0.04f, -0.45f, gx + 0.04f, -0.45f, 0.018f, p.c(print))
-        // Stamp and barcode on the leading half.
+        Glyphs.arrow(g, px - 0.07f, -0.28f, 0.11f, 0f, -1f, 0.036f, p.c(print))
+        Glyphs.arrow(g, px + 0.07f, -0.28f, 0.11f, 0f, -1f, 0.036f, p.c(print))
+        // A red FRAGILE-style stamp on the leading half.
         val sx = 0.25f * dir
-        g.strokeRect(sx - 0.13f, -0.3f, sx + 0.13f, -0.14f, 0.018f, p.c(0xB0A8321E.toInt()))
-        for (i in 0 until 7) {
-            val bx = sx - 0.1f + i * 0.033f
-            g.line(bx, -0.27f, bx, -0.17f, if (i % 3 == 0) 0.014f else 0.007f, p.c(print))
-        }
-        // Handle slot: the peek hole.
+        g.strokeRect(sx - 0.13f, -0.3f, sx + 0.13f, -0.14f, 0.026f, p.c(0xC0A8321E.toInt()))
+        // Handle slot: the peek hole, the agent's cyan eyes glowing in it.
         val hx = 0.24f * dir
         val sy = -h + 0.22f
-        g.fillRoundRect(hx - 0.14f, sy - 0.06f, hx + 0.14f, sy + 0.06f, 0.06f, p.c(0xFF140A04.toInt()))
-        g.line(hx - 0.12f, sy + 0.065f, hx + 0.12f, sy + 0.065f, 0.012f, p.c(0x40FFFFFF))
+        g.fillRoundRect(hx - 0.15f, sy - 0.065f, hx + 0.15f, sy + 0.065f, 0.065f, p.c(0xFF140A04.toInt()))
         val blink = !watched && fract(f.t * 0.37f) > 0.95f
         val look = dir * 0.03f
         if (watched) {
-            val r = 0.034f * (0.8f + 0.4f * jolt)
-            g.fillCircle(hx - 0.055f + look, sy, r, p.c(0xFFFFFFFF.toInt()))
-            g.fillCircle(hx + 0.055f + look, sy, r, p.c(0xFFFFFFFF.toInt()))
-            g.fillCircle(hx - 0.05f + look, sy, r * 0.4f, p.c(0xFF101018.toInt()))
-            g.fillCircle(hx + 0.06f + look, sy, r * 0.4f, p.c(0xFF101018.toInt()))
+            val r = 0.042f * (0.8f + 0.4f * jolt)
+            g.fillCircle(hx - 0.058f + look, sy, r, p.c(0xFFFFFFFF.toInt()))
+            g.fillCircle(hx + 0.058f + look, sy, r, p.c(0xFFFFFFFF.toInt()))
+            g.fillCircle(hx - 0.052f + look, sy, r * 0.45f, p.c(0xFF101018.toInt()))
+            g.fillCircle(hx + 0.064f + look, sy, r * 0.45f, p.c(0xFF101018.toInt()))
         } else if (blink) {
-            g.line(hx - 0.08f + look, sy, hx - 0.03f + look, sy, 0.014f, p.c(VISOR))
-            g.line(hx + 0.03f + look, sy, hx + 0.08f + look, sy, 0.014f, p.c(VISOR))
+            g.line(hx - 0.09f + look, sy, hx - 0.03f + look, sy, 0.02f, p.c(VISOR))
+            g.line(hx + 0.03f + look, sy, hx + 0.09f + look, sy, 0.02f, p.c(VISOR))
         } else {
-            g.fillCircle(hx - 0.055f + look, sy, 0.026f, p.c(VISOR))
-            g.fillCircle(hx + 0.055f + look, sy, 0.026f, p.c(VISOR))
-            g.fillCircle(hx - 0.048f + look, sy - 0.01f, 0.009f, p.c(0xFFFFFFFF.toInt()))
-            g.fillCircle(hx + 0.062f + look, sy - 0.01f, 0.009f, p.c(0xFFFFFFFF.toInt()))
+            g.fillCircle(hx - 0.058f + look, sy, 0.036f, p.c(VISOR))
+            g.fillCircle(hx + 0.058f + look, sy, 0.036f, p.c(VISOR))
+            g.blend(Gfx.Blend.ADD)
+            g.glow(hx + look, sy, 0.2f, p.c(Col.alpha(VISOR, 0.6f)))
+            g.blend(Gfx.Blend.NORMAL)
         }
         g.restore()
         if (watched) {

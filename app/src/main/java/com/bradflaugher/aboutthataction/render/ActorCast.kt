@@ -34,6 +34,11 @@ internal class ActorCast(
     private val g get() = f.g
     private val look = Look()
 
+    private companion object {
+        /** Drones are drawn a size up so they read at the zoomed-out camera. */
+        const val DRONE_S = 1.15f
+    }
+
     /** Where each enemy's eyes were drawn this frame (by list index), for the darkness pass. */
     private var eyeX = FloatArray(32)
     private var eyeY = FloatArray(32)
@@ -572,7 +577,6 @@ internal class ActorCast(
                     // Radio on the belt.
                     val rx = body.ptX(0.12f, -k.waistD * 0.55f); val ry = body.ptY(0.12f, -k.waistD * 0.55f)
                     p.seg(rx, ry, rx, ry - 0.08f, 0.07f, 0xFF15161C.toInt())
-                    p.detail(rx - 0.01f * dir, ry - 0.08f, rx - 0.02f * dir, ry - 0.2f, 0.012f, 0xFF15161C.toInt())
                 }
                 else -> Unit
             }
@@ -649,19 +653,16 @@ internal class ActorCast(
                     .add(body.ptX(0.99f, c * 0.02f), body.ptY(0.99f, c * 0.02f))
                     .add(body.ptX(0.64f, c * 0.46f), body.ptY(0.64f, c * 0.46f))
                     .shapeDetail(0xFFE8E8F0.toInt())
-                p.detail(body.ptX(0.96f, c * 0.2f), body.ptY(0.96f, c * 0.2f), body.ptX(0.66f, c * 0.42f), body.ptY(0.66f, c * 0.42f), 0.04f, acc)
-                p.detail(body.ptX(0.98f, c * 0.0f), body.ptY(0.98f, c * 0.0f), body.ptX(0.5f, w * 0.5f), body.ptY(0.5f, w * 0.5f), 0.018f, Col.mul(L.torso, 0.6f))
+                p.detail(body.ptX(0.96f, c * 0.2f), body.ptY(0.96f, c * 0.2f), body.ptX(0.66f, c * 0.42f), body.ptY(0.66f, c * 0.42f), 0.05f, acc)
             }
             Zone.LABS -> {
                 p.detail(body.ptX(0.5f, -w * 0.5f), body.ptY(0.5f, -w * 0.5f), body.ptX(0.5f, w * 0.52f), body.ptY(0.5f, w * 0.52f), 0.05f, acc)
                 p.detail(body.ptX(0.02f, -w * 0.5f), body.ptY(0.02f, -w * 0.5f), body.ptX(0.02f, w * 0.5f), body.ptY(0.02f, w * 0.5f), 0.05f, 0xFF3A4A48.toInt())
-                p.detail(body.ptX(0.85f, c * 0.1f), body.ptY(0.85f, c * 0.1f), body.ptX(0.3f, w * 0.1f), body.ptY(0.3f, w * 0.1f), 0.012f, Col.mul(L.torso, 0.75f))
             }
             Zone.METRO -> {
                 for (i in 0 until 2) {
                     val a = if (i == 0) 0.42f else 0.72f
-                    p.detail(body.ptX(a, -w * 0.52f), body.ptY(a, -w * 0.52f), body.ptX(a, c * 0.5f), body.ptY(a, c * 0.5f), 0.055f, acc)
-                    p.detail(body.ptX(a, -w * 0.48f), body.ptY(a, -w * 0.48f), body.ptX(a, c * 0.46f), body.ptY(a, c * 0.46f), 0.014f, 0xFFE8E8F0.toInt())
+                    p.detail(body.ptX(a, -w * 0.52f), body.ptY(a, -w * 0.52f), body.ptX(a, c * 0.5f), body.ptY(a, c * 0.5f), 0.065f, acc)
                 }
                 p.dot(body.ptX(0.86f, c * 0.3f), body.ptY(0.86f, c * 0.3f), 0.03f, 0xFFFFD060.toInt())
                 p.detail(body.ptX(0.03f, -w * 0.5f), body.ptY(0.03f, -w * 0.5f), body.ptX(0.03f, w * 0.5f), body.ptY(0.03f, w * 0.5f), 0.05f, 0xFF0C0C10.toInt())
@@ -674,11 +675,7 @@ internal class ActorCast(
                 p.detail(k.legF.jx - 0.03f, k.legF.jy + 0.08f, k.legF.jx + 0.03f, k.legF.jy + 0.1f, 0.05f, acc)
             }
             Zone.MAGMA -> {
-                // Quilted aluminised seams and a warning band.
-                for (i in 0 until 3) {
-                    val a = 0.3f + i * 0.25f
-                    p.detail(body.ptX(a, -w * 0.48f), body.ptY(a, -w * 0.48f), body.ptX(a, c * 0.48f), body.ptY(a, c * 0.48f), 0.012f, Col.mul(L.torso, 0.72f))
-                }
+                // A warning band and a knee plate.
                 p.detail(body.ptX(0.02f, -w * 0.5f), body.ptY(0.02f, -w * 0.5f), body.ptX(0.02f, w * 0.5f), body.ptY(0.02f, w * 0.5f), 0.06f, acc)
                 p.detail(k.legF.jx - 0.04f, k.legF.jy, k.legF.jx + 0.04f, k.legF.jy, 0.06f, 0xFF4A423A.toInt())
             }
@@ -707,10 +704,7 @@ internal class ActorCast(
                         .add(hx + r * 0.05f * dir, hy - r * 0.28f).add(hx + r * 1.1f * dir, hy - r * 0.3f)
                         .add(hx + r * 1.05f * dir, hy + r * 0.12f).add(hx + r * 0.25f * dir, hy + r * 0.1f)
                         .shapeDetail(0xFF050508.toInt())
-                    p.detail(hx + r * 0.4f * dir, hy - r * 0.18f, hx + r * 0.85f * dir, hy - r * 0.2f, 0.014f, Col.alpha(pal.neon, 0.9f))
-                    p.dot(hx - r * 0.3f * dir, hy + r * 0.05f, 0.022f, 0xFFB8B8C8.toInt())
-                    p.detail(hx - r * 0.3f * dir, hy + r * 0.1f, k.neckX - 0.05f * dir, k.neckY + 0.04f, 0.01f, 0xB0B8B8C8.toInt())
-                    p.detail(hx + r * 0.55f * dir, hy + r * 0.72f, hx + r * 0.85f * dir, hy + r * 0.65f, 0.012f, Col.mul(L.skin, 0.6f))
+                    p.detail(hx + r * 0.35f * dir, hy - r * 0.16f, hx + r * 0.9f * dir, hy - r * 0.18f, 0.022f, Col.alpha(pal.neon, 0.95f))
                 }
                 body.headRim(hx, hy, r * 1.0f, look.rim)
                 eyesAt(hx + r * 0.65f * dir, hy - r * 0.1f)
@@ -743,8 +737,7 @@ internal class ActorCast(
                 if (!p.ink) {
                     p.detail(hx - r * 0.95f * dir, hy - r * 0.5f, hx + r * 0.92f * dir, hy - r * 0.55f, 0.035f, 0xFF0A0E16.toInt())
                     p.dot(hx + r * 0.55f * dir, hy - r * 0.9f, 0.03f, 0xFFFFD060.toInt())
-                    p.dot(hx + r * 0.72f * dir, hy - r * 0.05f, 0.018f, 0xFF101018.toInt())
-                    p.detail(hx + r * 0.55f * dir, hy + r * 0.38f, hx + r * 0.95f * dir, hy + r * 0.36f, 0.025f, 0xFF3A2A20.toInt())
+                    p.dot(hx + r * 0.72f * dir, hy - r * 0.05f, 0.024f, 0xFF101018.toInt())
                 }
                 body.headRim(hx, hy, r * 1.0f, look.rim)
                 eyesAt(hx + r * 0.72f * dir, hy - r * 0.05f)
@@ -854,10 +847,8 @@ internal class ActorCast(
                 .shape(plate)
             if (!p.ink) {
                 p.detail(body.ptX(0.7f, k.chestD * 0.1f), body.ptY(0.7f, k.chestD * 0.1f), body.ptX(0.7f, k.chestD * 0.5f), body.ptY(0.7f, k.chestD * 0.5f), 0.04f, acc)
-                p.detail(body.ptX(0.9f, k.chestD * 0.0f), body.ptY(0.9f, k.chestD * 0.0f), body.ptX(0.88f, k.chestD * 0.38f), body.ptY(0.88f, k.chestD * 0.38f), 0.025f, L.torsoLit)
                 // Knee plate.
                 p.dot(k.legF.jx + 0.02f * dir, k.legF.jy, 0.075f, plate)
-                p.dot(k.legF.jx + 0.03f * dir, k.legF.jy - 0.02f, 0.03f, L.torsoLit)
             }
             body.neck(dark)
             // Helmet: dome, chin guard, glowing visor slit.
@@ -871,8 +862,9 @@ internal class ActorCast(
                 p.begin().add(hx - r * 0.9f * dir, hy - r * 0.7f).add(hx - r * 0.5f * dir, hy - r * 1.0f).add(hx - r * 1.6f * dir, hy - r * 1.7f).shape(0xFFC8B8A0.toInt())
             }
             if (!p.ink) {
-                p.detail(hx - r * 0.1f * dir, hy - r * 0.12f, hx + r * 1.12f * dir, hy - r * 0.18f, 0.045f, 0xFF050508.toInt())
-                p.detail(hx + r * 0.15f * dir, hy - r * 0.15f, hx + r * 1.05f * dir, hy - r * 0.2f, 0.022f, acc)
+                // The visor slit: a dark band with a hot accent core, the heavy's face.
+                p.detail(hx - r * 0.1f * dir, hy - r * 0.12f, hx + r * 1.14f * dir, hy - r * 0.18f, 0.06f, 0xFF050508.toInt())
+                p.detail(hx + r * 0.1f * dir, hy - r * 0.15f, hx + r * 1.08f * dir, hy - r * 0.2f, 0.032f, acc)
                 p.detail(hx - r * 0.8f * dir, hy - r * 0.75f, hx + r * 0.3f * dir, hy - r * 1.1f, 0.03f, L.torsoLit)
                 if (zone == Zone.MINES && e.alive) f.glowDot(hx + r * 0.9f * dir, hy - r * 0.8f, 0.035f, 0xFFFFF4C0.toInt(), p.alphaMul)
             }
@@ -914,14 +906,14 @@ internal class ActorCast(
         var x = hx - r * 0.9f * dir
         var y = hy - r * 0.45f
         tailX[0] = x; tailY[0] = y
-        for (i in 1..5) {
-            val a = Rig.mix(0.5f, 1.45f, speed) + sin(f.t * 12f - i * 0.9f + e.id) * (0.12f + 0.05f * i)
-            x += sin(a) * 0.1f * -dir
-            y += cos(a) * 0.1f
+        for (i in 1..3) {
+            val a = Rig.mix(0.5f, 1.45f, speed) + sin(f.t * 12f - i * 1.2f + e.id) * (0.12f + 0.08f * i)
+            x += sin(a) * 0.16f * -dir
+            y += cos(a) * 0.16f
             tailX[i] = x; tailY[i] = y
         }
         p.twoPass {
-            for (i in 0 until 5) p.seg(tailX[i], tailY[i], tailX[i + 1], tailY[i + 1], 0.045f - i * 0.005f, band)
+            for (i in 0 until 3) p.seg(tailX[i], tailY[i], tailX[i + 1], tailY[i + 1], 0.055f - i * 0.01f, band)
             body.arm(k.armB, L, far = true)
             body.leg(k.legB, L, far = true)
             // Sheath across the back.
@@ -930,20 +922,18 @@ internal class ActorCast(
             body.torso(L)
             if (!p.ink) {
                 // Sash and shin wraps.
-                p.detail(body.ptX(0.05f, -k.waistD * 0.52f), body.ptY(0.05f, -k.waistD * 0.52f), body.ptX(0.05f, k.waistD * 0.52f), body.ptY(0.05f, k.waistD * 0.52f), 0.06f, band)
-                p.detail(k.legF.jx + (k.legF.ex - k.legF.jx) * 0.55f - 0.04f, k.legF.jy + (k.legF.ey - k.legF.jy) * 0.55f, k.legF.jx + (k.legF.ex - k.legF.jx) * 0.55f + 0.04f, k.legF.jy + (k.legF.ey - k.legF.jy) * 0.55f + 0.02f, 0.035f, lit)
+                p.detail(body.ptX(0.05f, -k.waistD * 0.52f), body.ptY(0.05f, -k.waistD * 0.52f), body.ptX(0.05f, k.waistD * 0.52f), body.ptY(0.05f, k.waistD * 0.52f), 0.07f, band)
             }
             body.neck(main)
             p.disc(hx, hy, r, main)
             p.disc(hx + r * 0.3f * dir, hy + r * 0.45f, r * 0.62f, main)
             if (!p.ink) {
-                p.detail(hx - r * 0.95f * dir, hy - r * 0.48f, hx + r * 0.95f * dir, hy - r * 0.52f, 0.045f, band)
+                p.detail(hx - r * 0.95f * dir, hy - r * 0.48f, hx + r * 0.95f * dir, hy - r * 0.52f, 0.055f, band)
                 p.begin()
                     .add(hx + r * 0.15f * dir, hy - r * 0.2f).add(hx + r * 1.05f * dir, hy - r * 0.22f)
                     .add(hx + r * 1.0f * dir, hy + r * 0.2f).add(hx + r * 0.2f * dir, hy + r * 0.18f)
                     .shapeDetail(L.skin)
-                p.dot(hx + r * 0.7f * dir, hy - r * 0.02f, 0.02f, 0xFF101010.toInt())
-                p.dot(hx + r * 0.66f * dir, hy - r * 0.07f, 0.008f, 0xFFFFFFFF.toInt())
+                p.dot(hx + r * 0.7f * dir, hy - r * 0.02f, 0.024f, 0xFF101010.toInt())
                 p.detail(hx - r * 0.6f * dir, hy - r * 0.8f, hx + r * 0.3f * dir, hy - r * 0.95f, 0.025f, lit)
             }
         }
@@ -966,7 +956,6 @@ internal class ActorCast(
         p.seg(hx, hy, bx, by, 0.04f, 0xFFC8D0E0.toInt())
         if (!p.ink) {
             p.detail(hx + c * 0.04f * dir, hy - s * 0.04f, bx, by, 0.014f, 0xFFFFFFFF.toInt())
-            p.detail(hx - s * 0.05f * dir, hy - c * 0.05f, hx + s * 0.05f * dir, hy + c * 0.05f, 0.03f, 0xFF3A3A48.toInt())
         }
     }
 
@@ -1117,55 +1106,54 @@ internal class ActorCast(
         g.translate(x, y)
         if (dead) g.rotate(e.stateTime * 500f * (if (e.deathVx >= 0f) 1f else -1f))
         else g.rotate(e.vx * 6f + sin(f.t * 3f + e.id) * 2f)
+        // Drawn a size up: a small machine has to carry its read at the zoomed-out camera.
+        g.scale(DRONE_S, DRONE_S)
         val body = 0xFF1E2230.toInt()
-        val hull = 0xFF2C3246.toInt()
-        val lit = 0xFF4A5470.toInt()
+        val hull = 0xFF3A4462.toInt()
+        val lit = 0xFF7282A6.toInt()
         val alarmed = e.state == EnemyState.AIM || e.state == EnemyState.ALERT
         val eyeC = if (alarmed) 0xFFFF2A40.toInt() else pal.neon2
         if (dead) {
             p.flat = 0xFF000000.toInt(); p.flatAmt = min(0.5f, e.stateTime)
         }
         p.twoPass {
-            // Arms and motor pods.
-            p.seg(-0.38f, -0.1f, 0.38f, -0.1f, 0.05f, body)
-            p.seg(-0.38f, -0.18f, -0.38f, -0.08f, 0.07f, body)
-            p.seg(0.38f, -0.18f, 0.38f, -0.08f, 0.07f, body)
+            // Arm bar and motor pods.
+            p.seg(-0.38f, -0.1f, 0.38f, -0.1f, 0.06f, body)
+            p.seg(-0.38f, -0.19f, -0.38f, -0.08f, 0.08f, body)
+            p.seg(0.38f, -0.19f, 0.38f, -0.08f, 0.08f, body)
             // Hull: teardrop pod with a nose toward the facing side.
             p.begin()
-                .add(-0.28f * dir, -0.1f).add(0.18f * dir, -0.12f).add(0.3f * dir, 0.0f)
-                .add(0.2f * dir, 0.12f).add(-0.22f * dir, 0.12f).add(-0.32f * dir, 0.01f)
+                .add(-0.28f * dir, -0.11f).add(0.18f * dir, -0.13f).add(0.3f * dir, 0.0f)
+                .add(0.2f * dir, 0.13f).add(-0.22f * dir, 0.13f).add(-0.32f * dir, 0.01f)
                 .shape(hull)
             // Gun pod: muzzle at exactly the shot height.
-            p.seg(0.05f * dir, 0.1f, 0.54f * dir, 0.1f, 0.05f, 0xFF0A0A10.toInt())
+            p.seg(0.05f * dir, 0.1f / DRONE_S, 0.54f * dir / DRONE_S, 0.1f / DRONE_S, 0.055f, 0xFF0A0A10.toInt())
         }
         if (!p.ink) {
-            g.line(-0.2f * dir, -0.09f, 0.16f * dir, -0.1f, 0.03f, p.c(lit))
-            g.fillRect(-0.26f, 0.04f, 0.2f, 0.065f, p.c(pal.enemyAccent))
+            g.line(-0.2f * dir, -0.095f, 0.16f * dir, -0.105f, 0.035f, p.c(lit))
+            g.fillRect(-0.26f, 0.045f, 0.2f, 0.075f, p.c(pal.enemyAccent))
+            // Rotor blur: one translucent blade stroke per motor.
             for (si in 0..1) {
-                val s = si * 2 - 1
-                val rx = s * 0.38f
-                val b = if (dead) 0.2f else abs(sin(f.t * 50f + s))
-                g.save()
-                g.translate(rx, -0.2f)
-                g.scale(1f, 0.22f)
-                g.fillCircle(0f, 0f, 0.24f, p.c(0x40A0A8C0))
-                g.restore()
-                g.line(rx - 0.23f * b, -0.2f, rx + 0.23f * b, -0.2f, 0.028f, p.c(0xC0505A6E.toInt()))
+                val rx = (si * 2 - 1) * 0.38f
+                val b = if (dead) 0.2f else 0.55f + 0.45f * abs(sin(f.t * 50f + si))
+                g.line(rx - 0.25f * b, -0.21f, rx + 0.25f * b, -0.21f, 0.04f, p.c(0x90A8B0C8.toInt()))
             }
             if (!dead) {
+                // The eye: a lit lens in a dark socket, glowing into the room.
                 val ex = 0.14f * dir
-                g.fillCircle(ex, 0.0f, 0.13f, p.c(Col.alpha(eyeC, 0.22f)))
-                g.fillCircle(ex, 0.0f, 0.07f, p.c(0xFF0A0A10.toInt()))
-                g.fillCircle(ex, 0.0f, 0.05f, p.c(eyeC))
-                g.fillCircle(ex + 0.018f * dir, -0.018f, 0.018f, p.c(0xFFFFFFFF.toInt()))
-                if (e.state == EnemyState.AIM) f.glowDot(0.54f * dir, 0.1f, 0.03f, pal.laser, p.alphaMul)
+                g.fillCircle(ex, 0.0f, 0.075f, p.c(0xFF0A0A10.toInt()))
+                g.fillCircle(ex, 0.0f, 0.052f, p.c(eyeC))
+                g.blend(Gfx.Blend.ADD)
+                g.glow(ex, 0f, 0.3f, p.c(Col.alpha(eyeC, 0.7f)))
+                g.blend(Gfx.Blend.NORMAL)
             }
         }
         g.restore()
+        if (!dead && e.state == EnemyState.AIM) f.glowDot(x + 0.54f * dir, y + 0.1f, 0.035f, pal.laser, p.alphaMul)
         p.reset()
         if (!dead && e.state == EnemyState.PATROL) {
             val sweep = sin(f.t * 2f + e.id) * 0.3f
-            f.poly.tri(g, x + 0.14f * dir, y, x + 2.2f * dir, y + 0.6f + sweep, x + 2.2f * dir, y + 1.3f + sweep, Col.alpha(pal.neon2, 0.07f))
+            f.poly.tri(g, x + 0.16f * dir, y, x + 2.2f * dir, y + 0.6f + sweep, x + 2.2f * dir, y + 1.3f + sweep, Col.alpha(pal.neon2, 0.08f))
         }
     }
 
@@ -1181,8 +1169,8 @@ internal class ActorCast(
             ang = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
         }
         if (dead) ang = 110f + sin(f.t * 3f) * 6f
-        val housing = 0xFF2E3040.toInt()
-        val lit = 0xFF4A4E66.toInt()
+        val housing = 0xFF3A3E54.toInt()
+        val lit = 0xFF626884.toInt()
         p.twoPass {
             p.seg(x, rt, x, y - 0.2f, 0.14f, 0xFF22222C.toInt())
             p.begin().add(x - 0.32f, rt).add(x + 0.32f, rt).add(x + 0.26f, rt + 0.1f).add(x - 0.26f, rt + 0.1f).shape(0xFF3A3A46.toInt())
@@ -1191,21 +1179,23 @@ internal class ActorCast(
         g.translate(x, y)
         g.rotate(ang)
         p.twoPass {
-            p.seg(0.12f, -0.035f, 0.55f, -0.035f, 0.05f, 0xFF15151C.toInt())
-            p.seg(0.12f, 0.035f, 0.55f, 0.035f, 0.05f, 0xFF15151C.toInt())
-            p.seg(0.1f, 0f, 0.3f, 0f, 0.14f, 0xFF2A2A34.toInt())
+            // Twin barrels as one fat stroke, and the breech.
+            p.seg(0.12f, 0f, 0.56f, 0f, 0.13f, 0xFF15151C.toInt())
+            p.seg(0.1f, 0f, 0.3f, 0f, 0.17f, 0xFF2A2A34.toInt())
         }
         g.restore()
         p.twoPass {
             p.begin().add(x - 0.32f, y - 0.26f).add(x + 0.32f, y - 0.26f).add(x + 0.28f, y - 0.08f).add(x - 0.28f, y - 0.08f).shape(lit)
-            p.disc(x, y - 0.02f, 0.22f, housing)
+            p.disc(x, y - 0.02f, 0.23f, housing)
         }
-        g.line(x - 0.14f, y - 0.14f, x + 0.06f, y - 0.2f, 0.03f, 0x40FFFFFF)
         if (!dead) {
             val alarmed = e.state == EnemyState.AIM || e.state == EnemyState.ALERT
             val eyeC = if (alarmed) 0xFFFF2A40.toInt() else pal.neon2
-            g.fillCircle(x, y, 0.09f, 0xFF08080C.toInt())
-            f.glowDot(x, y, 0.055f, eyeC, 1f)
+            g.fillCircle(x, y, 0.1f, 0xFF08080C.toInt())
+            g.fillCircle(x, y, 0.065f, eyeC)
+            g.blend(Gfx.Blend.ADD)
+            g.glow(x, y, 0.36f, Col.alpha(eyeC, 0.75f))
+            g.blend(Gfx.Blend.NORMAL)
         } else if (hash((f.t * 12f).toInt(), e.id) > 0.8f) {
             f.glowDot(x + 0.1f, y + 0.1f, 0.04f, 0xFFFFE080.toInt())
         }
@@ -1266,9 +1256,9 @@ internal class ActorCast(
         val cy = if (e.aimLow) y - 0.3f else y - 0.28f
         val chev = Col.fade(laser, min(1f, a + 0.2f))
         if (e.aimLow) {
-            Glyphs.arrow(g, cx, cy, 0.14f, 0f, -1f, 0.05f, chev)
+            Glyphs.arrow(g, cx, cy, 0.19f, 0f, -1f, 0.065f, chev)
         } else {
-            Glyphs.arrow(g, cx, cy + 0.56f, 0.14f, 0f, 1f, 0.05f, chev)
+            Glyphs.arrow(g, cx, cy + 0.56f, 0.19f, 0f, 1f, 0.065f, chev)
         }
         // Wind-up ring collapsing onto the muzzle.
         val r = 0.45f * (1f - t) + 0.06f
@@ -1305,13 +1295,13 @@ internal class ActorCast(
                 val rise = (1f - pop) * 0.15f
                 val fade = if (e.stateTime > 0.75f) 1f - (e.stateTime - 0.75f) / 0.15f else 1f
                 bubble(e.x, top + rise, pop, Col.alpha(0xFFFFD21E.toInt(), fade), fade)
-                if (pop > 0.05f) exclaimGlyph(e.x, top + rise - 0.06f * pop, 0.34f * pop, Col.alpha(0xFF1A0A00.toInt(), fade))
+                if (pop > 0.05f) exclaimGlyph(e.x, top + rise - 0.07f * pop, 0.39f * pop, Col.alpha(0xFF1A0A00.toInt(), fade))
             }
             EnemyState.SEARCH -> {
                 val sway = sin(f.t * 4f + e.id) * 0.06f
                 val pop = Rig.backOut(e.stateTime / 0.2f)
                 bubble(e.x + sway, top, pop, 0xE8E8ECFF.toInt(), 1f)
-                if (pop > 0.3f) f.worldText("?", e.x + sway, top - 0.05f, 0.4f * pop, 0xFF1A1A30.toInt(), Gfx.Font.TITLE)
+                if (pop > 0.3f) f.worldText("?", e.x + sway, top - 0.06f, 0.46f * pop, 0xFF1A1A30.toInt(), Gfx.Font.TITLE)
             }
             EnemyState.STUNNED -> {
                 for (i in 0 until 3) {
@@ -1328,10 +1318,10 @@ internal class ActorCast(
     /** Speech bubble with a tail, scaled by [s] from its tail tip. */
     private fun bubble(x: Float, bottom: Float, s: Float, color: Int, fade: Float) {
         if (s <= 0.01f) return
-        val w = 0.19f * s
-        val h = 0.46f * s
+        val w = 0.22f * s
+        val h = 0.52f * s
         val by = bottom - 0.08f * s
-        val o = ActorPaint.OUT
+        val o = p.out
         val inkCol = Col.alpha(ActorPaint.INK, fade)
         g.fillRoundRect(x - w - o, by - h - o, x + w + o, by + o, 0.09f * s + o, inkCol)
         f.poly.tri(g, x - 0.07f * s - o, by - 0.01f, x + 0.07f * s + o, by - 0.01f, x, bottom + o * 1.3f, inkCol)
@@ -1359,20 +1349,15 @@ internal class ActorCast(
     }
 
     private fun hpPips(e: Enemy, x: Float, y: Float) {
+        // Chunky pips on an inked plate: readable at the zoomed-out camera, 1 + n calls.
         val n = e.maxHp
-        val pw = 0.12f
-        val gap = 0.03f
+        val pw = 0.15f
+        val gap = 0.035f
         val total = n * pw + (n - 1) * gap
         var px = x - total / 2f
-        g.fillRoundRect(px - 0.05f, y - 0.075f, px + total + 0.05f, y + 0.075f, 0.05f, 0xD0000000.toInt())
-        g.strokeRoundRect(px - 0.05f, y - 0.075f, px + total + 0.05f, y + 0.075f, 0.05f, 0.012f, 0x40FFFFFF)
+        g.fillRoundRect(px - 0.05f, y - 0.09f, px + total + 0.05f, y + 0.09f, 0.05f, 0xE0000000.toInt())
         for (i in 0 until n) {
-            if (i < e.hp) {
-                g.fillRect(px, y - 0.04f, px + pw, y + 0.04f, 0xFFFF4A5E.toInt())
-                g.fillRect(px, y - 0.04f, px + pw, y - 0.015f, 0xFFFFA0A8.toInt())
-            } else {
-                g.fillRect(px, y - 0.04f, px + pw, y + 0.04f, 0x40FFFFFF)
-            }
+            g.fillRect(px, y - 0.05f, px + pw, y + 0.05f, if (i < e.hp) 0xFFFF4A5E.toInt() else 0x40FFFFFF)
             px += pw + gap
         }
     }

@@ -1,8 +1,6 @@
 package com.bradflaugher.aboutthataction.render
 
 import kotlin.math.cos
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -11,7 +9,7 @@ import kotlin.math.sqrt
  * lays down one consistent dark outline around the whole silhouette, then a fill
  * pass back to front. Carries the per-actor tint (hit flash, silhouette, fade).
  *
- * One line weight ([OUT]) for every character, one key light (from the ceiling)
+ * One line weight ([out], a fixed pixel width) for every character, one key light (from the ceiling)
  * and one rim light (neon bounce from behind), so the whole cast sits together.
  */
 internal class ActorPaint(private val f: Frame) {
@@ -26,11 +24,19 @@ internal class ActorPaint(private val f: Frame) {
     var flat = 0
     var flatAmt = 0f
 
+    /**
+     * This frame's outline weight in world units: a fixed pixel width (~2.9 px) so the ink
+     * holds up however far the camera pulls back, clamped so it never turns into a cartoon.
+     */
+    var out = OUT
+        private set
+
     fun reset() {
         alphaMul = 1f
         flatAmt = 0f
         noInk = false
         ink = false
+        out = (OUT_PX / f.s).coerceIn(OUT, OUT_MAX)
     }
 
     /** Fill colour through the tint. */
@@ -58,7 +64,7 @@ internal class ActorPaint(private val f: Frame) {
     /** Round-capped stroke. */
     fun seg(x1: Float, y1: Float, x2: Float, y2: Float, w: Float, color: Int) {
         if (ink) {
-            if (!noInk) g.line(x1, y1, x2, y2, w + OUT * 2f, inkC())
+            if (!noInk) g.line(x1, y1, x2, y2, w + out * 2f, inkC())
         } else {
             g.line(x1, y1, x2, y2, w, c(color))
         }
@@ -66,7 +72,7 @@ internal class ActorPaint(private val f: Frame) {
 
     fun disc(x: Float, y: Float, r: Float, color: Int) {
         if (ink) {
-            if (!noInk) g.fillCircle(x, y, r + OUT, inkC())
+            if (!noInk) g.fillCircle(x, y, r + out, inkC())
         } else {
             g.fillCircle(x, y, r, c(color))
         }
@@ -86,34 +92,22 @@ internal class ActorPaint(private val f: Frame) {
         if (ink) {
             seg(x1, y1, x2, y2, w, color)
         } else {
-            if (!noInk) g.line(x1, y1, x2, y2, w + OUT * 1.6f, inkC())
+            if (!noInk) g.line(x1, y1, x2, y2, w + out * 1.6f, inkC())
             g.line(x1, y1, x2, y2, w, c(color))
         }
     }
 
     /**
-     * Tapered limb bone, built from two round-capped strokes (no paths: cheap on Canvas):
-     * the full bone at the thin width, the root half at the thick width.
+     * A limb bone: one round-capped stroke at the mean of the root and end widths. At the
+     * zoomed-out camera a taper is sub-pixel, so it costs a draw call and reads as nothing.
      */
     fun bone(x1: Float, y1: Float, x2: Float, y2: Float, w1: Float, w2: Float, color: Int, sep: Boolean = false) {
-        val mx = x1 + (x2 - x1) * 0.55f
-        val my = y1 + (y2 - y1) * 0.55f
-        val thin = min(w1, w2)
-        val thick = max(w1, w2)
-        val tx = if (w1 >= w2) x1 else x2
-        val ty = if (w1 >= w2) y1 else y2
+        val w = (w1 + w2) * 0.5f
         if (ink || (sep && !noInk)) {
-            if (!noInk) {
-                val o = if (ink) OUT * 2f else OUT * 1.6f
-                val col = inkC()
-                g.line(x1, y1, x2, y2, thin + o, col)
-                g.line(tx, ty, mx, my, thick + o, col)
-            }
+            if (!noInk) g.line(x1, y1, x2, y2, w + (if (ink) out * 2f else out * 1.6f), inkC())
             if (ink) return
         }
-        val col = c(color)
-        g.line(x1, y1, x2, y2, thin, col)
-        g.line(tx, ty, mx, my, thick, col)
+        g.line(x1, y1, x2, y2, w, c(color))
     }
 
     /** Light edge along a bone, on the side facing ([lx], [ly]); fill pass only. */
@@ -161,23 +155,60 @@ internal class ActorPaint(private val f: Frame) {
         return this
     }
 
-    /** Fills the built polygon; in the ink pass strokes its outline instead. */
+    /** Fills the built polygon; in the ink pass fills it grown by the outline instead (one call). */
     fun shape(color: Int, sep: Boolean = false) {
         if (np < 6) return
         if (ink || (sep && !noInk)) {
-            if (!noInk) {
-                val w = if (ink) OUT * 2f else OUT * 1.6f
-                val col = inkC()
-                var i = 0
-                while (i < np) {
-                    val j = (i + 2) % np
-                    g.line(pts[i], pts[i + 1], pts[j], pts[j + 1], w, col)
-                    i += 2
-                }
-            }
+            if (!noInk) fillGrown(if (ink) out else out * 0.8f, inkC())
             if (ink) return
         }
         fillBuilt(c(color))
+    }
+
+    private val grown = arrayOfNulls<FloatArray>(33)
+
+    /** Fills the built polygon offset outward by [d] (mitred, spikes clamped). */
+    private fun fillGrown(d: Float, color: Int) {
+        val n = np / 2
+        val arr = grown[n] ?: FloatArray(np).also { grown[n] = it }
+        // Winding decides which side is out.
+        var area = 0f
+        for (i in 0 until n) {
+            val j = (i + 1) % n
+            area += pts[i * 2] * pts[j * 2 + 1] - pts[j * 2] * pts[i * 2 + 1]
+        }
+        val sgn = if (area >= 0f) 1f else -1f
+        for (i in 0 until n) {
+            val pi = (i + n - 1) % n
+            val ni = (i + 1) % n
+            val x = pts[i * 2]
+            val y = pts[i * 2 + 1]
+            var ax = x - pts[pi * 2]
+            var ay = y - pts[pi * 2 + 1]
+            var bx = pts[ni * 2] - x
+            var by = pts[ni * 2 + 1] - y
+            val la = sqrt(ax * ax + ay * ay).coerceAtLeast(1e-5f)
+            val lb = sqrt(bx * bx + by * by).coerceAtLeast(1e-5f)
+            ax /= la; ay /= la; bx /= lb; by /= lb
+            // Edge normals (outward for sgn), then the mitre.
+            val n1x = ay * sgn
+            val n1y = -ax * sgn
+            val n2x = by * sgn
+            val n2y = -bx * sgn
+            val k = 1f + n1x * n2x + n1y * n2y
+            var mx: Float
+            var my: Float
+            if (k < 0.16f) {
+                mx = (n1x + n2x) * 0.5f; my = (n1y + n2y) * 0.5f
+                val l = sqrt(mx * mx + my * my)
+                if (l < 1e-4f) { mx = n1x; my = n1y } else { mx = mx / l * 2.5f; my = my / l * 2.5f }
+            } else {
+                mx = (n1x + n2x) / k; my = (n1y + n2y) / k
+            }
+            arr[i * 2] = x + mx * d
+            arr[i * 2 + 1] = y + my * d
+        }
+        g.fillPolygon(arr, color)
     }
 
     /** Fill-pass only polygon. */
@@ -213,16 +244,17 @@ internal class ActorPaint(private val f: Frame) {
         g.save()
         g.translate(x, gy - 0.01f)
         g.scale(1f, 0.2f)
-        g.fillCircle(0f, 0f, w * 1.15f, Col.alpha(0xFF000000.toInt(), 0.22f * a))
-        g.fillCircle(0f, 0f, w * 0.8f, Col.alpha(0xFF000000.toInt(), 0.32f * a))
-        g.fillCircle(0f, 0f, w * 0.5f, Col.alpha(0xFF000000.toInt(), 0.35f * a))
+        g.glow(0f, 0f, w * 1.2f, Col.alpha(0xFF000000.toInt(), 0.75f * a))
         g.restore()
     }
 
     companion object {
-        /** The one outline weight for the whole cast, in world units (~3.5 px at 1080 wide). */
-        const val OUT = 0.034f
-        const val RIM_W = 0.018f
+        /** The thinnest outline, in world units; [out] is this frame's actual weight. */
+        const val OUT = 0.036f
+        const val OUT_MAX = 0.06f
+        /** Target outline width in pixels. */
+        const val OUT_PX = 2.9f
+        const val RIM_W = 0.026f
         const val INK = 0xFF06060B.toInt()
 
         fun rot(x: Float, y: Float, a: Float, out: FloatArray) {
