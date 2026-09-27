@@ -49,9 +49,11 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
             // Key light from the ceiling on the shoulders, neon rim down the back.
             p.detail(tx(0.97f, -c * 0.18f), ty(0.97f, -c * 0.18f), tx(0.95f, c * 0.22f), ty(0.95f, c * 0.22f), 0.04f * k.hs, l.torsoLit)
             if (l.rim != 0) {
+                p.g.blend(Gfx.Blend.ADD)
                 val i = ActorPaint.RIM_W * 0.5f
                 p.detail(tx(0.3f, -w * 0.52f + i), ty(0.3f, -w * 0.52f + i), tx(0.8f, -c * 0.5f + i), ty(0.8f, -c * 0.5f + i), ActorPaint.RIM_W, l.rim)
                 p.detail(tx(0.8f, -c * 0.5f + i), ty(0.8f, -c * 0.5f + i), tx(1.0f, -c * 0.26f + i), ty(1.0f, -c * 0.26f + i), ActorPaint.RIM_W, l.rim)
+                p.g.blend(Gfx.Blend.NORMAL)
             }
         }
     }
@@ -104,6 +106,15 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
             p.boneRim(l.ax, l.ay, l.jx, l.jy, aw, aw * 0.82f, rimX, rimY, look.rim)
         }
         if (hand) handAt(l.ex, l.ey, if (far) Col.mul(look.gloves, 0.8f) else look.gloves)
+    }
+
+    /** Rim light on the back of a head (additive arc). */
+    fun headRim(hx: Float, hy: Float, r: Float, color: Int) {
+        if (p.ink || color == 0) return
+        val start = if (k.dir > 0) 185f else 280f
+        p.g.blend(Gfx.Blend.ADD)
+        p.g.strokeArc(hx, hy, r - ActorPaint.RIM_W * 0.5f, start, 75f, ActorPaint.RIM_W, p.c(color))
+        p.g.blend(Gfx.Blend.NORMAL)
     }
 
     fun handAt(x: Float, y: Float, color: Int) {

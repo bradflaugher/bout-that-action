@@ -134,11 +134,13 @@ internal class ActorPaint(private val f: Frame) {
         val b = w2 / 2f - rw * 0.5f
         val t0 = 0.12f
         val t1 = 0.88f
+        g.blend(Gfx.Blend.ADD)
         g.line(
             x1 + dx * t0 + px * a, y1 + dy * t0 + py * a,
             x1 + dx * t1 + px * b, y1 + dy * t1 + py * b,
             rw, c(Col.fade(color, 0.8f * ((facing - 0.25f) / 0.5f).coerceIn(0f, 1f))),
         )
+        g.blend(Gfx.Blend.NORMAL)
     }
 
     // -------------------------------------------------------------- polygons
@@ -211,8 +213,9 @@ internal class ActorPaint(private val f: Frame) {
         g.save()
         g.translate(x, gy - 0.01f)
         g.scale(1f, 0.2f)
-        g.fillCircle(0f, 0f, w * 1.25f, Col.alpha(0xFF000000.toInt(), 0.2f * a))
-        g.fillCircle(0f, 0f, w * 0.85f, Col.alpha(0xFF000000.toInt(), 0.36f * a))
+        g.fillCircle(0f, 0f, w * 1.15f, Col.alpha(0xFF000000.toInt(), 0.22f * a))
+        g.fillCircle(0f, 0f, w * 0.8f, Col.alpha(0xFF000000.toInt(), 0.32f * a))
+        g.fillCircle(0f, 0f, w * 0.5f, Col.alpha(0xFF000000.toInt(), 0.35f * a))
         g.restore()
     }
 

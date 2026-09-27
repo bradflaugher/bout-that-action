@@ -89,6 +89,7 @@ internal class ActorCast(
             p.noInk = false
             p.alphaMul = keepA; p.flatAmt = keepAmt; p.flat = keepFlat
         }
+        if (e.state != EnemyState.DEAD && e.kind != EnemyKind.TURRET) backlight(e, gy, pal)
         if (e.state == EnemyState.AIM) aimTelegraph(e, gy, dir, fs)
         if (e.state == EnemyState.WINDUP) windupTelegraph(e, gy, dir)
         enemyBody(e, e.x + recoilX, gy, dir, zone, pal, fs)
@@ -103,6 +104,23 @@ internal class ActorCast(
             if (e.maxHp > 1 && e.hp < e.maxHp) hpPips(e, e.x, gy - e.z - e.height - 0.22f)
         }
     }
+
+    /** Soft additive back-light so every silhouette lifts off the wall behind it. */
+    private fun backlight(e: Enemy, gy: Float, pal: Palette) {
+        val h = e.height
+        val c = Col.lerp(pal.lamp, pal.neon, 0.35f)
+        val a = 0.24f * p.alphaMul * (1f - p.flatAmt * 0.7f)
+        g.blend(Gfx.Blend.ADD)
+        if (e.kind == EnemyKind.DRONE) {
+            g.glow(e.x, gy - e.z - 0.2f, 0.7f, Col.alpha(c, a))
+        } else {
+            g.glow(e.x, gy - e.z - h * 0.52f, h * 0.68f, Col.alpha(c, a))
+        }
+        g.blend(Gfx.Blend.NORMAL)
+    }
+
+    /** Rim light colour for a zone: the neon, lifted toward white. */
+    private fun rimOf(pal: Palette, a: Float) = Col.alpha(Col.lerp(pal.neon, 0xFFFFFFFF.toInt(), 0.3f), a)
 
     private fun ensureEyes(idx: Int) {
         if (idx < eyeX.size) return
@@ -303,13 +321,15 @@ internal class ActorCast(
         val laserZ = if (e.ducking) Body.LOW else Body.HIGH
         val my = foot - laserZ
         if (e.ducking) {
+            // Drop into the kneel fast, but not in a single frame.
+            val d = Rig.easeOut(e.stateTime / 0.09f)
             val gnd = foot - 0.045f * hs
-            k.hip(x, gnd - 0.42f * hs)
-            k.ik(k.legF, x + 0.24f * dir * hs, gnd, true)
-            k.legB.jx = x - 0.08f * dir * hs; k.legB.jy = gnd - 0.02f
-            k.legB.ex = x - 0.44f * dir * hs; k.legB.ey = gnd - 0.02f
-            k.legB.pitch = 1.1f
-            k.spine(0.5f, 0.2f)
+            val legLen = k.legF.len1 + k.legF.len2
+            k.hip(x, gnd - Rig.mix(legLen * 0.95f, 0.42f * hs, d))
+            k.ik(k.legF, x + Rig.mix(0.1f, 0.24f, d) * dir * hs, gnd, true)
+            k.ik(k.legB, x + Rig.mix(-0.13f, -0.44f, d) * dir * hs, gnd - 0.08f * d, true)
+            k.legB.pitch = 1.3f * d
+            k.spine(0.5f * d, 0.2f * d)
         } else {
             k.stand(x, 0.05f * hs, 0.18f, -0.2f)
             k.spine(-0.03f, 0.05f)
@@ -397,24 +417,28 @@ internal class ActorCast(
      * Returns true while the body still holds its weapon.
      */
     fun ragdollBegin(x: Float, gy: Float, z: Float, dir: Int, hs: Float, bulk: Float, fall: Int, t: Float, mode: CastDeath): Boolean {
-        val fr = (fall * dir).toFloat()
         g.save()
         showGun = false
         bladeA = 99f
         when (mode) {
             CastDeath.SQUASH -> {
-                val q = Rig.backOut(t / 0.1f)
+                // Crushed straight down onto the knees with a springy squash, then pitches face-first.
+                val q = Rig.backOut(t / 0.09f)
+                val relax = Rig.smooth((t - 0.25f) / 0.2f)
+                val sy = 1f - 0.4f * q * (1f - relax)
+                val sx = 1f + 0.18f * q * (1f - relax)
                 g.translate(x, gy - z)
-                g.scale(1f + 0.25f * q, max(0.3f, 1f - 0.62f * q))
-                k.setup(dir, -0.045f * hs, hs, bulk)
-                k.stand(0f, 0.22f * min(1f, t / 0.1f) * hs, 0.22f, -0.22f)
-                k.spine(0.2f, 0.5f)
-                k.armFK(k.armF, 1.4f, 0.3f)
-                k.armFK(k.armB, -1.4f, 0.3f)
-                return false
+                g.scale(sx, sy)
+                g.translate(-x, -(gy - z))
+                return ragdollBegin2(x, gy, z, dir, hs, bulk, dir, 0.2f + max(0f, t - 0.25f), CastDeath.CRUMPLE)
             }
             else -> Unit
         }
+        return ragdollBegin2(x, gy, z, dir, hs, bulk, fall, t, mode)
+    }
+
+    private fun ragdollBegin2(x: Float, gy: Float, z: Float, dir: Int, hs: Float, bulk: Float, fall: Int, t: Float, mode: CastDeath): Boolean {
+        val fr = (fall * dir).toFloat()
         val dur = when (mode) {
             CastDeath.FLING -> 0.75f
             CastDeath.CRUMPLE -> 0.5f
@@ -426,11 +450,14 @@ internal class ActorCast(
             CastDeath.FLING -> min(t * 600f, 450f) * fall
             else -> u * 88f * fall
         }
-        val hipH = when (mode) {
+        // A small settling bounce once the body hits the floor.
+        val b = ((t - dur) / 0.3f).coerceIn(0f, 1f)
+        val bounce = if (mode == CastDeath.KNOCK && t > dur) 0.06f * sin(b * PI.toFloat()) * (1f - b) else 0f
+        val hipH = (when (mode) {
             // To the knees, then face down.
             CastDeath.CRUMPLE -> Rig.mix(Rig.mix(0.7f, 0.45f, kneel), 0.15f, u)
             else -> Rig.mix(0.7f, 0.15f, u)
-        } * hs
+        } + bounce) * hs
         g.translate(x, gy - z - hipH)
         g.rotate(ang)
         k.setup(dir, 10f, hs, bulk)
@@ -438,8 +465,9 @@ internal class ActorCast(
         // Limb lag: flying limbs trail the fall, then settle flat.
         val spread = if (mode == CastDeath.FLING) 1f else 0f
         val lyF = -fr * 0.35f
-        k.legFK(k.legF, Rig.mix(-fr * 0.8f + spread * 0.5f, lyF, u), Rig.mix(0.7f, 0.25f, u))
-        k.legFK(k.legB, Rig.mix(-fr * 0.3f - spread * 0.6f, -fr * 0.12f, u), Rig.mix(1.0f, 0.12f, u))
+        // Lying: one knee drawn up, the other leg out; asymmetric so it doesn't read as a plank.
+        k.legFK(k.legF, Rig.mix(-fr * 0.8f + spread * 0.5f, -fr * 0.62f, u), Rig.mix(0.7f, 1.15f, u))
+        k.legFK(k.legB, Rig.mix(-fr * 0.3f - spread * 0.6f, -fr * 0.1f, u), Rig.mix(1.0f, 0.25f, u))
         k.legF.pitch = 0.4f; k.legB.pitch = 0.5f
         if (mode == CastDeath.CRUMPLE) {
             k.legFK(k.legF, 0.25f * (1f - u) + lyF * u, 1.65f * kneel * (1f - u) + 0.35f * u)
@@ -447,9 +475,10 @@ internal class ActorCast(
             k.legF.pitch = 1.4f * (1f - u); k.legB.pitch = 1.4f * (1f - u)
         }
         if (mode == CastDeath.CRUMPLE) k.spine(0.35f * kneel * (1f - u), 0.6f * kneel)
-        else k.spine(Rig.mix(fr * 0.3f, 0f, u), Rig.mix(fr * 0.4f, -fr * 0.2f, u))
-        k.armFK(k.armF, Rig.mix(-fr * 2.3f + spread, -fr * 2.5f, u), Rig.mix(0.3f, 0.5f, u))
-        k.armFK(k.armB, Rig.mix(-fr * 1.5f - spread, -fr * 1.1f, u), Rig.mix(0.6f, 0.2f, u))
+        else k.spine(Rig.mix(fr * 0.3f, -fr * 0.08f, u), Rig.mix(fr * 0.4f, -fr * 0.4f, u))
+        val flop = bounce * 3f
+        k.armFK(k.armF, Rig.mix(-fr * 2.3f + spread, -fr * (2.75f + flop), u), Rig.mix(0.3f, 0.95f, u))
+        k.armFK(k.armB, Rig.mix(-fr * 1.5f - spread, -fr * (0.55f + flop), u), Rig.mix(0.6f, 0.6f, u))
         if (mode == CastDeath.CRUMPLE) {
             // Arms go limp, then flop out ahead.
             k.armFK(k.armF, Rig.mix(0.15f, 2.6f, u), 0.3f)
@@ -459,8 +488,8 @@ internal class ActorCast(
     }
 
     /** Public ragdoll for the agent. */
-    fun ragdoll(x: Float, gy: Float, z: Float, dir: Int, fall: Int, t: Float, dur: Float, mode: CastDeath, look: Look, head: (Int) -> Unit) {
-        ragdollBegin(x, gy, z, dir, 1f, 1f, fall, t * 0.42f / dur, mode)
+    fun ragdoll(x: Float, gy: Float, z: Float, dir: Int, hs: Float, fall: Int, t: Float, dur: Float, mode: CastDeath, look: Look, head: (Int) -> Unit) {
+        ragdollBegin(x, gy, z, dir, hs, 1f, fall, t * 0.42f / dur, mode)
         p.twoPass {
             body.arm(k.armB, look, true)
             body.leg(k.legB, look, true)
@@ -489,7 +518,7 @@ internal class ActorCast(
         val main = pal.enemyMain
         val acc = pal.enemyAccent
         val skin = pal.enemySkin
-        val rim = Col.alpha(pal.neon, 0.4f)
+        val rim = rimOf(pal, 0.6f)
         val z = if (zone == Zone.ROOFTOP || zone == Zone.VOID) Zone.TOWER else zone
         val L = look
         L.legW = 1f; L.armW = 1f; L.rim = rim
@@ -500,7 +529,7 @@ internal class ActorCast(
                 L.legW = 1.12f; L.armW = 1.1f
             }
             Zone.METRO -> {
-                val navy = Col.lerp(main, 0xFF34496E.toInt(), 0.35f)
+                val navy = Col.lerp(main, 0xFF40598A.toInt(), 0.5f)
                 L.torso = navy; L.torsoLit = Col.lerp(navy, 0xFFFFFFFF.toInt(), 0.3f); L.legs = Col.mul(navy, 0.82f); L.legsFar = Col.mul(navy, 0.58f)
                 L.arms = navy; L.armsFar = Col.mul(navy, 0.62f); L.boots = 0xFF0C0C10.toInt(); L.gloves = 0xFF121418.toInt(); L.skin = skin
             }
@@ -514,12 +543,13 @@ internal class ActorCast(
                 L.legW = 1.15f; L.armW = 1.12f
             }
             Zone.HELL -> {
-                L.torso = main; L.torsoLit = Col.lerp(main, 0xFFFF6040.toInt(), 0.35f); L.legs = Col.mul(main, 0.6f); L.legsFar = Col.mul(main, 0.45f)
+                val robe = Col.lerp(main, 0xFF9A2030.toInt(), 0.4f)
+                L.torso = robe; L.torsoLit = Col.lerp(robe, 0xFFFF6040.toInt(), 0.35f); L.legs = Col.mul(main, 0.6f); L.legsFar = Col.mul(main, 0.45f)
                 L.arms = main; L.armsFar = Col.mul(main, 0.62f); L.boots = 0xFF140406.toInt(); L.gloves = skin; L.skin = skin
                 L.armW = 1.3f
             }
             else -> {
-                val suit = Col.lerp(main, 0xFF2E2C40.toInt(), 0.45f)
+                val suit = Col.lerp(main, 0xFF4C4A66.toInt(), 0.62f)
                 L.torso = suit; L.torsoLit = Col.lerp(suit, 0xFFFFFFFF.toInt(), 0.22f); L.legs = suit; L.legsFar = Col.mul(suit, 0.62f)
                 L.arms = suit; L.armsFar = Col.mul(suit, 0.62f); L.boots = 0xFF050508.toInt(); L.gloves = skin; L.skin = skin
             }
@@ -682,6 +712,7 @@ internal class ActorCast(
                     p.detail(hx - r * 0.3f * dir, hy + r * 0.1f, k.neckX - 0.05f * dir, k.neckY + 0.04f, 0.01f, 0xB0B8B8C8.toInt())
                     p.detail(hx + r * 0.55f * dir, hy + r * 0.72f, hx + r * 0.85f * dir, hy + r * 0.65f, 0.012f, Col.mul(L.skin, 0.6f))
                 }
+                body.headRim(hx, hy, r * 1.0f, look.rim)
                 eyesAt(hx + r * 0.65f * dir, hy - r * 0.1f)
             }
             Zone.LABS -> {
@@ -697,6 +728,7 @@ internal class ActorCast(
                     p.dot(hx + r * 0.95f * dir, hy + r * 0.72f, r * 0.2f, acc)
                     p.detail(hx - r * 0.7f * dir, hy - r * 0.8f, hx + r * 0.2f * dir, hy - r * 1.1f, 0.03f, 0x80FFFFFF.toInt())
                 }
+                body.headRim(hx, hy, r * 1.2f, look.rim)
                 eyesAt(hx + r * 0.7f * dir, hy - r * 0.1f)
             }
             Zone.METRO -> {
@@ -714,6 +746,7 @@ internal class ActorCast(
                     p.dot(hx + r * 0.72f * dir, hy - r * 0.05f, 0.018f, 0xFF101018.toInt())
                     p.detail(hx + r * 0.55f * dir, hy + r * 0.38f, hx + r * 0.95f * dir, hy + r * 0.36f, 0.025f, 0xFF3A2A20.toInt())
                 }
+                body.headRim(hx, hy, r * 1.0f, look.rim)
                 eyesAt(hx + r * 0.72f * dir, hy - r * 0.05f)
             }
             Zone.MINES -> {
@@ -741,6 +774,7 @@ internal class ActorCast(
                         p.quad(lx, ly - 0.03f, lx, ly + 0.03f, lx + 2.2f * dir, ly + 0.9f, lx + 2.2f * dir, ly - 0.35f, p.c(0x1AFFF4C0))
                     }
                 }
+                body.headRim(hx, hy, r * 1.0f, look.rim)
                 eyesAt(hx + r * 0.62f * dir, hy - r * 0.12f)
             }
             Zone.MAGMA -> {
@@ -758,6 +792,7 @@ internal class ActorCast(
                     p.detail(hx + r * 0.3f * dir, hy - r * 0.5f, hx + r * 0.55f * dir, hy + r * 0.3f, 0.03f, 0xB0FFFFFF.toInt())
                     p.detail(hx - r * 0.8f * dir, hy - r * 0.9f, hx + r * 0.3f * dir, hy - r * 1.05f, 0.03f, L.torsoLit)
                 }
+                body.headRim(hx, hy, r * 1.2f, look.rim)
                 eyesAt(hx + r * 0.7f * dir, hy - r * 0.1f)
             }
             else -> {
@@ -785,14 +820,14 @@ internal class ActorCast(
 
     private fun heavy(e: Enemy, dir: Int, zone: Zone, pal: Palette, armed: Boolean) {
         val lightZone = zone == Zone.LABS || zone == Zone.MAGMA
-        val base = if (lightZone) Col.lerp(pal.enemyMain, 0xFF5A6264.toInt(), 0.45f) else Col.lerp(pal.enemyMain, 0xFF303848.toInt(), 0.5f)
+        val base = if (lightZone) Col.lerp(pal.enemyMain, 0xFF5A6264.toInt(), 0.45f) else Col.lerp(pal.enemyMain, 0xFF505A74.toInt(), 0.62f)
         val plate = Col.lerp(base, 0xFF9AA2B2.toInt(), 0.38f)
         val dark = Col.mul(base, 0.62f)
         val acc = pal.enemyAccent
         val L = look
         L.torso = base; L.torsoLit = Col.lerp(plate, 0xFFFFFFFF.toInt(), 0.3f); L.legs = base; L.legsFar = dark
         L.arms = base; L.armsFar = dark; L.boots = 0xFF0A0A0E.toInt(); L.gloves = 0xFF14141A.toInt(); L.skin = plate
-        L.rim = Col.alpha(pal.neon, 0.36f); L.legW = 1.1f; L.armW = 1.0f
+        L.rim = rimOf(pal, 0.55f); L.legW = 1.1f; L.armW = 1.0f
         val hx = k.headX
         val hy = k.headY
         val r = k.headR
@@ -842,6 +877,7 @@ internal class ActorCast(
                 if (zone == Zone.MINES && e.alive) f.glowDot(hx + r * 0.9f * dir, hy - r * 0.8f, 0.035f, 0xFFFFF4C0.toInt(), p.alphaMul)
             }
         }
+        body.headRim(hx, hy, r * 1.22f, look.rim)
         eyesAt(hx + r * 0.7f * dir, hy - r * 0.16f)
         p.twoPass {
             if (armed && showGun) body.gun(3, gunX, gunY, gunUp, acc, spin = if (e.state == EnemyState.AIM) f.t * 40f else 0f, scale = 0.85f)
@@ -863,13 +899,13 @@ internal class ActorCast(
     private val tailY = FloatArray(6)
 
     private fun ninja(e: Enemy, dir: Int, zone: Zone, pal: Palette, armed: Boolean) {
-        val main = 0xFF12121C.toInt()
-        val lit = 0xFF34344A.toInt()
+        val main = 0xFF1C1C2C.toInt()
+        val lit = 0xFF4A4A66.toInt()
         val band = if (zone == Zone.HELL) 0xFFFFB020.toInt() else pal.enemyAccent
         val L = look
         L.torso = main; L.torsoLit = lit; L.legs = main; L.legsFar = 0xFF07070B.toInt()
         L.arms = main; L.armsFar = 0xFF07070B.toInt(); L.boots = 0xFF1E1E28.toInt(); L.gloves = 0xFF1E1E28.toInt(); L.skin = 0xFFE8C8A8.toInt()
-        L.rim = Col.alpha(pal.neon, 0.5f); L.legW = 0.95f; L.armW = 0.95f
+        L.rim = rimOf(pal, 0.65f); L.legW = 0.95f; L.armW = 0.95f
         val hx = k.headX
         val hy = k.headY
         val r = k.headR
@@ -911,6 +947,7 @@ internal class ActorCast(
                 p.detail(hx - r * 0.6f * dir, hy - r * 0.8f, hx + r * 0.3f * dir, hy - r * 0.95f, 0.025f, lit)
             }
         }
+        body.headRim(hx, hy, r * 1.0f, look.rim)
         eyesAt(hx + r * 0.7f * dir, hy - r * 0.02f)
         p.twoPass {
             if (armed && bladeA < 90f) katana(k.armF.ex, k.armF.ey, dir, bladeA, band)
@@ -935,15 +972,15 @@ internal class ActorCast(
 
     private fun demon(e: Enemy, dir: Int, zone: Zone, pal: Palette) {
         val hell = zone == Zone.HELL
-        val main = if (hell) 0xFFB0101E.toInt() else 0xFF1C1616.toInt()
-        val lit = if (hell) 0xFFFF4A4A.toInt() else 0xFF4A3632.toInt()
+        val main = if (hell) 0xFFB0101E.toInt() else 0xFF2E2222.toInt()
+        val lit = if (hell) 0xFFFF4A4A.toInt() else 0xFF604440.toInt()
         val dark = if (hell) 0xFF640612.toInt() else 0xFF0C0808.toInt()
         val glow = if (hell) 0xFFFFD040.toInt() else 0xFFFF6A10.toInt()
         val bone = 0xFFE8D8C0.toInt()
         val L = look
         L.torso = main; L.torsoLit = lit; L.legs = main; L.legsFar = dark
         L.arms = main; L.armsFar = dark; L.boots = dark; L.gloves = main; L.skin = main
-        L.rim = Col.alpha(pal.neon2, 0.5f); L.legW = 1.05f; L.armW = 0.95f
+        L.rim = Col.alpha(Col.lerp(pal.neon2, 0xFFFFFFFF.toInt(), 0.3f), 0.55f); L.legW = 1.05f; L.armW = 0.95f
         val hx = k.headX
         val hy = k.headY
         val r = k.headR
@@ -967,8 +1004,8 @@ internal class ActorCast(
                 p.detail(body.ptX(0.2f, k.waistD * 0.1f), body.ptY(0.2f, k.waistD * 0.1f), body.ptX(0.75f, k.chestD * 0.3f), body.ptY(0.75f, k.chestD * 0.3f), 0.022f, crack)
                 p.detail(body.ptX(0.55f, -k.waistD * 0.3f), body.ptY(0.55f, -k.waistD * 0.3f), body.ptX(0.45f, k.waistD * 0.35f), body.ptY(0.45f, k.waistD * 0.35f), 0.018f, crack)
                 // Spine ridges.
-                for (i in 0 until 3) {
-                    val a = 0.5f + i * 0.2f
+                for (i in 0 until 2) {
+                    val a = 0.55f + i * 0.25f
                     val sx = body.ptX(a, -k.chestD * 0.55f)
                     val sy = body.ptY(a, -k.chestD * 0.55f)
                     p.tri(sx, sy, sx - (0.06f * k.ux + 0.08f * k.nx), sy - (0.06f * k.uy + 0.08f * k.ny), sx + 0.08f * k.ux, sy + 0.08f * k.uy, p.c(dark))
@@ -997,8 +1034,8 @@ internal class ActorCast(
                     .add(hx + r * 0.4f * dir, hy + r * 0.45f).add(hx + r * 1.28f * dir, hy + r * 0.42f)
                     .add(hx + r * 1.1f * dir, hy + r * (0.55f + open * 2f)).add(hx + r * 0.45f * dir, hy + r * (0.6f + open))
                     .shapeDetail(0xFF1A0204.toInt())
-                for (i in 0 until 3) {
-                    val tx = hx + r * (0.6f + i * 0.22f) * dir
+                for (i in 0 until 2) {
+                    val tx = hx + r * (0.65f + i * 0.3f) * dir
                     p.tri(tx, hy + r * 0.45f, tx + r * 0.1f * dir, hy + r * 0.45f, tx + r * 0.05f * dir, hy + r * 0.62f, p.c(bone))
                 }
                 val eg = p.alphaMul * (1f - p.flatAmt)
@@ -1009,6 +1046,7 @@ internal class ActorCast(
                 if (e.alive) flames(hx - r * 0.5f * dir, hy - r * 0.6f, dir, glow, e.id)
             }
         }
+        body.headRim(hx, hy, r * 1.02f, look.rim)
         eyesAt(hx + r * 0.65f * dir, hy - r * 0.15f)
         p.twoPass {
             body.arm(k.armF, L, far = false, hand = false)
@@ -1034,7 +1072,8 @@ internal class ActorCast(
         val ux = dx / len
         val uy = dy / len
         p.disc(l.ex, l.ey, 0.055f * k.hs, look.arms)
-        for (i in -1..1) {
+        for (j in 0..1) {
+            val i = j * 1.2f - 0.6f
             val sx = -uy * i * 0.05f
             val sy = ux * i * 0.05f
             p.seg(l.ex + sx * 0.5f, l.ey + sy * 0.5f, l.ex + ux * 0.13f + sx, l.ey + uy * 0.13f + sy, 0.022f, bone)
