@@ -150,7 +150,7 @@ object LevelGen {
         // Doors: 2–3, and an INTEL door on roughly every other floor.
         val doors = mutableListOf<Door>()
         val doorCount = 2 + (if (rng.chance(0.45f)) 1 else 0)
-        val intel = floor == 1 || rng.chance(0.5f)
+        val intel = floor == 1 || rng.chance(0.36f)
         repeat(doorCount.coerceAtMost(free.size)) { i ->
             val slot = rng.pick(free)
             free.remove(slot)

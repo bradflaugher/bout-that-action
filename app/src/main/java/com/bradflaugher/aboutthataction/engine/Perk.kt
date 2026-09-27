@@ -17,7 +17,7 @@ enum class Perk(val title: String, val blurb: String, val maxStacks: Int) {
     DEMOLITION("DEMOLITION", "+1 grenade, bigger blasts", 3),
     MAGNET("MAGNET", "Pickups fly to you", 1),
     REFLEX("REFLEX", "Time slows when a bullet is about to hit", 2),
-    ARMOR("KEVLAR", "Block the first hit on every floor", 1),
+    ARMOR("KEVLAR", "Blocks a hit; recharges every 3 floors", 1),
     LUCKY("LUCKY", "Enemies drop loot twice as often", 2),
     SHOCKWAVE("SHOCKWAVE", "Landing a stomp blasts the whole corridor", 1),
 }

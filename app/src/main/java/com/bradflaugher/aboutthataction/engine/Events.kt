@@ -35,6 +35,8 @@ sealed interface GameEvent {
     data object SlowMoStart : GameEvent
     data object SlowMoEnd : GameEvent
     data object SpecialEmpty : GameEvent
+    /** The magazine ran dry (or the player paused shooting) and a reload started. */
+    data object Reload : GameEvent
 }
 
 enum class KillMethod { SHOT, TAKEDOWN, STOMP, LIGHT, EXPLOSION, HAZARD }

@@ -45,6 +45,12 @@ class Player {
     var invuln = 0f
     var fireCooldown = 0f
     var bufferedShot = false
+    var magSize = 6
+    var ammo = 6
+    /** Seconds left on a reload; 0 when the gun is ready. */
+    var reloadTime = 0f
+    var reloadTotal = 1f
+    val reloading: Boolean get() = reloadTime > 0f
     var grenades = 1
     var jumpsUsed = 0
     var shield = false
@@ -96,6 +102,7 @@ class Enemy(
     var facing: Int,
 ) {
     var hp = kind.hp
+    var maxHp = kind.hp
     var state = EnemyState.PATROL
     var stateTime = 0f
     var timer = 0f
@@ -161,6 +168,8 @@ class Bullet(
     var dead = false
     var life = 0f
     val hitIds = HashSet<Int>(2)
+    /** Enemies that already had their chance to duck this bullet. */
+    val duckRolled = HashSet<Int>(2)
 }
 
 class Pickup(val kind: PickupKind, var x: Float, val floor: Int) {

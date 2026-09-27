@@ -229,7 +229,12 @@ class World(val config: RunConfig) {
         val plan = LevelGen.build(seed, f, difficulty)
         val state = FloorState(plan)
         floors[f] = state
-        for (s in plan.spawns) spawnEnemy(s.kind, s.x, f, if (rng.chance(0.5f)) 1 else -1)
+        val arrivalX = if (plan.arrival == Side.LEFT) 0f else Geo.FLOOR_W
+        for (s in plan.spawns) {
+            val e = spawnEnemy(s.kind, s.x, f, if (rng.chance(0.5f)) 1 else -1)
+            // Deeper down, some guards are already watching the stairs.
+            if (f > 0 && rng.chance((plan.heat * 0.22f).coerceAtMost(0.7f))) e.facing = if (arrivalX > e.x) 1 else -1
+        }
         for (shaft in plan.shafts) {
             elevators.getOrPut(shaft.id) {
                 Elevator(shaft).also {
@@ -243,6 +248,9 @@ class World(val config: RunConfig) {
 
     private fun spawnEnemy(kind: EnemyKind, x: Float, floor: Int, facing: Int): Enemy {
         val e = Enemy(nextEnemyId++, kind, x, floor, facing)
+        val hp = Heat.enemyHp(kind, LevelGen.zoneAndHeat(seed, floor, difficulty).second)
+        e.hp = hp
+        e.maxHp = hp
         e.timer = rng.range(1f, 3f)
         e.walkPhase = rng.range(0f, 6f)
         enemies += e
@@ -258,8 +266,8 @@ class World(val config: RunConfig) {
         }
         if (!fs.visited) {
             fs.visited = true
-            fs.spawnTimer = 2.5f
-            if (stacks(Perk.ARMOR) > 0) player.armorReady = true
+            fs.spawnTimer = 1.1f
+            if (stacks(Perk.ARMOR) > 0 && f % 3 == 0) player.armorReady = true
         }
         val newZone = if (fs.plan.isVoid) Zone.VOID else fs.plan.zone
         musicZone = fs.plan.zone
@@ -404,6 +412,15 @@ class World(val config: RunConfig) {
         p.invuln -= dt
         p.fireCooldown -= dt
         p.sinceShot += dt
+        if (p.reloadTime > 0f) {
+            p.reloadTime -= dt
+            if (p.reloadTime <= 0f) {
+                p.reloadTime = 0f
+                p.ammo = p.magSize
+            }
+        } else if (p.ammo < p.magSize && p.sinceShot > TACTICAL_RELOAD_DELAY) {
+            startReload()
+        }
         p.reflexCooldown -= dt
         if (p.weapon != null) {
             p.weaponTime -= dt
@@ -562,6 +579,9 @@ class World(val config: RunConfig) {
             val fromDir = if (dx > 0f) 1 else -1
             if (e.state == EnemyState.WINDUP) continue // mid-slash: it wins
             if (!e.chokeable(fromDir)) {
+                // Armor blocks: you can't walk through a Heavy to get behind him.
+                p.x = e.x - fromDir * (reach + e.halfWidth)
+                if (p.vx * fromDir > 0f) p.vx = 0f
                 if (heavyBounceCooldown <= 0f) {
                     heavyBounceCooldown = 0.6f
                     p.vx = -fromDir * 7f
@@ -661,10 +681,19 @@ class World(val config: RunConfig) {
         fire()
     }
 
+    private fun startReload() {
+        val p = player
+        if (p.reloading || p.ammo >= p.magSize) return
+        p.reloadTotal = RELOAD_TIME * Math.pow(0.8, stacks(Perk.RAPID_FIRE).toDouble()).toFloat()
+        p.reloadTime = p.reloadTotal
+        events += GameEvent.Reload
+    }
+
     private fun fire() {
         val p = player
-        if (p.fireCooldown > 0f) {
-            p.bufferedShot = true
+        val infinite = p.weapon == PickupKind.SHOTGUN || p.weapon == PickupKind.MINIGUN
+        if (p.fireCooldown > 0f || (p.reloading && !infinite)) {
+            p.bufferedShot = p.fireCooldown < 0.2f && p.reloadTime < 0.25f
             return
         }
         val f = playerTargetFloor() ?: return
@@ -685,6 +714,7 @@ class World(val config: RunConfig) {
                 val len = sqrt(dx * dx + dz * dz).coerceAtLeast(0.01f)
                 bullets += Bullet(p.x, originZ, f, dx / len * PLAYER_BULLET_V, dz / len * PLAYER_BULLET_V, true, 1, 0, 0, targetLight = li)
                 afterShot(ground, originZ, 0.26f)
+                if (!infinite && --p.ammo <= 0) startReload()
                 return
             }
         }
@@ -732,10 +762,19 @@ class World(val config: RunConfig) {
             }
         }
         afterShot(ground, aimZ, cooldown * Math.pow(0.8, stacks(Perk.RAPID_FIRE).toDouble()).toFloat())
+        if (!infinite && --p.ammo <= 0) startReload()
     }
 
     private fun afterShot(ground: Float, z: Float, cooldown: Float) {
         val p = player
+        // Gunfire is loud. Takedowns are the quiet way.
+        for (e in enemies) {
+            if (e.floor == p.floor && e.alive && abs(e.x - p.x) < Heat.GUNSHOT_RADIUS &&
+                (e.state == EnemyState.PATROL || e.state == EnemyState.SEARCH)
+            ) {
+                alert(e)
+            }
+        }
         p.fireCooldown = cooldown
         p.sinceShot = 0f
         events += GameEvent.Shot(byPlayer = true, heavy = p.weapon == PickupKind.SHOTGUN, pan = pan(p.x))
@@ -982,10 +1021,15 @@ class World(val config: RunConfig) {
 
             when (e.state) {
                 EnemyState.EMERGING -> {
-                    if (e.stateTime > 0.5f) {
-                        e.state = EnemyState.PATROL
-                        e.stateTime = 0f
-                        if (sees) alert(e)
+                    // Elevator Action rule: whoever steps out of a door comes out looking for you.
+                    if (e.stateTime > 0.45f) {
+                        if (sees || visible) {
+                            alert(e)
+                            e.timer *= 0.6f
+                        } else {
+                            e.state = EnemyState.PATROL
+                            e.stateTime = 0f
+                        }
                     }
                 }
                 EnemyState.PATROL -> {
@@ -1037,12 +1081,12 @@ class World(val config: RunConfig) {
                 EnemyState.AIM -> {
                     e.vx = 0f
                     if (visible || boxedNearby) e.facing = if (dx >= 0) 1 else -1
-                    val aimTime = if (e.burstLeft < 2 && e.kind == EnemyKind.HEAVY && e.stateTime > 0f && e.fireCooldown > -9f && e.burstLeft >= 0 && e.timer < 0f) 0.12f else AIM_TIME
+                    val aimTime = Heat.aimTime(heat)
                     if (e.stateTime >= aimTime) {
                         toSpawnFire += enemyShot(e, heat)
                         if (e.burstLeft > 0) {
                             e.burstLeft--
-                            e.stateTime = AIM_TIME - 0.13f
+                            e.stateTime = aimTime - 0.13f
                         } else {
                             e.state = EnemyState.ALERT
                             e.stateTime = 0f
@@ -1165,6 +1209,16 @@ class World(val config: RunConfig) {
             if (!b.dead && b.byPlayer) {
                 for (e in enemies) {
                     if (e.floor != b.floor || !e.alive || e.id in b.hitIds) continue
+                    // The Elevator Action duel: alert guards duck high shots and answer low.
+                    if (e.kind == EnemyKind.AGENT && e.state == EnemyState.ALERT && b.z > 0.8f && b.vz == 0f &&
+                        (e.x - b.x) * b.vx > 0f && abs(e.x - b.x) < 2.6f && b.duckRolled.add(e.id) &&
+                        rng.chance(Heat.duckChance(floors[e.floor]?.plan?.heat ?: 0f))
+                    ) {
+                        e.state = EnemyState.AIM
+                        e.stateTime = 0f
+                        e.aimLow = true
+                        e.burstLeft = 0
+                    }
                     if (abs(e.x - b.x) < e.halfWidth + 0.1f && b.z >= e.z - 0.05f && b.z <= e.z + e.height + 0.05f) {
                         b.hitIds += e.id
                         damageEnemy(e, b.damage, KillMethod.SHOT, sign(b.vx).toInt())
@@ -1430,8 +1484,9 @@ class World(val config: RunConfig) {
         const val PLAYER_BULLET_V = 24f
         const val TAKEDOWN_TIME = 0.36f
         const val STAIRS_TIME = 0.5f
-        const val AIM_TIME = 0.42f
         const val COMBO_WINDOW = 2.6f
+        const val RELOAD_TIME = 1.05f
+        const val TACTICAL_RELOAD_DELAY = 1.4f
         const val LIGHT_FALL_TIME = 0.42f
         const val ELEVATOR_SPEED = 1.9f
     }
