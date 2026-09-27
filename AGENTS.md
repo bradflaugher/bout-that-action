@@ -2,8 +2,8 @@
 
 'Bout That Action (a Marshawn Lynch reference) is an endless, portrait-only
 Android action game: a stylized, hyper-modern take on Elevator Action with
-Metal Gear Solid box hiding. Sideloaded only. Read `README.md` for the player-facing overview and
-keep it in sync with any behavior you change.
+Metal Gear Solid box hiding. Sideloaded only. Read `README.md` for the
+player-facing overview and keep it in sync with any behavior you change.
 
 ## Latest-only platform policy
 
