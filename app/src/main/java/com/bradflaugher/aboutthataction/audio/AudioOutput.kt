@@ -33,30 +33,36 @@ class AudioOutput(private val engine: SoundEngine) {
             val sr = engine.sampleRate
             val minBytes = AudioTrack.getMinBufferSize(sr, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_FLOAT)
             val minFrames = if (minBytes > 0) minBytes / BYTES_PER_FRAME else 1024
-            val t = AudioTrack.Builder()
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_GAME)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .build(),
-                )
-                .setAudioFormat(
-                    AudioFormat.Builder()
-                        .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
-                        .setSampleRate(sr)
-                        .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
-                        .build(),
-                )
-                .setTransferMode(AudioTrack.MODE_STREAM)
-                .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
-                .setBufferSizeInBytes(minFrames * BUFFER_MULTIPLE * BYTES_PER_FRAME)
-                .build()
+            // No usable audio output (or the device refused the format): play on in silence.
+            val t = runCatching {
+                AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_GAME)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build(),
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
+                            .setSampleRate(sr)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
+                            .build(),
+                    )
+                    .setTransferMode(AudioTrack.MODE_STREAM)
+                    .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
+                    .setBufferSizeInBytes(minFrames * BUFFER_MULTIPLE * BYTES_PER_FRAME)
+                    .build()
+            }.getOrNull() ?: return
+            if (t.state != AudioTrack.STATE_INITIALIZED || runCatching { t.play() }.isFailure) {
+                t.release()
+                return
+            }
             // Write in small chunks: a fraction of the device buffer keeps latency low.
             val chunk = (minFrames / 2).coerceIn(64, 512)
             track = t
             running = true
             paused = false
-            t.play()
             thread = Thread({ loop(t, chunk) }, "ata-audio").apply {
                 priority = Thread.MAX_PRIORITY
                 start()

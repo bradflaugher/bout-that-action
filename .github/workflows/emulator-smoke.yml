@@ -65,9 +65,10 @@ jobs:
       # system-images;android-<api-level>;<target>;<arch> and platforms;android-<api-level>,
       # so '37.0' selects system-images;android-37.0;google_apis;x86_64.
       #
-      # Each script line runs as its own `sh -c`, so a failing test is recorded
-      # in a marker file instead of aborting: screenshots and logcat are still
-      # captured, and the last line fails the step.
+      # The script waits for the package manager, installs without streaming
+      # (API 37 images can report boot-complete before installs work), runs the
+      # instrumented tests, plays a little and always captures screenshots and
+      # logcat before failing.
       - name: Run instrumented tests and capture screenshots
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
@@ -82,37 +83,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
           disable-animations: true
           disable-spellchecker: true
-          script: |
-            mkdir -p smoke
-            adb logcat -c || true
-            adb shell settings put system screen_off_timeout 1800000
-            adb shell wm dismiss-keyguard || true
-            ./gradlew connectedDebugAndroidTest || touch smoke/tests-failed
-            ./gradlew installDebug
-            adb shell am start -W -n "$APP_ID/$MAIN_ACTIVITY"
-            sleep 6
-            adb exec-out screencap -p > smoke/title.png
-            adb shell am force-stop "$APP_ID"
-            adb shell am start -W -n "$APP_ID/$MAIN_ACTIVITY" --ez autostart true
-            sleep 4
-            adb exec-out screencap -p > smoke/rooftop.png
-            adb shell input swipe 300 1900 700 1900 1500
-            adb shell input tap 540 1700
-            adb shell input tap 540 1700
-            adb shell input swipe 540 1800 540 1500 60
-            adb shell input swipe 300 1900 750 1900 2500
-            adb exec-out screencap -p > smoke/playing.png
-            adb shell input swipe 540 1600 540 1900 60
-            sleep 1
-            adb exec-out screencap -p > smoke/hiding.png
-            adb shell input swipe 700 1900 250 1900 3000
-            adb shell input tap 540 1700
-            sleep 1
-            adb exec-out screencap -p > smoke/playing-later.png
-            adb shell pidof "$APP_ID" > smoke/pid.txt || touch smoke/tests-failed
-            adb shell dumpsys activity activities > smoke/activities.txt || true
-            adb logcat -d > smoke/logcat.txt
-            test ! -f smoke/tests-failed
+          script: .github/scripts/emulator-smoke.sh
 
       - name: Upload screenshots and logcat
         if: ${{ !cancelled() }}
@@ -121,7 +92,5 @@ jobs:
           name: emulator-smoke
           path: |
             smoke/
-            app/build/reports/androidTests/
-            app/build/outputs/androidTest-results/
           if-no-files-found: warn
           retention-days: 14
