@@ -309,7 +309,7 @@ internal fun AudioAndControls(s: Settings, onChange: (Settings) -> Unit, audioIn
     LevelMeter("MUSIC", s.musicVolume) { onChange(s.copy(musicVolume = it)) }
     LevelMeter("SOUND FX", s.sfxVolume) { onChange(s.copy(sfxVolume = it)) }
     SectionHeader(controlsIndex, "CONTROLS", Neon.cyan)
-    Toggle("Auto-fire", "Shoots anything in sight", s.autoFire) { onChange(s.copy(autoFire = it)) }
+    Toggle("Silent mode", "Never fire: takedowns, stomps, grenades. Quiet kills score double", s.silent) { onChange(s.copy(silent = it)) }
     Toggle("Haptics", "Feel hits and pickups", s.haptics) { onChange(s.copy(haptics = it)) }
     Toggle("Thumb guide", "Ring under your running thumb", s.touchGuide) { onChange(s.copy(touchGuide = it)) }
 }
