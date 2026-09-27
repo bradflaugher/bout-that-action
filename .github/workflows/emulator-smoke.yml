@@ -84,7 +84,10 @@ jobs:
           ram-size: 4096M
           disk-size: 6G
           emulator-boot-timeout: 900
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
+          # swangle (SwiftShader through ANGLE): the older swiftshader_indirect mode
+          # aborts SurfaceFlinger's RegionSampling thread on API 37 every ~30 s,
+          # boot-looping the framework.
+          emulator-options: -no-window -gpu swangle_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
           disable-animations: true
           disable-spellchecker: true
           script: .github/scripts/emulator-smoke.sh
