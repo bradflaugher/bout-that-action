@@ -349,7 +349,7 @@ class MechanicsTest {
         assertEquals(PlayerState.PASSAGE, w.player.state)
         assertTrue(w.events.contains(GameEvent.Passage))
         run(w, World.PASSAGE_TIME + 0.05f)
-        assertEquals(PlayerState.NORMAL, w.player.state)
+        assertEquals("SILENT: you arrive in the doorway's shadow", PlayerState.DOOR, w.player.state)
         assertEquals(door.to, w.player.hall)
         assertNotEquals(from, w.player.hall)
         val back = w.playerHall()!!.plan.doors[door.toDoor]
@@ -504,7 +504,7 @@ class MechanicsTest {
         }
         assertEquals("no stops on the way", 1, stops)
         assertEquals(shaft.bottom, w.player.floor)
-        assertEquals(PlayerState.NORMAL, w.player.state)
+        assertEquals("SILENT: you arrive in the doorway's shadow", PlayerState.DOOR, w.player.state)
         assertEquals(0, w.player.hall)
         assertEquals(shaft.bottom, w.deepest)
     }
@@ -648,28 +648,58 @@ class MechanicsTest {
 
     // ------------------------------------------------------------ lights, stomps, grenades
 
+    /** Jumps and swats the lamp at [lx] from right underneath it. */
+    private fun swat(w: World, lx: Float, from: Float = lx) {
+        w.player.x = from
+        w.player.fireCooldown = 99f // hands only: keep GUNS HOT's gun out of it
+        w.commands += Command.SWIPE_UP
+        run(w, 0.15f) { it.player.fireCooldown = 99f }
+        w.commands += Command.TAP
+        w.step(dt)
+    }
+
     @Test
-    fun shootingALightDropsItOnWhoeverIsBelowWithoutWakingTheFloor() {
+    fun aSwattedLampNeverLandsOnYou() {
+        for (silent in listOf(true, false)) {
+            val w = world(silent = silent)
+            val hs = w.playerHall()!!
+            val li = hs.plan.lights.indices.first { hs.plan.lights[it] in 3f..9f }
+            val hp = w.player.hp
+            swat(w, hs.plan.lights[li])
+            assertFalse(hs.lightAlive[li])
+            // Stand right where it comes down.
+            run(w, 1.2f) { it.player.x = hs.plan.lights[li] }
+            assertEquals("silent=$silent", hp, w.player.hp)
+            assertTrue(hs.darkness > 0f)
+        }
+    }
+
+    @Test
+    fun aSwattedLampOutsWhoeverIsBelowAndLuresTheRest() {
         for (silent in listOf(true, false)) {
             val w = world(silent = silent)
             val hs = w.playerHall()!!
             val li = hs.plan.lights.indices.first { hs.plan.lights[it] in 3f..9f }
             val lx = hs.plan.lights[li]
-            val e = enemy(w, EnemyKind.HEAVY, lx)
-            e.facing = 1
-            val listener = enemy(w, EnemyKind.AGENT, lx + 3.5f, facing = 1)
-            w.player.x = lx - 1.5f
-            w.player.facing = 1
-            w.player.fireCooldown = 99f
-            w.commands += Command.SWIPE_UP
-            run(w, 0.15f) { it.player.fireCooldown = 99f }
-            w.commands += Command.TAP
-            run(w, 1.2f) { it.player.fireCooldown = 99f }
-            assertFalse(hs.lightAlive[li])
-            assertFalse(e.alive)
-            assertEquals(KillMethod.LIGHT, e.killedBy)
-            assertTrue(hs.darkness > 0f)
-            assertEquals("suppressed (silent=$silent)", EnemyState.PATROL, listener.state)
+            // A guard napping under the lamp; reach up from just beside him.
+            val below = enemy(w, EnemyKind.AGENT, lx + 0.5f, facing = 1)
+            below.asleep = true
+            val listener = enemy(w, EnemyKind.AGENT, lx + 4.5f, facing = 1)
+            swat(w, lx, from = lx - 0.9f)
+            // Then melt into a doorway's shadow and watch.
+            run(w, 1.2f) {
+                it.player.state = PlayerState.DOOR
+                it.player.anchorX = 0.5f
+                it.player.fireCooldown = 99f
+            }
+            assertFalse("the one below is out (silent=$silent)", below.alive)
+            assertEquals(KillMethod.LIGHT, below.killedBy)
+            // The crash of glass brings the other one over to look: suspicious, not alerted.
+            assertEquals(EnemyState.SEARCH, listener.state)
+            assertEquals(lx, listener.lastSeenX, 0.01f)
+            assertTrue(w.events.any { it is GameEvent.Suspicious })
+            assertTrue(w.events.none { it is GameEvent.Alerted })
+            assertEquals("a lure isn't a box double-take", 0, w.stats.suspicions)
         }
     }
 

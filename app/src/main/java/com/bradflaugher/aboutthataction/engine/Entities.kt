@@ -76,6 +76,8 @@ class Player {
     /** Riding with the cardboard box pulled over you: nobody at the doors can see you. */
     var carBox = false
     var takedownTarget = -1
+    /** Seconds left on a jump-swat at a lamp (the arm flicks up). */
+    var swatTime = 0f
     /** Seconds since the last shot (for the muzzle flash / recoil pose). */
     var sinceShot = 9f
     var runTime = 0f
@@ -195,8 +197,6 @@ class Bullet(
     var bounces: Int,
     /** Fireballs arc under gravity. */
     val gravity: Boolean = false,
-    /** Player bullets aimed at a ceiling light. */
-    val targetLight: Int = -1,
     var range: Float = 30f,
     /** The hallway of [floor] it flies through. */
     val hall: Int = 0,

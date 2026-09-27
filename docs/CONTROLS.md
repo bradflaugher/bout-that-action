@@ -31,7 +31,7 @@ Every verb has exactly one gesture, and no gesture means two things:
 | Tap | Interact: a passage, a live INTEL door, an elevator (ride it if it's open, call it if not) |
 | Double-tap | Grenade |
 | Walk into a guard | Takedown |
-| Jump + tap | Suppressed shot at a ceiling light |
+| Jump + tap | Swat out the ceiling lamp overhead |
 | Mode button | GUNS HOT ⇄ SILENT |
 
 The gun is not a gesture any more. In **GUNS HOT** it fires itself (see
@@ -192,11 +192,16 @@ longer to react (`SILENT_REACTION`). Every kill that isn't a shot or a blast
 (takedown, stomp, light, hazard) scores double. It's the riskier, richer way
 down.
 
-**Jump + tap on a light.** An airborne tap is a suppressed shot at the
-nearest live light ahead, when that's what you mean: the light would land on
-someone (a guard within 0.9 u of it), or there's nobody in front to shoot
-instead (always true in SILENT). It costs no ammo and alerts nobody, in
-either mode.
+**Jump + tap on a light.** An airborne tap swats out the live lamp overhead
+(within 1.1 u sideways, `LIGHT_REACH`) by hand: no gun, no ammo, either mode.
+The fixture drops a beat later onto anyone within 0.8 u of it, never onto you.
+The crash of glass brings every guard within 7 u (`LIGHT_LURE_RADIUS`) over to
+look, sleepers included ("HUH?", a SEARCH at the lamp, not an alert): a lure.
+
+**Arriving in SILENT.** Through a passage or out of a car you arrive tucked
+into the doorway's shadow, hidden, so a guard facing the door sees nothing.
+Tap, swipe up, or lift and drag to step out when it's clear. (GUNS HOT arrives
+in the open, with the 0.8 s arrival grace.)
 
 **Double-tap with nothing to throw.** With no grenades it says so ("NO
 GRENADES") and does nothing else; with one already in the air, the second is
