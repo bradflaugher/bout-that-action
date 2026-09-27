@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
 import com.bradflaugher.aboutthataction.audio.AudioOutput
 import com.bradflaugher.aboutthataction.audio.SoundEngine
+import com.bradflaugher.aboutthataction.engine.AlertPhase
 import com.bradflaugher.aboutthataction.engine.Autopilot
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.GameEvent
@@ -68,6 +69,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
     // Music state, driven from the game thread and reset on the main thread between runs.
     @Volatile private var musicZone: Zone? = null
     @Volatile private var musicSilent = false
+    @Volatile private var musicAlert = AlertPhase.CALM
     @Volatile private var musicSlowMo = false
     private var musicFrame = 0
 
@@ -189,6 +191,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
         gameView.autopilot = Autopilot(seed)
         gameView.world = World(RunConfig(seed, Difficulty.Preset.CHILL.difficulty, coach = false))
         musicZone = null
+        musicAlert = AlertPhase.CALM
+        sound.setAlert(AlertPhase.CALM)
         endSlowMo()
         if (music) sound.playTitle()
     }
@@ -209,6 +213,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
         runSeed = config.seed
         if (runSeedLabel.isEmpty()) runSeedLabel = config.seed.toString()
         musicZone = null
+        musicAlert = AlertPhase.CALM
+        sound.setAlert(AlertPhase.CALM)
         gameView.world = World(config.copy(silent = settings.silent, coach = settings.coach))
         gameView.attract = false
         gameView.paused = false
@@ -260,10 +266,16 @@ class MainActivity : ComponentActivity(), GameView.Host {
 
     override fun onFrame(world: World) {
         if (gameView.attract) return
-        if (world.musicZone != musicZone || world.silent != musicSilent) {
+        // SILENT's sneak mix plays only while all's calm; spotted, it's the zone's full track.
+        val sneaking = world.silent && world.alertPhase == AlertPhase.CALM
+        if (world.musicZone != musicZone || sneaking != musicSilent) {
             musicZone = world.musicZone
-            musicSilent = world.silent
-            sound.setZone(world.musicZone, world.silent)
+            musicSilent = sneaking
+            sound.setZone(world.musicZone, sneaking)
+        }
+        if (world.alertPhase != musicAlert) {
+            musicAlert = world.alertPhase
+            sound.setAlert(world.alertPhase)
         }
         if (world.slowMo != musicSlowMo) {
             musicSlowMo = world.slowMo

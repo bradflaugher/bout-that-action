@@ -110,6 +110,10 @@ class World(val config: RunConfig) {
         private set
     /** Smoothed 0..1 combat intensity for the music. */
     var intensity = 0f
+    /** Is anyone onto you (ALERT), looking for you (CAUTION), or neither (CALM)? */
+    var alertPhase = AlertPhase.CALM
+        private set
+    private var cautionLeft = 0f
         private set
     var dyingTime = 0f
         private set
@@ -230,6 +234,7 @@ class World(val config: RunConfig) {
         val alert = enemies.count { it.floor == player.floor && it.hall == player.hall && it.alive && it.state != EnemyState.PATROL }
         val target = ((alert / 3f) + combo * 0.08f + if (slowMo) 0.3f else 0f).coerceIn(0f, 1f)
         intensity += (target - intensity) * min(1f, dt * 1.5f)
+        updateAlertPhase(dt)
 
         camY += (targetCamY() - camY) * min(1f, dt * 7f)
         ensureFloors()
@@ -1407,7 +1412,31 @@ class World(val config: RunConfig) {
         }
     }
 
+    private fun updateAlertPhase(dt: Float) {
+        var hunting = false
+        var searching = false
+        for (e in enemies) {
+            if (!e.alive || !here(e)) continue
+            when (e.state) {
+                EnemyState.ALERT, EnemyState.AIM, EnemyState.WINDUP -> hunting = true
+                EnemyState.SEARCH -> searching = true
+                else -> Unit
+            }
+        }
+        cautionLeft -= dt
+        if (hunting || searching) cautionLeft = CAUTION_TIME
+        alertPhase = when {
+            hunting -> AlertPhase.ALERT
+            cautionLeft > 0f && (searching || alertPhase != AlertPhase.CALM) -> AlertPhase.CAUTION
+            else -> AlertPhase.CALM
+        }
+    }
+
     private fun alert(e: Enemy) {
+        // Spotted (not a guard who already had you): the "!" sting, only where you are.
+        val spotting = e.state == EnemyState.PATROL || e.state == EnemyState.SEARCH || e.state == EnemyState.EMERGING
+        // One sting for a whole group spotting you at once.
+        if (spotting && here(e) && events.none { it is GameEvent.Alerted }) events += GameEvent.Alerted(pan(e.x))
         e.state = EnemyState.ALERT
         e.stateTime = 0f
         // SILENT: no gunfire to home in on, so it takes them a beat longer to get a bead on you.
@@ -2244,6 +2273,8 @@ class World(val config: RunConfig) {
         const val PLAYER_BULLET_V = 24f
         const val GUN_COOLDOWN = 0.27f
         const val TAKEDOWN_TIME = 0.36f
+        /** After the last guard loses you, the music stays tense this long. */
+        const val CAUTION_TIME = 6f
         const val COMBO_WINDOW = 2.6f
         const val FLOORS_ABOVE = 5
         const val FLOORS_BELOW = 7

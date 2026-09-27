@@ -35,6 +35,7 @@ internal object AudioTestUtil {
         add(GameEvent.FloorReached(7)); add(GameEvent.FloorReached(30))
         for (z in Zone.entries) add(GameEvent.ZoneEntered(z))
         add(GameEvent.SlowMoStart); add(GameEvent.SlowMoEnd); add(GameEvent.SpecialEmpty); add(GameEvent.Reload)
+        add(GameEvent.Alerted(0.3f))
     }
 
     /** One representative event per GameEvent subclass (for a compact reel). */

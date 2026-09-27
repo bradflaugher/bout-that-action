@@ -179,7 +179,10 @@ fight and pitches down in bullet time. SILENT gets its own sneak mix of every
 zone: the same key and chords at a slow tempo over a heartbeat kick, a roomy
 snare, ticking hats and glassy bell notes in a long echo, with rim clicks
 creeping in as guards get suspicious. Flipping the mode crossfades between
-the two. Every sound effect is
+the two. Getting spotted plays a sharp "!" sting and throws the music into
+ALERT (full drums and lead; in SILENT, the sneak mix gives way to the zone's
+full track). Once they lose you it stays tense through CAUTION for a few
+seconds, then calms down. Takedowns get a strangled grunt. Every sound effect is
 synthesized too, panned to where it happened on screen, with haptics on the
 big moments.
 

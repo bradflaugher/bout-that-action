@@ -124,6 +124,37 @@ class SoundEngineTest {
     }
 
     @Test
+    fun aTakedownChokesOutAGrunt() {
+        val e = SoundEngine()
+        e.setMusicVolume(0f)
+        e.trigger(GameEvent.Takedown)
+        val out = render(e, 0.8f)
+        val sr = AudioTestUtil.SR
+        // The grab is over in ~0.15 s; the strangled voice carries on well past it.
+        val grunt = rms(out.copyOfRange(sr * 2 * 20 / 100, sr * 2 * 40 / 100))
+        println("choke grunt rms 0.2-0.4 s = %.4f".format(grunt))
+        assertTrue("the choke grunt should carry on after the grab ($grunt)", grunt > 0.01)
+    }
+
+    @Test
+    fun beingSpottedDrivesTheMusicHarder() {
+        fun take(phase: com.bradflaugher.aboutthataction.engine.AlertPhase): Double {
+            val e = SoundEngine()
+            e.setIntensity(0f)
+            e.setZone(Zone.TOWER)
+            e.setAlert(phase)
+            val out = render(e, 8f)
+            return rms(out.copyOfRange(AudioTestUtil.SR * 2 * 4, out.size))
+        }
+        val calm = take(com.bradflaugher.aboutthataction.engine.AlertPhase.CALM)
+        val caution = take(com.bradflaugher.aboutthataction.engine.AlertPhase.CAUTION)
+        val alert = take(com.bradflaugher.aboutthataction.engine.AlertPhase.ALERT)
+        println("tower at zero heat: calm %.3f caution %.3f alert %.3f".format(calm, caution, alert))
+        assertTrue("caution is tenser than calm", caution > calm * 1.1)
+        assertTrue("alert drives hardest", alert > caution * 1.05)
+    }
+
+    @Test
     fun flippingTheModeCrossfadesRightAway() {
         val e = SoundEngine()
         e.setIntensity(0.5f)

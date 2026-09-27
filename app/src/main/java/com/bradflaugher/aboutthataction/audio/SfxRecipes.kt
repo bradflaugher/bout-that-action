@@ -87,6 +87,7 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
             GameEvent.SpecialEmpty -> emptyClick()
             GameEvent.Reload -> reload()
             is GameEvent.Suspicious -> huh(e.pan)
+            is GameEvent.Alerted -> alerted(e.pan)
             GameEvent.Ghost -> ghost()
             is GameEvent.FloorEventStarted -> floorEvent(e.event)
             GameEvent.Muzak -> muzak()
@@ -193,7 +194,10 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                     decay = 0.09f; crush = 3; gain = 0.28f; this.pan = pan
                 }
             }
-            KillMethod.TAKEDOWN -> takedownCrunch(pan, up)
+            KillMethod.TAKEDOWN -> {
+                takedownCrunch(pan, up)
+                koExhale(pan)
+            }
             KillMethod.STOMP -> {
                 voice { wave = Wave.SINE; f0 = 230f * up * j(); f1 = 55f; sweep = 0.06f; decay = 0.13f; gain = 0.55f; this.pan = pan }
                 voice {
@@ -259,12 +263,72 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         }
     }
 
+    /**
+     * The grab, and the guard's strangled grunt, MGS style: a catch in the throat, then a
+     * choked "uuurgh" (a buzzing voice through two vowel formants, pitch sagging, gurgling
+     * under a fast tremolo) with a rasp of breath. Every guard's voice sits a little apart.
+     */
     private fun takedown() {
         voice {
             level1 = 0f; noise = 1f; filter = FilterMode.BAND; cut0 = 600f; cut1 = 1900f; cutTime = 0.08f; q = 1.2f
-            attack = 0.01f; decay = 0.1f; gain = 0.25f
+            attack = 0.01f; decay = 0.1f; gain = 0.2f
         }
-        voice { wave = Wave.SINE; f0 = 110f * j(); f1 = 50f; sweep = 0.1f; decay = 0.13f; gain = 0.45f; delay = 0.05f }
+        voice { wave = Wave.SINE; f0 = 110f * j(); f1 = 50f; sweep = 0.1f; decay = 0.13f; gain = 0.4f; delay = 0.03f }
+        val v = j(0.14f)
+        // The catch: a glottal click as the arm closes.
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.BAND; cut0 = 1500f; cut1 = 1100f; cutTime = 0.03f; q = 2f
+            decay = 0.03f; gain = 0.22f; delay = 0.03f
+        }
+        // The choked voice: first formant ("uh" sliding toward "oo") and a thinner second one.
+        voice {
+            wave = Wave.SAW; f0 = 170f * v; f1 = 96f * v; sweep = 0.42f; filter = FilterMode.BAND; cut0 = 820f; cut1 = 480f
+            cutTime = 0.4f; q = 3f; attack = 0.025f; hold = 0.14f; decay = 0.24f; tremRate = 31f; tremDepth = 0.55f
+            vibRate = 7f; vibDepth = 0.03f; drive = 1.2f; gain = 0.34f; delay = 0.05f; reverb = 0.08f; priority = 2f
+        }
+        voice {
+            wave = Wave.SAW; f0 = 170f * v; f1 = 96f * v; sweep = 0.42f; filter = FilterMode.BAND; cut0 = 2300f; cut1 = 1500f
+            cutTime = 0.4f; q = 3f; attack = 0.025f; hold = 0.14f; decay = 0.22f; tremRate = 31f; tremDepth = 0.55f
+            gain = 0.12f; delay = 0.05f; priority = 2f
+        }
+        // Rasping breath under it.
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.BAND; cut0 = 1150f; cut1 = 900f; cutTime = 0.3f; q = 1.1f
+            attack = 0.03f; hold = 0.1f; decay = 0.25f; tremRate = 29f; tremDepth = 0.5f; gain = 0.09f; delay = 0.05f
+        }
+    }
+
+    /** Out cold: the last breath leaving him as he slumps. */
+    private fun koExhale(pan: Float) {
+        voice {
+            wave = Wave.SAW; f0 = 118f * j(0.1f); f1 = 78f; sweep = 0.25f; filter = FilterMode.BAND; cut0 = 640f; cut1 = 420f
+            cutTime = 0.25f; q = 2.2f; attack = 0.02f; decay = 0.22f; gain = 0.13f; this.pan = pan; delay = 0.04f
+        }
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.BAND; cut0 = 1800f; cut1 = 800f; cutTime = 0.4f; q = 0.9f
+            attack = 0.04f; decay = 0.38f; gain = 0.09f; this.pan = pan; delay = 0.06f; reverb = 0.15f
+        }
+    }
+
+    /**
+     * Spotted: the "!" sting. A bright, slightly dissonant brass stab that snaps up into pitch,
+     * a punch underneath, a crash of noise and a high metallic ping ringing out.
+     */
+    private fun alerted(pan: Float) {
+        for ((k, f) in ALERT_STAB.withIndex()) voice {
+            wave = Wave.SAW; wave2 = Wave.SAW; ratio2 = 1.006f; level2 = 0.8f; f0 = f * 0.93f; f1 = f; sweep = 0.035f
+            filter = FilterMode.LOW; cut0 = 7000f; cut1 = 1600f; cutTime = 0.3f; q = 1.1f; attack = 0.002f; hold = 0.07f
+            decay = 0.34f; gain = 0.085f; this.pan = pan * 0.3f + (k - 1) * 0.25f; reverb = 0.35f; priority = 3f
+        }
+        voice { wave = Wave.SINE; f0 = 130f; f1 = 52f; sweep = 0.12f; decay = 0.24f; drive = 0.4f; gain = 0.5f; priority = 3f }
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.HIGH; cut0 = 3500f; cut1 = 6000f; cutTime = 0.2f; decay = 0.26f
+            gain = 0.16f; reverb = 0.4f; priority = 3f
+        }
+        voice {
+            wave = Wave.SINE; wave2 = Wave.SINE; ratio2 = 3.01f; fm = 0.6f; f0 = 2637f; f1 = 2637f; attack = 0.002f
+            decay = 0.6f; gain = 0.05f; this.pan = pan * 0.5f; reverb = 0.5f; delay = 0.02f; priority = 3f
+        }
     }
 
     // ---- Movement ------------------------------------------------------------------------
@@ -795,6 +859,8 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
 
     companion object {
         private val PENTA = intArrayOf(0, 2, 4, 7, 9)
+        /** The alert stab: E5, F5 and B5, a bright cluster with a bite. */
+        private val ALERT_STAB = floatArrayOf(659.3f, 698.5f, 987.8f)
         private val LULLABY = intArrayOf(0, -3, -7)
         /** Cmaj7, then Am7 (semitones above middle C). */
         private val MUZAK_CHORDS = arrayOf(intArrayOf(0, 4, 7, 11), intArrayOf(-3, 0, 4, 7))
