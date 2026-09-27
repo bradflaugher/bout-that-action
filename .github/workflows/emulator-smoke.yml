@@ -3,19 +3,22 @@ name: Emulator smoke test
 # Boots a real API 37 emulator (KVM-accelerated on GitHub's Linux runners),
 # runs the instrumented tests (app/src/androidTest), then launches the game
 # and captures screenshots and logcat as artifacts.
+#
+# Emulator runs are slow and flaky by nature (fresh API images especially), so
+# this is not a gate: the fast JVM suite in ci.yml covers the game's logic,
+# controls, renderer and synth. Run it on demand before a release, and weekly
+# as an early warning.
 on:
-  push:
-    branches:
-      - main
-      - 'claude/**'
   workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * 1'
 
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   smoke:

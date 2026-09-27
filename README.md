@@ -150,7 +150,8 @@ Kotlin behind small interfaces, so it's tested on the JVM:
 - Audio tests: DSP, music theory, levels, determinism, and a check that it
   renders faster than real time.
 - `GameplaySmokeTest` (emulator): drops into a run and plays with injected
-  touches. CI boots an API 37 emulator for it.
+  touches. Runs on an API 37 emulator on demand and weekly; not a merge
+  gate, since emulators are slow and flaky.
 
 ## License
 

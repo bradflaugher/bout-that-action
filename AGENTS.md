@@ -84,9 +84,10 @@ the JVM.
 ```
 
 `.github/workflows/ci.yml` runs unit tests and lint as separate checks on
-every pull request and push. `emulator-smoke.yml` boots an API 37 emulator,
-runs the instrumented tests, plays a little with `adb input` and uploads
-screenshots.
+every pull request and push. `emulator-smoke.yml` (manual, plus weekly;
+deliberately not a merge gate because emulators are slow and flaky) boots an
+API 37 emulator, runs the instrumented tests, plays a little with `adb input`
+and uploads screenshots and logcat.
 
 Every push to `main` builds a signed APK and publishes it as the single
 date-labeled GitHub release `vYYYY.MM.DD.<run>`, deleting all older
