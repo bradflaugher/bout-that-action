@@ -22,12 +22,15 @@ for _ in $(seq 1 90); do
 done
 sleep 15
 adb logcat -c || true
+# Stream logcat for the whole session so a hang still leaves a trail.
+adb logcat > smoke/logcat.txt 2>&1 &
+LOGCAT_PID=$!
 adb shell settings put system screen_off_timeout 1800000 || true
 adb shell wm dismiss-keyguard || true
 
 install() {
   for attempt in 1 2 3 4 5; do
-    if adb install --no-streaming -r -t "$1"; then
+    if timeout 180 adb install --no-streaming -r -t "$1"; then
       return 0
     fi
     echo "install of $1 failed (attempt $attempt); retrying" >&2
@@ -37,7 +40,8 @@ install() {
 }
 
 if install "$APK" && install "$TEST_APK"; then
-  adb shell am instrument -w -r "$APP_ID.test/androidx.test.runner.AndroidJUnitRunner" | tee smoke/instrument.txt
+  # Bounded: a hung test must not eat the job timeout (and the artifact upload).
+  timeout 420 adb shell am instrument -w -r "$APP_ID.test/androidx.test.runner.AndroidJUnitRunner" | tee smoke/instrument.txt
   if ! grep -q "^OK (" smoke/instrument.txt; then
     echo "::error title=Instrumented tests failed::see smoke/instrument.txt" >&2
     failed=1
@@ -48,11 +52,12 @@ else
 fi
 
 # A short real session: title screen, then a run driven by adb input.
-adb shell am start -W -n "$APP_ID/$MAIN_ACTIVITY"
+adb shell am force-stop "$APP_ID" || true
+timeout 60 adb shell am start -W -n "$APP_ID/$MAIN_ACTIVITY"
 sleep 6
 adb exec-out screencap -p > smoke/title.png
 adb shell am force-stop "$APP_ID"
-adb shell am start -W -n "$APP_ID/$MAIN_ACTIVITY" --ez autostart true
+timeout 60 adb shell am start -W -n "$APP_ID/$MAIN_ACTIVITY" --ez autostart true
 sleep 4
 adb exec-out screencap -p > smoke/rooftop.png
 adb shell input swipe 300 1900 700 1900 1500
@@ -72,6 +77,6 @@ if ! adb shell pidof "$APP_ID" > smoke/pid.txt; then
   echo "::error title=App not running::the game process died during the adb session" >&2
   failed=1
 fi
-adb shell dumpsys activity activities > smoke/activities.txt || true
-adb logcat -d > smoke/logcat.txt || true
+timeout 30 adb shell dumpsys activity activities > smoke/activities.txt || true
+kill "$LOGCAT_PID" 2>/dev/null || true
 exit "$failed"
