@@ -12,33 +12,48 @@ import kotlin.math.abs
  *    point). Lift to stop.
  *  - **Flick up**: jump. **Flick down**: hide / use (door, elevator, box).
  *    Flicks fire the moment they're recognised, even in the middle of a run
- *    drag, without waiting for the finger to lift.
+ *    drag, without waiting for the finger to lift. A finger that flicked can
+ *    keep going: drag it sideways to run, or flick again.
  *  - **Tap**: shoot, on touch-up with no added delay.
  *    **Double-tap**: the second tap throws a grenade instead.
+ *
+ * One boundary everywhere: a stroke steeper than 45° is vertical (a flick),
+ * shallower is horizontal (a run). Flicks must also be quick (a distance
+ * inside a short window), so slowly repositioning a thumb never jumps.
+ * `docs/CONTROLS.md` explains every threshold.
  *
  * Coordinates are pixels; thresholds scale with [density] (px per dp).
  * Times are milliseconds. Pure Kotlin so every rule is unit-tested.
  */
 class GestureInput(density: Float) {
-    private val slop = 10f * density
-    private val flickDist = 26f * density
-    private val flickMidRunDist = 30f * density
-    private val reverseDist = 12f * density
-    private val doubleTapDist = 64f * density
+    private val slop = SLOP_DP * density
+    private val sloppyTapDist = SLOPPY_TAP_DP * density
+    private val flickDist = FLICK_DP * density
+    private val flickMidRunDist = FLICK_MID_RUN_DP * density
+    private val reverseDist = REVERSE_DP * density
+    private val restartDist = RESTART_DP * density
+    private val doubleTapDist = DOUBLE_TAP_DP * density
 
-    private enum class Mode { PENDING, RUN, FLICKED }
+    private enum class Mode {
+        /** Down, not yet classified: could still be a tap, a flick or a run. */
+        PENDING,
+        /** Held and steering: [Finger.dir] is the run direction (0 = standing, after a flick). */
+        HELD,
+    }
 
-    private class Finger(val id: Int, val downX: Float, val downY: Float, val downT: Long) {
+    private class Finger(val downX: Float, val downY: Float, val downT: Long) {
         var mode = Mode.PENDING
         var dir = 0
         var extreme = downX
-        var lastX = downX
-        var lastY = downY
+        /** Where a standing (dir 0) held finger rests; a sideways drag from here starts a run. */
+        var restX = downX
+        /** Furthest the finger ever got from where it went down (for sloppy taps). */
+        var maxTravel = 0f
         var flickCooldownUntil = 0L
         /** After a flick, the thumb springing back must not count as the opposite flick. */
         var lastFlick = 0
         var reboundUntil = 0L
-        /** Recent samples for mid-run flick detection. */
+        /** Recent samples for velocity-gated flick detection. */
         val hx = FloatArray(HISTORY)
         val hy = FloatArray(HISTORY)
         val ht = LongArray(HISTORY)
@@ -51,6 +66,11 @@ class GestureInput(density: Float) {
             hn++
         }
 
+        fun resetHistory(x: Float, y: Float, t: Long) {
+            hn = 0
+            record(x, y, t)
+        }
+
         /** The oldest sample no older than [windowMs]. */
         fun sampleSince(now: Long, windowMs: Long): Int? {
             var best: Int? = null
@@ -61,6 +81,19 @@ class GestureInput(density: Float) {
             }
             return best
         }
+
+        /**
+         * The sample that starts the *recent* part of the stroke (the last
+         * [windowMs]), falling back to the previous sample when events are
+         * sparse. The stroke's direction is judged on this, so a run drag
+         * a moment before a flick doesn't tilt the flick sideways.
+         */
+        fun recentSince(now: Long, windowMs: Long): Int? {
+            val newest = (hn - 1).mod(HISTORY)
+            val i = sampleSince(now, windowMs)
+            if (i != null && i != newest) return i
+            return if (minOf(hn, HISTORY) >= 2) (hn - 2).mod(HISTORY) else null
+        }
     }
 
     private val fingers = HashMap<Int, Finger>()
@@ -68,18 +101,23 @@ class GestureInput(density: Float) {
     private var lastTapT = Long.MIN_VALUE / 2
     private var lastTapX = 0f
     private var lastTapY = 0f
+    /** Consecutive quick taps in the current burst (1 = a lone tap). */
+    private var tapStreak = 0
     private var runCounter = 0L
 
     /** -1, 0 or 1: the direction of the most recently started running finger. */
     val moveAxis: Int
-        get() = fingers.values.filter { it.mode == Mode.RUN && it.dir != 0 }.maxByOrNull { it.runOrder }?.dir ?: 0
+        get() = fingers.values.filter { it.mode == Mode.HELD && it.dir != 0 }.maxByOrNull { it.runOrder }?.dir ?: 0
 
     /** Where the running finger went down (for the on-screen thumb guide), or null. */
     val runAnchor: Pair<Float, Float>?
-        get() = fingers.values.filter { it.mode == Mode.RUN }.maxByOrNull { it.runOrder }?.let { it.downX to it.downY }
+        get() = fingers.values.filter { it.mode == Mode.HELD && it.dir != 0 }.maxByOrNull { it.runOrder }?.let { it.downX to it.downY }
+
+    /** How many fingers are currently on the glass (tracked by this classifier). */
+    val fingerCount: Int get() = fingers.size
 
     fun down(id: Int, x: Float, y: Float, t: Long) {
-        fingers[id] = Finger(id, x, y, t).also { it.record(x, y, t) }
+        fingers[id] = Finger(x, y, t).also { it.record(x, y, t) }
     }
 
     fun move(id: Int, x: Float, y: Float, t: Long) {
@@ -87,82 +125,98 @@ class GestureInput(density: Float) {
         f.record(x, y, t)
         val dx = x - f.downX
         val dy = y - f.downY
+        f.maxTravel = maxOf(f.maxTravel, abs(dx), abs(dy))
         when (f.mode) {
             Mode.PENDING -> {
-                if (abs(dy) > flickDist && abs(dy) > abs(dx) * 1.2f) {
-                    flick(f, dy, t)
-                    f.mode = Mode.FLICKED
+                val w = f.sampleSince(t, FLICK_WINDOW_MS)
+                val wdy = if (w != null) y - f.hy[w] else dy
+                if (abs(dy) > flickDist && abs(wdy) > flickDist && abs(dy) > abs(dx)) {
+                    flick(f, dy, x, y, t)
                 } else if (abs(dx) > slop && abs(dx) >= abs(dy)) {
-                    f.mode = Mode.RUN
-                    f.dir = if (dx > 0) 1 else -1
-                    f.extreme = x
-                    f.runOrder = ++runCounter
+                    startRun(f, if (dx > 0) 1 else -1, x)
+                } else if (abs(dy) > flickDist) {
+                    // A slow vertical slide is a thumb settling, not a flick: it becomes
+                    // a resting finger that can still flick or drag into a run.
+                    f.mode = Mode.HELD
+                    f.dir = 0
+                    f.restX = x
                 }
             }
-            Mode.RUN -> {
-                // Instant reversal: back off the furthest point by a few dp.
-                if (f.dir > 0) {
-                    if (x > f.extreme) f.extreme = x
-                    if (x < f.extreme - reverseDist) { f.dir = -1; f.extreme = x }
+            Mode.HELD -> {
+                val w = f.sampleSince(t, FLICK_WINDOW_MS)
+                val wdy = if (w != null) y - f.hy[w] else 0f
+                val r = f.recentSince(t, RECENT_MS)
+                val rdx = if (r != null) x - f.hx[r] else 0f
+                val rdy = if (r != null) y - f.hy[r] else 0f
+                // Steeper than 45° right now: a vertical stroke.
+                val vertical = abs(rdy) > abs(rdx)
+                if (f.dir == 0) {
+                    // Standing after a flick: a clear sideways drag starts a run.
+                    val rx = x - f.restX
+                    if (abs(rx) > restartDist && !vertical) startRun(f, if (rx > 0) 1 else -1, x)
                 } else {
-                    if (x < f.extreme) f.extreme = x
-                    if (x > f.extreme + reverseDist) { f.dir = 1; f.extreme = x }
+                    // Instant reversal: back off the furthest point by a few dp.
+                    // A vertical stroke (a flick on its way) never reverses the run.
+                    if (f.dir > 0) {
+                        if (x > f.extreme) f.extreme = x
+                        if (x < f.extreme - reverseDist && !vertical) { f.dir = -1; f.extreme = x }
+                    } else {
+                        if (x < f.extreme) f.extreme = x
+                        if (x > f.extreme + reverseDist && !vertical) { f.dir = 1; f.extreme = x }
+                    }
                 }
-                // A vertical flick while running: jump / hide without lifting.
-                if (t >= f.flickCooldownUntil) {
-                    val i = f.sampleSince(t, 140)
-                    if (i != null) {
-                        val fy = y - f.hy[i]
-                        val fx = x - f.hx[i]
-                        val rebound = t < f.reboundUntil && (if (fy < 0) -1 else 1) == -f.lastFlick
-                        if (abs(fy) > flickMidRunDist && abs(fy) > abs(fx) * 1.6f && !rebound) {
-                            flick(f, fy, t)
-                            f.flickCooldownUntil = t + 260
-                            f.hn = 0
-                            f.record(x, y, t)
-                        }
+                // A vertical flick while held: jump / hide without lifting.
+                if (t >= f.flickCooldownUntil && w != null) {
+                    val rebound = t < f.reboundUntil && (if (wdy < 0) -1 else 1) == -f.lastFlick
+                    // Same direction as the window's travel, so a wiggle can't flick.
+                    val sameWay = rdy * wdy > 0f
+                    if (abs(wdy) > flickMidRunDist && vertical && sameWay && !rebound) {
+                        flick(f, wdy, x, y, t)
                     }
                 }
             }
-            Mode.FLICKED -> Unit
         }
-        f.lastX = x
-        f.lastY = y
     }
 
     fun up(id: Int, x: Float, y: Float, t: Long) {
         val f = fingers.remove(id) ?: return
-        if (f.mode != Mode.PENDING) return
         val dx = x - f.downX
         val dy = y - f.downY
         val dt = t - f.downT
-        // A flick so fast the move events barely saw it.
-        if (abs(dy) > flickDist * 0.6f && abs(dy) > abs(dx) * 1.2f && dt < 220) {
-            flick(f, dy, t)
-            return
-        }
-        if (abs(dx) <= slop && abs(dy) <= slop && dt < TAP_MS) {
-            val isDouble = t - lastTapT < DOUBLE_TAP_MS &&
-                abs(x - lastTapX) < doubleTapDist && abs(y - lastTapY) < doubleTapDist
-            if (isDouble) {
-                pending += Command.DOUBLE_TAP
-                lastTapT = Long.MIN_VALUE / 2
-            } else {
-                pending += Command.TAP
-                lastTapT = t
-                lastTapX = x
-                lastTapY = y
+        when (f.mode) {
+            Mode.PENDING -> {
+                // A flick so fast the move events barely saw it.
+                if (abs(dy) > flickDist * 0.6f && abs(dy) > abs(dx) && dt < FAST_FLICK_MS) {
+                    flick(f, dy, x, y, t)
+                    return
+                }
+                if (abs(dx) <= slop && abs(dy) <= slop && dt < TAP_MS) tap(f, x, y, t)
+            }
+            Mode.HELD -> {
+                // A quick jab that barely slid past the run slop was a tap with a
+                // rolling thumb, not a deliberate step: shoot.
+                val travel = maxOf(f.maxTravel, abs(dx), abs(dy))
+                if (f.lastFlick == 0 && dt < SLOPPY_TAP_MS && travel <= sloppyTapDist) tap(f, x, y, t)
             }
         }
     }
 
+    /** The finger was cancelled (palm rejection, system gesture): forget it, emit nothing. */
     fun cancel(id: Int) {
         fingers.remove(id)
     }
 
+    /** Every finger is gone (ACTION_CANCEL), but commands already recognised still count. */
+    fun releaseAll() {
+        fingers.clear()
+    }
+
+    /** Forget fingers and anything not yet drained (new world, pause). */
     fun cancelAll() {
         fingers.clear()
         pending.clear()
+        tapStreak = 0
+        lastTapT = Long.MIN_VALUE / 2
     }
 
     /** Moves every recognised command into [sink], oldest first. */
@@ -170,16 +224,66 @@ class GestureInput(density: Float) {
         while (pending.isNotEmpty()) sink(pending.removeFirst())
     }
 
-    private fun flick(f: Finger, dy: Float, t: Long) {
+    private fun startRun(f: Finger, dir: Int, x: Float) {
+        f.mode = Mode.HELD
+        f.dir = dir
+        f.extreme = x
+        f.runOrder = ++runCounter
+    }
+
+    private fun tap(f: Finger, x: Float, y: Float, t: Long) {
+        val quick = f.downT - lastTapT <= DOUBLE_TAP_GAP_MS &&
+            abs(x - lastTapX) < doubleTapDist && abs(y - lastTapY) < doubleTapDist
+        tapStreak = if (quick) tapStreak + 1 else 1
+        // Only the second tap of a fresh burst is a grenade: mashing stays shots.
+        pending += if (tapStreak == 2) Command.DOUBLE_TAP else Command.TAP
+        lastTapT = t
+        lastTapX = x
+        lastTapY = y
+    }
+
+    private fun flick(f: Finger, dy: Float, x: Float, y: Float, t: Long) {
         pending += if (dy < 0) Command.SWIPE_UP else Command.SWIPE_DOWN
-        f.flickCooldownUntil = t + 260
+        if (f.mode == Mode.PENDING) {
+            f.mode = Mode.HELD
+            f.dir = 0
+        }
+        f.restX = x
+        f.extreme = x
+        f.flickCooldownUntil = t + FLICK_COOLDOWN_MS
         f.lastFlick = if (dy < 0) -1 else 1
-        f.reboundUntil = t + 600
+        f.reboundUntil = t + REBOUND_MS
+        f.resetHistory(x, y, t)
+        // A flick breaks a tap burst: tap, flick, tap is two shots, not a grenade.
+        tapStreak = 0
+        lastTapT = Long.MIN_VALUE / 2
     }
 
     companion object {
-        const val TAP_MS = 260L
-        const val DOUBLE_TAP_MS = 300L
-        private const val HISTORY = 12
+        /** Movement before a finger is a run (and beyond which a lift isn't a clean tap). */
+        const val SLOP_DP = 10f
+        /** A run finger lifted this quickly, having travelled no further than this, was a tap. */
+        const val SLOPPY_TAP_DP = 16f
+        const val SLOPPY_TAP_MS = 150L
+        /** Vertical travel for a flick from a fresh touch... */
+        const val FLICK_DP = 22f
+        /** ...and from a finger that is already holding a run (it wobbles more). */
+        const val FLICK_MID_RUN_DP = 26f
+        /** A flick's distance must happen inside this window: slow drags never flick. */
+        const val FLICK_WINDOW_MS = 150L
+        /** A held finger's stroke direction is judged over just this much of it. */
+        const val RECENT_MS = 50L
+        /** Touch-up flick detection for flicks too fast for the move events. */
+        const val FAST_FLICK_MS = 220L
+        const val FLICK_COOLDOWN_MS = 260L
+        const val REBOUND_MS = 600L
+        const val REVERSE_DP = 12f
+        /** Sideways drag that turns a standing (post-flick) finger into a run. */
+        const val RESTART_DP = 14f
+        const val TAP_MS = 300L
+        /** Second tap must go down within this long after the first lifted. */
+        const val DOUBLE_TAP_GAP_MS = 170L
+        const val DOUBLE_TAP_DP = 48f
+        private const val HISTORY = 64
     }
 }

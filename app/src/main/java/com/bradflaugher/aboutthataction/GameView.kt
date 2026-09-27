@@ -2,6 +2,7 @@ package com.bradflaugher.aboutthataction
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.view.MotionEvent
@@ -75,6 +76,25 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
     init {
         holder.addCallback(this)
         isFocusable = true
+    }
+
+    /**
+     * Portrait thumbs live in the bottom of the screen, often right at its
+     * edges. Opt that band out of the system back swipe so a run drag that
+     * starts at the bezel steers instead of pausing the game. Android honours
+     * up to 200 dp per edge; the upper edges still go back (which pauses).
+     */
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        val w = right - left
+        val h = bottom - top
+        if (w <= 0 || h <= 0) return
+        val band = (EDGE_EXCLUSION_DP * density).toInt()
+        val tall = (EDGE_EXCLUSION_TALL_DP * density).toInt().coerceAtMost(h)
+        systemGestureExclusionRects = listOf(
+            Rect(0, h - tall, band, h),
+            Rect(w - band, h - tall, w, h),
+        )
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) = startLoop()
@@ -209,14 +229,23 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> synchronized(inputLock) {
-                input.up(id, event.getX(idx), event.getY(idx), t)
+                // Palm rejection lifts a pointer with FLAG_CANCELED: it never happened.
+                if (event.flags and MotionEvent.FLAG_CANCELED != 0) {
+                    input.cancel(id)
+                } else {
+                    input.up(id, event.getX(idx), event.getY(idx), t)
+                }
             }
-            MotionEvent.ACTION_CANCEL -> synchronized(inputLock) { input.cancelAll() }
+            // The system took the gesture: drop the fingers (the run stops) but keep
+            // flicks and taps that were already recognised.
+            MotionEvent.ACTION_CANCEL -> synchronized(inputLock) { input.releaseAll() }
         }
         return true
     }
 
     companion object {
         private const val STEP = 1.0 / 120.0
+        private const val EDGE_EXCLUSION_DP = 32f
+        private const val EDGE_EXCLUSION_TALL_DP = 200f
     }
 }
