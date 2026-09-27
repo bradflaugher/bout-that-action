@@ -29,23 +29,63 @@ internal class EnvWalls(private val f: Frame) {
         const val WIN_TOP = 0.5f
         const val WIN_BOTTOM = 0.95f
         const val WIN_HALF = 0.5f
-        private val STATION = Array(100) { "B-%02d".format(it) }
         private val STATION_X = floatArrayOf(3.8f, 6.2f)
         /** Seams that carry structure (timber posts, bone pilasters): both ends and the middle. */
         private val POSTS = floatArrayOf(SEAMS[0], SEAMS[3], SEAMS[6])
+        /** Art colourways: dusk, teal, ember, bone. */
+        private val ART_TOP = intArrayOf(0xFF9A2A6A.toInt(), 0xFF1E6A78.toInt(), 0xFFB0502A.toInt(), 0xFFD8CCB8.toInt())
+        private val ART_BOT = intArrayOf(0xFF2A1A5A.toInt(), 0xFF0E2238.toInt(), 0xFF3A0E1A.toInt(), 0xFF8A7A68.toInt())
+        private val BOOKS = intArrayOf(0xFF6A2A3A.toInt(), 0xFF2A4A6A.toInt(), 0xFF8A6A3A.toInt(), 0xFF3A5A3A.toInt(), 0xFF5A3A6A.toInt(), 0xFFB0A080.toInt())
+        private val TAGS = arrayOf("BEAST", "SKITTLES", "RUN IT", "YEAH", "#24")
+        private val TOWER_TINTS = intArrayOf(0, 0x1CFF3D9A, 0x1C2C8CFF, 0x162CF0C8, 0x18FFA040)
+        private val LAB_TINTS = intArrayOf(0, 0x14FFFFFF, 0x142C8CFF, 0x10A0FF40)
+        private val MURALS = arrayOf("BEAST MODE", "SKITTLES", "'BOUT THAT", "RUN IT BACK")
+        private val ARRIVALS = arrayOf("NEXT  2 MIN", "DELAYED", "NO SERVICE", "EXPRESS  B-99")
     }
 
     // ================================================================ materials
 
     /** The wall surface for [zone]; drawn inside the room clip, over the base gradient. */
     fun material(zone: Zone, pal: Palette, fi: Int, rt: Float, gy: Float) {
+        val mv = variant(fi)
+        // Department colour: each upper floor leans a little toward its own hue.
+        val tint = when (zone) {
+            Zone.TOWER, Zone.ROOFTOP -> TOWER_TINTS[(hash(fi, 713) * TOWER_TINTS.size).toInt()]
+            Zone.LABS -> LAB_TINTS[(hash(fi, 713) * LAB_TINTS.size).toInt()]
+            else -> 0
+        }
+        if (tint != 0) g.fillRect(0f, rt, W, gy, tint)
         when (zone) {
-            Zone.TOWER, Zone.ROOFTOP -> tower(pal, rt, gy)
-            Zone.LABS -> labs(pal, rt, gy)
-            Zone.METRO -> metro(pal, fi, rt, gy)
-            Zone.MINES -> mines(pal, fi, rt, gy)
-            Zone.MAGMA -> magma(pal, fi, rt, gy)
-            Zone.HELL -> hell(pal, fi, rt, gy)
+            Zone.TOWER, Zone.ROOFTOP -> when (mv) {
+                0 -> tower(pal, rt, gy)
+                1 -> marble(pal, fi, rt, gy)
+                else -> slats(pal, rt, gy)
+            }
+            Zone.LABS -> when (mv) {
+                0 -> labs(pal, rt, gy)
+                1 -> { labs(pal, rt, gy); cleanRoom(pal, rt, gy) }
+                else -> { labs(pal, rt, gy); quarantine(pal, rt, gy) }
+            }
+            Zone.METRO -> when (mv) {
+                0 -> metro(pal, fi, rt, gy)
+                1 -> brick(pal, fi, rt, gy)
+                else -> mural(pal, fi, rt, gy)
+            }
+            Zone.MINES -> {
+                if (mv == 2) coal(pal, fi, rt, gy)
+                mines(pal, fi, rt, gy)
+                if (mv == 1) crystals(pal, fi, rt, gy)
+            }
+            Zone.MAGMA -> when (mv) {
+                0 -> magma(pal, fi, rt, gy)
+                1 -> { foundry(pal, rt, gy); heatShimmer(pal, fi, rt, gy) }
+                else -> { obsidian(pal, fi, rt, gy); heatShimmer(pal, fi, rt, gy) }
+            }
+            Zone.HELL -> when (mv) {
+                0 -> hell(pal, fi, rt, gy)
+                1 -> flesh(pal, fi, rt, gy)
+                else -> { hell(pal, fi, rt, gy); ossuary(pal, rt, gy) }
+            }
             Zone.VOID -> voidWall(pal, rt, gy)
         }
     }
@@ -138,12 +178,29 @@ internal class EnvWalls(private val f: Frame) {
         g.fillRect(0f, by + 0.2f, W, by + 0.235f, Col.mul(pal.neon2, 0.3f))
         for (sx in STATION_X) {
             g.fillRect(sx - 0.44f, by - 0.03f, sx + 0.44f, by + 0.23f, 0xFF101214.toInt())
-            f.worldText(STATION[fi % 100], sx, by + 0.17f, 0.18f, 0xFFF2EEE4.toInt())
+            f.worldText(EnvLabels.short(fi), sx, by + 0.17f, 0.18f, 0xFFF2EEE4.toInt())
         }
     }
 
     private fun mines(pal: Palette, fi: Int, rt: Float, gy: Float) {
-        // Rock face: faceted boulders in two tones, then strata and a glowing ore vein.
+        // Negative space first: a drift tunnel receding into the dark, a lamp far down it.
+        val tx = 2.2f + hash(fi, 29) * 5.6f
+        val tw = 0.8f + hash(fi, 30) * 0.45f
+        poly.begin()
+        poly.add(tx - tw, gy)
+        for (k in 0..8) {
+            val a = 3.1416f + k / 8f * 3.1416f
+            val rr = 1f + (hash(k + fi * 5, 38) - 0.5f) * 0.18f
+            poly.add(tx + cos(a) * tw * rr, gy - 0.4f + sin(a) * 1.55f * rr)
+        }
+        poly.add(tx + tw, gy)
+        poly.fill(g, Col.alpha(pal.deep, 0.8f))
+        g.fillRect(tx - tw * 0.55f, gy - 1.35f, tx + tw * 0.55f, gy, Col.alpha(0xFF000000.toInt(), 0.45f))
+        g.fillRect(tx - tw * 0.3f, gy - 0.95f, tx + tw * 0.3f, gy, Col.alpha(0xFF000000.toInt(), 0.5f))
+        val far = 0.6f + 0.4f * sin(f.t * 2.3f + fi)
+        g.fillCircle(tx + 0.05f, gy - 0.72f, 0.14f, Col.alpha(pal.lamp, 0.12f * far))
+        g.fillCircle(tx + 0.05f, gy - 0.72f, 0.03f, Col.alpha(pal.lamp, 0.8f * far))
+        // Rock face: faceted boulders, top-lit, with shadowed undersides.
         for (k in 0 until 9) {
             val cx = hash(fi * 17 + k, 21) * W
             val cy = rt + 0.3f + hash(fi * 17 + k, 22) * (gy - rt - 0.6f)
@@ -161,31 +218,34 @@ internal class EnvWalls(private val f: Frame) {
                 verts[j * 2 + 1] = vy
             }
             poly.fill(g, c)
-            // Top-lit upper facets, shadowed lower edge.
             for (j in 0 until 6) {
-                val ax = verts[j * 2]
-                val ay = verts[j * 2 + 1]
-                val bx = verts[(j + 1) * 2]
-                val by = verts[(j + 1) * 2 + 1]
                 val upper = j < 3
-                g.line(ax, ay, bx, by, HAIR, if (upper) Col.alpha(pal.trim, 0.28f) else Col.alpha(pal.deep, 0.5f))
+                g.line(verts[j * 2], verts[j * 2 + 1], verts[j * 2 + 2], verts[j * 2 + 3], HAIR, if (upper) Col.alpha(pal.trim, 0.3f) else Col.alpha(pal.deep, 0.55f))
             }
         }
-        // Ore vein in the upper wall.
-        val pulse = 0.75f + 0.25f * sin(f.t * 1.6f + fi)
-        var vx = hash(fi, 25) * 3f
-        var vy = rt + 0.35f + hash(fi, 26) * 0.5f
-        val vc = if (fi % 2 == 0) 0xFF5AD8FF.toInt() else 0xFFFFC84A.toInt()
-        for (s in 0 until 9) {
-            val nx = vx + 0.45f + hash(s + fi * 11, 27) * 0.6f
-            val ny = vy + (hash(s + fi * 11, 28) - 0.5f) * 0.35f
-            g.line(vx, vy, nx, ny, 0.07f, Col.alpha(vc, 0.1f * pulse))
-            g.line(vx, vy, nx, ny, 0.022f, Col.alpha(vc, 0.55f * pulse))
-            if (s % 3 == 1) g.fillCircle(nx, ny, 0.035f, Col.alpha(0xFFFFFFFF.toInt(), 0.7f * pulse))
-            vx = nx
-            vy = ny
+        // Two ore veins, cyan and gold, glowing with crystal clusters at the nodes.
+        for (v in 0..1) {
+            val pulse = 0.7f + 0.3f * sin(f.t * 1.6f + fi + v * 2f)
+            var vx = hash(fi + v * 31, 25) * 4f + v * 4.5f
+            var vy = rt + 0.4f + hash(fi + v * 31, 26) * 1.2f
+            val vc = if ((fi + v) % 2 == 0) 0xFF5AD8FF.toInt() else 0xFFFFC84A.toInt()
+            for (s in 0 until 7) {
+                val nx = vx + 0.35f + hash(s + fi * 11 + v * 5, 27) * 0.5f
+                val ny = vy + (hash(s + fi * 11 + v * 5, 28) - 0.5f) * 0.45f
+                g.line(vx, vy, nx, ny, 0.16f, Col.alpha(vc, 0.07f * pulse))
+                g.line(vx, vy, nx, ny, 0.028f, Col.alpha(vc, 0.7f * pulse))
+                if (s % 3 == 1) {
+                    poly.tri(g, nx - 0.06f, ny + 0.03f, nx + 0.02f, ny - 0.14f, nx + 0.07f, ny + 0.03f, Col.alpha(vc, 0.85f))
+                    poly.tri(g, nx + 0.03f, ny + 0.03f, nx + 0.1f, ny - 0.08f, nx + 0.13f, ny + 0.03f, Col.alpha(vc, 0.6f))
+                    g.fillCircle(nx, ny, 0.3f, Col.alpha(vc, 0.07f * pulse))
+                    val tw = hash((f.t * 3f).toInt() + s + v * 7, fi)
+                    if (tw > 0.7f) g.fillCircle(nx + 0.02f, ny - 0.1f, 0.025f, 0xFFFFFFFF.toInt())
+                }
+                vx = nx
+                vy = ny
+            }
         }
-        // Timber sets: posts on the seams, a cap beam, knee braces.
+        // Timber sets: posts on the structural seams, a cap beam, knee braces.
         val wood = 0xFF3E2716.toInt()
         val woodHi = 0xFF7A5230.toInt()
         val capY = rt + 0.16f
@@ -199,6 +259,20 @@ internal class EnvWalls(private val f: Frame) {
         g.fillRect(0f, rt, W, capY + 0.16f, wood)
         g.fillRect(0f, capY + 0.13f, W, capY + 0.16f, 0xFF1C1109.toInt())
         g.fillRect(0f, rt, W, rt + 0.03f, woodHi)
+        // Power cable swagging between the posts.
+        var px = 0f
+        for (x in POSTS) {
+            val mid = (px + x) / 2f
+            g.line(px, capY + 0.34f, mid, capY + 0.5f, 0.016f, 0xFF120C08.toInt())
+            g.line(mid, capY + 0.5f, x, capY + 0.34f, 0.016f, 0xFF120C08.toInt())
+            px = x
+        }
+        // Dust hanging in the air.
+        for (k in 0 until 10) {
+            val dx = fract(hash(k + fi * 3, 39) + f.t * 0.01f * (1f + hash(k, 40))) * W
+            val dy = rt + 0.3f + fract(hash(k + fi * 3, 41) + sin(f.t * 0.3f + k) * 0.02f) * (gy - rt - 0.5f)
+            g.fillCircle(dx, dy, 0.012f, Col.alpha(pal.haze, 0.35f))
+        }
         // Mine rails set into the floor.
         g.fillRect(0f, gy - 0.07f, W, gy - 0.045f, 0xFF6A6058.toInt())
         g.fillRect(0f, gy - 0.07f, W, gy - 0.062f, 0xFFB0A090.toInt())
@@ -309,7 +383,7 @@ internal class EnvWalls(private val f: Frame) {
     fun voidGlitch(pal: Palette, fi: Int, rt: Float, gy: Float) {
         // Scanlines: the room is a broadcast that's losing signal.
         var y = rt
-        val scan = Col.alpha(pal.deep, 0.22f)
+        val scan = Col.alpha(pal.deep, 0.14f)
         while (y < gy) {
             g.fillRect(0f, y, W, y + 0.025f, scan)
             y += 0.1f
@@ -348,23 +422,32 @@ internal class EnvWalls(private val f: Frame) {
 
     /** A window in slot [sx] onto the zone's backdrop, glass tinted down so actors read in front. */
     fun window(zone: Zone, pal: Palette, sx: Float, rt: Float, gy: Float, isVoid: Boolean, backdrop: Backdrop, salt: Int) {
-        val x0 = sx - WIN_HALF
-        val x1 = sx + WIN_HALF
-        val y0 = rt + WIN_TOP
-        val y1 = gy - WIN_BOTTOM
+        // Per-floor proportions: some floors have tall glazing, some a lower ribbon.
+        val tall = hash(salt / 7, 52) < 0.35f
+        val y0 = rt + if (tall) 0.38f else WIN_TOP
+        val mull = if (zone == Zone.TOWER || zone == Zone.ROOFTOP || zone == Zone.LABS) 0.5f else 0f
+        windowSpan(zone, pal, sx - WIN_HALF, sx + WIN_HALF, y0, gy - WIN_BOTTOM, isVoid, backdrop, salt, mull)
+    }
+
+    /** Glazing from [x0] to [x1]: backdrop, depth tint, reflections, frame; mullions every [mullion] units (0 = none). */
+    fun windowSpan(zone: Zone, pal: Palette, x0: Float, x1: Float, y0: Float, y1: Float, isVoid: Boolean, backdrop: Backdrop, salt: Int, mullion: Float) {
         // Reveal: the wall's thickness, lit from above.
         g.fillRect(x0 - 0.06f, y0 - 0.06f, x1 + 0.06f, y1 + 0.02f, pal.deep)
         g.save()
         g.clipRect(x0, y0, x1, y1)
         backdrop.zone(zone, pal, x0, y0, x1, y1, isVoid)
-        // Glass: depth tint that pushes the view back, a top-down reflection and a streak.
+        // Glass: depth tint that pushes the view back, a top-down reflection and streaks.
         g.fillVerticalGradient(x0, y0, x1, y1, Col.alpha(pal.deep, 0.1f), Col.alpha(pal.deep, 0.45f))
-        poly.quad(g, x0 + 0.05f, y1, x0 + 0.3f, y1, x1, y0 + 0.2f, x1, y0 - 0.05f, 0x0FFFFFFF)
-        poly.quad(g, x0 + 0.38f, y1, x0 + 0.45f, y1, x1, y0 + 0.62f, x1, y0 + 0.5f, 0x0AFFFFFF)
+        var rx = x0
+        while (rx < x1) {
+            poly.quad(g, rx + 0.05f, y1, rx + 0.3f, y1, rx + 1f, y0 + 0.2f, rx + 1f, y0 - 0.05f, 0x0FFFFFFF)
+            poly.quad(g, rx + 0.38f, y1, rx + 0.45f, y1, rx + 1f, y0 + 0.62f, rx + 1f, y0 + 0.5f, 0x0AFFFFFF)
+            rx += 1.6f
+        }
         when (zone) {
             Zone.TOWER, Zone.ROOFTOP -> {
-                // Half-drawn blinds and rain beading on the glass.
-                val drop = 0.2f + hash(salt, 51) * 0.55f
+                // Blinds drawn to a per-floor height, rain beading on the glass.
+                val drop = if (hash(salt, 53) < 0.3f) 0f else 0.15f + hash(salt, 51) * 0.55f
                 var y = y0
                 val slat = Col.mul(pal.panel, 1.15f)
                 while (y < y0 + drop) {
@@ -381,11 +464,17 @@ internal class EnvWalls(private val f: Frame) {
             else -> Unit
         }
         g.restore()
-        // Frame: mullion, sill, lit top edge.
+        // Frame: mullions, sill, lit top edge.
         val frame = Col.mul(pal.panel, 1.3f)
         g.strokeRect(x0, y0, x1, y1, 0.05f, frame)
         g.fillRect(x0 - 0.025f, y0 - 0.025f, x1 + 0.025f, y0 - 0.01f, Col.alpha(pal.trim, 0.45f))
-        if (zone == Zone.TOWER || zone == Zone.ROOFTOP || zone == Zone.LABS) g.fillRect(sx - 0.015f, y0, sx + 0.015f, y1, frame)
+        if (mullion > 0f) {
+            var mx = x0 + mullion
+            while (mx < x1 - 0.1f) {
+                g.fillRect(mx - 0.015f, y0, mx + 0.015f, y1, frame)
+                mx += mullion
+            }
+        }
         g.fillRect(x0 - 0.1f, y1, x1 + 0.1f, y1 + 0.07f, Col.mul(pal.panel, 1.5f))
         g.fillRect(x0 - 0.1f, y1, x1 + 0.1f, y1 + 0.018f, Col.alpha(pal.trim, 0.6f))
         g.fillRect(x0 - 0.1f, y1 + 0.07f, x1 + 0.1f, y1 + 0.1f, Col.alpha(pal.deep, 0.5f))
@@ -404,44 +493,73 @@ internal class EnvWalls(private val f: Frame) {
 
     // ================================================================= decor
 
-    fun decor(zone: Zone, pal: Palette, sx: Float, gy: Float, rt: Float, v: Int) {
-        val kind = v % 4
+    /**
+     * Set dressing for a free slot. [v] is a per-floor, per-slot hash, so each floor draws its
+     * own mix from an eight-way pool, nudged off-centre so nothing sits on the same spot twice.
+     */
+    fun decor(zone: Zone, pal: Palette, sx0: Float, gy: Float, rt: Float, v: Int) {
+        val kind = v % 8
+        val sx = sx0 + ((v / 8) % 5 - 2) * 0.05f
         when (zone) {
             Zone.TOWER, Zone.ROOFTOP -> when (kind) {
                 0 -> { plant(pal, sx - 0.2f, gy); art(pal, sx + 0.1f, rt + 0.72f, v) }
                 1 -> { cooler(pal, sx, gy); neonSign(pal, sx, rt + 0.62f, "24/7") }
                 2 -> { desk(pal, sx, gy); neonSign(pal, sx, rt + 0.62f, if (v % 3 == 0) "NEXUS" else "SYNC") }
-                else -> { art(pal, sx, rt + 0.72f, v); plant(pal, sx + 0.3f, gy) }
+                3 -> { art(pal, sx, rt + 0.72f, v); plant(pal, sx + 0.3f, gy) }
+                4 -> { bookshelf(pal, sx, gy, v) }
+                5 -> { floorLamp(pal, sx + 0.25f, gy); lounge(pal, sx - 0.1f, gy) }
+                6 -> { whiteboard(pal, sx, rt + 0.65f, v); cabinet(pal, sx + 0.25f, gy) }
+                else -> { art(pal, sx - 0.2f, rt + 0.72f, v + 1); art(pal, sx + 0.25f, rt + 0.9f, v + 2); desk(pal, sx, gy) }
             }
             Zone.LABS -> when (kind) {
                 0 -> { serverRack(pal, sx, gy, v); warnSign(sx, rt + 0.62f) }
                 1 -> { labBench(pal, sx, gy); monitor(pal, sx, rt + 0.55f) }
                 2 -> tank(pal, sx, gy, v)
-                else -> { serverRack(pal, sx, gy, v); monitor(pal, sx, rt + 0.55f) }
+                3 -> { serverRack(pal, sx, gy, v); monitor(pal, sx, rt + 0.55f) }
+                4 -> { fumeHood(pal, sx, gy) }
+                5 -> { cryo(pal, sx, gy, v) }
+                6 -> { robotArm(pal, sx, gy); warnSign(sx + 0.25f, rt + 0.62f) }
+                else -> { bioBin(pal, sx + 0.25f, gy); monitor(pal, sx, rt + 0.55f); labBench(pal, sx - 0.1f, gy) }
             }
             Zone.METRO -> when (kind) {
                 0 -> vending(pal, sx, gy)
                 1 -> { bench(pal, sx, gy); metroMap(pal, sx, rt + 1.35f) }
                 2 -> { adBox(pal, sx, rt + 1.1f, v); bin(pal, sx + 0.32f, gy) }
-                else -> { adBox(pal, sx, rt + 1.1f, v + 1); bench(pal, sx, gy) }
+                3 -> { adBox(pal, sx, rt + 1.1f, v + 1); bench(pal, sx, gy) }
+                4 -> { turnstile(pal, sx, gy) }
+                5 -> { graffiti(pal, sx, gy, v); bin(pal, sx - 0.3f, gy) }
+                6 -> { arrivals(pal, sx, rt + 0.62f); bench(pal, sx, gy) }
+                else -> { payphone(pal, sx - 0.15f, gy); graffiti(pal, sx + 0.1f, gy, v + 3) }
             }
             Zone.MINES -> when (kind) {
                 0 -> { crates(pal, sx, gy); lantern(pal, sx + 0.25f, rt + 0.9f) }
                 1 -> { drill(pal, sx, gy); lantern(pal, sx - 0.2f, rt + 0.9f) }
                 2 -> cart(pal, sx, gy)
-                else -> { tnt(pal, sx, gy); lantern(pal, sx, rt + 0.9f) }
+                3 -> { tnt(pal, sx, gy); lantern(pal, sx, rt + 0.9f) }
+                4 -> { orePile(pal, sx, gy, v) }
+                5 -> { tools(pal, sx, gy); lantern(pal, sx + 0.3f, rt + 0.9f) }
+                6 -> { ladder(pal, sx, rt, gy) }
+                else -> { plunger(pal, sx, gy); crates(pal, sx + 0.1f, gy) }
             }
             Zone.MAGMA -> when (kind) {
                 0 -> { coolant(pal, sx - 0.18f, gy); gauge(pal, sx + 0.25f, rt + 0.95f) }
                 1 -> { crucible(pal, sx, gy); warnSign(sx, rt + 0.62f) }
                 2 -> coolant(pal, sx, gy)
-                else -> { gauge(pal, sx, rt + 0.95f); crucible(pal, sx, gy) }
+                3 -> { gauge(pal, sx, rt + 0.95f); crucible(pal, sx, gy) }
+                4 -> { heatPipes(pal, sx, rt, gy) }
+                5 -> { obsidian(pal, sx, gy, v) }
+                6 -> { fan(pal, sx, rt + 1.0f); coolant(pal, sx + 0.2f, gy) }
+                else -> { canisters(pal, sx, gy); gauge(pal, sx - 0.2f, rt + 0.95f) }
             }
             Zone.HELL -> when (kind) {
                 0 -> { candles(sx, gy); rune(pal, sx, rt + 1.1f) }
                 1 -> { sconce(pal, sx, rt + 1.25f); skulls(pal, sx, gy) }
                 2 -> { chains(pal, sx, rt); skulls(pal, sx, gy) }
-                else -> { sconce(pal, sx, rt + 1.25f); candles(sx, gy) }
+                3 -> { sconce(pal, sx, rt + 1.25f); candles(sx, gy) }
+                4 -> { cage(pal, sx, rt) }
+                5 -> { altar(pal, sx, gy); rune(pal, sx, rt + 1.0f) }
+                6 -> { bones(pal, sx, gy, v); sconce(pal, sx + 0.3f, rt + 1.25f) }
+                else -> { maiden(pal, sx, gy) }
             }
             Zone.VOID -> neonSign(pal, sx, rt + 1.1f, "NULL")
         }
@@ -493,27 +611,60 @@ internal class EnvWalls(private val f: Frame) {
         f.worldText(text, x, y + 0.085f, 0.21f, Col.fade(pal.neon2, flick), Gfx.Font.TITLE)
     }
 
-    /** Framed abstract print: a gradient field and a single shape, like a gallery wall. */
+    /** Framed print: one of six compositions in one of four colourways, varying per floor. */
     private fun art(pal: Palette, x: Float, y: Float, v: Int) {
-        g.fillRect(x - 0.3f, y - 0.02f, x + 0.3f, y + 0.8f, 0xFF0C0916.toInt())
-        g.fillRect(x - 0.3f, y - 0.02f, x + 0.3f, y, Col.alpha(pal.trim, 0.6f))
-        g.fillVerticalGradient(x - 0.25f, y + 0.04f, x + 0.25f, y + 0.74f, Col.mul(pal.neon, 0.55f), Col.mul(pal.neon2, 0.3f))
-        when (v % 3) {
+        val wide = v % 5 == 0
+        val hw = if (wide) 0.42f else 0.3f
+        val h = if (wide) 0.56f else 0.8f
+        val cw = (v / 6) % 4
+        val top = ART_TOP[cw]
+        val bot = ART_BOT[cw]
+        g.fillRect(x - hw, y - 0.02f, x + hw, y + h, 0xFF0C0916.toInt())
+        g.fillRect(x - hw, y - 0.02f, x + hw, y, Col.alpha(pal.trim, 0.6f))
+        val l = x - hw + 0.05f
+        val r = x + hw - 0.05f
+        val t = y + 0.04f
+        val b = y + h - 0.06f
+        g.fillVerticalGradient(l, t, r, b, top, bot)
+        val ink = 0xFF0C0916.toInt()
+        val paper = 0xFFF4ECFF.toInt()
+        val mx = (l + r) / 2f
+        val my = (t + b) / 2f
+        when (v % 6) {
             0 -> {
-                g.fillCircle(x, y + 0.36f, 0.14f, 0xFFFFD860.toInt())
-                for (k in 0 until 3) g.fillRect(x - 0.25f, y + 0.4f + k * 0.05f, x + 0.25f, y + 0.415f + k * 0.05f, 0xFF0C0916.toInt())
-                poly.tri(g, x - 0.25f, y + 0.74f, x, y + 0.5f, x + 0.25f, y + 0.74f, 0xFF140A24.toInt())
+                g.fillCircle(mx, my - 0.02f, 0.13f, 0xFFFFD860.toInt())
+                for (k in 0 until 3) g.fillRect(l, my + 0.02f + k * 0.05f, r, my + 0.035f + k * 0.05f, ink)
+                poly.tri(g, l, b, mx, my + 0.12f, r, b, 0xFF140A24.toInt())
             }
             1 -> {
-                g.fillRect(x - 0.25f, y + 0.46f, x + 0.25f, y + 0.74f, 0xFF120A20.toInt())
-                g.strokeCircle(x, y + 0.34f, 0.12f, 0.03f, 0xFFF4ECFF.toInt())
+                g.fillRect(l, my + 0.1f, r, b, 0xFF120A20.toInt())
+                g.strokeCircle(mx, my - 0.04f, 0.11f, 0.028f, paper)
+            }
+            2 -> {
+                poly.tri(g, mx - 0.18f, b - 0.1f, mx + 0.02f, t + 0.12f, mx + 0.2f, b - 0.1f, 0xFF120A20.toInt())
+                g.fillRect(l, b - 0.1f, r, b - 0.08f, paper)
+            }
+            3 -> {
+                // Mondrian-ish grid.
+                g.fillRect(l, my - 0.02f, r, my + 0.01f, ink)
+                g.fillRect(mx - 0.06f, t, mx - 0.03f, b, ink)
+                g.fillRect(mx - 0.03f, my + 0.01f, r, b, 0xFFE8D8C0.toInt())
+                g.fillRect(l, t, mx - 0.06f, my - 0.02f, 0xFFD83040.toInt())
+            }
+            4 -> {
+                // A single brush stroke.
+                g.line(l + 0.05f, b - 0.12f, mx, t + 0.15f, 0.06f, ink)
+                g.line(mx, t + 0.15f, r - 0.04f, my, 0.045f, ink)
+                g.fillCircle(r - 0.1f, t + 0.1f, 0.04f, 0xFFD83040.toInt())
             }
             else -> {
-                poly.tri(g, x - 0.18f, y + 0.62f, x + 0.02f, y + 0.18f, x + 0.2f, y + 0.62f, 0xFF120A20.toInt())
-                g.fillRect(x - 0.25f, y + 0.62f, x + 0.25f, y + 0.64f, 0xFFF4ECFF.toInt())
+                // Portrait silhouette.
+                g.fillCircle(mx, my - 0.1f, 0.09f, ink)
+                g.fillRoundRect(mx - 0.15f, my, mx + 0.15f, b, 0.1f, ink)
+                g.fillRect(mx - 0.1f, my - 0.12f, mx + 0.1f, my - 0.09f, 0xFFFF3D6A.toInt())
             }
         }
-        g.fillRect(x - 0.3f, y + 0.8f, x + 0.3f, y + 0.83f, Col.alpha(pal.deep, 0.6f))
+        g.fillRect(x - hw, y + h, x + hw, y + h + 0.03f, Col.alpha(pal.deep, 0.6f))
     }
 
     // ------------------------------------------------------------------- labs
@@ -825,5 +976,562 @@ internal class EnvWalls(private val f: Frame) {
         val t = f.t * 9f + x
         poly.tri(g, x - 0.13f, y, x + 0.13f, y, x + sin(t) * 0.05f, y - 0.42f - sin(t * 1.7f) * 0.06f, 0xE0FF4A18.toInt())
         poly.tri(g, x - 0.07f, y, x + 0.07f, y, x + sin(t + 1f) * 0.03f, y - 0.24f, 0xFFFFD050.toInt())
+    }
+
+    // ============================================================ more props
+
+    private fun bookshelf(pal: Palette, x: Float, gy: Float, v: Int) {
+        val x0 = x - 0.42f
+        val x1 = x + 0.42f
+        val top = gy - 1.75f
+        g.fillRect(x0, top, x1, gy, 0xFF1A1224.toInt())
+        g.fillRect(x0, top, x1, top + 0.03f, Col.alpha(pal.trim, 0.5f))
+        for (row in 0 until 4) {
+            val sy = top + 0.4f + row * 0.42f
+            g.fillRect(x0 + 0.04f, sy, x1 - 0.04f, sy + 0.04f, 0xFF2E2240.toInt())
+            var bx = x0 + 0.06f
+            var k = 0
+            while (bx < x1 - 0.1f && k < 12) {
+                val bw = 0.04f + hash(k + row * 13 + v, 60) * 0.05f
+                val bh = 0.22f + hash(k + row * 7 + v, 61) * 0.12f
+                val c = BOOKS[(k + row + v) % BOOKS.size]
+                if (hash(k + row * 5 + v, 62) > 0.12f) g.fillRect(bx, sy - bh, bx + bw, sy, c)
+                bx += bw + 0.01f
+                k++
+            }
+        }
+    }
+
+    private fun floorLamp(pal: Palette, x: Float, gy: Float) {
+        // A warm practical: the one warm light in a cool room.
+        val warm = 0xFFFFC27A.toInt()
+        g.fillRadialGradient(x, gy - 1.35f, 1.0f, 0x38FFC27A, 0x00FFC27A)
+        g.fillRect(x - 0.015f, gy - 1.3f, x + 0.015f, gy, 0xFF15101C.toInt())
+        g.fillRect(x - 0.12f, gy - 0.03f, x + 0.12f, gy, 0xFF15101C.toInt())
+        poly.quad(g, x - 0.1f, gy - 1.55f, x + 0.1f, gy - 1.55f, x + 0.16f, gy - 1.3f, x - 0.16f, gy - 1.3f, 0xFFE8B070.toInt())
+        g.fillRect(x - 0.16f, gy - 1.31f, x + 0.16f, gy - 1.29f, warm)
+        poly.quad(g, x - 0.16f, gy - 1.3f, x + 0.16f, gy - 1.3f, x + 0.5f, gy, x - 0.5f, gy, 0x10FFC27A)
+    }
+
+    private fun lounge(pal: Palette, x: Float, gy: Float) {
+        g.fillRoundRect(x - 0.34f, gy - 0.48f, x + 0.26f, gy - 0.08f, 0.1f, 0xFF3A1E3E.toInt())
+        g.fillRoundRect(x - 0.4f, gy - 0.7f, x - 0.22f, gy - 0.08f, 0.08f, 0xFF3A1E3E.toInt())
+        g.fillRect(x - 0.34f, gy - 0.48f, x + 0.26f, gy - 0.46f, 0x30FFFFFF)
+        g.fillRect(x - 0.3f, gy - 0.08f, x - 0.26f, gy, 0xFF15101C.toInt())
+        g.fillRect(x + 0.18f, gy - 0.08f, x + 0.22f, gy, 0xFF15101C.toInt())
+    }
+
+    private fun whiteboard(pal: Palette, x: Float, y: Float, v: Int) {
+        g.fillRect(x - 0.46f, y, x + 0.46f, y + 0.62f, 0xFFB8B4C8.toInt())
+        g.strokeRect(x - 0.46f, y, x + 0.46f, y + 0.62f, 0.03f, 0xFF4A4658.toInt())
+        // Scribbled org chart / heist plan.
+        val ink = 0xFF2A3A8A.toInt()
+        g.strokeRect(x - 0.1f, y + 0.08f, x + 0.1f, y + 0.18f, 0.012f, ink)
+        g.line(x, y + 0.18f, x, y + 0.26f, 0.012f, ink)
+        g.line(x - 0.3f, y + 0.26f, x + 0.3f, y + 0.26f, 0.012f, ink)
+        for (k in 0 until 3) {
+            val bx = x - 0.3f + k * 0.3f
+            g.line(bx, y + 0.26f, bx, y + 0.32f, 0.012f, ink)
+            g.strokeRect(bx - 0.08f, y + 0.32f, bx + 0.08f, y + 0.4f, 0.012f, if (k == v % 3) 0xFFC02030.toInt() else ink)
+        }
+        g.line(x - 0.35f, y + 0.5f, x - 0.1f + hash(v, 63) * 0.3f, y + 0.5f, 0.01f, ink)
+        g.fillRect(x - 0.3f, y + 0.62f, x + 0.3f, y + 0.65f, 0xFF4A4658.toInt())
+    }
+
+    private fun cabinet(pal: Palette, x: Float, gy: Float) {
+        g.fillRect(x - 0.18f, gy - 1.05f, x + 0.18f, gy, 0xFF2A2440.toInt())
+        g.fillRect(x - 0.18f, gy - 1.05f, x + 0.18f, gy - 1.03f, Col.alpha(pal.trim, 0.5f))
+        for (k in 0 until 3) {
+            val dy = gy - 1.0f + k * 0.33f
+            g.fillRect(x - 0.15f, dy, x + 0.15f, dy + 0.3f, 0xFF231E36.toInt())
+            g.fillRect(x - 0.05f, dy + 0.08f, x + 0.05f, dy + 0.1f, Col.alpha(pal.trim, 0.6f))
+        }
+    }
+
+    private fun fumeHood(pal: Palette, x: Float, gy: Float) {
+        g.fillRect(x - 0.45f, gy - 2.0f, x + 0.45f, gy, 0xFF142626.toInt())
+        g.fillRect(x - 0.45f, gy - 2.0f, x + 0.45f, gy - 1.98f, Col.alpha(pal.trim, 0.6f))
+        g.fillRect(x - 0.38f, gy - 1.6f, x + 0.38f, gy - 0.8f, Col.alpha(pal.neon, 0.16f))
+        g.fillRect(x - 0.38f, gy - 1.6f, x + 0.38f, gy - 1.56f, Col.alpha(pal.lamp, 0.7f))
+        g.fillRect(x - 0.38f, gy - 1.15f, x + 0.38f, gy - 1.13f, Col.alpha(pal.trim, 0.5f))
+        for (k in 0 until 3) {
+            val fx = x - 0.2f + k * 0.2f
+            g.fillRect(fx - 0.03f, gy - 1.02f, fx + 0.03f, gy - 0.82f, Col.alpha(if (k == 1) pal.neon2 else pal.neon, 0.8f))
+        }
+        g.fillRect(x - 0.45f, gy - 0.8f, x + 0.45f, gy - 0.74f, 0xFFA8B8B8.toInt())
+    }
+
+    private fun cryo(pal: Palette, x: Float, gy: Float, v: Int) {
+        val frost = 0xFFB8E8FF.toInt()
+        g.fillRoundRect(x - 0.28f, gy - 1.95f, x + 0.28f, gy - 0.05f, 0.25f, 0xFF1A3438.toInt())
+        g.fillRoundRect(x - 0.2f, gy - 1.8f, x + 0.2f, gy - 0.25f, 0.18f, Col.alpha(frost, 0.25f))
+        // Someone asleep inside.
+        g.fillCircle(x, gy - 1.55f, 0.09f, 0x60102028)
+        g.fillRoundRect(x - 0.1f, gy - 1.45f, x + 0.1f, gy - 0.4f, 0.08f, 0x60102028)
+        g.fillRoundRect(x - 0.2f, gy - 1.8f, x - 0.14f, gy - 0.25f, 0.03f, 0x40FFFFFF)
+        g.strokeRoundRect(x - 0.28f, gy - 1.95f, x + 0.28f, gy - 0.05f, 0.25f, LINE, Col.alpha(pal.trim, 0.7f))
+        val c = if (v % 2 == 0) pal.neon2 else pal.neon
+        g.fillRect(x - 0.08f, gy - 0.18f, x + 0.08f, gy - 0.12f, c)
+        for (k in 0 until 3) {
+            val ph = fract(f.t * 0.5f + k * 0.33f)
+            g.fillCircle(x - 0.15f + k * 0.15f, gy - 0.05f - ph * 0.2f, 0.06f + ph * 0.08f, Col.alpha(frost, 0.2f * (1f - ph)))
+        }
+    }
+
+    private fun robotArm(pal: Palette, x: Float, gy: Float) {
+        val a = sin(f.t * 0.8f) * 18f
+        g.fillRect(x - 0.22f, gy - 0.18f, x + 0.22f, gy, 0xFF2A3A3A.toInt())
+        g.save()
+        g.translate(x, gy - 0.18f)
+        g.rotate(-20f + a)
+        g.fillRoundRect(-0.06f, -0.8f, 0.06f, 0f, 0.05f, 0xFFD8A020.toInt())
+        g.translate(0f, -0.8f)
+        g.fillCircle(0f, 0f, 0.08f, 0xFF3A4A4A.toInt())
+        g.rotate(70f - a * 1.5f)
+        g.fillRoundRect(-0.05f, -0.6f, 0.05f, 0f, 0.04f, 0xFFD8A020.toInt())
+        g.translate(0f, -0.6f)
+        g.line(-0.06f, 0f, -0.08f, -0.12f, 0.025f, 0xFF3A4A4A.toInt())
+        g.line(0.06f, 0f, 0.08f, -0.12f, 0.025f, 0xFF3A4A4A.toInt())
+        g.fillCircle(0f, 0f, 0.025f, pal.neon)
+        g.restore()
+    }
+
+    private fun bioBin(pal: Palette, x: Float, gy: Float) {
+        g.fillRoundRect(x - 0.16f, gy - 0.55f, x + 0.16f, gy, 0.04f, 0xFFB8961C.toInt())
+        g.fillRect(x - 0.18f, gy - 0.6f, x + 0.18f, gy - 0.53f, 0xFF2A2A1A.toInt())
+        g.strokeCircle(x, gy - 0.28f, 0.07f, 0.02f, 0xFF1A1A10.toInt())
+        g.fillCircle(x, gy - 0.28f, 0.025f, 0xFF1A1A10.toInt())
+    }
+
+    private fun turnstile(pal: Palette, x: Float, gy: Float) {
+        for (k in 0..1) {
+            val tx = x - 0.3f + k * 0.6f
+            g.fillRect(tx - 0.08f, gy - 0.9f, tx + 0.08f, gy, 0xFF3A4046.toInt())
+            g.fillRect(tx - 0.08f, gy - 0.9f, tx + 0.08f, gy - 0.88f, Col.alpha(pal.trim, 0.6f))
+            g.fillRect(tx - 0.05f, gy - 0.8f, tx + 0.05f, gy - 0.74f, if (k == 0) 0xFF40FF80.toInt() else 0xFFFF4040.toInt())
+        }
+        g.line(x - 0.22f, gy - 0.6f, x + 0.1f, gy - 0.55f, 0.03f, 0xFF8A9096.toInt())
+        g.line(x - 0.22f, gy - 0.6f, x - 0.05f, gy - 0.42f, 0.03f, 0xFF8A9096.toInt())
+    }
+
+    private fun graffiti(pal: Palette, x: Float, gy: Float, v: Int) {
+        val c1 = if (v % 2 == 0) 0xFFFF4A9A.toInt() else 0xFF4AF0C0.toInt()
+        val c2 = if (v % 3 == 0) 0xFFFFD84A.toInt() else 0xFF8A6AFF.toInt()
+        g.save()
+        g.translate(x, gy - 0.6f)
+        g.rotate(-6f + (v % 5) * 3f)
+        g.scale(1f / f.s, 1f / f.s)
+        val sz = 0.24f * f.s
+        val tag = TAGS[v % TAGS.size]
+        g.text(tag, 2f, 2f, sz, 0xA0000000.toInt(), Gfx.Font.TITLE, Gfx.Align.CENTER)
+        g.text(tag, 0f, 0f, sz, Col.alpha(c1, 0.75f), Gfx.Font.TITLE, Gfx.Align.CENTER)
+        g.restore()
+        g.line(x - 0.35f, gy - 0.5f, x + 0.3f, gy - 0.48f, 0.02f, Col.alpha(c2, 0.5f))
+        g.line(x + 0.3f, gy - 0.48f, x + 0.3f, gy - 0.3f, 0.012f, Col.alpha(c2, 0.35f))
+    }
+
+    private fun arrivals(pal: Palette, x: Float, y: Float) {
+        g.fillRect(x - 0.5f, y - 0.14f, x + 0.5f, y + 0.18f, 0xFF0A0A08.toInt())
+        g.strokeRect(x - 0.5f, y - 0.14f, x + 0.5f, y + 0.18f, 0.02f, 0xFF3A3A34.toInt())
+        val msg = ARRIVALS[((f.t / 4f).toInt() + (x * 10f).toInt()) % ARRIVALS.size]
+        f.worldText(msg, x, y + 0.08f, 0.16f, 0xFFFFB020.toInt())
+        g.line(x - 0.3f, y - 0.14f, x - 0.3f, y - 0.5f, 0.015f, 0xFF2A2A28.toInt())
+        g.line(x + 0.3f, y - 0.14f, x + 0.3f, y - 0.5f, 0.015f, 0xFF2A2A28.toInt())
+    }
+
+    private fun payphone(pal: Palette, x: Float, gy: Float) {
+        g.fillRect(x - 0.18f, gy - 1.5f, x + 0.18f, gy - 0.9f, 0xFF3A4450.toInt())
+        g.fillRect(x - 0.18f, gy - 1.5f, x + 0.18f, gy - 1.48f, Col.alpha(pal.trim, 0.6f))
+        g.fillRect(x - 0.12f, gy - 1.4f, x + 0.12f, gy - 1.25f, Col.alpha(pal.neon2, 0.6f))
+        for (r in 0 until 3) for (c in 0 until 3) g.fillRect(x - 0.1f + c * 0.07f, gy - 1.2f + r * 0.07f, x - 0.06f + c * 0.07f, gy - 1.16f + r * 0.07f, 0xFFB0B8C0.toInt())
+        g.line(x + 0.2f, gy - 1.3f, x + 0.24f, gy - 0.6f, 0.02f, 0xFF15181C.toInt())
+        g.fillRoundRect(x + 0.18f, gy - 0.66f, x + 0.3f, gy - 0.5f, 0.04f, 0xFF15181C.toInt())
+    }
+
+    private fun orePile(pal: Palette, x: Float, gy: Float, v: Int) {
+        val c = if (v % 2 == 0) 0xFF5AD8FF.toInt() else 0xFFFFC84A.toInt()
+        g.fillRadialGradient(x, gy - 0.2f, 0.8f, Col.alpha(c, 0.25f), Col.alpha(c, 0f))
+        poly.begin()
+        poly.add(x - 0.5f, gy)
+        for (k in 0..6) poly.add(x - 0.5f + k / 6f * 1f, gy - sin(k / 6f * 3.1416f) * 0.4f - hash(k + v, 64) * 0.08f)
+        poly.add(x + 0.5f, gy)
+        poly.fill(g, 0xFF2A2018.toInt())
+        for (k in 0 until 7) {
+            val cx = x - 0.35f + hash(k + v, 65) * 0.7f
+            val cy = gy - 0.05f - hash(k + v, 66) * 0.3f * sin((cx - x + 0.5f) * 3.1416f)
+            poly.tri(g, cx - 0.05f, cy + 0.03f, cx, cy - 0.1f, cx + 0.05f, cy + 0.03f, Col.alpha(c, 0.7f + 0.3f * hash(k, 67)))
+        }
+    }
+
+    private fun tools(pal: Palette, x: Float, gy: Float) {
+        val wood = 0xFF6A4A2A.toInt()
+        g.line(x - 0.2f, gy, x - 0.05f, gy - 1.1f, 0.04f, wood)
+        poly.tri(g, x - 0.2f, gy - 1.1f, x + 0.12f, gy - 1.02f, x - 0.02f, gy - 1.16f, 0xFF7A7A80.toInt())
+        g.line(x + 0.1f, gy, x + 0.22f, gy - 1.0f, 0.04f, wood)
+        g.fillRoundRect(x + 0.02f, gy - 0.25f, x + 0.2f, gy, 0.03f, 0xFF6A6A70.toInt())
+    }
+
+    private fun ladder(pal: Palette, x: Float, rt: Float, gy: Float) {
+        // A ladder up into a dark hole in the ceiling.
+        g.fillRect(x - 0.3f, rt, x + 0.3f, rt + 0.3f, 0xFF050303.toInt())
+        val wood = 0xFF5A3E22.toInt()
+        g.fillRect(x - 0.2f, rt + 0.1f, x - 0.16f, gy, wood)
+        g.fillRect(x + 0.16f, rt + 0.1f, x + 0.2f, gy, wood)
+        var y = rt + 0.3f
+        while (y < gy) {
+            g.fillRect(x - 0.16f, y, x + 0.16f, y + 0.03f, wood)
+            y += 0.28f
+        }
+        g.line(x + 0.25f, rt + 0.1f, x + 0.3f, gy - 0.4f, 0.012f, 0xFF8A7A5A.toInt())
+    }
+
+    private fun plunger(pal: Palette, x: Float, gy: Float) {
+        g.fillRect(x - 0.35f, gy - 0.28f, x - 0.05f, gy, 0xFF5A3E22.toInt())
+        g.fillRect(x - 0.22f, gy - 0.55f, x - 0.18f, gy - 0.28f, 0xFF3A3A40.toInt())
+        g.fillRect(x - 0.32f, gy - 0.58f, x - 0.08f, gy - 0.54f, 0xFF3A3A40.toInt())
+        g.line(x - 0.05f, gy - 0.15f, x + 0.4f, gy - 0.05f, 0.015f, 0xFFB02818.toInt())
+    }
+
+    private fun heatPipes(pal: Palette, x: Float, rt: Float, gy: Float) {
+        for (k in 0 until 3) {
+            val px = x - 0.3f + k * 0.3f
+            g.fillRect(px - 0.07f, rt + 0.14f, px + 0.07f, gy, 0xFF3A2A28.toInt())
+            g.fillRect(px - 0.07f, rt + 0.14f, px - 0.04f, gy, 0x20FFFFFF)
+            for (r in 0 until 4) {
+                val ry = rt + 0.6f + r * 0.65f
+                g.fillRect(px - 0.09f, ry, px + 0.09f, ry + 0.06f, 0xFF4A3A36.toInt())
+            }
+            val hot = 0.5f + 0.5f * sin(f.t * 1.5f + k)
+            g.fillRect(px - 0.07f, gy - 0.6f, px + 0.07f, gy, Col.alpha(pal.glow, 0.2f + 0.2f * hot))
+        }
+    }
+
+    private fun obsidian(pal: Palette, x: Float, gy: Float, v: Int) {
+        for (k in 0 until 4) {
+            val cx = x - 0.3f + k * 0.2f
+            val h = 0.4f + hash(k + v, 68) * 0.6f
+            poly.tri(g, cx - 0.1f, gy, cx + 0.1f, gy, cx + (hash(k, 69) - 0.5f) * 0.1f, gy - h, 0xFF0C0810.toInt())
+            g.line(cx - 0.02f, gy - 0.05f, cx, gy - h + 0.05f, 0.015f, Col.alpha(pal.glow, 0.7f))
+        }
+        g.fillRect(x - 0.45f, gy - 0.05f, x + 0.45f, gy, Col.alpha(pal.glow, 0.6f))
+    }
+
+    private fun fan(pal: Palette, x: Float, y: Float) {
+        g.fillRect(x - 0.35f, y - 0.35f, x + 0.35f, y + 0.35f, 0xFF201414.toInt())
+        g.strokeRect(x - 0.35f, y - 0.35f, x + 0.35f, y + 0.35f, 0.03f, Col.alpha(pal.trim, 0.5f))
+        g.fillCircle(x, y, 0.3f, 0xFF0C0808.toInt())
+        g.save()
+        g.translate(x, y)
+        g.rotate(f.t * 300f)
+        for (k in 0 until 4) {
+            g.rotate(90f)
+            poly.tri(g, 0f, 0f, 0.26f, -0.06f, 0.24f, 0.08f, 0xFF4A3A36.toInt())
+        }
+        g.restore()
+        g.fillCircle(x, y, 0.05f, 0xFF6A5A56.toInt())
+    }
+
+    private fun canisters(pal: Palette, x: Float, gy: Float) {
+        for (k in 0 until 3) {
+            val cx = x - 0.28f + k * 0.28f
+            g.fillRoundRect(cx - 0.1f, gy - 0.6f, cx + 0.1f, gy, 0.05f, 0xFF4A4448.toInt())
+            g.fillRect(cx - 0.1f, gy - 0.45f, cx + 0.1f, gy - 0.4f, if (k == 1) 0xFFB8961C.toInt() else 0xFFB02818.toInt())
+            g.fillRect(cx - 0.1f, gy - 0.6f, cx - 0.06f, gy, 0x20FFFFFF)
+        }
+    }
+
+    private fun cage(pal: Palette, x: Float, rt: Float) {
+        val sway = sin(f.t * 0.7f + x) * 4f
+        g.save()
+        g.translate(x, rt + 0.14f)
+        g.rotate(sway)
+        g.line(0f, 0f, 0f, 0.5f, 0.025f, 0xFF3A2E2E.toInt())
+        val iron = 0xFF4A3A3A.toInt()
+        g.strokeRect(-0.28f, 0.5f, 0.28f, 1.5f, 0.03f, iron)
+        var bx = -0.2f
+        while (bx < 0.25f) {
+            g.line(bx, 0.5f, bx, 1.5f, 0.018f, iron)
+            bx += 0.1f
+        }
+        // Its occupant, long gone.
+        g.fillCircle(0.02f, 1.25f, 0.07f, pal.trim)
+        g.line(-0.15f, 1.45f, 0.15f, 1.4f, 0.03f, pal.trim)
+        g.restore()
+    }
+
+    private fun altar(pal: Palette, x: Float, gy: Float) {
+        g.fillRadialGradient(x, gy - 0.6f, 0.9f, 0x40FF2240, 0x00FF2240)
+        g.fillRect(x - 0.42f, gy - 0.55f, x + 0.42f, gy, 0xFF2A0C10.toInt())
+        g.fillRect(x - 0.48f, gy - 0.62f, x + 0.48f, gy - 0.55f, 0xFF3A1418.toInt())
+        g.fillRect(x - 0.48f, gy - 0.62f, x + 0.48f, gy - 0.605f, Col.alpha(pal.trim, 0.4f))
+        g.fillRect(x - 0.3f, gy - 0.55f, x + 0.3f, gy - 0.4f, 0xFF5A000C.toInt())
+        g.fillCircle(x, gy - 0.72f, 0.1f, pal.trim)
+    }
+
+    private fun bones(pal: Palette, x: Float, gy: Float, v: Int) {
+        for (k in 0 until 8) {
+            val bx = x - 0.4f + hash(k + v, 70) * 0.8f
+            val by = gy - 0.04f - hash(k + v, 71) * 0.2f
+            val a = hash(k + v, 72) * 3.1416f
+            val l = 0.12f + hash(k, 73) * 0.1f
+            g.line(bx - kotlin.math.cos(a) * l, by - sin(a) * l * 0.4f, bx + kotlin.math.cos(a) * l, by + sin(a) * l * 0.4f, 0.035f, pal.trim)
+        }
+        g.fillCircle(x + 0.1f, gy - 0.28f, 0.1f, pal.trim)
+        g.fillCircle(x + 0.07f, gy - 0.29f, 0.025f, 0xFF200808.toInt())
+        g.fillCircle(x + 0.13f, gy - 0.29f, 0.025f, 0xFF200808.toInt())
+    }
+
+    private fun maiden(pal: Palette, x: Float, gy: Float) {
+        g.fillRoundRect(x - 0.28f, gy - 2.0f, x + 0.28f, gy, 0.25f, 0xFF3A2A28.toInt())
+        g.fillRect(x - 0.28f, gy - 1.4f, x + 0.28f, gy - 1.35f, 0xFF2A1A18.toInt())
+        g.fillCircle(x, gy - 1.7f, 0.14f, 0xFF4A3634.toInt())
+        g.fillCircle(x - 0.05f, gy - 1.72f, 0.02f, 0xFF100404.toInt())
+        g.fillCircle(x + 0.05f, gy - 1.72f, 0.02f, 0xFF100404.toInt())
+        g.line(x, gy - 1.3f, x, gy - 0.05f, 0.015f, 0xFF140606.toInt())
+        for (k in 0 until 5) g.fillCircle(x - 0.18f, gy - 1.2f + k * 0.22f, 0.025f, 0xFF8A6A5A.toInt())
+        g.fillRect(x - 0.3f, gy - 0.3f, x + 0.3f, gy, Col.alpha(0xFF6A000C.toInt(), 0.5f))
+    }
+
+    // ======================================================= material variants
+
+    /**
+     * Wall-material variants give each floor its own identity even when doors fill its slots:
+     * half the floors wear the zone's standard finish, the rest one of two alternates.
+     */
+    private fun variant(fi: Int): Int {
+        val h = hash(fi, 712)
+        return if (h < 0.5f) 0 else if (h < 0.75f) 1 else 2
+    }
+
+    /** Big veined stone slabs and a brass rail: the executive floors. */
+    private fun marble(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        g.fillRect(0f, rt, W, gy, Col.alpha(pal.trim, 0.13f))
+        for (k in 0..3) {
+            val x = SEAMS[k * 2]
+            g.fillRect(x - HAIR, rt, x + HAIR * 0.5f, gy, Col.alpha(pal.deep, 0.5f))
+        }
+        val vein = Col.alpha(0xFFFFFFFF.toInt(), 0.14f)
+        for (v in 0 until 6) {
+            var x = hash(v + fi * 7, 80) * W
+            var y = rt + 0.2f
+            for (s in 0 until 7) {
+                val nx = x + (hash(s + v * 9 + fi, 81) - 0.35f) * 0.7f
+                val ny = y + 0.45f
+                g.line(x, y, nx, ny, 0.012f, vein)
+                x = nx
+                y = ny
+            }
+        }
+        val ry = gy - 0.9f
+        g.fillRect(0f, ry - 0.03f, W, ry, 0xB0C8A060.toInt())
+        g.fillRect(0f, ry - 0.03f, W, ry - 0.022f, 0xC0FFE0A0.toInt())
+    }
+
+    /** Warm timber slats with a hidden LED cove: the design-studio floors. */
+    private fun slats(pal: Palette, rt: Float, gy: Float) {
+        g.fillRect(0f, rt, W, gy, 0x38A0602A)
+        var x = 0.06f
+        val dark = Col.alpha(pal.deep, 0.55f)
+        while (x < W) {
+            g.fillRect(x, rt + 0.3f, x + 0.03f, gy - 0.12f, dark)
+            x += 0.14f
+        }
+        g.fillRect(0f, rt + 0.26f, W, rt + 0.3f, 0x60FFC890)
+    }
+
+    /** Bright clean-room cladding with rounded panels and a status strip. */
+    private fun cleanRoom(pal: Palette, rt: Float, gy: Float) {
+        g.fillRect(0f, rt, W, gy, 0x10FFFFFF)
+        for (i in 0 until SEAMS.size - 1) {
+            val x0 = SEAMS[i] + 0.05f
+            val x1 = SEAMS[i + 1] - 0.05f
+            g.strokeRoundRect(x0, rt + 0.3f, x1, rt + 1.35f, 0.12f, HAIR, Col.alpha(pal.trim, 0.2f))
+            g.strokeRoundRect(x0, rt + 1.45f, x1, gy - 0.3f, 0.12f, HAIR, Col.alpha(pal.trim, 0.2f))
+        }
+        g.fillRect(0f, rt + 1.38f, W, rt + 1.42f, Col.alpha(pal.neon2, 0.35f))
+    }
+
+    /** A sealed floor: red strobe wash, hazard banding, stencilled warnings. */
+    private fun quarantine(pal: Palette, rt: Float, gy: Float) {
+        val pulse = 0.5f + 0.5f * sin(f.t * 4f)
+        g.fillRect(0f, rt, W, gy, Col.alpha(0xFFFF2020.toInt(), 0.04f + 0.05f * pulse))
+        g.save()
+        g.clipRect(0f, rt + 0.2f, W, rt + 0.32f)
+        g.fillRect(0f, rt + 0.2f, W, rt + 0.32f, 0xFF15150E.toInt())
+        var sx = -0.4f
+        while (sx < W) {
+            poly.quad(g, sx, rt + 0.32f, sx + 0.12f, rt + 0.32f, sx + 0.24f, rt + 0.2f, sx + 0.12f, rt + 0.2f, 0xFFC02020.toInt())
+            sx += 0.24f
+        }
+        g.restore()
+        for (k in 0..1) f.worldText("QUARANTINE", if (k == 0) 3.2f else 6.8f, rt + 0.62f, 0.18f, Col.alpha(0xFFFF4040.toInt(), 0.75f))
+    }
+
+    /** Old brick with the ghosts of torn posters. */
+    private fun brick(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        g.fillRect(0f, rt, W, gy, 0x18A04828)
+        val mortar = Col.alpha(pal.deep, 0.45f)
+        var y = rt + 0.18f
+        var row = 0
+        while (y < gy) {
+            g.fillRect(0f, y, W, y + 0.02f, mortar)
+            var x = if (row % 2 == 0) 0.2f else 0.4f
+            while (x < W) {
+                g.fillRect(x, y - 0.16f, x + 0.02f, y, mortar)
+                x += 0.4f
+            }
+            y += 0.18f
+            row++
+        }
+        for (k in 0 until 3) {
+            val px = hash(fi * 3 + k, 82) * (W - 1f)
+            val py = rt + 0.9f + hash(fi * 3 + k, 83) * 0.8f
+            val c = if (k % 2 == 0) 0x40E8D0A0 else 0x40C04830
+            poly.quad(g, px, py, px + 0.6f, py + 0.05f, px + 0.52f, py + 0.7f, px + 0.05f, py + 0.55f, c)
+        }
+    }
+
+    /** Board-formed concrete under a huge mural. */
+    private fun mural(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        var y = rt + 0.3f
+        while (y < gy) {
+            g.fillRect(0f, y, W, y + 0.01f, Col.alpha(pal.deep, 0.3f))
+            y += 0.3f
+        }
+        val tag = MURALS[fi % MURALS.size]
+        g.save()
+        g.translate(W / 2f, rt + 0.78f)
+        g.rotate(-3f)
+        g.scale(1f / f.s, 1f / f.s)
+        val sz = 0.5f * f.s
+        g.text(tag, 3f, 3f, sz, 0x60000000, Gfx.Font.TITLE, Gfx.Align.CENTER)
+        g.text(tag, 0f, 0f, sz, if (fi % 2 == 0) 0x70FF4A9A else 0x704AF0C0, Gfx.Font.TITLE, Gfx.Align.CENTER)
+        g.restore()
+        for (k in 0 until 6) {
+            val dx = 1.5f + hash(k + fi, 84) * 7f
+            g.fillRect(dx, rt + 0.8f, dx + 0.02f, rt + 0.95f + hash(k, 85) * 0.4f, if (fi % 2 == 0) 0x50FF4A9A else 0x504AF0C0)
+        }
+    }
+
+    /** Crystal cave: glowing clusters bursting from the rock. */
+    private fun crystals(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        g.blend(Gfx.Blend.ADD)
+        for (k in 0 until 6) {
+            val cx = hash(fi * 5 + k, 86) * W
+            val cy = rt + 0.4f + hash(fi * 5 + k, 87) * (gy - rt - 0.8f)
+            val c = if (k % 3 == 0) 0xFFFF5AD8.toInt() else if (k % 3 == 1) 0xFF5AD8FF.toInt() else 0xFF8AFFB0.toInt()
+            g.glow(cx, cy, 1.1f, Col.alpha(c, 0.45f))
+        }
+        g.blend(Gfx.Blend.NORMAL)
+        for (k in 0 until 6) {
+            val cx = hash(fi * 5 + k, 86) * W
+            val cy = rt + 0.4f + hash(fi * 5 + k, 87) * (gy - rt - 0.8f)
+            val c = if (k % 3 == 0) 0xFFFF5AD8.toInt() else if (k % 3 == 1) 0xFF5AD8FF.toInt() else 0xFF8AFFB0.toInt()
+            for (j in 0 until 4) {
+                val a = -1.2f + j * 0.8f + hash(j + k, 88) * 0.3f
+                val l = 0.3f + hash(j + k * 4 + fi, 89) * 0.3f
+                val tx = cx + sin(a) * l
+                val ty = cy - cos(a) * l
+                poly.tri(g, cx - 0.06f, cy, cx + 0.06f, cy, tx, ty, Col.alpha(c, 0.9f))
+                g.line(cx, cy, tx, ty, 0.01f, 0xC0FFFFFF.toInt())
+            }
+        }
+    }
+
+    /** Coal seams: glossy black bands through the rock. */
+    private fun coal(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        for (b in 0 until 3) {
+            val y = rt + 0.5f + b * 0.9f + hash(fi + b, 90) * 0.2f
+            poly.begin()
+            poly.add(-0.1f, y + 0.3f)
+            for (k in 0..8) poly.add(k * 1.25f, y + sin(k * 1.1f + b + fi) * 0.08f)
+            poly.add(W + 0.1f, y + 0.3f)
+            poly.fill(g, 0xB0050404.toInt())
+            g.line(0f, y + 0.02f, W, y + 0.04f, 0.012f, 0x40FFFFFF)
+        }
+    }
+
+    /** Foundry plating: riveted steel, hot at the floor. */
+    private fun foundry(pal: Palette, rt: Float, gy: Float) {
+        g.fillRect(0f, rt, W, gy, 0x14B0A0A0)
+        var y = rt + 0.8f
+        while (y < gy) {
+            g.fillRect(0f, y, W, y + 0.025f, Col.alpha(pal.deep, 0.7f))
+            var x = 0.3f
+            while (x < W) {
+                g.fillCircle(x, y - 0.06f, 0.022f, Col.alpha(pal.trim, 0.45f))
+                x += 0.6f
+            }
+            y += 0.8f
+        }
+        for (x in SEAMS) g.fillRect(x - HAIR, rt, x + HAIR, gy, Col.alpha(pal.deep, 0.7f))
+        g.fillRect(0f, gy - 0.5f, W, gy - 0.46f, Col.alpha(pal.glow, 0.7f))
+    }
+
+    /** Obsidian: black glass in sharp facets, veined with fire. */
+    private fun obsidian(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        for (k in 0 until 8) {
+            val x = k * 1.3f + hash(k + fi, 91) * 0.4f
+            poly.quad(g, x, rt, x + 1.2f, rt, x + 0.4f + hash(k, 92), gy, x - 0.6f, gy, if (k % 2 == 0) 0x40000000 else 0x0CFFFFFF)
+        }
+        for (v in 0 until 5) {
+            var x = hash(v + fi * 5, 93) * W
+            var y = gy
+            for (s in 0 until 5) {
+                val nx = x + (hash(s + v * 7 + fi, 94) - 0.5f) * 0.8f
+                val ny = y - 0.55f
+                g.line(x, y, nx, ny, 0.015f, Col.alpha(pal.glow, 0.8f))
+                x = nx
+                y = ny
+            }
+        }
+    }
+
+    /** Flesh: the walls are alive, veins pulsing. */
+    private fun flesh(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        g.fillRect(0f, rt, W, gy, 0x20801020)
+        val beat = 0.6f + 0.4f * sin(f.t * 5f) * sin(f.t * 5f)
+        for (v in 0 until 7) {
+            var x = hash(v + fi * 3, 95) * W
+            var y = rt + 0.15f
+            var w = 0.05f
+            for (s in 0 until 6) {
+                val nx = x + (hash(s + v * 11 + fi, 96) - 0.5f) * 0.9f
+                val ny = y + 0.5f
+                g.line(x, y, nx, ny, w, Col.alpha(0xFF6A0010.toInt(), 0.8f))
+                g.line(x, y, nx, ny, w * 0.35f, Col.alpha(0xFFFF3050.toInt(), 0.45f * beat))
+                if (s == 2) g.line(nx, ny, nx + 0.4f, ny + 0.3f, w * 0.6f, Col.alpha(0xFF6A0010.toInt(), 0.7f))
+                x = nx
+                y = ny
+                w *= 0.85f
+            }
+        }
+        for (k in 0 until 5) {
+            val px = hash(k + fi * 9, 97) * W
+            val py = rt + 0.5f + hash(k + fi * 9, 98) * (gy - rt - 1f)
+            g.fillCircle(px, py, 0.07f, 0x90802030.toInt())
+            g.fillCircle(px - 0.02f, py - 0.02f, 0.02f, 0x60FFFFFF)
+        }
+    }
+
+    /** Ossuary: skulls packed into niches above and below. */
+    private fun ossuary(pal: Palette, rt: Float, gy: Float) {
+        val bone = pal.trim
+        for (row in 0 until 2) {
+            val y = rt + 0.32f + row * 0.26f
+            var x = 0.18f + row * 0.13f
+            while (x < W) {
+                g.fillCircle(x, y, 0.1f, Col.alpha(bone, 0.4f))
+                g.fillCircle(x - 0.035f, y, 0.025f, Col.alpha(pal.deep, 0.8f))
+                g.fillCircle(x + 0.035f, y, 0.025f, Col.alpha(pal.deep, 0.8f))
+                x += 0.26f
+            }
+        }
+        var x = 0.2f
+        while (x < W) {
+            g.line(x - 0.1f, gy - 0.2f, x + 0.1f, gy - 0.16f, 0.04f, Col.alpha(bone, 0.35f))
+            g.line(x - 0.1f, gy - 0.28f, x + 0.12f, gy - 0.3f, 0.04f, Col.alpha(bone, 0.3f))
+            x += 0.28f
+        }
     }
 }

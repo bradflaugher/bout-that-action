@@ -187,7 +187,7 @@ internal class Palette(
             )
             base[Zone.MINES] = Palette(
                 skyTop = 0xFF100B08.toInt(), skyBottom = 0xFF24170E.toInt(),
-                wallTop = 0xFF36291F.toInt(), wallBottom = 0xFF1A1411.toInt(), panel = 0xFF43342A.toInt(),
+                wallTop = 0xFF2A2019.toInt(), wallBottom = 0xFF110D0B.toInt(), panel = 0xFF43342A.toInt(),
                 neon = 0xFFFF9A2A.toInt(), neon2 = 0xFFFFE066.toInt(),
                 slab = 0xFF120C08.toInt(), slabEdge = 0xFFC8843A.toInt(), lamp = 0xFFFFC77A.toInt(),
                 outer = 0xFF160F0A.toInt(), outerLit = 0xFFFF9A2A.toInt(),
@@ -200,7 +200,7 @@ internal class Palette(
             )
             base[Zone.MAGMA] = Palette(
                 skyTop = 0xFF1A0503.toInt(), skyBottom = 0xFF4A0E04.toInt(),
-                wallTop = 0xFF251D21.toInt(), wallBottom = 0xFF110B0D.toInt(), panel = 0xFF3A2220.toInt(),
+                wallTop = 0xFF1E171A.toInt(), wallBottom = 0xFF0C0809.toInt(), panel = 0xFF3A2220.toInt(),
                 neon = 0xFFFF6A10.toInt(), neon2 = 0xFFFFD02A.toInt(),
                 slab = 0xFF110807.toInt(), slabEdge = 0xFFFF6A10.toInt(), lamp = 0xFFFFB060.toInt(),
                 outer = 0xFF160807.toInt(), outerLit = 0xFFFF6A10.toInt(),
@@ -213,7 +213,7 @@ internal class Palette(
             )
             base[Zone.HELL] = Palette(
                 skyTop = 0xFF1C0006.toInt(), skyBottom = 0xFF8A0A10.toInt(),
-                wallTop = 0xFF300C12.toInt(), wallBottom = 0xFF150409.toInt(), panel = 0xFF45101A.toInt(),
+                wallTop = 0xFF280A10.toInt(), wallBottom = 0xFF100307.toInt(), panel = 0xFF45101A.toInt(),
                 neon = 0xFFFF2240.toInt(), neon2 = 0xFFFF9A1A.toInt(),
                 slab = 0xFF0C0104.toInt(), slabEdge = 0xFFFF2240.toInt(), lamp = 0xFFFFA070.toInt(),
                 outer = 0xFF18020A.toInt(), outerLit = 0xFFFF3A1A.toInt(),
@@ -242,22 +242,24 @@ internal class Palette(
         fun of(zone: Zone): Palette = base.getValue(zone)
 
         /**
-         * The Void wears another zone's clothes, hue-cycling over time. Quantized and cached
-         * so the glitch costs no allocations after warm-up.
+         * The Void wears another zone's clothes, but every block of ten floors gets its own
+         * hue, which then drifts slowly over time. Walls sink toward the Void's own black so
+         * the neon carries the room. Quantized and cached: no allocations after warm-up.
          */
         fun void(zone: Zone, time: Float, floor: Int): Palette {
             val arr = voidCache.getOrPut(zone) { arrayOfNulls(VOID_STEPS) }
-            val step = (((time * 0.12f + floor * 0.173f) % 1f + 1f) % 1f * VOID_STEPS).toInt().coerceIn(0, VOID_STEPS - 1)
+            val block = hash(floor / 10, 77)
+            val step = (((block + time * 0.02f) % 1f + 1f) % 1f * VOID_STEPS).toInt().coerceIn(0, VOID_STEPS - 1)
             return arr[step] ?: run {
                 val deg = step * 360f / VOID_STEPS
                 val src = of(zone)
                 val voidP = of(Zone.VOID)
                 src.map { Col.hueShift(it, deg) }.let { p ->
                     Palette(
-                        p.skyTop, p.skyBottom, Col.lerp(p.wallTop, voidP.wallTop, 0.5f), Col.lerp(p.wallBottom, voidP.wallBottom, 0.5f),
+                        p.skyTop, p.skyBottom, Col.lerp(p.wallTop, voidP.wallTop, 0.8f), Col.lerp(p.wallBottom, voidP.wallBottom, 0.8f),
                         p.panel, p.neon, Col.hueShift(voidP.neon2, deg), p.slab, p.slabEdge, p.lamp, p.outer, p.outerLit, p.door,
                         p.doorFrame, p.enemyMain, p.enemyAccent, p.enemySkin, p.bgFar, p.bgMid, p.bgNear, p.laser, p.vent,
-                        p.ceil, Col.lerp(p.deep, voidP.deep, 0.5f), p.trim, p.haze, p.glow,
+                        voidP.ceil, voidP.deep, p.trim, p.haze, p.glow,
                     )
                 }.also { arr[step] = it }
             }
