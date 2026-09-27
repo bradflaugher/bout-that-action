@@ -152,6 +152,8 @@ class Enemy(
     /** Patrol beat: walks between these, pausing to look at each end. Equal = stands guard. */
     var patrolA = x
     var patrolB = x
+    /** World time this enemy stepped out of a door, or -1 if it was placed with the floor. */
+    var emergedAt = -1f
 
     val alive: Boolean get() = state != EnemyState.DEAD && state != EnemyState.CHOKED
     val ducking: Boolean get() = state == EnemyState.AIM && aimLow && kind != EnemyKind.DRONE && kind != EnemyKind.TURRET
@@ -196,6 +198,10 @@ class Bullet(
     var range: Float = 30f,
     /** The hallway of [floor] it flies through. */
     val hall: Int = 0,
+    /** Who fired it (enemy bullets), for the run's hurt log. */
+    val from: EnemyKind? = null,
+    /** The shooter stepped out of a door moments ago (a door ambush). */
+    val ambush: Boolean = false,
 ) {
     var dead = false
     var life = 0f

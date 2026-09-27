@@ -117,6 +117,11 @@ class World(val config: RunConfig) {
     /** Passages taken this run. */
     var passages = 0
         private set
+    /** Run highlights, the hurt log and what ended the run (for the game-over screen and the balance report). */
+    val stats = RunStats()
+    /** Seconds since the player arrived in the current hallway. */
+    var hallTime = 0f
+        private set
 
     private var hitStop = 0f
 
@@ -171,6 +176,7 @@ class World(val config: RunConfig) {
         }
         if (phase == Phase.PERK_CHOICE || phase == Phase.OVER) return
         time += dt
+        hallTime += dt
 
         val worldScale = when {
             phase == Phase.DYING -> 0.35f
@@ -359,6 +365,7 @@ class World(val config: RunConfig) {
     }
 
     private fun onHallEntered(f: Int, h: Int) {
+        hallTime = 0f
         val hs = hall(f, h) ?: return
         val heat = hs.plan.heat
         if (!hs.visited) {
@@ -585,6 +592,8 @@ class World(val config: RunConfig) {
         car.called = -1
         car.dir = 1
         car.pause = 0.35f
+        stats.rides++
+        if (car.shaft.express) stats.expressRides++
         events += GameEvent.ElevatorDing
     }
 
@@ -623,6 +632,7 @@ class World(val config: RunConfig) {
         p.x = p.anchorX
         p.vx = 0f
         score += 500
+        stats.intel++
         fx.text("INTEL +500", p.x, Geo.groundY(p.floor) - 2.2f, TextStyle.PICKUP)
         offerPerks()
     }
@@ -673,6 +683,7 @@ class World(val config: RunConfig) {
         p.vx = 0f
         p.holdAxis = moveAxis
         hs.doorOpen[d] = 1f
+        stats.doorHides++
         events += GameEvent.HideDoor
     }
 
@@ -681,6 +692,7 @@ class World(val config: RunConfig) {
         p.state = PlayerState.BOX
         p.stateTime = 0f
         p.vx *= 0.3f
+        stats.boxHides++
         events += GameEvent.HideBox
         fx.burst(ParticleKind.DUST, p.x, Geo.groundY(p.floor) - 0.1f, 6, 2f, 0.4f, 0.12f, upBias = 0.4f)
     }
@@ -939,6 +951,7 @@ class World(val config: RunConfig) {
         e.stateTime = 0f
         e.facing = dir
         takedowns++
+        if (ambush) stats.boxAmbushes++
         events += GameEvent.Takedown
         hitStop = 0.05f
         shake = max(shake, 0.2f)
@@ -1252,6 +1265,15 @@ class World(val config: RunConfig) {
         kills++
         combo = if (comboTimer > 0f) combo + 1 else 1
         comboTimer = COMBO_WINDOW
+        stats.bestCombo = max(stats.bestCombo, combo)
+        when (method) {
+            KillMethod.SHOT -> stats.shotKills++
+            KillMethod.STOMP -> stats.stomps++
+            KillMethod.LIGHT -> stats.lightKills++
+            KillMethod.HAZARD -> stats.hazardKills++
+            KillMethod.EXPLOSION -> stats.blastKills++
+            KillMethod.TAKEDOWN -> Unit
+        }
         val mult = min(combo, 8)
         val bonus = when (method) {
             KillMethod.TAKEDOWN -> 50
@@ -1308,10 +1330,11 @@ class World(val config: RunConfig) {
         pickups += Pickup(kind, x.coerceIn(0.6f, Geo.FLOOR_W - 0.6f), floor, hall)
     }
 
-    private fun hurtPlayer(sourceX: Float) {
+    private fun hurtPlayer(sourceX: Float, cause: HurtCause, by: EnemyKind? = null, ambush: Boolean = false, hazard: HazardKind? = null) {
         val p = player
         if (p.invuln > 0f || p.state == PlayerState.DEAD || phase != Phase.PLAYING) return
         if (p.state == PlayerState.DOOR || p.state == PlayerState.INTEL || p.state == PlayerState.PASSAGE || p.state == PlayerState.TAKEDOWN) return
+        val hurt = Hurt(cause, by, p.floor, zone, hallTime, ambush, hazard)
         val y = Geo.groundY(p.floorF) - p.z - 0.9f
         if (p.shield || p.armorReady) {
             if (p.shield) p.shield = false else p.armorReady = false
@@ -1326,6 +1349,7 @@ class World(val config: RunConfig) {
             p.state = PlayerState.NORMAL
         }
         p.hp--
+        stats.logHurt(hurt)
         p.invuln = 1.3f
         p.vx = sign(p.x - sourceX) * 5f
         shake = max(shake, 0.6f)
@@ -1342,6 +1366,7 @@ class World(val config: RunConfig) {
             p.z = max(p.z, 0.01f)
             phase = Phase.DYING
             dyingTime = 0f
+            stats.fatal = hurt
             events += GameEvent.PlayerDied
         } else {
             events += GameEvent.PlayerHurt(p.hp)
@@ -1469,7 +1494,7 @@ class World(val config: RunConfig) {
                     e.vx = 0f
                     if (e.stateTime >= 0.3f) {
                         val pz = player.z
-                        if (playerVisibleOn(e.floor, e.hall) && abs(player.x - e.x) < 1.35f && pz < 0.9f) hurtPlayer(e.x)
+                        if (playerVisibleOn(e.floor, e.hall) && abs(player.x - e.x) < 1.35f && pz < 0.9f) hurtPlayer(e.x, HurtCause.MELEE, e.kind, ambushing(e))
                         fx.burst(ParticleKind.SPARK, e.x + e.facing * 0.6f, Geo.groundY(e.floor) - 0.9f, 6, 5f, 0.18f, 0.07f, dir = e.facing.toFloat())
                         events += GameEvent.Shot(byPlayer = false, heavy = false, pan = pan(e.x))
                         e.state = EnemyState.ALERT
@@ -1543,6 +1568,7 @@ class World(val config: RunConfig) {
 
     private fun enemyShot(e: Enemy, heat: Float): Bullet {
         val v = Heat.bulletSpeed(heat)
+        val amb = ambushing(e)
         events += GameEvent.Shot(byPlayer = false, heavy = e.kind == EnemyKind.HEAVY, pan = pan(e.x))
         val muzzle = e.x + e.facing * (e.halfWidth + 0.2f)
         val bullet = when (e.kind) {
@@ -1551,11 +1577,11 @@ class World(val config: RunConfig) {
                 val dx = player.x - e.x
                 val dz = tz - (e.z + 0.1f)
                 val len = sqrt(dx * dx + dz * dz).coerceAtLeast(0.1f)
-                Bullet(e.x + dx / len * 0.4f, e.z + 0.1f, e.floor, dx / len * v, dz / len * v, false, 1, 0, 0, hall = e.hall)
+                Bullet(e.x + dx / len * 0.4f, e.z + 0.1f, e.floor, dx / len * v, dz / len * v, false, 1, 0, 0, hall = e.hall, from = e.kind, ambush = amb)
             }
-            EnemyKind.DRONE -> Bullet(muzzle, e.z + 0.1f, e.floor, e.facing * v, 0f, false, 1, 0, 0, hall = e.hall)
-            EnemyKind.DEMON -> Bullet(muzzle, 1.3f, e.floor, e.facing * v * 0.75f, 3.5f, false, 1, 0, 0, gravity = true, hall = e.hall)
-            else -> Bullet(muzzle, if (e.aimLow) Body.LOW else Body.HIGH, e.floor, e.facing * v, 0f, false, 1, 0, 0, hall = e.hall)
+            EnemyKind.DRONE -> Bullet(muzzle, e.z + 0.1f, e.floor, e.facing * v, 0f, false, 1, 0, 0, hall = e.hall, from = e.kind, ambush = amb)
+            EnemyKind.DEMON -> Bullet(muzzle, 1.3f, e.floor, e.facing * v * 0.75f, 3.5f, false, 1, 0, 0, gravity = true, hall = e.hall, from = e.kind, ambush = amb)
+            else -> Bullet(muzzle, if (e.aimLow) Body.LOW else Body.HIGH, e.floor, e.facing * v, 0f, false, 1, 0, 0, hall = e.hall, from = e.kind, ambush = amb)
         }
         val y = Geo.groundY(e.floor) - bullet.z
         fx.burst(ParticleKind.SPARK, muzzle, y, 3, 3f, 0.1f, 0.07f, dir = e.facing.toFloat())
@@ -1649,7 +1675,7 @@ class World(val config: RunConfig) {
                             // Already slipped this one: it flies on through.
                         } else if (p.invuln > 0f || phase != Phase.PLAYING) {
                             b.dead = true
-                            hurtPlayer(b.x)
+                            hurtBy(b)
                         } else {
                             b.graze = 0f
                         }
@@ -1667,6 +1693,11 @@ class World(val config: RunConfig) {
             if (b.dead) it.remove()
         }
     }
+
+    private fun hurtBy(b: Bullet) = hurtPlayer(b.x, if (b.gravity) HurtCause.FIREBALL else HurtCause.BULLET, b.from, b.ambush)
+
+    /** Did [e] step out of a door moments ago? */
+    private fun ambushing(e: Enemy) = e.emergedAt >= 0f && time - e.emergedAt < AMBUSH_WINDOW
 
     /** Does the player's body, as it is right now, cover height [z] (above the player's floor)? */
     private fun bodyCovers(z: Float): Boolean {
@@ -1689,7 +1720,7 @@ class World(val config: RunConfig) {
         }
         if (stillThere && bodyCovers(b.z)) {
             b.dead = true
-            hurtPlayer(b.x)
+            hurtBy(b)
         } else {
             b.graze = Bullet.DODGED
             p.sinceCloseCall = 0f
@@ -1730,7 +1761,7 @@ class World(val config: RunConfig) {
                     for (e in enemies.toList()) {
                         if (e.floor == f && e.hall == h && e.alive && abs(e.x - x) < 0.8f && e.kind != EnemyKind.TURRET) kill(e, KillMethod.LIGHT, if (e.x >= x) 1 else -1)
                     }
-                    if (playerHere && abs(player.x - x) < 0.55f) hurtPlayer(x)
+                    if (playerHere && abs(player.x - x) < 0.55f) hurtPlayer(x, HurtCause.LIGHT)
                 }
             }
             for (hz in hs.plan.hazards) {
@@ -1741,7 +1772,7 @@ class World(val config: RunConfig) {
                 val width = if (hz.kind == HazardKind.LASER) 0.22f else 0.42f
                 val height = if (hz.kind == HazardKind.LASER) Geo.FLOOR_H else 0.95f
                 if (playerHere && (playerVisibleOn(f, h) || player.state == PlayerState.BOX)) {
-                    if (abs(player.x - hz.x) < width + Body.HALF_W && player.z < height) hurtPlayer(hz.x)
+                    if (abs(player.x - hz.x) < width + Body.HALF_W && player.z < height) hurtPlayer(hz.x, HurtCause.HAZARD, hazard = hz.kind)
                 }
                 // Guards know their own hallway's hazards: only the ones you lure in get burned.
                 if (playerHere) {
@@ -1781,6 +1812,7 @@ class World(val config: RunConfig) {
         val e = spawnEnemy(kind, door.x, f, p.hall, if (p.x >= door.x) 1 else -1)
         e.state = EnemyState.EMERGING
         e.stateTime = 0f
+        e.emergedAt = time
         setPatrol(e, 2f, hs.plan)
         hs.doorOpen[d] = 1f
         events += GameEvent.DoorOpen
@@ -1996,6 +2028,8 @@ class World(val config: RunConfig) {
         const val SILENT_REACTION = 1.35f
         /** One grenade earned back per this many kills. */
         const val GRENADE_EVERY = 8
+        /** A hit from a guard who stepped out of a door less than this long ago counts as a door ambush (stats only). */
+        const val AMBUSH_WINDOW = 3f
 
         // ---- Controls & feel (see docs/CONTROLS.md) ----
         const val RUN_ACCEL = 70f
