@@ -26,17 +26,20 @@ is read on its own, so one thumb can run while the other shoots.
 
 | Gesture | Does |
 |---|---|
-| **Drag ← →** and hold | Run. Nudge back a little to turn around instantly. Lift to stop. |
+| **Drag ← →** and hold | Run. Nudge back a little to turn around instantly. Lift to stop. A held run won't pull you out of a door or elevator: lift and drag again to step out. |
 | **Tap** | Shoot. Auto-aims at the nearest threat, high or low. Fires on release, no delay. |
-| **Double-tap** | Throw a grenade. |
+| **Double-tap** | Throw a grenade (just fires if you have none). Fast tapping never throws by accident. |
 | **Swipe ↑** | Jump. Clears low shots; land on heads to stomp. Works mid-run. |
-| **Swipe ↓** | Hide: press into a **doorway**, pop the **cardboard box**, ride an open **elevator** down, or enter a red **INTEL** door. |
+| **Swipe ↓** | Hide: press into a **doorway**, pop the **cardboard box**, ride an open **elevator** down, or enter a red **INTEL** door. Swipe ↓ again to stand up. |
 | **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind. |
-| **Jump + tap** | Shoot out a ceiling light. It crushes whoever is under it and blacks out the floor. |
+| **Jump + tap** | Shoot out a ceiling light when someone's under it (or nobody's ahead). It crushes them and blacks out the floor. |
 
 A small arrow above your head shows what swipe ↓ will do right now. An
 optional thumb guide shows where your run drag started, and **Auto-fire**
-(in settings) shoots anything in sight for you.
+(in settings) shoots anything in sight for you. Inputs are forgiving: a
+gesture made a hair early is buffered, and a bullet that lands the same
+instant you dodge counts as a miss ("CLOSE!"). Design notes and every
+threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 
 ## How it plays
 
