@@ -68,11 +68,6 @@ class Player {
     /** Mid-passage: the hallway and door on the far side. */
     var passageTo = 0
     var passageDoor = 0
-    /**
-     * A tap waiting out the double-tap window before it opens a door (so the first tap of a
-     * grenade double-tap never walks you through one). Seconds left, or 0.
-     */
-    var tapTimer = 0f
     /** Riding with the cardboard box pulled over you: nobody at the doors can see you. */
     var carBox = false
     var takedownTarget = -1

@@ -747,8 +747,53 @@ internal class Building(private val f: Frame) {
                 g.fillRect(x0, gy, x1, gy + 0.03f, pal.slabEdge)
             }
             steelDoors(pal, x0, fy, x1, gy, open)
+            if (fi < s.bottom) rideDownMarks(x0, fy, x1, gy, open) else lastStopMarks(x0, fy, x1, gy, open)
             landingFront(pal, s, fi, gy, car)
         }
+    }
+
+    /**
+     * A ride down from here: cyan-lit jambs and threshold, and down chevrons on the shut
+     * doors that chase toward the floor. Nothing else in the hallway glows like it.
+     */
+    private fun rideDownMarks(x0: Float, y0: Float, x1: Float, y1: Float, open: Float) {
+        g.blend(Gfx.Blend.ADD)
+        g.fillRect(x0 - 0.16f, y0, x0 - 0.02f, y1, Col.alpha(LIFT_CYAN, 0.14f))
+        g.fillRect(x1 + 0.02f, y0, x1 + 0.16f, y1, Col.alpha(LIFT_CYAN, 0.14f))
+        g.blend(Gfx.Blend.NORMAL)
+        g.fillRect(x0 - 0.035f, y0, x0 - 0.005f, y1, Col.alpha(LIFT_CYAN, 0.85f))
+        g.fillRect(x1 + 0.005f, y0, x1 + 0.035f, y1, Col.alpha(LIFT_CYAN, 0.85f))
+        g.fillRect(x0, y1 - 0.05f, x1, y1 - 0.01f, Col.alpha(LIFT_CYAN, 0.7f))
+        val a = 1f - (open / 0.35f).coerceIn(0f, 1f)
+        if (a <= 0f) return
+        val cx = (x0 + x1) / 2f
+        val cy = y0 + 0.62f
+        // Plate the chevrons sit on, across the seam of the doors.
+        g.fillRoundRect(cx - 0.24f, cy - 0.2f, cx + 0.24f, cy + 0.56f, 0.06f, Col.alpha(0xFF06121A.toInt(), 0.85f * a))
+        g.strokeRoundRect(cx - 0.24f, cy - 0.2f, cx + 0.24f, cy + 0.56f, 0.06f, 0.02f, Col.alpha(LIFT_CYAN, 0.5f * a))
+        for (k in 0..2) {
+            // Each chevron lights in turn, top to bottom: down, down, down.
+            val beat = ((f.t * 1.6f - k * 0.33f) % 1f + 1f) % 1f
+            val lit = 0.3f + 0.7f * (1f - beat) * (1f - beat)
+            HudIcons.chevronDown(g, cx, cy + k * 0.18f, 0.13f, 0.035f, Col.alpha(LIFT_CYAN, lit * a))
+        }
+    }
+
+    /**
+     * The bottom of a shaft (where a ride down ended): plain steel with a road-style
+     * DO NOT ENTER sign (red disc, white bar) across the seam, dimmed so it never outshines
+     * the cyan rides down.
+     */
+    private fun lastStopMarks(x0: Float, y0: Float, x1: Float, y1: Float, open: Float) {
+        val a = 1f - (open / 0.35f).coerceIn(0f, 1f)
+        if (a <= 0f) return
+        val cx = (x0 + x1) / 2f
+        val cy = y0 + 0.8f
+        val r = 0.27f
+        g.fillCircle(cx, cy + 0.03f, r, Col.alpha(0xFF000000.toInt(), 0.4f * a))
+        g.fillCircle(cx, cy, r, Col.alpha(0xFFF2F0F4.toInt(), 0.9f * a))
+        g.fillCircle(cx, cy, r * 0.88f, Col.alpha(0xFFD8283A.toInt(), 0.9f * a))
+        g.fillRoundRect(cx - r * 0.62f, cy - r * 0.16f, cx + r * 0.62f, cy + r * 0.16f, r * 0.04f, Col.alpha(0xFFF2F0F4.toInt(), 0.95f * a))
     }
 
     /** A pair of brushed-steel landing doors in [x0, x1] × [y0, y1], [open] 0..1. */
@@ -1163,7 +1208,7 @@ internal class Building(private val f: Frame) {
         "SWIPE ↑" to "JUMP",
         "SWIPE ↓" to "HIDE",
         "TAP" to "DOORS & ELEVATORS",
-        "2×TAP" to "GRENADE",
+        "GREEN BUTTON" to "GRENADE",
     )
 
     /** The tutorial, as a rooftop billboard: the gestures, the takedown ticker and the mode button. */

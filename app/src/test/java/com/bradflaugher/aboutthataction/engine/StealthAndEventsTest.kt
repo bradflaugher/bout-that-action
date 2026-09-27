@@ -192,23 +192,6 @@ class StealthAndEventsTest {
         assertEquals(0, w.events.count { it is GameEvent.Alerted })
     }
 
-    @Test
-    fun hidingDuringTheDoubleTapWindowIsNotUndoneByTheTap() {
-        val w = world(silent = false)
-        val hs = w.playerHall()!!
-        val door = hs.plan.doors.first { it.kind == DoorKind.PASSAGE }
-        w.player.x = door.x
-        // An awake guard makes the tap wait out the double-tap window.
-        enemy(w, EnemyKind.AGENT, if (door.x > 7f) 1.5f else 12.5f, facing = if (door.x > 7f) -1 else 1)
-        val hall = w.player.hall
-        w.commands += Command.TAP
-        run(w, 0.05f)
-        w.commands += Command.SWIPE_DOWN
-        run(w, 0.6f)
-        assertEquals(hall, w.player.hall)
-        assertTrue("still hidden", w.player.state == PlayerState.BOX || w.player.state == PlayerState.DOOR)
-    }
-
     // ------------------------------------------------------------ napping guards
 
     @Test

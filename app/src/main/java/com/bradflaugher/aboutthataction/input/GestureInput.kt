@@ -16,8 +16,8 @@ import kotlin.math.abs
  *    keep going: drag it sideways to run, or flick again.
  *  - **Tap**: interact (a passage, an STASH door, an elevator), on touch-up with
  *    no added delay. The gun is automatic (or off, in SILENT), so taps never shoot
- *    guards; in mid-air a tap is a suppressed shot at a ceiling light.
- *    **Double-tap**: the second tap throws a grenade.
+ *    guards; in mid-air a tap swats a ceiling light. Every
+ *    tap is just a tap: grenades have their own HUD button.
  *
  * One boundary everywhere: a stroke steeper than 45° is vertical (a flick),
  * shallower is horizontal (a run). Flicks must also be quick (a distance
@@ -34,7 +34,6 @@ class GestureInput(density: Float) {
     private val flickMidRunDist = FLICK_MID_RUN_DP * density
     private val reverseDist = REVERSE_DP * density
     private val restartDist = RESTART_DP * density
-    private val doubleTapDist = DOUBLE_TAP_DP * density
 
     private enum class Mode {
         /** Down, not yet classified: could still be a tap, a flick or a run. */
@@ -103,11 +102,6 @@ class GestureInput(density: Float) {
 
     private val fingers = HashMap<Int, Finger>()
     private val pending = ArrayDeque<Command>()
-    private var lastTapT = Long.MIN_VALUE / 2
-    private var lastTapX = 0f
-    private var lastTapY = 0f
-    /** Consecutive quick taps in the current burst (1 = a lone tap). */
-    private var tapStreak = 0
     private var runCounter = 0L
 
     /** -1, 0 or 1: the direction of the most recently started running finger. */
@@ -195,13 +189,13 @@ class GestureInput(density: Float) {
                     flick(f, dy, x, y, t)
                     return
                 }
-                if (abs(dx) <= slop && abs(dy) <= slop && dt < TAP_MS) tap(f, x, y, t)
+                if (abs(dx) <= slop && abs(dy) <= slop && dt < TAP_MS) tap()
             }
             Mode.HELD -> {
                 // A quick jab that barely slid past the run slop was a tap with a
                 // rolling thumb, not a deliberate step: a tap.
                 val travel = maxOf(f.maxTravel, abs(dx), abs(dy))
-                if (f.lastFlick == 0 && dt < SLOPPY_TAP_MS && travel <= sloppyTapDist) tap(f, x, y, t)
+                if (f.lastFlick == 0 && dt < SLOPPY_TAP_MS && travel <= sloppyTapDist) tap()
             }
         }
     }
@@ -220,8 +214,6 @@ class GestureInput(density: Float) {
     fun cancelAll() {
         fingers.clear()
         pending.clear()
-        tapStreak = 0
-        lastTapT = Long.MIN_VALUE / 2
     }
 
     /** Moves every recognised command into [sink], oldest first. */
@@ -236,17 +228,8 @@ class GestureInput(density: Float) {
         f.runOrder = ++runCounter
     }
 
-    private fun tap(f: Finger, x: Float, y: Float, t: Long) {
-        // The second press must start after the first one lifted: chorded taps are two taps.
-        val gap = f.downT - lastTapT
-        val quick = gap in 0..DOUBLE_TAP_GAP_MS &&
-            abs(x - lastTapX) < doubleTapDist && abs(y - lastTapY) < doubleTapDist
-        tapStreak = if (quick) tapStreak + 1 else 1
-        // Only the second tap of a fresh burst is a grenade: mashing stays taps.
-        pending += if (tapStreak == 2) Command.DOUBLE_TAP else Command.TAP
-        lastTapT = t
-        lastTapX = x
-        lastTapY = y
+    private fun tap() {
+        pending += Command.TAP
     }
 
     private fun flick(f: Finger, dy: Float, x: Float, y: Float, t: Long) {
@@ -261,9 +244,6 @@ class GestureInput(density: Float) {
         f.lastFlick = if (dy < 0) -1 else 1
         f.reboundUntil = t + REBOUND_MS
         f.resetHistory(x, y, t)
-        // A flick breaks a tap burst: tap, flick, tap is two taps, not a grenade.
-        tapStreak = 0
-        lastTapT = Long.MIN_VALUE / 2
     }
 
     companion object {
@@ -288,9 +268,6 @@ class GestureInput(density: Float) {
         /** Sideways drag that turns a standing (post-flick) finger into a run. */
         const val RESTART_DP = 14f
         const val TAP_MS = 300L
-        /** Second tap must go down within this long after the first lifted. */
-        const val DOUBLE_TAP_GAP_MS = 170L
-        const val DOUBLE_TAP_DP = 48f
         private const val HISTORY = 64
     }
 }

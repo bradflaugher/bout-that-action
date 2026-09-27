@@ -17,8 +17,9 @@ import kotlin.math.sin
  * Heads-up display, zone title cards, the perk picker and the swipe-down hint.
  *
  * Layout runs on a grid of [unit] = 1% of the screen width (so 2u ≈ 8 dp on a phone):
- * 4u side margins, rows every 2u. Left column: zone + depth + heat, hearts, gear. Right
- * column: score beside the pause button, combo under it. Bottom: ammo dial, timers.
+ * 4u side margins, rows every 2u. Left column: zone + depth + heat, hearts, perks. Right
+ * column: score beside the pause button, combo under it; under pause, the mode and grenade
+ * buttons. Bottom: ammo dial, timers.
  */
 internal class Hud(private val f: Frame) {
     private val g get() = f.g
@@ -81,6 +82,7 @@ internal class Hud(private val f: Frame) {
         private const val HEART = 0xFFFF2E58.toInt()
         private const val GOLD = 0xFFFFD24A.toInt()
         private const val PINK = 0xFFFF3D9A.toInt()
+        private const val LIME = 0xFF9AE040.toInt()
 
         fun unit(width: Float) = width / 100f
 
@@ -91,14 +93,8 @@ internal class Hud(private val f: Frame) {
             out[2] = PAUSE_R * u
         }
 
-        fun isPauseButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean {
-            val c = FloatArray(3)
-            pauseCenter(width, topInset, c)
-            val r = c[2] * 1.8f
-            val dx = x - c[0]
-            val dy = y - c[1]
-            return dx * dx + dy * dy <= r * r && !closerToMode(x, y, width, topInset)
-        }
+        fun isPauseButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean =
+            buttonAt(x, y, width, topInset) == PAUSE
 
         /** The GUNS HOT / SILENT button: the same size as pause, right under it. */
         fun modeCenter(width: Float, topInset: Float, out: FloatArray) {
@@ -106,20 +102,44 @@ internal class Hud(private val f: Frame) {
             out[1] += MODE_GAP * unit(width)
         }
 
-        fun isModeButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean {
-            val c = FloatArray(3)
-            modeCenter(width, topInset, c)
-            val r = c[2] * 1.6f
-            val dx = x - c[0]
-            val dy = y - c[1]
-            return dx * dx + dy * dy <= r * r && closerToMode(x, y, width, topInset)
+        fun isModeButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean =
+            buttonAt(x, y, width, topInset) == MODE
+
+        /** The grenade button: the same size again, right under the mode button. */
+        fun grenadeCenter(width: Float, topInset: Float, out: FloatArray) {
+            modeCenter(width, topInset, out)
+            out[1] += MODE_GAP * unit(width)
         }
 
-        /** Where the pause and mode buttons' generous hit circles overlap, the nearer centre wins. */
-        private fun closerToMode(x: Float, y: Float, width: Float, topInset: Float): Boolean {
-            val p = FloatArray(3)
-            pauseCenter(width, topInset, p)
-            return y > p[1] + MODE_GAP * unit(width) / 2f && kotlin.math.abs(x - p[0]) < p[2] * 3f
+        fun isGrenadeButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean =
+            buttonAt(x, y, width, topInset) == GRENADE
+
+        private const val PAUSE = 0
+        private const val MODE = 1
+        private const val GRENADE = 2
+
+        /**
+         * Which of the right-hand buttons a touch is on, or -1. Hit circles are generous
+         * (pause 1.8×, the others 1.6× their radius); where they overlap the nearer centre wins.
+         */
+        private fun buttonAt(x: Float, y: Float, width: Float, topInset: Float): Int {
+            val c = FloatArray(3)
+            var best = -1
+            var bestD = Float.MAX_VALUE
+            for (b in PAUSE..GRENADE) {
+                when (b) {
+                    PAUSE -> pauseCenter(width, topInset, c)
+                    MODE -> modeCenter(width, topInset, c)
+                    else -> grenadeCenter(width, topInset, c)
+                }
+                val r = c[2] * if (b == PAUSE) 1.8f else 1.6f
+                val d = (x - c[0]) * (x - c[0]) + (y - c[1]) * (y - c[1])
+                if (d <= r * r && d < bestD) {
+                    best = b
+                    bestD = d
+                }
+            }
+            return best
         }
 
         /** Card i's rect (left, top, right, bottom) in pixels. */
@@ -231,9 +251,10 @@ internal class Hud(private val f: Frame) {
             scoreBlock(top, u)
             return
         }
-        gearRow(left, top + 23f * u, u)
+        perkRow(left, top + 23f * u, u)
         pauseButton(u)
         modeButton(u)
+        grenadeButton(u)
         scoreBlock(top, u)
         if (w.combo >= 2) comboBlock(W - MARGIN * u - PAUSE_R * 2f * u - 6f * u, top + 16f * u, u) else lastCombo = -1
 
@@ -286,6 +307,49 @@ internal class Hud(private val f: Frame) {
         }
         HudType.tracked(g, if (silent) "SILENT" else "GUNS HOT", cx, cy + r + 2.6f * u, 2.1f * u, col, Gfx.Font.HUD, Gfx.Align.CENTER, 0.3f * u)
     }
+
+    // --------------------------------------------------------- grenade button
+
+    private val grenadeBuf = FloatArray(3)
+
+    /**
+     * Throws a grenade, under the mode button: the grenade with how many you carry beside
+     * it, lime when one is ready, greyed out when you're empty or one is already flying.
+     * It pops with the gear row whenever the count changes.
+     */
+    private fun grenadeButton(u: Float) {
+        val w = f.w
+        val n = w.player.grenades
+        val ready = n > 0 && w.grenades.isEmpty()
+        val c = grenadeBuf
+        grenadeCenter(g.width, f.topInset, c)
+        val cx = c[0]
+        val cy = c[1]
+        val r = c[2]
+        val col = if (ready) LIME else 0x66E8E4F4
+        val age = since(grenadeAt)
+        val pop = if (age in 0f..0.35f) 1f + 0.18f * HudType.decay(age / 0.35f) else 1f
+        g.fillCircle(cx, cy + 0.3f * u, r, 0x55000000)
+        g.fillCircle(cx, cy, r * pop, 0x8C0C0A14.toInt())
+        g.strokeCircle(cx, cy, (r - 0.12f * u) * pop, 0.3f * u, Col.alpha(col, 0.85f))
+        // While the coach is teaching it, the button calls out with a pulsing ring.
+        val tipAge = f.wt - w.coachTipAt
+        if (ready && w.coachTip?.contains("GRENADE") == true && w.coachTipAt >= 0f && tipAge in 0f..3.4f) {
+            val q = (tipAge * 1.4f) % 1f
+            g.strokeCircle(cx, cy, r * (1f + q * 0.7f), 0.35f * u, Col.alpha(LIME, 0.8f * (1f - q)))
+        }
+        HudIcons.grenade(g, cx - r * 0.12f, cy + r * 0.08f, r * 1.25f, col)
+        // Count badge on the rim.
+        val bx = cx + r * 0.72f
+        val by = cy + r * 0.62f
+        val br = 1.7f * u
+        g.fillCircle(bx, by, br, if (ready) LIME else 0xFF3A3648.toInt())
+        g.text(countText(n), bx, by + 0.75f * u, 2.2f * u, if (ready) 0xFF0C0A14.toInt() else DIM, Gfx.Font.HUD, Gfx.Align.CENTER)
+        HudType.tracked(g, "GRENADE", cx, cy + r + 2.6f * u, 2.1f * u, col, Gfx.Font.HUD, Gfx.Align.CENTER, 0.3f * u)
+    }
+
+    private val counts = Array(10) { it.toString() }
+    private fun countText(n: Int) = if (n in counts.indices) counts[n] else n.toString()
 
     // --------------------------------------------------------------- hall map
 
@@ -543,26 +607,15 @@ internal class Hud(private val f: Frame) {
         icon(cx, cy, s, c)
     }
 
-    // ------------------------------------------------------ grenades + perks
+    // ------------------------------------------------------------------ perks
 
-    private fun gearRow(x: Float, top: Float, u: Float) {
+    private fun perkRow(x: Float, top: Float, u: Float) {
         val w = f.w
-        val p = w.player
         val rowH = 5f * u
         val cy = top + rowH / 2f
+        // Grenades live on their own button (with the count); this row is just the perks.
         var cx = x
-        val gs = 3.6f * u
-        val pop = since(grenadeAt).let { if (it in 0f..0.35f) 1f + 0.35f * HudType.decay(it / 0.35f) else 1f }
-        for (i in 0 until w.maxGrenades) {
-            val have = i < p.grenades
-            val s = if (have && i == p.grenades - 1) gs * pop else gs
-            HudIcons.grenade(g, cx + gs / 2f, cy, s, if (have) 0xFF9AE040.toInt() else 0x33FFFFFF)
-            cx += gs + 0.4f * u
-        }
         if (w.perks.isEmpty()) return
-        cx += 1.4f * u
-        g.fillRect(cx, cy - rowH * 0.36f, cx + 0.2f * u, cy + rowH * 0.36f, 0x40FFFFFF)
-        cx += 1.8f * u
         val limit = 60f * u
         var shown = 0
         for ((perk, n) in w.perks) {

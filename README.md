@@ -31,7 +31,7 @@ is read on its own, so one thumb can run while the other taps.
 | **Swipe ↓** | Hide: press into a nearby **doorway**, otherwise pop the **cardboard box**. In an elevator, box up in the car. Swipe ↓ again to stand up. In a doorway, a tap or a swipe ↑ also steps you out. |
 | **Swipe ↑** | Jump. Clears low shots; land on heads to stomp. Works mid-run. |
 | **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind; a napping guard from anywhere. Works in GUNS HOT too: the gun never shoots a guard with his back to you. |
-| **Double-tap** | Throw a grenade, in either mode. Fast tapping never throws by accident, and mashing a door with nobody around is just the tap. |
+| **Grenade button** (under the mode button) | Throw a grenade, in either mode. The lime button shows how many you carry and greys out when you're empty. Taps never throw one, so hammering a door is always just the door. |
 | **Jump + tap** | Under a ceiling lamp: swat it out by hand. The hallway gets darker, the fixture drops on anyone right under it (never on you), and the crash of glass brings nearby guards over to look: lure them in, then grab them from the shadows. Works in both modes. |
 | **Mode button** (under pause) | **GUNS HOT**: you auto-fire at threats in range. **SILENT**: you never fire; guards only notice what they see, and quiet kills pay double. Your choice sticks between runs. |
 
@@ -50,7 +50,9 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   by passage doors, and the whole hallway is always on screen. You arrive in
   hallway **A**; the ride down is always somewhere else. A lift only shows in
   the hallway it opens into; the passage plates and the HALLS map mark the
-  hallways with a ride down, so you always know where you're headed. Your
+  hallways with a ride down, so you always know where you're headed. A ride
+  down glows cyan with ▼ chevrons chasing down its doors; the car you came in
+  on is plain steel with a red DO NOT ENTER sign. Your
   floor is the stage: the floor below, where you're headed, is a step back,
   and the rest of the tower recedes into the dark. The choice is how: which
   door, which hallway's guards, which lift, and when to move.
@@ -107,6 +109,11 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
     <td align="center" width="33%"><img src="docs/screenshots/ghost.png" alt="GHOST: leaving a floor unseen, with smooth jazz"><p><em><b>GHOST.</b> Nobody saw a thing</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/blackout.png" alt="BLACKOUT: emergency lights only"><p><em><b>Blackout.</b> Follow the red lights</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/payday.png" alt="PAYDAY: loot lying around"><p><em><b>Payday.</b> Somebody's bonus</em></p></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><img src="docs/screenshots/lifts.png" alt="A cyan ride down above, a DO NOT ENTER landing below"><p><em><b>Lifts.</b> Cyan goes down; red means no entry</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/coach.png" alt="A coach tip on the first floors"><p><em><b>Coach.</b> Tips, once each</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/bonk.png" alt="A lamp swatted onto a guard"><p><em><b>BONK!</b> Mind the lamp</em></p></td>
   </tr>
 </table>
 
@@ -222,7 +229,7 @@ Kotlin behind small interfaces, so it's tested on the JVM:
 - `LevelGenTest`: determinism, a reachable ride down from every hallway on
   24,000 floors, rides arriving in hallway A, passage pairs, door spacing,
   shaft consistency, zone order, the heat curve.
-- `GestureInputTest`: taps, double-taps, flicks mid-run, instant reversal,
+- `GestureInputTest`: taps (never grenades), flicks mid-run, instant reversal,
   two-thumb play.
 - `BotPlaythroughTest`: an autopilot plays full runs on every preset in both
   modes and prints a balance report (floors, seconds and encounters per

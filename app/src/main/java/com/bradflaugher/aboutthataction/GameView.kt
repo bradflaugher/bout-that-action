@@ -71,6 +71,7 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
     private val inputLock = Any()
     private val pendingPerk = AtomicInteger(-1)
     private val pendingToggle = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val pendingGrenade = java.util.concurrent.atomic.AtomicBoolean(false)
     private val main = Handler(Looper.getMainLooper())
 
     /** The one live loop thread; a loop exits as soon as it's no longer this. */
@@ -159,6 +160,7 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
                 val perk = pendingPerk.getAndSet(-1)
                 if (perk >= 0) w.choosePerk(perk)
                 if (pendingToggle.getAndSet(false) && !attract) w.commands += Command.TOGGLE_MODE
+                if (pendingGrenade.getAndSet(false) && !attract) w.commands += Command.GRENADE
                 synchronized(inputLock) {
                     if (attract) {
                         w.moveAxis = 0
@@ -247,6 +249,10 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
                 }
                 if (w.phase == Phase.PLAYING && renderer.isModeButton(x, y, width.toFloat(), height.toFloat(), topInset)) {
                     pendingToggle.set(true)
+                    return true
+                }
+                if (w.phase == Phase.PLAYING && renderer.isGrenadeButton(x, y, width.toFloat(), height.toFloat(), topInset)) {
+                    pendingGrenade.set(true)
                     return true
                 }
                 if (w.phase == Phase.PERK_CHOICE) {

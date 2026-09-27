@@ -127,6 +127,10 @@ class Renderer {
     /** True if (x, y) hits the HUD's GUNS HOT / SILENT toggle beside the pause button. */
     fun isModeButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean =
         Hud.isModeButton(x, y, width, height, topInset)
+
+    /** Is (x, y) on the grenade button? */
+    fun isGrenadeButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean =
+        Hud.isGrenadeButton(x, y, width, height, topInset)
 }
 
 /** A per-hallway seed for looks: hallway A keeps the floor's own, the others get their own. */

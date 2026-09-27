@@ -51,7 +51,7 @@ the JVM.
     Iron Mines → Magma Core → Hell (150–199) → the Void (200+, random zones).
   - `Entities.kt`, `Perk.kt`, `Fx.kt`, `Events.kt`, `Rng.kt` (SplitMix64).
 - `input/GestureInput.kt` — multi-touch gesture classifier (run drag with
-  instant reversal, flicks mid-drag, zero-latency taps, double-tap).
+  instant reversal, flicks mid-drag, zero-latency taps; grenades are a HUD button, not a gesture).
 - `render/` — `Gfx.kt` is the tiny drawing interface; `Renderer` draws the
   world, HUD and overlays through it.
 - `audio/` — procedural synth, sequencer, songs per zone, SFX; `SoundEngine`

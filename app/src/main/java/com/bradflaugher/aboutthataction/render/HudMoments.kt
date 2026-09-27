@@ -257,7 +257,7 @@ internal class HudMoments(private val f: Frame) {
         tipGlyph = when {
             tip.contains("SWIPE DOWN") -> GLYPH_DOWN
             tip.contains("SWIPE UP") -> GLYPH_UP
-            tip.contains("DOUBLE") -> GLYPH_DOUBLE
+            tip.contains("GRENADE") -> GLYPH_GRENADE
             tip.startsWith("WALK") -> GLYPH_WALK
             tip.contains("DOOR") -> GLYPH_DOOR
             else -> GLYPH_TAP
@@ -333,7 +333,7 @@ internal class HudMoments(private val f: Frame) {
         g.restore()
     }
 
-    /** A fingertip acting out the move: swipe down/up, drag across, double-tap, or a door. */
+    /** A fingertip acting out the move: swipe down/up, drag across, the grenade button, or a door. */
     private fun gestureGlyph(cx: Float, cy: Float, d: Float, color: Int, a: Float, age: Float) {
         val k = d / 2f
         val white = Col.alpha(0xFFFFFFFF.toInt(), a)
@@ -352,14 +352,10 @@ internal class HudMoments(private val f: Frame) {
                 Glyphs.arrow(g, cx + dx * k * 0.25f, cy + dy * k * 0.25f, k * 0.5f, dx, dy, k * 0.12f, Col.alpha(color, 0.35f * a))
                 g.fillCircle(ex, ey, k * 0.26f, Col.alpha(0xFFFFFFFF.toInt(), fa))
             }
-            GLYPH_DOUBLE -> {
-                // Two taps: dot, ring, dot, ring.
-                val beat = fract(age * 1.4f)
-                val first = beat < 0.5f
-                val q = if (first) beat / 0.5f else (beat - 0.5f) / 0.5f
-                g.fillCircle(cx, cy, k * 0.26f, white)
-                g.strokeCircle(cx, cy, k * (0.3f + 0.55f * q), k * 0.1f, Col.alpha(color, (1f - q) * a))
-                if (!first) g.strokeCircle(cx, cy, k * (0.3f + 0.25f * q), k * 0.08f, Col.alpha(color, (1f - q) * 0.7f * a))
+            GLYPH_GRENADE -> {
+                // The button's grenade, pressed: a ring pulses out of it.
+                HudIcons.grenade(g, cx, cy + k * 0.05f, d * 0.6f, Col.alpha(GRENADE_LIME, a))
+                g.strokeCircle(cx, cy, k * (0.55f + 0.35f * ph), k * 0.08f, Col.alpha(GRENADE_LIME, (1f - ph) * a))
             }
             GLYPH_DOOR -> {
                 HudIcons.door(g, cx - k * 0.1f, cy, d * 0.62f, Col.alpha(Building.PASSAGE, a))
@@ -380,7 +376,8 @@ internal class HudMoments(private val f: Frame) {
         const val GLYPH_TAP = 0
         const val GLYPH_DOWN = 1
         const val GLYPH_UP = 2
-        const val GLYPH_DOUBLE = 3
+        const val GLYPH_GRENADE = 3
+        const val GRENADE_LIME = 0xFF9AE040.toInt()
         const val GLYPH_WALK = 4
         const val GLYPH_DOOR = 5
     }

@@ -26,7 +26,7 @@ data class RunConfig(
 enum class Phase { PLAYING, PERK_CHOICE, DYING, OVER }
 
 /** Discrete gestures; continuous running comes in through [World.moveAxis]. */
-enum class Command { TAP, DOUBLE_TAP, SWIPE_UP, SWIPE_DOWN, TOGGLE_MODE }
+enum class Command { TAP, GRENADE, SWIPE_UP, SWIPE_DOWN, TOGGLE_MODE }
 
 /**
  * What a gesture would do right now; the HUD shows it over the player. The first four are
@@ -216,7 +216,6 @@ class World(val config: RunConfig) {
         heavyBounceCooldown -= dt
 
         if (phase == Phase.PLAYING) handleCommands()
-        if (phase == Phase.PLAYING) pendingTap(dt)
         if (phase == Phase.PLAYING) coach(dt)
         updatePlayer(dtP)
         if (phase == Phase.PLAYING) flushBuffer(dt)
@@ -454,17 +453,6 @@ class World(val config: RunConfig) {
         if (execute(c)) p.bufferedCommand = null
     }
 
-    /** A tap that waited out the double-tap window now opens its door. */
-    private fun pendingTap(dt: Float) {
-        val p = player
-        if (p.tapTimer <= 0f) return
-        p.tapTimer -= dt
-        if (p.tapTimer <= 0f) {
-            p.tapTimer = 0f
-            if (p.state == PlayerState.NORMAL || p.state == PlayerState.BOX) interact()
-        }
-    }
-
     /**
      * Carries out [c] now. Returns false if it can't happen *yet* but will in
      * a moment (worth buffering); true if it ran or can never apply.
@@ -476,15 +464,12 @@ class World(val config: RunConfig) {
             return true
         }
         // A tap during a passage was for the door you're already going through: never bounce back.
-        if (p.state == PlayerState.PASSAGE && (c == Command.TAP || c == Command.DOUBLE_TAP)) return true
+        if (p.state == PlayerState.PASSAGE && c == Command.TAP) return true
         when (p.state) {
             PlayerState.TAKEDOWN, PlayerState.PASSAGE, PlayerState.INTRO -> return false
             PlayerState.DEAD, PlayerState.STASH -> return true
             else -> Unit
         }
-        // A swipe is a newer, deliberate intent: it cancels a door tap still waiting out
-        // the double-tap window, so hiding never gets undone by the tap before it.
-        if (c == Command.SWIPE_DOWN || c == Command.SWIPE_UP) p.tapTimer = 0f
         when (c) {
             Command.TAP -> {
                 if (p.state == PlayerState.ELEVATOR) return true
@@ -499,19 +484,11 @@ class World(val config: RunConfig) {
                     return true
                 }
                 if (tapTarget() == null) return true
-                // Wait out the double-tap window only when a double-tap would throw a grenade
-                // at someone: with nobody awake in the hallway the door opens at once.
-                if (p.grenades > 0 && grenades.isEmpty() && grenadeWorthy()) p.tapTimer = TAP_CONFIRM else interact()
+                interact()
             }
-            Command.DOUBLE_TAP -> {
+            // The on-screen grenade button.
+            Command.GRENADE -> {
                 if (p.state == PlayerState.ELEVATOR) return true
-                // Mashing a door with nobody around is impatience, not a grenade: it's the tap.
-                if (!grenadeWorthy() && p.grounded && (p.state == PlayerState.NORMAL || p.state == PlayerState.BOX) && tapTarget() != null) {
-                    p.tapTimer = 0f
-                    interact()
-                    return true
-                }
-                p.tapTimer = 0f
                 if (p.grenades <= 0) {
                     events += GameEvent.SpecialEmpty
                     fx.text("NO GRENADES", p.x, Geo.groundY(p.floor) - 2f, TextStyle.WARN, 0.7f)
@@ -544,7 +521,7 @@ class World(val config: RunConfig) {
         TAKEDOWN("WALK INTO HIM"),
         HIDE("SWIPE DOWN: HIDE"),
         JUMP("SWIPE UP: JUMP"),
-        GRENADE("DOUBLE-TAP: GRENADE"),
+        GRENADE("GREEN BUTTON: GRENADE"),
         FIND_LIFT("NO LIFT HERE: GREEN DOORS"),
     }
 
@@ -578,9 +555,6 @@ class World(val config: RunConfig) {
         coachTipAt = time
         fx.text(tip.text, p.x, Geo.groundY(p.floor) - 2.9f, TextStyle.WARN, 1.8f)
     }
-
-    /** Is anyone awake in the player's hallway to throw a grenade at? */
-    private fun grenadeWorthy(): Boolean = enemies.any { here(it) && it.alive && !it.asleep }
 
     /** GUNS HOT ⇄ SILENT. */
     fun toggleMode() {
@@ -2398,7 +2372,6 @@ class World(val config: RunConfig) {
         /** Elevator doors must be open this long before a tap takes the car. */
         const val ELEVATOR_REACT_TIME = 0.12f
         /** A tap on a door waits this long for a second tap (a grenade) before it opens the door. */
-        const val TAP_CONFIRM = 0.28f
         const val ELEVATOR_REACH = 0.8f
         const val TAP_REACH = 0.8f
         const val DOOR_REACH = 0.6f
