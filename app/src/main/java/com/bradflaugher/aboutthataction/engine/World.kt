@@ -682,7 +682,7 @@ class World(val config: RunConfig) {
         ghostCheck(p.floor)
         if (Rng.forKey(seed, MUZAK_KEY, car.shaft.id * 997L + p.floor).chance(MUZAK_CHANCE)) {
             events += GameEvent.Muzak
-            fx.text("SMOOTH JAZZ", car.shaft.x, Geo.groundY(p.floor) - 2.9f, TextStyle.PICKUP, 1.6f)
+            fx.text(Popup.JAZZ, car.shaft.x, Geo.groundY(p.floor) - 2.9f, TextStyle.PICKUP, 1.6f)
         }
         p.state = PlayerState.ELEVATOR
         p.stateTime = 0f
@@ -712,7 +712,7 @@ class World(val config: RunConfig) {
         val bonus = (GHOST_BONUS + GHOST_BONUS_PER_FLOOR * f) * (if (silent) 2 else 1)
         score += bonus
         events += GameEvent.Ghost
-        fx.text("GHOST +$bonus", player.x, Geo.groundY(f) - 2.5f, TextStyle.COMBO, 1.3f)
+        fx.text("${Popup.GHOST} +$bonus", player.x, Geo.groundY(f) - 2.5f, TextStyle.COMBO, 1.3f)
     }
 
     /** A guard on [f] saw you (or you got hurt there): that floor can't be ghosted any more. */
@@ -1078,7 +1078,7 @@ class World(val config: RunConfig) {
         unhide()
         events += GameEvent.BoxKicked
         fx.burst(ParticleKind.CARDBOARD, p.x, Geo.groundY(p.floor) - 0.5f, 12, 5f, 0.8f, 0.14f, upBias = 0.5f)
-        fx.text("HEY!", e.x, Geo.groundY(e.floor) - e.height - 0.9f, TextStyle.WARN, 0.8f)
+        fx.text(Popup.HEY, e.x, Geo.groundY(e.floor) - e.height - 0.9f, TextStyle.WARN, 0.8f)
         alert(e)
     }
 
@@ -1103,7 +1103,7 @@ class World(val config: RunConfig) {
         hitStop = 0.05f
         shake = max(shake, 0.2f)
         val y = Geo.groundY(e.floor) - 1.1f
-        fx.text(if (napping) "NIGHT NIGHT" else if (ambush) "BOX'D!" else "TAKEDOWN", e.x, y - 0.8f, TextStyle.TAKEDOWN)
+        fx.text(if (napping) Popup.NIGHT_NIGHT else if (ambush) Popup.BOXD else "TAKEDOWN", e.x, y - 0.8f, TextStyle.TAKEDOWN)
         if (stacks(Perk.CQC) > 0 && takedowns % 2 == 0 && p.hp < p.maxHp) {
             p.hp++
             fx.text("+♥", p.x, y - 1.4f, TextStyle.PICKUP)
@@ -1118,7 +1118,7 @@ class World(val config: RunConfig) {
             val top = e.z + e.height
             if (abs(e.x - p.x) < e.halfWidth + 0.32f && oldZ >= top - 0.3f && p.z <= top + 0.05f) {
                 kill(e, KillMethod.STOMP, p.facing)
-                fx.text("BONK!", e.x, Geo.groundY(e.floor) - top - 1.1f, TextStyle.TAKEDOWN, 0.8f)
+                fx.text(Popup.BONK, e.x, Geo.groundY(e.floor) - top - 1.1f, TextStyle.TAKEDOWN, 0.8f)
                 p.vz = 8.5f
                 p.jumpsUsed = 1
                 p.z = top
@@ -1403,7 +1403,7 @@ class World(val config: RunConfig) {
             // Rudely awoken: groggy for a moment.
             e.asleep = false
             e.timer += WAKE_GROGGY
-            fx.text("?!", e.x, Geo.groundY(e.floor) - e.height - 0.8f, TextStyle.WARN, 0.7f)
+            fx.text(Popup.WAKE, e.x, Geo.groundY(e.floor) - e.height - 0.8f, TextStyle.WARN, 0.7f)
         }
         e.facing = if (player.x >= e.x) 1 else -1
         spotted(e.floor)
@@ -1429,7 +1429,7 @@ class World(val config: RunConfig) {
         e.timer = SEARCH_LINGER
         stats.suspicions++
         events += GameEvent.Suspicious(pan(e.x))
-        fx.text("HUH?", e.x, Geo.groundY(e.floor) - e.height - 1.0f, TextStyle.WARN, 0.8f)
+        fx.text(Popup.HUH, e.x, Geo.groundY(e.floor) - e.height - 1.0f, TextStyle.WARN, 0.8f)
     }
 
     private fun damageEnemy(e: Enemy, dmg: Int, method: KillMethod, dir: Int) {
@@ -1537,7 +1537,7 @@ class World(val config: RunConfig) {
             if (p.shield) p.shield = false else p.armorReady = false
             p.invuln = 0.7f
             events += GameEvent.ShieldBlock
-            fx.text("NOT TODAY", p.x, y - 1.3f, TextStyle.WARN, 0.8f)
+            fx.text(Popup.NOT_TODAY, p.x, y - 1.3f, TextStyle.WARN, 0.8f)
             fx.ring(p.x, y, 1.1f)
             fx.burst(ParticleKind.SPARK, p.x, y, 12, 6f, 0.3f, 0.08f)
             return
@@ -1609,7 +1609,7 @@ class World(val config: RunConfig) {
                 if (e.timer <= 0f) {
                     e.timer = SNORE_EVERY
                     if (onStage(e.floor, e.hall)) {
-                        fx.text("z", e.x - e.facing * 0.15f, Geo.groundY(e.floor) - e.height - 0.35f, TextStyle.SCORE, 1.4f)
+                        fx.text(Popup.SNORE, e.x - e.facing * 0.15f, Geo.groundY(e.floor) - e.height - 0.35f, TextStyle.SCORE, 1.4f)
                         if (here(e)) events += GameEvent.Snore(pan(e.x))
                     }
                 }
@@ -1942,7 +1942,7 @@ class World(val config: RunConfig) {
             b.graze = Bullet.DODGED
             p.sinceCloseCall = 0f
             closeCalls++
-            fx.text("CLOSE!", p.x, Geo.groundY(p.floorF) - p.z - 2.1f, TextStyle.WARN, 0.7f)
+            fx.text(Popup.CLOSE, p.x, Geo.groundY(p.floorF) - p.z - 2.1f, TextStyle.WARN, 0.7f)
         }
     }
 
@@ -1985,7 +1985,7 @@ class World(val config: RunConfig) {
                             alert(e)
                         }
                     }
-                    if (crushed && stage) fx.text("LIGHTS OUT", x, y - 2.2f, TextStyle.TAKEDOWN, 0.9f)
+                    if (crushed && stage) fx.text(Popup.LIGHTS_OUT, x, y - 2.2f, TextStyle.TAKEDOWN, 0.9f)
                     if (playerHere && abs(player.x - x) < 0.55f) hurtPlayer(x, HurtCause.LIGHT)
                 }
             }
@@ -2004,7 +2004,7 @@ class World(val config: RunConfig) {
                     for (e in enemies.toList()) {
                         if (e.floor == f && e.hall == h && e.alive && e.kind != EnemyKind.TURRET && e.kind != EnemyKind.DRONE && abs(e.x - hz.x) < width + e.halfWidth && e.z < height) {
                             kill(e, KillMethod.HAZARD, if (e.x >= hz.x) 1 else -1)
-                            fx.text("OOPS", e.x, Geo.groundY(f) - 2.3f, TextStyle.TAKEDOWN, 0.8f)
+                            fx.text(Popup.OOPS, e.x, Geo.groundY(f) - 2.3f, TextStyle.TAKEDOWN, 0.8f)
                         }
                     }
                 }

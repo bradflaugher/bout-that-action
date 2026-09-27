@@ -1,5 +1,6 @@
 package com.bradflaugher.aboutthataction.render
 
+import com.bradflaugher.aboutthataction.engine.Popup
 import com.bradflaugher.aboutthataction.engine.Bullet
 import com.bradflaugher.aboutthataction.engine.Command
 import com.bradflaugher.aboutthataction.engine.Flash
@@ -727,6 +728,6 @@ internal class Effects(private val f: Frame) {
         const val CLOSE_TIME = 0.35f
         const val KILL_TIME = 0.2f
         /** The engine's near-miss popup label. */
-        const val CLOSE_LABEL = "CLOSE!"
+        const val CLOSE_LABEL = Popup.CLOSE
     }
 }

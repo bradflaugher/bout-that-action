@@ -1,5 +1,6 @@
 package com.bradflaugher.aboutthataction.render
 
+import com.bradflaugher.aboutthataction.engine.Popup
 import com.bradflaugher.aboutthataction.engine.FloatingText
 import com.bradflaugher.aboutthataction.engine.FloorEvent
 import com.bradflaugher.aboutthataction.engine.TextStyle
@@ -22,20 +23,20 @@ internal class PopupArt(private val f: Frame) {
     /** Which treatment [ft] gets; [HIDE] = drawn some other way (or not at all). */
     fun kind(ft: FloatingText): Int {
         val s = ft.text
-        if (s == SNORE) return HIDE // napping guards draw their own Zs
+        if (s == Popup.SNORE) return HIDE // napping guards draw their own Zs
         if (ft.style == TextStyle.WARN && s === f.w.coachTip) return HIDE // the coach plate
         if (ft.style == TextStyle.BIG && (s == FloorEvent.BLACKOUT.title || s == FloorEvent.NAP_TIME.title || s == FloorEvent.PAYDAY.title)) return HIDE
         return when (s) {
-            "HUH?" -> BUBBLE
-            "HEY!", "?!" -> SHOUT
-            "BONK!" -> BONK
-            "BOX'D!" -> BOXD
-            "NIGHT NIGHT" -> DREAMY
-            "LIGHTS OUT" -> FLICKER
-            "OOPS" -> WOBBLE
-            "NOT TODAY" -> SHIELD
-            Moments.JAZZ -> JAZZ
-            else -> if (ft.style == TextStyle.COMBO && s.startsWith(Moments.GHOST)) STAMP else NORMAL
+            Popup.HUH -> BUBBLE
+            Popup.HEY, Popup.WAKE -> SHOUT
+            Popup.BONK -> BONK
+            Popup.BOXD -> BOXD
+            Popup.NIGHT_NIGHT -> DREAMY
+            Popup.LIGHTS_OUT -> FLICKER
+            Popup.OOPS -> WOBBLE
+            Popup.NOT_TODAY -> SHIELD
+            Popup.JAZZ -> JAZZ
+            else -> if (ft.style == TextStyle.COMBO && s.startsWith(Popup.GHOST)) STAMP else NORMAL
         }
     }
 
@@ -78,7 +79,7 @@ internal class PopupArt(private val f: Frame) {
         val age = ft.t * ft.maxLife
         when (kind) {
             BUBBLE -> bubble(ft.text, x, y, sz, a, age, 0xFFF4F2FF.toInt(), 0xFF1A1A30.toInt(), false)
-            SHOUT -> if (ft.text == "HEY!") bubble(ft.text, x, y, sz, a, age, 0xFFFF3A48.toInt(), 0xFFFFFFFF.toInt(), true)
+            SHOUT -> if (ft.text == Popup.HEY) bubble(ft.text, x, y, sz, a, age, 0xFFFF3A48.toInt(), 0xFFFFFFFF.toInt(), true)
             else bubble(ft.text, x, y, sz, a, age, 0xFFFFD21E.toInt(), 0xFF1A0A00.toInt(), true)
             BONK -> bonk(ft.text, x, y, sz, a, age)
             BOXD -> boxd(ft.text, x, y, sz, a, age)
@@ -213,12 +214,12 @@ internal class PopupArt(private val f: Frame) {
     private fun stamp(s: String, x: Float, y: Float, sz0: Float, a: Float, age: Float) {
         if (s !== ghostSrc) {
             ghostSrc = s
-            ghostBonus = s.substring(Moments.GHOST.length).trim()
+            ghostBonus = s.substring(Popup.GHOST.length).trim()
         }
         val slam = HudType.clamp01(age / 0.16f)
         val sc = 1f + 1.2f * (1f - HudType.inCubic(slam))
         val sz = sz0 * sc
-        val word = Moments.GHOST
+        val word = Popup.GHOST
         val w = tw(word, sz)
         val cy = y - sz0 * 0.5f
         val hw = w / 2f + sz * 0.35f
@@ -358,6 +359,5 @@ internal class PopupArt(private val f: Frame) {
         const val SHIELD = 9
         const val STAMP = 10
         const val JAZZ = 11
-        private const val SNORE = "z"
     }
 }

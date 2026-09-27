@@ -1,5 +1,6 @@
 package com.bradflaugher.aboutthataction.render
 
+import com.bradflaugher.aboutthataction.engine.Popup
 import com.bradflaugher.aboutthataction.engine.Enemy
 import com.bradflaugher.aboutthataction.engine.EnemyState
 import com.bradflaugher.aboutthataction.engine.FloatingText
@@ -360,10 +361,10 @@ internal class Moments(private val f: Frame) {
     }
 
     companion object {
-        const val HEY = "HEY!"
-        const val WAKE = "?!"
-        const val JAZZ = "SMOOTH JAZZ"
-        const val GHOST = "GHOST"
+        const val HEY = Popup.HEY
+        const val WAKE = Popup.WAKE
+        const val JAZZ = Popup.JAZZ
+        const val GHOST = Popup.GHOST
         const val KICK_POSE = 0.45f
         const val TUMBLE = 1.5f
         const val GHOST_TIME = 1.6f

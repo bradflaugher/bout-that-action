@@ -21,6 +21,27 @@ class Particle(
     val t: Float get() = 1f - life / maxLife
 }
 
+/**
+ * Popup labels the renderer gives special treatment (speech bubbles, the BONK!
+ * starburst, the BOX'D! slab, the GHOST stamp...). Both sides use these, so a
+ * rename can never silently drop a moment back to plain text.
+ */
+object Popup {
+    const val HUH = "HUH?"
+    const val HEY = "HEY!"
+    const val WAKE = "?!"
+    const val BONK = "BONK!"
+    const val BOXD = "BOX'D!"
+    const val NIGHT_NIGHT = "NIGHT NIGHT"
+    const val LIGHTS_OUT = "LIGHTS OUT"
+    const val OOPS = "OOPS"
+    const val NOT_TODAY = "NOT TODAY"
+    const val JAZZ = "SMOOTH JAZZ"
+    const val GHOST = "GHOST"
+    const val CLOSE = "CLOSE!"
+    const val SNORE = "z"
+}
+
 enum class TextStyle { SCORE, TAKEDOWN, COMBO, PICKUP, WARN, BIG }
 
 class FloatingText(val text: String, var x: Float, var y: Float, val style: TextStyle, val maxLife: Float = 1.1f) {
