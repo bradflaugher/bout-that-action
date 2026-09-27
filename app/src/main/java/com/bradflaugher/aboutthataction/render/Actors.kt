@@ -22,7 +22,7 @@ import kotlin.math.sin
  *
  * Every humanoid is a [Rig] pose painted through [ActorPaint]: one ink outline
  * weight, a ceiling key light and a neon rim from behind. The agent is the
- * brightest thing on screen: slate sneaking suit, cyan visor, a long red scarf.
+ * brightest thing on screen: a tailored midnight suit, sleek helmet, cyan visor and piping.
  */
 internal class Actors(private val f: Frame) {
     private val g get() = f.g
@@ -40,15 +40,14 @@ internal class Actors(private val f: Frame) {
     private var watchT = 0f
 
     companion object {
-        const val SUIT = 0xFF2E3C68.toInt()
-        const val SUIT_LIT = 0xFF6F8AD0.toInt()
-        const val SUIT_DARK = 0xFF1A2140.toInt()
+        const val SUIT = 0xFF29335A.toInt()
+        const val SUIT_LIT = 0xFF6A80C4.toInt()
+        const val SUIT_DARK = 0xFF171D36.toInt()
+        /** The jacket over the suit: a shade deeper, so the tailoring reads. */
+        const val JACKET = 0xFF1F2745.toInt()
         const val ARMOR = 0xFF0F121C.toInt()
         const val VISOR = 0xFF3CF4FF.toInt()
         const val RIM = 0xFF7CF4FF.toInt()
-        const val SCARF = 0xFFFF2E3E.toInt()
-        const val SCARF_LIT = 0xFFFFB0A0.toInt()
-        const val SCARF_DARK = 0xFFB0102A.toInt()
         /** The agent reads larger than the guards: the hero scale (visual only; hitboxes are the engine's). */
         const val HS = 1.12f
     }
@@ -510,7 +509,7 @@ internal class Actors(private val f: Frame) {
     // -------------------------------------------------------------- drawing
 
     private fun heroLook(ghost: Boolean) {
-        look.torso = SUIT
+        look.torso = JACKET
         look.torsoLit = SUIT_LIT
         look.legs = SUIT
         look.legsFar = SUIT_DARK
@@ -533,13 +532,22 @@ internal class Actors(private val f: Frame) {
             if (magInHand && !p.ink) g.fillRect(k.armB.ex - 0.025f, k.armB.ey - 0.09f, k.armB.ex + 0.025f, k.armB.ey, p.c(0xFF2A2E3A.toInt()))
             body.leg(k.legB, look, far = true)
         }
-        if (!ghost) scarfTail(dir, pl.vx, pl.vz)
+        // The long coat's tails, behind the near leg: they swing out as he runs and lift in the air.
+        val swing = min(1f, abs(pl.vx) / 5f + (if (pl.z > 0.01f) 0.5f else 0f))
+        val flare = (0.02f + 0.16f * swing + sin(f.t * 9f) * 0.015f * swing) * k.hs
+        val coat = 0.78f * k.hs
+        p.twoPass { body.hem(JACKET, coat, flare) }
+        if (!ghost && !p.ink) {
+            // A cool edge light down the coat's back seam, so the long silhouette reads.
+            val w = k.waistD
+            p.detail(body.ptX(0.02f, -w * 0.5f), body.ptY(0.02f, -w * 0.5f), body.ptX(-coat * 1.02f, -w * 0.5f - flare * 0.95f), body.ptY(-coat * 1.02f, -w * 0.5f - flare * 0.95f), 0.026f, Col.alpha(RIM, 0.55f))
+        }
         p.twoPass {
             body.leg(k.legF, look, far = false)
             body.torso(look)
             heroDetails(dir, ghost)
+            heroCollar(dir)
             heroHead(dir, ghost)
-            scarfKnot(dir)
         }
         if (skipFrontArm) return
         p.twoPass {
@@ -561,11 +569,12 @@ internal class Actors(private val f: Frame) {
         val bx2 = body.ptX(0.05f, k.waistD * 0.5f); val by2 = body.ptY(0.05f, k.waistD * 0.5f)
         p.detail(bx1, by1, bx2, by2, 0.055f * hs, ARMOR)
         if (!ghost) {
-            // Harness light across the chest and a strip down the near thigh: the suit is lit
-            // like a sign, so the agent out-glows every costume in every zone.
+            // Cyan piping on the jacket and a strip down the near thigh: the suit is lit like a
+            // sign, so the agent out-glows every costume in every zone.
             g.blend(Gfx.Blend.ADD)
             val strip = p.c(Col.alpha(VISOR, 0.9f))
-            g.line(body.ptX(0.9f, k.chestD * 0.3f), body.ptY(0.9f, k.chestD * 0.3f), body.ptX(0.2f, -k.waistD * 0.25f), body.ptY(0.2f, -k.waistD * 0.25f), 0.032f, strip)
+            // Piping down the jacket's front edge, from the collar to the hem.
+            g.line(body.ptX(0.92f, k.chestD * 0.4f), body.ptY(0.92f, k.chestD * 0.4f), body.ptX(0.02f, k.waistD * 0.42f), body.ptY(0.02f, k.waistD * 0.42f), 0.03f, strip)
             val l = k.legF
             g.line(Rig.mix(l.ax, l.jx, 0.25f) + 0.03f * dir, Rig.mix(l.ay, l.jy, 0.25f), Rig.mix(l.ax, l.jx, 0.8f) + 0.03f * dir, Rig.mix(l.ay, l.jy, 0.8f), 0.032f, strip)
             g.blend(Gfx.Blend.NORMAL)
@@ -587,20 +596,37 @@ internal class Actors(private val f: Frame) {
         g.blend(Gfx.Blend.NORMAL)
     }
 
+    /** A high armoured collar and a plate on the near shoulder: tailoring, not a costume. */
+    private fun heroCollar(dir: Int) {
+        val nx = k.neckX
+        val ny = k.neckY
+        val hs = k.hs
+        // Turned-up coat collar behind the neck, then the armoured neck seal in front of it.
+        p.begin()
+            .add(nx - 0.05f * dir, ny + 0.07f * hs)
+            .add(nx - 0.12f * dir, ny - 0.13f * hs)
+            .add(nx - 0.01f * dir, ny - 0.08f * hs)
+            .add(nx + 0.06f * dir, ny + 0.03f * hs)
+            .shape(JACKET)
+        p.seg(nx - 0.05f * dir, ny + 0.03f * hs, nx + 0.05f * dir, ny - 0.02f * hs, 0.11f * hs, ARMOR)
+        val a = k.armF
+        p.disc(a.ax + 0.01f * dir, a.ay + 0.01f * hs, 0.085f * hs, SUIT_DARK)
+        if (p.ink) return
+        p.detail(a.ax - 0.05f * dir, a.ay - 0.055f * hs, a.ax + 0.06f * dir, a.ay - 0.05f * hs, 0.022f, SUIT_LIT)
+        p.detail(nx - 0.05f * dir, ny - 0.035f * hs, nx + 0.06f * dir, ny - 0.07f * hs, 0.018f, Col.alpha(VISOR, 0.8f))
+    }
+
     private fun heroHead(dir: Int, ghost: Boolean) {
         val hx = k.headX
         val hy = k.headY
         val r = k.headR
-        // The swept antenna fin: the silhouette's signature spike, lit at the tip.
-        p.begin()
-            .add(hx - r * 0.2f * dir, hy - r * 0.98f)
-            .add(hx - r * 2.0f * dir, hy - r * 1.55f)
-            .add(hx - r * 0.95f * dir, hy - r * 0.25f)
-            .shape(SUIT_DARK)
-        // Hood and jaw guard.
-        p.disc(hx, hy, r, SUIT)
-        p.disc(hx + r * 0.35f * dir, hy + r * 0.45f, r * 0.62f, SUIT)
+        // A sleek helmet: a smooth dome swept a little to the back, and a jaw guard.
+        p.disc(hx - r * 0.18f * dir, hy - r * 0.08f, r * 0.96f, SUIT_DARK)
+        p.disc(hx, hy, r, SUIT_DARK)
+        p.disc(hx + r * 0.35f * dir, hy + r * 0.45f, r * 0.62f, SUIT_DARK)
         if (p.ink) return
+        // Key light along the crown.
+        p.detail(hx - r * 0.75f * dir, hy - r * 0.62f, hx + r * 0.35f * dir, hy - r * 0.92f, 0.03f, SUIT_LIT)
         // Visor: a wide band wrapping the front of the head, a hot core line.
         p.begin()
             .add(hx - r * 0.2f * dir, hy - r * 0.42f)
@@ -609,79 +635,17 @@ internal class Actors(private val f: Frame) {
             .add(hx - r * 0.1f * dir, hy + r * 0.3f)
             .shapeDetail(VISOR)
         p.detail(hx + r * 0.15f * dir, hy - r * 0.1f, hx + r * 0.95f * dir, hy - r * 0.08f, 0.026f, 0xFFE8FFFF.toInt())
+        // Comms earpiece: a small plate with a status light, where the visor meets the helmet.
+        val ex = hx - r * 0.42f * dir
+        val ey = hy - r * 0.02f
+        p.disc(ex, ey, r * 0.26f, ARMOR)
         if (!ghost) {
             val a = p.alphaMul * (1f - p.flatAmt) * (if (f.w.player.state == PlayerState.DEAD) 0.3f else 1f)
             g.blend(Gfx.Blend.ADD)
             g.glow(hx + r * 0.7f * dir, hy - r * 0.02f, r * 2.3f, Col.alpha(VISOR, 0.75f * a))
-            g.glow(hx - r * 1.85f * dir, hy - r * 1.5f, r * 0.9f, Col.alpha(VISOR, 0.95f * a))
+            g.glow(ex, ey, r * 0.55f, Col.alpha(VISOR, 0.9f * a))
             g.blend(Gfx.Blend.NORMAL)
         }
-    }
-
-    private fun scarfKnot(dir: Int) {
-        val nx = k.neckX
-        val ny = k.neckY
-        p.seg(nx - 0.09f * dir, ny - 0.01f, nx + 0.08f * dir, ny + 0.02f, 0.13f, SCARF)
-    }
-
-    private val scarfX = FloatArray(9)
-    private val scarfY = FloatArray(9)
-
-    /**
-     * The long red scarf, the agent's colour flag: a procedural ribbon trailing from the back of
-     * the neck, drawn as one tapered polygon (one call per pass), a lit edge and a faint bloom.
-     */
-    private fun scarfTail(dir: Int, vx: Float, vz: Float) {
-        val pl = f.w.player
-        val n = 6
-        val air = pl.state == PlayerState.NORMAL && pl.z > 0.01f
-        val speed = min(1f, abs(vx) / 4f + (if (air) 0.35f else 0f))
-        val rise = if (pl.state == PlayerState.INTRO) 0.9f else (-vz * 0.07f).coerceIn(-0.35f, 0.9f)
-        // Angle from straight down, positive = trailing behind.
-        val baseA = Rig.mix(0.42f, 1.1f, speed) + rise
-        val amp = Rig.mix(0.08f, 0.3f, speed)
-        val freq = Rig.mix(3.0f, 12f, speed)
-        val seg = Rig.mix(0.12f, 0.16f, speed) * k.hs
-        val floor = k.ground + 0.02f
-        var x = k.neckX - 0.08f * dir
-        var y = k.neckY + 0.02f
-        scarfX[0] = x; scarfY[0] = y
-        for (i in 1..n) {
-            val t = i / n.toFloat()
-            val a = baseA + t * 0.35f + sin(f.t * freq - i * 0.75f) * amp * (0.25f + t * 1.1f)
-            x += sin(a) * seg * -dir
-            y += cos(a) * seg
-            if (y > floor) y = floor
-            scarfX[i] = x; scarfY[i] = y
-        }
-        p.twoPass {
-            p.begin()
-            // Down one edge, a split-end tip, back up the other.
-            for (i in 0..n) ribbonEdge(i, n, 1f)
-            p.add(scarfX[n] - dir * 0.09f, scarfY[n] + 0.06f + sin(f.t * 13f) * 0.02f)
-            for (i in n downTo 0) ribbonEdge(i, n, -1f)
-            p.shape(SCARF)
-        }
-        if (p.noInk) return
-        p.detail(scarfX[0], scarfY[0] - 0.035f, scarfX[2], scarfY[2] - 0.03f, 0.028f, SCARF_LIT)
-        // A bloom so the scarf carries as a colour flag at phone scale.
-        g.blend(Gfx.Blend.ADD)
-        val bc = p.c(Col.alpha(SCARF, 0.26f))
-        g.line(scarfX[0], scarfY[0], scarfX[3], scarfY[3], 0.3f, bc)
-        g.line(scarfX[3], scarfY[3], scarfX[n], scarfY[n], 0.24f, bc)
-        g.blend(Gfx.Blend.NORMAL)
-    }
-
-    /** One side of the scarf ribbon at point [i] ([side] +1 / -1), tapering toward the end. */
-    private fun ribbonEdge(i: Int, n: Int, side: Float) {
-        val a = if (i == 0) 0 else i - 1
-        val b = if (i == n) n else i + 1
-        var dx = scarfX[b] - scarfX[a]
-        var dy = scarfY[b] - scarfY[a]
-        val l = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1e-4f)
-        dx /= l; dy /= l
-        val hw = (0.062f - 0.034f * i / n) * side
-        p.add(scarfX[i] - dy * hw, scarfY[i] + dx * hw)
     }
 
     // ------------------------------------------------------------ hide, die
