@@ -14,7 +14,7 @@ class WorldFuzzTest {
             var t = 0f
             while (t < 90f && world.phase != Phase.OVER) {
                 if (rng.chance(0.03f)) world.moveAxis = rng.nextInt(3) - 1
-                if (rng.chance(0.02f)) world.commands += Command.entries[rng.nextInt(4)]
+                if (rng.chance(0.02f)) world.commands += Command.entries[rng.nextInt(Command.entries.size)]
                 if (world.phase == Phase.PERK_CHOICE) world.choosePerk(rng.nextInt(3))
                 world.step(1f / 120f)
                 world.events.clear()

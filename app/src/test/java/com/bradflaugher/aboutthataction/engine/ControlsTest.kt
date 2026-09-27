@@ -15,12 +15,13 @@ import kotlin.math.abs
 class ControlsTest {
     private val dt = 1f / 120f
 
-    private fun world(floor: Int = 3, seed: Long = 11L): World {
-        val w = World(RunConfig(seed, Difficulty(startFloor = floor)))
+    /** A world past its intro, hallway A cleared. SILENT unless [silent] = false (so the gun stays out of the way). */
+    private fun world(floor: Int = 3, seed: Long = 11L, silent: Boolean = true): World {
+        val w = World(RunConfig(seed, Difficulty(startFloor = floor), silent = silent))
         run(w, 1.5f)
         w.enemies.clear()
         w.bullets.clear()
-        w.floor(w.player.floor)!!.spawnTimer = 999f
+        w.floor(w.player.floor)!!.halls.forEach { it.spawnTimer = 999f }
         w.events.clear()
         return w
     }
@@ -45,14 +46,14 @@ class ControlsTest {
     }
 
     private fun enemy(w: World, kind: EnemyKind, x: Float, facing: Int = -1): Enemy {
-        val e = Enemy(1000 + w.enemies.size, kind, x, w.player.floor, facing)
+        val e = Enemy(1000 + w.enemies.size, kind, x, w.player.floor, facing, w.player.hall)
         e.timer = 99f
         w.enemies += e
         return e
     }
 
     private fun bullet(w: World, x: Float, z: Float, vx: Float) =
-        Bullet(x, z, w.player.floor, vx, 0f, byPlayer = false, damage = 1, pierce = 0, bounces = 0).also { w.bullets += it }
+        Bullet(x, z, w.player.floor, vx, 0f, byPlayer = false, damage = 1, pierce = 0, bounces = 0, hall = w.player.hall).also { w.bullets += it }
 
     private fun jumps(w: World) = w.events.count { it == GameEvent.Jump }
 
@@ -88,7 +89,7 @@ class ControlsTest {
     @Test
     fun swipeDownJustBeforeLandingHidesInsteadOfSlamming() {
         val w = world()
-        w.player.x = 1f
+        w.player.x = 0.5f
         w.commands += Command.SWIPE_UP
         until(w) { it.player.vz < 0f && it.player.z < 0.5f }
         val vz = w.player.vz
@@ -102,7 +103,7 @@ class ControlsTest {
     @Test
     fun swipeDownHighInTheAirIsAGroundPound() {
         val w = world()
-        w.player.x = 1f
+        w.player.x = 0.5f
         w.commands += Command.SWIPE_UP
         until(w) { it.player.z > 1.2f }
         w.commands += Command.SWIPE_DOWN
@@ -189,7 +190,7 @@ class ControlsTest {
     @Test
     fun jumpArcHangsAtTheTopAndFallsFast() {
         val w = world()
-        w.player.x = 1f
+        w.player.x = 0.5f
         w.commands += Command.SWIPE_UP
         w.step(dt)
         var t = dt
@@ -232,53 +233,110 @@ class ControlsTest {
 
     @Test
     fun autoAimShootsTheGuardAboutToShootYouFirst() {
-        val w = world()
+        val w = world(silent = false)
         w.player.x = 5f
         w.player.facing = 1
         enemy(w, EnemyKind.AGENT, 6.5f, facing = 1) // near, in front, not looking
         val aimer = enemy(w, EnemyKind.AGENT, 1.5f, facing = 1) // behind you, gun up
         aimer.state = EnemyState.AIM
         aimer.stateTime = 0f
-        w.commands += Command.TAP
         w.step(dt)
         val shot = w.bullets.single { it.byPlayer }
         assertTrue(shot.vx < 0f)
     }
 
     @Test
-    fun autoAimStillPrefersWhatsInFrontOverANearerIdleGuardBehind() {
-        val w = world()
+    fun autoAimStillPrefersWhatsInFrontOverANearerGuardBehind() {
+        val w = world(silent = false)
         w.player.x = 5f
         w.player.facing = 1
-        enemy(w, EnemyKind.AGENT, 7.5f, facing = 1)
-        enemy(w, EnemyKind.AGENT, 4f, facing = -1)
-        w.commands += Command.TAP
+        // Both have spotted you: the one in front wins over the nearer one behind.
+        for ((x, facing) in listOf(7.5f to -1, 4f to 1)) enemy(w, EnemyKind.AGENT, x, facing).state = EnemyState.ALERT
         w.step(dt)
         assertTrue(w.bullets.single { it.byPlayer }.vx > 0f)
     }
 
     @Test
-    fun airborneTapShootsTheGuardAheadNotAnEmptyLight() {
-        val w = world()
-        val fs = w.floor(w.player.floor)!!
-        val lights = fs.plan.lights
+    fun gunsHotLeavesAGuardWhoHasntSeenYouToYou() {
+        val w = world(silent = false)
+        w.player.x = 2f
+        w.player.facing = 1
+        // Back turned, a few steps ahead: no shot (sneak up, or wait for him to turn)...
+        val e = enemy(w, EnemyKind.AGENT, 6f, facing = 1)
+        e.patrolA = 6f
+        e.patrolB = 6f
+        run(w, 1f)
+        assertTrue(w.events.none { it is GameEvent.Shot && it.byPlayer })
+        // Still his back, right on top of you: the takedown is yours, the gun stays quiet.
+        e.x = 2f + World.AUTO_FIRE_POINT_BLANK - 0.3f
+        run(w, 0.2f)
+        assertTrue(w.events.none { it is GameEvent.Shot && it.byPlayer })
+        // He turns round at point-blank: now he's about to be a problem.
+        e.facing = -1
+        w.step(dt)
+        assertTrue(w.events.any { it is GameEvent.Shot && it.byPlayer })
+    }
+
+    @Test
+    fun gunsHotLetsYouWalkUpBehindAGuardForTheTakedown() {
+        val w = world(silent = false)
+        w.player.x = 2f
+        val e = enemy(w, EnemyKind.AGENT, 5f, facing = 1)
+        e.patrolA = 5f
+        e.patrolB = 5f
+        run(w, 1.2f) { it.moveAxis = 1 }
+        assertFalse(e.alive)
+        assertEquals(KillMethod.TAKEDOWN, e.killedBy)
+        assertTrue(w.events.none { it is GameEvent.Shot && it.byPlayer })
+    }
+
+    @Test
+    fun gunsHotNeverShootsASleepingGuard() {
+        val w = world(silent = false)
+        w.player.x = 2f
+        val e = enemy(w, EnemyKind.AGENT, 3.5f, facing = -1)
+        e.asleep = true
+        run(w, 1f)
+        assertTrue(e.alive)
+        assertTrue(w.events.none { it is GameEvent.Shot && it.byPlayer })
+        assertNull(w.aimTarget())
+    }
+
+    @Test
+    fun airborneTapLeavesAnEmptyLightAloneWhenTheGunHasAGuardAhead() {
+        val w = world(silent = false)
+        val lights = w.playerHall()!!.plan.lights
         w.player.x = lights[0] - 1.2f
         w.player.facing = 1
         // A guard ahead, standing nowhere near any light.
-        val gx = (1..80).map { w.player.x + 0.8f + it * 0.1f }.first { x -> x < 9.5f && lights.all { abs(it - x) > 1.2f } }
+        val gx = (1..80).map { w.player.x + 0.8f + it * 0.1f }.first { x -> x < Geo.FLOOR_W - 1f && lights.all { abs(it - x) > 1.2f } }
+        enemy(w, EnemyKind.AGENT, gx, facing = 1).hp = 99
+        w.commands += Command.SWIPE_UP
+        run(w, 0.15f)
+        w.commands += Command.TAP
+        w.step(dt)
+        assertTrue(w.bullets.none { it.byPlayer && it.targetLight >= 0 })
+    }
+
+    @Test
+    fun airborneTapInSilentAlwaysGoesForTheLight() {
+        val w = world(silent = true)
+        val lights = w.playerHall()!!.plan.lights
+        w.player.x = lights[0] - 1.2f
+        w.player.facing = 1
+        val gx = (1..80).map { w.player.x + 0.8f + it * 0.1f }.first { x -> x < Geo.FLOOR_W - 1f && lights.all { abs(it - x) > 1.2f } }
         enemy(w, EnemyKind.AGENT, gx, facing = 1)
         w.commands += Command.SWIPE_UP
         run(w, 0.15f)
         w.commands += Command.TAP
         w.step(dt)
-        assertTrue(w.bullets.any { it.byPlayer && it.targetLight < 0 })
-        assertTrue(w.bullets.none { it.byPlayer && it.targetLight >= 0 })
+        assertTrue(w.bullets.any { it.byPlayer && it.targetLight >= 0 })
     }
 
     // ------------------------------------------------------------ double-tap
 
     @Test
-    fun doubleTapWithNoGrenadesStillShoots() {
+    fun doubleTapWithNoGrenadesSaysSo() {
         val w = world()
         w.player.x = 2f
         w.player.grenades = 0
@@ -286,55 +344,68 @@ class ControlsTest {
         w.commands += Command.DOUBLE_TAP
         w.step(dt)
         assertTrue(w.events.contains(GameEvent.SpecialEmpty))
-        assertTrue(w.events.any { it is GameEvent.Shot && it.byPlayer })
+        assertTrue(w.events.none { it is GameEvent.Shot && it.byPlayer })
     }
 
     @Test
-    fun doubleTapWhileAGrenadeIsInTheAirShootsInstead() {
+    fun doubleTapWhileAGrenadeIsInTheAirWaits() {
         val w = world()
         w.player.x = 2f
         w.player.grenades = 2
         enemy(w, EnemyKind.AGENT, 8f)
         w.commands += Command.DOUBLE_TAP
         w.step(dt)
-        w.events.clear()
         run(w, 0.3f)
         w.commands += Command.DOUBLE_TAP
         w.step(dt)
         assertEquals(1, w.player.grenades)
-        assertTrue(w.events.any { it is GameEvent.Shot && it.byPlayer })
+        assertEquals(1, w.grenades.size)
     }
 
     // ------------------------------------------------------------ context
 
+    /** A world standing at a landing (in its hallway) where a ride down starts. */
     private fun shaftWorld(): Pair<World, Shaft> {
-        var seed = 1L
-        var start = -1
-        while (start < 0) {
-            start = (2..40).firstOrNull { f -> LevelGen.shaftsOn(seed, f).any { it.top == f } } ?: -1
-            if (start < 0) seed++
+        for (seed in 1L..200L) for (f in 2..40) {
+            val plan = LevelGen.build(seed, f, Difficulty(startFloor = f))
+            val h = plan.halls.indexOfFirst { hp -> hp.downLandings.any { it.top == f } }
+            if (h < 0) continue
+            val w = world(floor = f, seed = seed)
+            w.player.hall = h
+            val shaft = plan.halls[h].downLandings.first { it.top == f }
+            w.player.x = shaft.x
+            w.player.grenades = 0
+            return w to shaft
         }
-        val w = world(floor = start, seed = seed)
-        return w to LevelGen.shaftsOn(seed, start).first { it.top == start }
+        error("no shaft")
     }
 
     @Test
-    fun anElevatorOpeningUnderYourThumbDoesntStealTheSwipe() {
+    fun anElevatorOpeningUnderYourThumbIsCalledNotBoarded() {
         val (w, shaft) = shaftWorld()
         val car = w.elevators[shaft.id]!!
         car.pos = w.player.floor.toFloat()
         car.pause = 5f
         car.openTime = 0f
-        w.player.x = shaft.x
-        assertEquals(ContextAction.BOX, w.contextAction())
+        assertEquals(ContextAction.CALL, w.tapAction())
         run(w, World.ELEVATOR_REACT_TIME + 0.02f)
-        assertEquals(ContextAction.ELEVATOR, w.contextAction())
+        assertEquals(ContextAction.ELEVATOR, w.tapAction())
+        // Swiping down at a lift is still just a hide.
+        assertEquals(ContextAction.BOX, w.hideAction())
+    }
+
+    /** Moves the player into a hallway of this floor with a hiding doorway and returns it. */
+    private fun hideDoor(w: World): Door {
+        val fs = w.floor(w.player.floor)!!
+        val h = fs.halls.indexOfFirst { hs -> hs.plan.doors.any { it.kind == DoorKind.NORMAL } }
+        w.player.hall = h
+        return fs.halls[h].plan.doors.first { it.kind == DoorKind.NORMAL }
     }
 
     @Test
     fun holdingTheRunDoesntPopYouOutOfADoor() {
         val w = world()
-        val door = w.floor(w.player.floor)!!.plan.doors.first { it.kind == DoorKind.NORMAL }
+        val door = hideDoor(w)
         w.player.x = door.x
         w.moveAxis = 1
         w.commands += Command.SWIPE_DOWN
@@ -350,7 +421,7 @@ class ControlsTest {
     @Test
     fun reversingTheHeldRunStepsOutOfADoor() {
         val w = world()
-        val door = w.floor(w.player.floor)!!.plan.doors.first { it.kind == DoorKind.NORMAL }
+        val door = hideDoor(w)
         w.player.x = door.x
         w.moveAxis = 1
         w.commands += Command.SWIPE_DOWN
@@ -369,15 +440,17 @@ class ControlsTest {
         car.openTime = 1f
         w.player.x = shaft.x
         w.moveAxis = 1
-        w.commands += Command.SWIPE_DOWN
-        run(w, 1.5f) { it.moveAxis = 1 }
+        w.commands += Command.TAP
+        run(w, 0.3f) { it.moveAxis = 1 }
+        assertEquals(PlayerState.ELEVATOR, w.player.state)
+        run(w, 0.1f) { it.moveAxis = 1 }
         assertEquals(PlayerState.ELEVATOR, w.player.state)
     }
 
     @Test
     fun swipeDownAgainStandsUpFromTheBox() {
         val w = world()
-        w.player.x = 1f
+        w.player.x = 0.5f
         w.commands += Command.SWIPE_DOWN
         w.step(dt)
         assertEquals(PlayerState.BOX, w.player.state)
@@ -396,7 +469,7 @@ class ControlsTest {
     @Test
     fun sneakUpToADoorInTheBoxAndSlipIn() {
         val w = world()
-        val door = w.floor(w.player.floor)!!.plan.doors.first { it.kind == DoorKind.NORMAL }
+        val door = hideDoor(w)
         w.player.x = door.x
         w.player.state = PlayerState.BOX
         assertEquals(ContextAction.DOOR, w.contextAction())
@@ -408,7 +481,7 @@ class ControlsTest {
     @Test
     fun theOpenBoxHasNoContextHint() {
         val w = world()
-        w.player.x = 1f
+        w.player.x = 0.5f
         w.player.state = PlayerState.BOX
         assertNull(w.contextAction())
         assertFalse(w.player.hidden && w.contextAction() != null)

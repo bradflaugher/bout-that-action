@@ -33,6 +33,7 @@ import com.bradflaugher.aboutthataction.engine.Autopilot
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.GameEvent
 import com.bradflaugher.aboutthataction.engine.RunConfig
+import com.bradflaugher.aboutthataction.engine.RunReport
 import com.bradflaugher.aboutthataction.engine.World
 import com.bradflaugher.aboutthataction.engine.Zone
 import com.bradflaugher.aboutthataction.ui.GameOverScreen
@@ -180,7 +181,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
         gameView.attract = true
         gameView.paused = false
         gameView.autopilot = Autopilot(seed)
-        gameView.world = World(RunConfig(seed, Difficulty.Preset.CHILL.difficulty))
+        gameView.world = World(RunConfig(seed, Difficulty.Preset.CHILL.difficulty, coach = false))
         musicZone = null
         endSlowMo()
         if (music) sound.playTitle()
@@ -194,7 +195,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
             SeedMode.CUSTOM -> s.seedText.ifBlank { seed.toString() }.uppercase()
             SeedMode.RANDOM -> seed.toString()
         }
-        startRun(RunConfig(seed, s.difficulty, s.autoFire))
+        startRun(RunConfig(seed, s.difficulty, silent = s.silent, coach = s.coach))
     }
 
     private fun startRun(config: RunConfig) {
@@ -202,7 +203,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
         runSeed = config.seed
         if (runSeedLabel.isEmpty()) runSeedLabel = config.seed.toString()
         musicZone = null
-        gameView.world = World(config.copy(autoFire = settings.autoFire))
+        gameView.world = World(config.copy(silent = settings.silent, coach = settings.coach))
         gameView.attract = false
         gameView.paused = false
         screen = Screen.PLAYING
@@ -247,6 +248,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
         if (gameView.attract) return
         sound.trigger(event)
         haptics.onEvent(event)
+        // The GUNS HOT / SILENT choice sticks between runs.
+        if (event is GameEvent.ModeToggled) runOnUiThread { if (settings.silent != event.silent) updateSettings(settings.copy(silent = event.silent)) }
     }
 
     override fun onFrame(world: World) {
@@ -283,6 +286,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
         val newBestFloor = world.deepest > old.bestFloor
         records = Records(maxOf(old.bestScore, world.score), maxOf(old.bestFloor, world.deepest), old.runs + 1)
         prefs.saveRecords(records)
+        val report = RunReport.of(world)
         lastRun = RunSummary(
             floor = world.deepest,
             zone = world.zone,
@@ -293,6 +297,10 @@ class MainActivity : ComponentActivity(), GameView.Host {
             seedLabel = runSeedLabel,
             newBestScore = newBestScore,
             newBestFloor = newBestFloor,
+            title = report.title,
+            deathLine = report.deathLine,
+            quip = report.quip,
+            highlights = report.highlights,
         )
         endSlowMo()
         sound.gameOver()

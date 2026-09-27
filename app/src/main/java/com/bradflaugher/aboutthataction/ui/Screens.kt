@@ -61,6 +61,14 @@ data class RunSummary(
     val seedLabel: String,
     val newBestScore: Boolean,
     val newBestFloor: Boolean,
+    /** How you played ("CARDBOARD ENTHUSIAST"), from [com.bradflaugher.aboutthataction.engine.RunReport]. */
+    val title: String = "",
+    /** What got you ("Steamed like a dumpling"). */
+    val deathLine: String = "",
+    /** The sign-off ("I'm just 'bout that action, boss."). */
+    val quip: String = "",
+    /** Label to value: best combo, ghost floors, box ambushes... only the non-zero ones. */
+    val highlights: List<Pair<String, String>> = emptyList(),
 )
 
 internal fun grouped(n: Long): String = String.format(Locale.US, "%,d", n)
@@ -309,7 +317,8 @@ internal fun AudioAndControls(s: Settings, onChange: (Settings) -> Unit, audioIn
     LevelMeter("MUSIC", s.musicVolume) { onChange(s.copy(musicVolume = it)) }
     LevelMeter("SOUND FX", s.sfxVolume) { onChange(s.copy(sfxVolume = it)) }
     SectionHeader(controlsIndex, "CONTROLS", Neon.cyan)
-    Toggle("Auto-fire", "Shoots anything in sight", s.autoFire) { onChange(s.copy(autoFire = it)) }
+    Toggle("Silent mode", "Never fire: takedowns, stomps, grenades. Quiet kills score double", s.silent) { onChange(s.copy(silent = it)) }
     Toggle("Haptics", "Feel hits and pickups", s.haptics) { onChange(s.copy(haptics = it)) }
     Toggle("Thumb guide", "Ring under your running thumb", s.touchGuide) { onChange(s.copy(touchGuide = it)) }
+    Toggle("Coach tips", "A one-line hint the first time each move would help", s.coach) { onChange(s.copy(coach = it)) }
 }

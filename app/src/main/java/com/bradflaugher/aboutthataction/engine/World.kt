@@ -14,17 +14,27 @@ import kotlin.math.sqrt
 data class RunConfig(
     val seed: Long,
     val difficulty: Difficulty = Difficulty(),
-    /** Fire automatically at anything in sight (taps still work). */
-    val autoFire: Boolean = false,
+    /** Start in SILENT mode (never fire) instead of GUNS HOT (auto-fire). Toggled mid-run by [Command.TOGGLE_MODE]. */
+    val silent: Boolean = false,
+    /**
+     * Coach tips: on a run from the roof, the first few floors pop a one-line hint the first
+     * time each verb would help ("SWIPE DOWN: HIDE"). Text only; never changes the run.
+     */
+    val coach: Boolean = true,
 )
 
 enum class Phase { PLAYING, PERK_CHOICE, DYING, OVER }
 
 /** Discrete gestures; continuous running comes in through [World.moveAxis]. */
-enum class Command { TAP, DOUBLE_TAP, SWIPE_UP, SWIPE_DOWN }
+enum class Command { TAP, DOUBLE_TAP, SWIPE_UP, SWIPE_DOWN, TOGGLE_MODE }
 
-/** What swiping down would do right now; the HUD shows it over the player. */
-enum class ContextAction { ELEVATOR, INTEL, DOOR, BOX }
+/**
+ * What a gesture would do right now; the HUD shows it over the player. The first four are
+ * taps (ride, call a car, go through a passage, enter INTEL), the last two are swipe-down hides.
+ */
+enum class ContextAction(val tap: Boolean) {
+    ELEVATOR(true), CALL(true), PASSAGE(true), INTEL(true), DOOR(false), BOX(false)
+}
 
 enum class Flash { NONE, HURT, WHITE, GOLD }
 
@@ -51,6 +61,13 @@ class World(val config: RunConfig) {
 
     /** -1 run left, 0 stand, 1 run right. Set every frame by the input layer. */
     var moveAxis = 0
+
+    /**
+     * SILENT: the player never fires (takedowns, stomps, the box, doorways, grenades and
+     * lights only) and silent kills pay a bonus. Otherwise GUNS HOT: auto-fire at threats.
+     */
+    var silent = config.silent
+        private set
 
     var phase = Phase.PLAYING
         private set
@@ -99,8 +116,26 @@ class World(val config: RunConfig) {
     /** Bullets slipped inside the grace window this run. */
     var closeCalls = 0
         private set
+    /** Kills made without a gunshot while SILENT this run. */
+    var silentKills = 0
+        private set
+    /** Passages taken this run. */
+    var passages = 0
+        private set
+    /** Run highlights, the hurt log and what ended the run (for the game-over screen and the balance report). */
+    val stats = RunStats()
+    /** Seconds since the player arrived in the current hallway. */
+    var hallTime = 0f
+        private set
 
     private var hitStop = 0f
+    private val tipsShown = HashSet<Tip>()
+    private var tipCooldown = 0f
+    /** The last coach tip shown (null if none yet), and when: for the HUD and tests. */
+    var coachTip: String? = null
+        private set
+    var coachTipAt = -1f
+        private set
 
     /** True while the simulation is frozen for impact (hit-stop). */
     val hitStopping: Boolean get() = hitStop > 0f
@@ -121,19 +156,22 @@ class World(val config: RunConfig) {
         player.hp = difficulty.hearts
         val start = difficulty.startFloor
         player.floorF = start.toFloat()
+        player.hall = 0
         player.state = PlayerState.INTRO
+        ensureFloors()
         if (start == 0) {
             player.x = 2f
             player.z = 9f
         } else {
-            val side = LevelGen.stairsSide(start)
-            player.x = if (side == Side.LEFT) Geo.FLOOR_W - 1.2f else 1.2f
-            player.facing = if (side == Side.LEFT) -1 else 1
+            // Warp start: drop through a ceiling hatch in hallway A, as far from the guards as it gets.
+            val guards = enemies.filter { it.floor == start && it.hall == 0 }.map { it.x }
+            player.x = listOf(1.2f, Geo.FLOOR_W / 2f, Geo.FLOOR_W - 1.2f).maxByOrNull { x -> guards.minOfOrNull { abs(it - x) } ?: 99f }!!
+            player.facing = if (player.x < Geo.FLOOR_W / 2f) 1 else -1
             player.z = 2.6f
         }
         camY = targetCamY()
-        ensureFloors()
         onFloorEntered(start)
+        onHallEntered(start, 0)
     }
 
     // ------------------------------------------------------------------ step
@@ -150,6 +188,7 @@ class World(val config: RunConfig) {
         }
         if (phase == Phase.PERK_CHOICE || phase == Phase.OVER) return
         time += dt
+        hallTime += dt
 
         val worldScale = when {
             phase == Phase.DYING -> 0.35f
@@ -172,6 +211,8 @@ class World(val config: RunConfig) {
         heavyBounceCooldown -= dt
 
         if (phase == Phase.PLAYING) handleCommands()
+        if (phase == Phase.PLAYING) pendingTap(dt)
+        if (phase == Phase.PLAYING) coach(dt)
         updatePlayer(dtP)
         if (phase == Phase.PLAYING) flushBuffer(dt)
         updateElevators(dtW, dtP)
@@ -186,7 +227,7 @@ class World(val config: RunConfig) {
             comboTimer -= dt
             if (comboTimer <= 0f) combo = 0
         }
-        val alert = enemies.count { it.floor == player.floor && it.alive && it.state != EnemyState.PATROL }
+        val alert = enemies.count { it.floor == player.floor && it.hall == player.hall && it.alive && it.state != EnemyState.PATROL }
         val target = ((alert / 3f) + combo * 0.08f + if (slowMo) 0.3f else 0f).coerceIn(0f, 1f)
         intensity += (target - intensity) * min(1f, dt * 1.5f)
 
@@ -200,8 +241,8 @@ class World(val config: RunConfig) {
     }
 
     private fun targetCamY(): Float {
-        val ground = Geo.groundY(player.floorF) - if (player.state == PlayerState.INTRO && player.floorF == 0f) 0f else 0f
-        return max(-viewH * 0.33f, ground - viewH * 0.42f)
+        val ground = Geo.groundY(player.floorF)
+        return max(-viewH * 0.33f, ground - viewH * CAMERA_ANCHOR)
     }
 
     /** Hand every event produced since the last call to [sink]. */
@@ -213,6 +254,29 @@ class World(val config: RunConfig) {
     // ---------------------------------------------------------------- floors
 
     fun floor(index: Int): FloorState? = floors[index]
+
+    /** Runtime state of hallway [hall] on floor [floor]. */
+    fun hall(floor: Int, hall: Int): HallState? = floors[floor]?.halls?.getOrNull(hall)
+
+    /** The hallway the player is standing in. */
+    fun playerHall(): HallState? = hall(player.floor, player.hall)
+
+    /**
+     * The hallway on screen for [floor]: the player's own; the one a car carrying the player
+     * has opened into; otherwise the main hallway (A), so the building reads as one tower.
+     */
+    fun viewHall(floor: Int): Int {
+        val p = player
+        if (p.state == PlayerState.ELEVATOR) {
+            val car = elevators[p.elevatorShaft] ?: return 0
+            if (car.doorsOpen && car.atFloor == floor) return floors[floor]?.plan?.landingHall(car.shaft)?.coerceAtLeast(0) ?: 0
+            return 0
+        }
+        return if (floor == p.floor) p.hall else 0
+    }
+
+    /** Is hallway [hall] of [floor] the one on screen? Off-stage things make no sparks or noise. */
+    fun onStage(floor: Int, hall: Int): Boolean = viewHall(floor) == hall
 
     /**
      * The simulated window follows the player, never the camera: which floors
@@ -242,11 +306,36 @@ class World(val config: RunConfig) {
         floors[f] = state
         // Each floor furnishes itself from its own stream, whenever it's built.
         val rng = Rng.forKey(seed, 0xB1D5L, f.toLong())
-        val arrivalX = if (plan.arrival == Side.LEFT) 0f else Geo.FLOOR_W
-        for (s in plan.spawns) {
-            val e = spawnEnemy(s.kind, s.x, f, if (rng.chance(0.5f)) 1 else -1, rng)
-            // Deeper down, some guards are already watching the stairs.
-            if (f > 0 && rng.chance((plan.heat * 0.22f).coerceAtMost(0.7f))) e.facing = if (arrivalX > e.x) 1 else -1
+        for (hp in plan.halls) {
+            // Where the player turns up in this hallway: passage doors, and the ride-down arrivals in A.
+            val entries = hp.doors.filter { it.kind == DoorKind.PASSAGE }.map { it.x } +
+                (if (hp.hall == 0) hp.landings.filter { it.bottom == f }.map { it.x } else emptyList())
+            for (s in hp.spawns) {
+                val e = spawnEnemy(s.kind, s.x, f, hp.hall, if (rng.chance(0.5f)) 1 else -1, rng)
+                if (s.watch != 0) e.facing = s.watch
+                // Deeper down, some guards are already watching the way in.
+                if (s.watch == 0 && f > 0 && entries.isNotEmpty() && rng.chance((plan.heat * 0.22f).coerceAtMost(0.7f))) {
+                    val near = entries.minByOrNull { abs(it - e.x) }!!
+                    e.facing = if (near > e.x) 1 else -1
+                }
+                if (s.patrol > 0f) setPatrol(e, s.patrol, hp)
+                if (s.asleep) e.asleep = true
+            }
+        }
+        when (plan.event) {
+            // The power's out on the whole floor.
+            FloorEvent.BLACKOUT -> for (hs in state.halls) hs.lightAlive.fill(false)
+            // Somebody's bonus, left lying around one hallway.
+            FloorEvent.PAYDAY -> {
+                val loot = Rng.forKey(seed, PAYDAY_KEY, f.toLong())
+                val h = loot.nextInt(plan.hallCount)
+                val bonus = loot.pick(listOf(PickupKind.MEDKIT, PickupKind.GRENADE, PickupKind.SHIELD, PickupKind.SLOWMO))
+                val xs = listOf(3.2f, 5.8f, 8.4f, 11f).shuffledBy(loot)
+                listOf(PickupKind.CASH, PickupKind.CASH, PickupKind.CASH, bonus).forEachIndexed { i, kind ->
+                    pickups += Pickup(kind, xs[i], f, h).also { it.life = PAYDAY_LIFE; it.z = 0.35f; it.vz = 0f }
+                }
+            }
+            else -> Unit
         }
         for (shaft in plan.shafts) {
             elevators.getOrPut(shaft.id) {
@@ -259,8 +348,28 @@ class World(val config: RunConfig) {
         }
     }
 
-    private fun spawnEnemy(kind: EnemyKind, x: Float, floor: Int, facing: Int, rng: Rng = this.rng): Enemy {
-        val e = Enemy(nextEnemyId++, kind, x, floor, facing)
+    private fun <T> List<T>.shuffledBy(r: Rng): List<T> {
+        val a = toMutableList()
+        for (i in a.size - 1 downTo 1) {
+            val j = r.nextInt(i + 1)
+            val t = a[i]; a[i] = a[j]; a[j] = t
+        }
+        return a
+    }
+
+    /** A patrol beat [r] either side of the guard, stopping short of walls and hazards. */
+    private fun setPatrol(e: Enemy, r: Float, hp: HallPlan) {
+        var a = max(0.8f, e.x - r)
+        var b = min(Geo.FLOOR_W - 0.8f, e.x + r)
+        for (h in hp.hazards) {
+            if (h.x < e.x) a = max(a, h.x + 0.9f) else b = min(b, h.x - 0.9f)
+        }
+        e.patrolA = min(a, e.x)
+        e.patrolB = max(b, e.x)
+    }
+
+    private fun spawnEnemy(kind: EnemyKind, x: Float, floor: Int, hall: Int, facing: Int, rng: Rng = this.rng): Enemy {
+        val e = Enemy(nextEnemyId++, kind, x, floor, facing, hall)
         val hp = Heat.enemyHp(kind, LevelGen.zoneAndHeat(seed, floor, difficulty).second)
         e.hp = hp
         e.maxHp = hp
@@ -279,7 +388,6 @@ class World(val config: RunConfig) {
         }
         if (!fs.visited) {
             fs.visited = true
-            fs.spawnTimer = 1.1f
             if (stacks(Perk.ARMOR) > 0 && f % 3 == 0) player.armorReady = true
         }
         val newZone = if (fs.plan.isVoid) Zone.VOID else fs.plan.zone
@@ -291,6 +399,26 @@ class World(val config: RunConfig) {
                 bannerTime = 3.2f
                 events += GameEvent.ZoneEntered(newZone)
             }
+        }
+    }
+
+    private fun onHallEntered(f: Int, h: Int) {
+        hallTime = 0f
+        floors[f]?.let { fs ->
+            if (!fs.announced && fs.plan.event != FloorEvent.NONE) {
+                fs.announced = true
+                stats.floorEvents++
+                events += GameEvent.FloorEventStarted(fs.plan.event)
+                fx.text(fs.plan.event.title, player.x, Geo.groundY(f) - 2.7f, TextStyle.BIG, 1.8f)
+            }
+        }
+        val hs = hall(f, h) ?: return
+        val heat = hs.plan.heat
+        if (!hs.visited) {
+            hs.visited = true
+            hs.spawnTimer = Heat.firstAmbushDelay(heat)
+        } else {
+            hs.spawnTimer = max(hs.spawnTimer, 2f)
         }
     }
 
@@ -319,37 +447,67 @@ class World(val config: RunConfig) {
         if (execute(c)) p.bufferedCommand = null
     }
 
+    /** A tap that waited out the double-tap window now opens its door. */
+    private fun pendingTap(dt: Float) {
+        val p = player
+        if (p.tapTimer <= 0f) return
+        p.tapTimer -= dt
+        if (p.tapTimer <= 0f) {
+            p.tapTimer = 0f
+            if (p.state == PlayerState.NORMAL || p.state == PlayerState.BOX) interact()
+        }
+    }
+
     /**
      * Carries out [c] now. Returns false if it can't happen *yet* but will in
      * a moment (worth buffering); true if it ran or can never apply.
      */
     private fun execute(c: Command): Boolean {
         val p = player
+        if (c == Command.TOGGLE_MODE) {
+            toggleMode()
+            return true
+        }
+        // A tap during a passage was for the door you're already going through: never bounce back.
+        if (p.state == PlayerState.PASSAGE && (c == Command.TAP || c == Command.DOUBLE_TAP)) return true
         when (p.state) {
-            PlayerState.TAKEDOWN, PlayerState.STAIRS, PlayerState.INTRO -> return false
+            PlayerState.TAKEDOWN, PlayerState.PASSAGE, PlayerState.INTRO -> return false
             PlayerState.DEAD, PlayerState.INTEL -> return true
             else -> Unit
         }
+        // A swipe is a newer, deliberate intent: it cancels a door tap still waiting out
+        // the double-tap window, so hiding never gets undone by the tap before it.
+        if (c == Command.SWIPE_DOWN || c == Command.SWIPE_UP) p.tapTimer = 0f
         when (c) {
             Command.TAP -> {
-                if (p.state == PlayerState.ELEVATOR && elevators[p.elevatorShaft]?.doorsOpen != true) return false
-                if (p.hidden) unhide()
-                fire()
+                if (p.state == PlayerState.ELEVATOR || p.state == PlayerState.DOOR) return true
+                // Jump + tap: a suppressed shot at the ceiling light ahead.
+                if (p.state == PlayerState.NORMAL && !p.grounded) {
+                    shootLightAhead()
+                    return true
+                }
+                if (tapTarget() == null) return true
+                // Wait out the double-tap window only when a double-tap would throw a grenade
+                // at someone: with nobody awake in the hallway the door opens at once.
+                if (p.grenades > 0 && grenades.isEmpty() && grenadeWorthy()) p.tapTimer = TAP_CONFIRM else interact()
             }
             Command.DOUBLE_TAP -> {
-                // A double-tap never costs you a shot: with no grenade to throw
-                // (none left, one already in the air, or in an elevator) it fires.
-                if (p.state == PlayerState.ELEVATOR) return execute(Command.TAP)
-                if (p.hidden) unhide()
-                when {
-                    p.grenades <= 0 -> {
-                        events += GameEvent.SpecialEmpty
-                        fx.text("NO GRENADES", p.x, Geo.groundY(p.floor) - 2f, TextStyle.WARN, 0.7f)
-                        fire()
-                    }
-                    grenades.isNotEmpty() -> fire()
-                    else -> throwGrenade()
+                if (p.state == PlayerState.ELEVATOR) return true
+                // Mashing a door with nobody around is impatience, not a grenade: it's the tap.
+                if (!grenadeWorthy() && p.grounded && (p.state == PlayerState.NORMAL || p.state == PlayerState.BOX) && tapTarget() != null) {
+                    p.tapTimer = 0f
+                    interact()
+                    return true
                 }
+                p.tapTimer = 0f
+                if (p.grenades <= 0) {
+                    events += GameEvent.SpecialEmpty
+                    fx.text("NO GRENADES", p.x, Geo.groundY(p.floor) - 2f, TextStyle.WARN, 0.7f)
+                    return true
+                }
+                if (grenades.isNotEmpty()) return true
+                if (p.hidden) unhide()
+                throwGrenade()
             }
             Command.SWIPE_UP -> {
                 if (p.state == PlayerState.ELEVATOR) return true
@@ -359,38 +517,103 @@ class World(val config: RunConfig) {
                 jump()
             }
             Command.SWIPE_DOWN -> return swipeDown()
+            Command.TOGGLE_MODE -> Unit
         }
         return true
     }
 
+    /** One-line hints for a first run, each shown once, the first time it would help. */
+    private enum class Tip(val text: String) {
+        TAKEDOWN("WALK INTO HIM"),
+        HIDE("SWIPE DOWN: HIDE"),
+        JUMP("SWIPE UP: JUMP"),
+        GRENADE("DOUBLE-TAP: GRENADE"),
+        FIND_LIFT("NO LIFT HERE: GREEN DOORS"),
+    }
+
     /**
-     * What a swipe down would do right now (null if nothing). In the box it's
-     * only non-null when there's something to slip into (swiping down in the
-     * open box otherwise just stands you up).
+     * Teach by doing: on a run from the roof, for the first [COACH_FLOORS] floors, the first
+     * time a verb would help (and you haven't used it yet) a tip pops over your head.
      */
-    fun contextAction(): ContextAction? {
+    private fun coach(dt: Float) {
+        if (!config.coach || difficulty.startFloor != 0 || deepest > COACH_FLOORS) return
+        tipCooldown -= dt
+        val p = player
+        if (tipCooldown > 0f || p.state != PlayerState.NORMAL && p.state != PlayerState.BOX) return
+        val mine = enemies.filter { here(it) && it.alive }
+        fun alerted(e: Enemy) = e.state == EnemyState.ALERT || e.state == EnemyState.AIM
+        fun wants(t: Tip): Boolean = when (t) {
+            Tip.TAKEDOWN -> takedowns == 0 && p.state == PlayerState.NORMAL && mine.any {
+                LevelGen.canNap(it.kind) && abs(it.x - p.x) < 4.5f &&
+                    (it.asleep || it.state == EnemyState.PATROL && it.facing == (if (it.x > p.x) 1 else -1))
+            }
+            Tip.HIDE -> stats.boxHides + stats.doorHides == 0 && p.state == PlayerState.NORMAL && mine.any { alerted(it) && abs(it.x - p.x) < 7f }
+            Tip.JUMP -> stats.jumps == 0 && bullets.any {
+                !it.byPlayer && it.floor == p.floor && it.hall == p.hall && it.z < 0.7f && (p.x - it.x) * it.vx > 0f && abs(p.x - it.x) < 4f
+            }
+            Tip.GRENADE -> stats.grenadesThrown == 0 && p.grenades > 0 && mine.count { alerted(it) } >= 2
+            Tip.FIND_LIFT -> passages == 0 && p.floor >= 1 && hallTime > 1.2f && playerHall()?.plan?.downLandings?.isEmpty() == true
+        }
+        val tip = Tip.entries.firstOrNull { it !in tipsShown && wants(it) } ?: return
+        tipsShown += tip
+        tipCooldown = TIP_GAP
+        coachTip = tip.text
+        coachTipAt = time
+        fx.text(tip.text, p.x, Geo.groundY(p.floor) - 2.9f, TextStyle.WARN, 1.8f)
+    }
+
+    /** Is anyone awake in the player's hallway to throw a grenade at? */
+    private fun grenadeWorthy(): Boolean = enemies.any { here(it) && it.alive && !it.asleep }
+
+    /** GUNS HOT ⇄ SILENT. */
+    fun toggleMode() {
+        silent = !silent
+        events += GameEvent.ModeToggled(silent)
+        val p = player
+        if (p.state != PlayerState.DEAD) {
+            fx.text(if (silent) "SILENT" else "GUNS HOT", p.x, Geo.groundY(p.floorF) - p.z - 2.3f, TextStyle.WARN, 0.8f)
+        }
+    }
+
+    /** What a gesture would do right now (null if nothing): the tap target first, else the hide. */
+    fun contextAction(): ContextAction? = tapAction() ?: hideAction()
+
+    /** What a tap would do right now: ride, call a car, take a passage or enter INTEL. */
+    fun tapAction(): ContextAction? {
         val p = player
         if (p.state != PlayerState.NORMAL && p.state != PlayerState.BOX || !p.grounded) return null
-        val fs = floors[p.floor] ?: return null
-        val target = contextTarget(fs)
-        return when {
-            target is Elevator -> ContextAction.ELEVATOR
-            target is Int -> if (fs.plan.doors[target].kind == DoorKind.INTEL && !fs.intelUsed[target]) ContextAction.INTEL else ContextAction.DOOR
-            p.state == PlayerState.NORMAL -> ContextAction.BOX
+        return when (val t = tapTarget()) {
+            is Elevator -> if (canBoard(t)) ContextAction.ELEVATOR else ContextAction.CALL
+            is Int -> if (playerHall()?.plan?.doors?.get(t)?.kind == DoorKind.PASSAGE) ContextAction.PASSAGE else ContextAction.INTEL
             else -> null
         }
     }
 
     /**
-     * The door (its index) or elevator car ([Elevator]) a swipe down would use,
-     * or null. When both are in reach the nearer wins, with a nudge toward the
-     * one you're facing, so the choice is always the thing under you. A car
-     * only counts once its doors have been open for [ELEVATOR_REACT_TIME]: a
-     * lift that opens under your thumb mid-swipe never steals a box.
+     * What a swipe down would do right now. In the box it's only non-null when there's a
+     * doorway to slip into (swiping down in the open box otherwise just stands you up).
      */
-    private fun contextTarget(fs: FloorState): Any? {
+    fun hideAction(): ContextAction? {
         val p = player
-        val f = p.floor
+        if (p.state != PlayerState.NORMAL && p.state != PlayerState.BOX || !p.grounded) return null
+        return when {
+            hideDoor() != null -> ContextAction.DOOR
+            p.state == PlayerState.NORMAL -> ContextAction.BOX
+            else -> null
+        }
+    }
+
+    /** The door a tap would use (a passage or a live INTEL door), if the tap target is a door. */
+    fun tapDoor(): Door? = (tapTarget() as? Int)?.let { playerHall()?.plan?.doors?.get(it) }
+
+    /**
+     * What a tap would use: a passage or live INTEL door (its index) or an elevator landing
+     * with a ride down ([Elevator]), whichever is nearest within reach, with a nudge toward
+     * what you're facing.
+     */
+    private fun tapTarget(): Any? {
+        val p = player
+        val hs = playerHall() ?: return null
         var best: Any? = null
         var bestScore = Float.MAX_VALUE
         fun consider(x: Float, reach: Float, what: Any) {
@@ -402,13 +625,142 @@ class World(val config: RunConfig) {
                 best = what
             }
         }
-        for (car in elevators.values) {
-            if (car.doorsOpen && car.openTime >= ELEVATOR_REACT_TIME && car.atFloor == f && f < car.shaft.bottom && f >= car.shaft.top) {
-                consider(car.shaft.x, ELEVATOR_REACH, car)
+        for (s in hs.plan.downLandings) {
+            val car = elevators[s.id] ?: continue
+            consider(s.x, ELEVATOR_REACH, car)
+        }
+        val doors = hs.plan.doors
+        for (i in doors.indices) {
+            val d = doors[i]
+            if (d.kind == DoorKind.PASSAGE || d.kind == DoorKind.INTEL && !hs.intelUsed[i]) consider(d.x, TAP_REACH, i)
+        }
+        return best
+    }
+
+    /** Is [car] standing open on the player's floor, long enough to step into? */
+    private fun canBoard(car: Elevator): Boolean {
+        val f = player.floor
+        return car.doorsOpen && car.openTime >= ELEVATOR_REACT_TIME && car.atFloor == f && f < car.shaft.bottom && f >= car.shaft.top
+    }
+
+    /** The hiding doorway (its index) a swipe down would press into, or null. */
+    private fun hideDoor(): Int? {
+        val p = player
+        val hs = playerHall() ?: return null
+        var best: Int? = null
+        var bd = DOOR_REACH
+        val doors = hs.plan.doors
+        for (i in doors.indices) {
+            val d = doors[i]
+            val hideable = d.kind == DoorKind.NORMAL || d.kind == DoorKind.INTEL && hs.intelUsed[i]
+            if (!hideable) continue
+            val dx = abs(d.x - p.x)
+            if (dx < bd) {
+                bd = dx
+                best = i
             }
         }
-        for (i in fs.plan.doors.indices) consider(fs.plan.doors[i].x, DOOR_REACH, i)
         return best
+    }
+
+    /** Tap: ride an open car, call a closed one, go through a passage, or enter INTEL. */
+    private fun interact() {
+        val p = player
+        val hs = playerHall() ?: return
+        when (val t = tapTarget()) {
+            is Elevator -> {
+                if (p.hidden) unhide()
+                if (canBoard(t)) boardElevator(t) else callElevator(t)
+            }
+            is Int -> {
+                if (p.hidden) unhide()
+                val d = hs.plan.doors[t]
+                if (d.kind == DoorKind.PASSAGE) startPassage(hs, t) else enterIntel(hs, t)
+            }
+        }
+    }
+
+    private fun boardElevator(car: Elevator) {
+        val p = player
+        ghostCheck(p.floor)
+        if (Rng.forKey(seed, MUZAK_KEY, car.shaft.id * 997L + p.floor).chance(MUZAK_CHANCE)) {
+            events += GameEvent.Muzak
+            fx.text(Popup.JAZZ, car.shaft.x, Geo.groundY(p.floor) - 2.9f, TextStyle.PICKUP, 1.6f)
+        }
+        p.state = PlayerState.ELEVATOR
+        p.stateTime = 0f
+        p.elevatorShaft = car.shaft.id
+        p.x = car.shaft.x
+        p.vx = 0f
+        p.holdAxis = moveAxis
+        p.carBox = false
+        car.carrying = true
+        car.called = -1
+        car.dir = 1
+        car.pause = 0.35f
+        stats.rides++
+        if (car.shaft.express) stats.expressRides++
+        events += GameEvent.ElevatorDing
+    }
+
+    /**
+     * Leaving floor [f] for good: if nobody on it ever spotted you, that's a GHOST (worth
+     * double in SILENT). Floors built with nobody on them don't count.
+     */
+    private fun ghostCheck(f: Int) {
+        val fs = floors[f] ?: return
+        if (fs.spotted || fs.ghostPaid || fs.guards == 0) return
+        fs.ghostPaid = true
+        stats.ghostFloors++
+        val bonus = (GHOST_BONUS + GHOST_BONUS_PER_FLOOR * f) * (if (silent) 2 else 1)
+        score += bonus
+        events += GameEvent.Ghost
+        fx.text("${Popup.GHOST} +$bonus", player.x, Geo.groundY(f) - 2.5f, TextStyle.COMBO, 1.3f)
+    }
+
+    /** A guard on [f] saw you (or you got hurt there): that floor can't be ghosted any more. */
+    private fun spotted(f: Int) {
+        floors[f]?.spotted = true
+    }
+
+    private fun callElevator(car: Elevator) {
+        val f = player.floor
+        if (car.carrying || car.called == f) return
+        car.called = f
+        // Don't dawdle at another floor: it heads over as soon as its doors can close.
+        if (car.doorsOpen && car.atFloor != f) car.pause = min(car.pause, 0.35f)
+        events += GameEvent.ElevatorCalled
+        fx.text("CALLED", car.shaft.x, Geo.groundY(f) - 2.9f, TextStyle.PICKUP, 0.8f)
+    }
+
+    private fun startPassage(hs: HallState, d: Int) {
+        val p = player
+        val door = hs.plan.doors[d]
+        p.state = PlayerState.PASSAGE
+        p.stateTime = 0f
+        p.anchorX = door.x
+        p.x = door.x
+        p.vx = 0f
+        p.passageTo = door.to
+        p.passageDoor = door.toDoor
+        p.holdAxis = moveAxis
+        hs.doorOpen[d] = 1f
+        passages++
+        events += GameEvent.Passage
+    }
+
+    private fun enterIntel(hs: HallState, d: Int) {
+        val p = player
+        hs.intelUsed[d] = true
+        hs.doorOpen[d] = 1f
+        p.state = PlayerState.INTEL
+        p.anchorX = hs.plan.doors[d].x
+        p.x = p.anchorX
+        p.vx = 0f
+        score += 500
+        stats.intel++
+        fx.text("INTEL +500", p.x, Geo.groundY(p.floor) - 2.2f, TextStyle.PICKUP)
+        offerPerks()
     }
 
     private fun swipeDown(): Boolean {
@@ -421,72 +773,54 @@ class World(val config: RunConfig) {
             return true
         }
         when (p.state) {
+            PlayerState.ELEVATOR -> {
+                // Box up in the car: whoever's waiting when the doors open sees an empty lift.
+                p.carBox = !p.carBox
+                events += if (p.carBox) GameEvent.HideBox else GameEvent.Unhide
+            }
             PlayerState.BOX -> {
-                // Sneak up to a door in the box and swipe again to slip in;
+                // Sneak up to a doorway in the box and swipe again to slip in;
                 // anywhere else the same swipe stands you back up.
-                val action = contextAction()
-                if (action != null) {
+                val d = hideDoor()
+                if (d != null) {
                     unhide()
-                    useContext(action)
+                    hideInDoor(d)
                 } else if (p.stateTime > TOGGLE_GUARD) {
                     unhide()
                 }
             }
             PlayerState.DOOR -> if (p.stateTime > TOGGLE_GUARD) unhide()
-            PlayerState.NORMAL -> useContext(contextAction() ?: ContextAction.BOX)
+            PlayerState.NORMAL -> {
+                val d = hideDoor()
+                if (d != null) hideInDoor(d) else hideInBox()
+            }
             else -> Unit
         }
         return true
     }
 
-    private fun useContext(action: ContextAction) {
+    private fun hideInDoor(d: Int) {
         val p = player
-        val fs = floors[p.floor] ?: return
-        when (action) {
-            ContextAction.ELEVATOR -> {
-                val car = contextTarget(fs) as? Elevator ?: return
-                p.state = PlayerState.ELEVATOR
-                p.stateTime = 0f
-                p.elevatorShaft = car.shaft.id
-                p.x = car.shaft.x
-                p.vx = 0f
-                p.holdAxis = moveAxis
-                car.carrying = true
-                car.dir = 1
-                car.pause = 0.35f
-                events += GameEvent.ElevatorDing
-            }
-            ContextAction.INTEL -> {
-                val d = contextTarget(fs) as? Int ?: return
-                fs.intelUsed[d] = true
-                fs.doorOpen[d] = 1f
-                p.state = PlayerState.INTEL
-                p.anchorX = fs.plan.doors[d].x
-                p.x = p.anchorX
-                p.vx = 0f
-                score += 500
-                fx.text("INTEL +500", p.x, Geo.groundY(p.floor) - 2.2f, TextStyle.PICKUP)
-                offerPerks()
-            }
-            ContextAction.DOOR -> {
-                val d = contextTarget(fs) as? Int ?: return
-                p.state = PlayerState.DOOR
-                p.stateTime = 0f
-                p.anchorX = fs.plan.doors[d].x
-                p.x = p.anchorX
-                p.vx = 0f
-                p.holdAxis = moveAxis
-                fs.doorOpen[d] = 1f
-                events += GameEvent.HideDoor
-            }
-            ContextAction.BOX -> {
-                p.state = PlayerState.BOX
-                p.stateTime = 0f
-                p.vx *= 0.3f
-                events += GameEvent.HideBox
-                fx.burst(ParticleKind.DUST, p.x, Geo.groundY(p.floor) - 0.1f, 6, 2f, 0.4f, 0.12f, upBias = 0.4f)
-            }
-        }
+        val hs = playerHall() ?: return
+        p.state = PlayerState.DOOR
+        p.stateTime = 0f
+        p.anchorX = hs.plan.doors[d].x
+        p.x = p.anchorX
+        p.vx = 0f
+        p.holdAxis = moveAxis
+        hs.doorOpen[d] = 1f
+        stats.doorHides++
+        events += GameEvent.HideDoor
+    }
+
+    private fun hideInBox() {
+        val p = player
+        p.state = PlayerState.BOX
+        p.stateTime = 0f
+        p.vx *= 0.3f
+        stats.boxHides++
+        events += GameEvent.HideBox
+        fx.burst(ParticleKind.DUST, p.x, Geo.groundY(p.floor) - 0.1f, 6, 2f, 0.4f, 0.12f, upBias = 0.4f)
     }
 
     private fun unhide() {
@@ -509,6 +843,7 @@ class World(val config: RunConfig) {
             return
         }
         p.vz = JUMP_V
+        stats.jumps++
         events += GameEvent.Jump
     }
 
@@ -570,6 +905,28 @@ class World(val config: RunConfig) {
                     p.stateTime = 0f
                 }
             }
+            PlayerState.PASSAGE -> {
+                p.vx = 0f
+                if (p.hall != p.passageTo && p.stateTime >= PASSAGE_TIME * 0.5f) {
+                    // Through the door: out of the far side's matching door.
+                    val fs = floors[p.floor]
+                    if (fs != null && p.passageTo in fs.halls.indices) {
+                        p.hall = p.passageTo
+                        val to = fs.halls[p.hall]
+                        to.plan.doors.getOrNull(p.passageDoor)?.let { d ->
+                            p.x = d.x
+                            p.anchorX = d.x
+                            to.doorOpen[p.passageDoor] = 1f
+                        }
+                        onHallEntered(p.floor, p.hall)
+                    }
+                }
+                if (p.stateTime >= PASSAGE_TIME) {
+                    p.state = PlayerState.NORMAL
+                    p.stateTime = 0f
+                    p.facing = if (moveAxis != 0) moveAxis else if (p.x < Geo.FLOOR_W / 2f) 1 else -1
+                }
+            }
             PlayerState.ELEVATOR -> {
                 val car = elevators[p.elevatorShaft]
                 if (car == null) {
@@ -578,30 +935,15 @@ class World(val config: RunConfig) {
                     p.x = car.shaft.x
                     p.floorF = car.pos
                     if (moveAxis == 0) p.holdAxis = 0
-                    if (car.doorsOpen && moveAxis != 0 && moveAxis != p.holdAxis && p.stateTime > 0.3f) {
-                        car.carrying = false
-                        car.pause = 1f
-                        p.floorF = car.pos.roundToInt().toFloat()
-                        p.state = PlayerState.NORMAL
-                        p.stateTime = 0f
-                        p.facing = moveAxis
-                        p.x = car.shaft.x + moveAxis * 0.4f
-                        onFloorEntered(p.floor)
+                    val at = car.atFloor
+                    val atBottom = car.doorsOpen && at != null && at >= car.shaft.bottom
+                    val wantsOut = car.doorsOpen && moveAxis != 0 && moveAxis != p.holdAxis && p.stateTime > 0.3f
+                    if (wantsOut) {
+                        exitElevator(car, moveAxis)
+                    } else if (atBottom && car.openTime >= AUTO_EXIT_TIME) {
+                        // End of the line: step out into hallway A and keep moving.
+                        exitElevator(car, if (car.shaft.x < Geo.FLOOR_W / 2f) 1 else -1)
                     }
-                }
-            }
-            PlayerState.STAIRS -> {
-                val t = (p.stateTime / STAIRS_TIME).coerceAtMost(1f)
-                p.floorF = p.stairsFrom + t
-                val wall = if (p.stairsSide == Side.LEFT) 0.25f else Geo.FLOOR_W - 0.25f
-                val landing = if (p.stairsSide == Side.LEFT) 0.9f else Geo.FLOOR_W - 0.9f
-                p.x = if (t < 0.5f) p.x + (wall - p.x) * min(1f, dt * 14f) else wall + (landing - wall) * ((t - 0.5f) * 2f)
-                if (t >= 1f) {
-                    p.floorF = p.stairsFrom + 1f
-                    p.state = PlayerState.NORMAL
-                    p.stateTime = 0f
-                    p.facing = if (p.stairsSide == Side.LEFT) 1 else -1
-                    onFloorEntered(p.floor)
                 }
             }
             PlayerState.INTEL -> Unit
@@ -613,11 +955,23 @@ class World(val config: RunConfig) {
                 if (p.z == 0f) p.vz = 0f
             }
         }
-        if (p.state == PlayerState.NORMAL) autoFire()
-        if (p.bufferedShot && p.fireCooldown <= 0f && p.state == PlayerState.NORMAL) {
-            p.bufferedShot = false
-            fire()
-        }
+        if (p.state == PlayerState.NORMAL || p.state == PlayerState.ELEVATOR) autoFire()
+    }
+
+    private fun exitElevator(car: Elevator, dir: Int) {
+        val p = player
+        car.carrying = false
+        car.pause = 1f
+        p.carBox = false
+        p.floorF = car.pos.roundToInt().toFloat()
+        val f = p.floor
+        p.hall = floors[f]?.plan?.landingHall(car.shaft)?.coerceAtLeast(0) ?: 0
+        p.state = PlayerState.NORMAL
+        p.stateTime = 0f
+        p.facing = dir
+        p.x = car.shaft.x + dir * 0.4f
+        onFloorEntered(f)
+        onHallEntered(f, p.hall)
     }
 
     private fun movePlayer(dt: Float) {
@@ -657,17 +1011,7 @@ class World(val config: RunConfig) {
             }
         }
 
-        // Stairs down at one end; a wall everywhere else.
-        val fs = floors[p.floor]
-        val stairs = fs?.plan?.stairsDown
-        if (p.grounded && stairs == Side.LEFT && p.x < 0.6f && moveAxis < 0) {
-            startStairs(Side.LEFT)
-            return
-        }
-        if (p.grounded && stairs == Side.RIGHT && p.x > Geo.FLOOR_W - 0.6f && moveAxis > 0) {
-            startStairs(Side.RIGHT)
-            return
-        }
+        // Clean walls at both ends: the only way down is an elevator.
         p.x = p.x.coerceIn(0.35f, Geo.FLOOR_W - 0.35f)
 
         checkTakedown()
@@ -684,23 +1028,14 @@ class World(val config: RunConfig) {
         else -> FALL_GRAVITY
     }
 
-    private fun startStairs(side: Side) {
-        val p = player
-        if (p.state == PlayerState.BOX) unhide()
-        p.state = PlayerState.STAIRS
-        p.stateTime = 0f
-        p.stairsFrom = p.floor.toFloat()
-        p.stairsSide = side
-        p.vx = 0f
-        events += GameEvent.Stairs
-    }
+    private fun here(e: Enemy) = e.floor == player.floor && e.hall == player.hall
 
     private fun checkTakedown() {
         val p = player
         if (p.z > 0.55f) return
         val reach = 0.55f + 0.3f * stacks(Perk.CQC)
         for (e in enemies) {
-            if (e.floor != p.floor || !e.alive || e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
+            if (!here(e) || !e.alive || e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
             if (e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET) continue
             val dx = e.x - p.x
             val fromDir = if (dx > 0f) 1 else -1
@@ -709,8 +1044,13 @@ class World(val config: RunConfig) {
             val inReach = abs(dx) <= reach + e.halfWidth
             if (!inReach && !(pushing && abs(dx) <= reach + e.halfWidth + TAKEDOWN_MAGNET)) continue
             if (e.state == EnemyState.WINDUP) continue // mid-slash: it wins
-            if (!e.chokeable(fromDir)) {
+            // A napping guard can't resist from any side.
+            if (!e.asleep && !e.chokeable(fromDir)) {
                 if (!inReach) continue
+                if (p.state == PlayerState.BOX) {
+                    // A Heavy isn't fooled by cardboard: he kicks it off you.
+                    kickBox(e)
+                }
                 // Armor blocks: you can't walk through a Heavy to get behind him.
                 p.x = e.x - fromDir * (reach + e.halfWidth)
                 if (p.vx * fromDir > 0f) p.vx = 0f
@@ -725,14 +1065,32 @@ class World(val config: RunConfig) {
                 }
                 continue
             }
+            // A ninja who came over to check a suspicious box isn't falling for it.
+            if (p.state == PlayerState.BOX && e.state == EnemyState.SEARCH && e.kind == EnemyKind.NINJA) {
+                kickBox(e)
+                return
+            }
             startTakedown(e, fromDir)
             return
         }
     }
 
+    /** Busted: [e] boots the box off you and he's onto you. */
+    private fun kickBox(e: Enemy) {
+        val p = player
+        unhide()
+        events += GameEvent.BoxKicked
+        fx.burst(ParticleKind.CARDBOARD, p.x, Geo.groundY(p.floor) - 0.5f, 12, 5f, 0.8f, 0.14f, upBias = 0.5f)
+        fx.text(Popup.HEY, e.x, Geo.groundY(e.floor) - e.height - 0.9f, TextStyle.WARN, 0.8f)
+        alert(e)
+    }
+
     private fun startTakedown(e: Enemy, dir: Int) {
         val p = player
         val ambush = p.state == PlayerState.BOX
+        val napping = e.asleep
+        e.asleep = false
+        if (napping) stats.napTakedowns++
         p.state = PlayerState.TAKEDOWN
         p.stateTime = 0f
         p.facing = dir
@@ -743,25 +1101,27 @@ class World(val config: RunConfig) {
         e.stateTime = 0f
         e.facing = dir
         takedowns++
+        if (ambush) stats.boxAmbushes++
         events += GameEvent.Takedown
         hitStop = 0.05f
         shake = max(shake, 0.2f)
         val y = Geo.groundY(e.floor) - 1.1f
-        fx.text(if (ambush) "AMBUSH!" else "TAKEDOWN", e.x, y - 0.8f, TextStyle.TAKEDOWN)
+        fx.text(if (napping) Popup.NIGHT_NIGHT else if (ambush) Popup.BOXD else "TAKEDOWN", e.x, y - 0.8f, TextStyle.TAKEDOWN)
         if (stacks(Perk.CQC) > 0 && takedowns % 2 == 0 && p.hp < p.maxHp) {
             p.hp++
             fx.text("+♥", p.x, y - 1.4f, TextStyle.PICKUP)
         }
-        if (ambush && stacks(Perk.GHOST_BOX) > 0) explode(e.x, 0.4f, e.floor, 2.2f, byGhost = true)
+        if (ambush && stacks(Perk.GHOST_BOX) > 0) explode(e.x, 0.4f, e.floor, e.hall, 2.2f, byGhost = true)
     }
 
     private fun checkStomp(oldZ: Float) {
         val p = player
         for (e in enemies) {
-            if (e.floor != p.floor || !e.alive || e.kind == EnemyKind.TURRET) continue
+            if (!here(e) || !e.alive || e.kind == EnemyKind.TURRET) continue
             val top = e.z + e.height
             if (abs(e.x - p.x) < e.halfWidth + 0.32f && oldZ >= top - 0.3f && p.z <= top + 0.05f) {
                 kill(e, KillMethod.STOMP, p.facing)
+                fx.text(Popup.BONK, e.x, Geo.groundY(e.floor) - top - 1.1f, TextStyle.TAKEDOWN, 0.8f)
                 p.vz = 8.5f
                 p.jumpsUsed = 1
                 p.z = top
@@ -770,7 +1130,7 @@ class World(val config: RunConfig) {
                 if (stacks(Perk.SHOCKWAVE) > 0) {
                     fx.ring(p.x, Geo.groundY(p.floor) - 0.1f, 6f, 0.5f)
                     for (o in enemies.toList()) {
-                        if (o.floor == p.floor && o.alive && o !== e) damageEnemy(o, 2, KillMethod.EXPLOSION, sign(o.x - p.x).toInt())
+                        if (here(o) && o.alive && o !== e) damageEnemy(o, 2, KillMethod.EXPLOSION, sign(o.x - p.x).toInt())
                     }
                 }
                 return
@@ -780,21 +1140,41 @@ class World(val config: RunConfig) {
 
     // --------------------------------------------------------------- combat
 
-    private fun playerTargetFloor(): Int? = when (player.state) {
-        PlayerState.NORMAL, PlayerState.TAKEDOWN, PlayerState.BOX -> player.floor
-        PlayerState.ELEVATOR -> elevators[player.elevatorShaft]?.takeIf { it.doorsOpen }?.atFloor
-        else -> null
+    /** Floor and hallway the player can shoot into right now (packed as floor * 8 + hall), or -1. */
+    private fun playerTarget(): Int = when (player.state) {
+        PlayerState.NORMAL, PlayerState.TAKEDOWN, PlayerState.BOX -> player.floor * 8 + player.hall
+        PlayerState.ELEVATOR -> elevators[player.elevatorShaft]?.takeIf { it.doorsOpen }?.let { car ->
+            val f = car.atFloor ?: return@let -1
+            f * 8 + (floors[f]?.plan?.landingHall(car.shaft)?.coerceAtLeast(0) ?: 0)
+        } ?: -1
+        else -> -1
     }
 
     /** The enemy auto-aim would shoot right now (the renderer aims the gun pose at it). */
-    fun aimTarget(): Enemy? = pickTarget()
+    fun aimTarget(): Enemy? = if (silent) null else pickTarget(11f, ::fireable)
 
-    private fun pickTarget(range: Float = 11f): Enemy? {
-        val f = playerTargetFloor() ?: return null
+    /**
+     * GUNS HOT fires only at threats: anyone who has noticed you, drones and turrets, and an
+     * unaware guard facing you from point-blank (he's about to). A guard with his back to you,
+     * or asleep, is yours to sneak up on.
+     */
+    private fun fireable(e: Enemy): Boolean {
+        if (e.kind == EnemyKind.TURRET || e.kind == EnemyKind.DRONE) return true
+        if (e.asleep) return false
+        if (threatTier(e) <= 1) return true
+        val towardYou = e.facing == (if (player.x >= e.x) 1 else -1)
+        return towardYou && abs(e.x - player.x) <= AUTO_FIRE_POINT_BLANK
+    }
+
+    private fun pickTarget(range: Float = 11f, allow: (Enemy) -> Boolean = { true }): Enemy? {
+        val t = playerTarget()
+        if (t < 0) return null
+        val f = t / 8
+        val h = t % 8
         var best: Enemy? = null
         var bestScore = Float.MAX_VALUE
         for (e in enemies) {
-            if (e.floor != f || !e.alive) continue
+            if (e.floor != f || e.hall != h || !e.alive || !allow(e)) continue
             val dx = e.x - player.x
             if (abs(dx) > range) continue
             // Whoever is about to hurt you first, then what's in front, then the nearest.
@@ -821,13 +1201,15 @@ class World(val config: RunConfig) {
         }
     }
 
+    /** GUNS HOT: fire at the top threat in range the moment the gun is ready. SILENT never fires. */
     private fun autoFire() {
         val p = player
-        val auto = config.autoFire || p.weapon == PickupKind.MINIGUN
-        if (!auto || p.fireCooldown > 0f) return
-        val target = pickTarget(if (p.weapon == PickupKind.MINIGUN) 11f else 7.5f) ?: return
+        if (silent || p.fireCooldown > 0f || p.carBox) return
+        // Threats only: a guard who hasn't noticed you is yours to choose: sneak past, walk in
+        // for the takedown, or wait for him to turn.
+        val target = pickTarget(if (p.weapon == PickupKind.MINIGUN) 11f else AUTO_FIRE_RANGE, ::fireable) ?: return
         if (target.state == EnemyState.EMERGING && target.stateTime < 0.25f) return
-        fire()
+        fire(target)
     }
 
     private fun startReload() {
@@ -838,45 +1220,49 @@ class World(val config: RunConfig) {
         events += GameEvent.Reload
     }
 
-    private fun fire() {
+    /**
+     * Jump + tap: a suppressed shot at the ceiling light ahead, when that's what you mean
+     * (the light would land on someone, or there's nobody in front to shoot). It wakes
+     * nobody and costs no ammo, in either mode.
+     */
+    private fun shootLightAhead(): Boolean {
+        val p = player
+        val t = playerTarget()
+        if (t < 0 || p.z < 0.25f) return false
+        val f = t / 8
+        val hs = hall(f, t % 8) ?: return false
+        val lights = hs.plan.lights
+        val li = lights.indices
+            .filter { hs.lightAlive[it] && (lights[it] - p.x) * p.facing > -0.2f && abs(lights[it] - p.x) < 4.5f }
+            .minByOrNull { abs(lights[it] - p.x) } ?: return false
+        val lx = lights[li]
+        val crushes = enemies.any { it.floor == f && it.hall == t % 8 && it.alive && it.kind != EnemyKind.TURRET && abs(it.x - lx) < LIGHT_CRUSH_INTENT }
+        val target = if (silent) null else pickTarget()
+        val wanted = crushes || target == null || (target.x - p.x) * p.facing <= -0.2f
+        if (!wanted) return false
+        val originZ = p.z + 1.0f
+        val lz = Geo.FLOOR_H - 0.45f
+        val dx = lx - p.x
+        val dz = lz - originZ
+        val len = sqrt(dx * dx + dz * dz).coerceAtLeast(0.01f)
+        bullets += Bullet(p.x, originZ, f, dx / len * PLAYER_BULLET_V, dz / len * PLAYER_BULLET_V, true, 1, 0, 0, targetLight = li, hall = t % 8)
+        p.sinceShot = 0f
+        events += GameEvent.Shot(byPlayer = true, heavy = false, pan = pan(p.x))
+        fx.burst(ParticleKind.SPARK, p.x + p.facing * 0.3f, Geo.groundY(f) - originZ, 3, 3f, 0.1f, 0.06f, dir = p.facing.toFloat())
+        return true
+    }
+
+    private fun fire(target: Enemy?) {
         val p = player
         val infinite = p.weapon == PickupKind.SHOTGUN || p.weapon == PickupKind.MINIGUN
-        if (p.fireCooldown > 0f || (p.reloading && !infinite)) {
-            p.bufferedShot = p.fireCooldown < 0.2f && p.reloadTime < 0.25f
-            return
-        }
-        val f = playerTargetFloor() ?: return
+        if (p.fireCooldown > 0f || (p.reloading && !infinite)) return
+        val t = playerTarget()
+        if (t < 0) return
+        val f = t / 8
+        val h = t % 8
         val originZ = if (p.state == PlayerState.BOX) 0.5f else p.z + 1.0f
         val ground = Geo.groundY(f)
 
-        // Airborne with a light ahead: shoot the light (Elevator Action's best trick).
-        val fs = floors[f]
-        if (fs != null && p.z > 0.4f) {
-            val li = fs.plan.lights.indices
-                .filter { fs.lightAlive[it] && (fs.plan.lights[it] - p.x) * p.facing > -0.2f && abs(fs.plan.lights[it] - p.x) < 4.5f }
-                .minByOrNull { abs(fs.plan.lights[it] - p.x) }
-            // Only when that's what you mean: the light would land on someone, or
-            // there's nobody in front to shoot instead.
-            val wanted = li != null && run {
-                val lx = fs.plan.lights[li]
-                val crushes = enemies.any { it.floor == f && it.alive && it.kind != EnemyKind.TURRET && abs(it.x - lx) < LIGHT_CRUSH_INTENT }
-                val t = pickTarget()
-                crushes || t == null || (t.x - p.x) * p.facing <= -0.2f
-            }
-            if (li != null && wanted) {
-                val lx = fs.plan.lights[li]
-                val lz = Geo.FLOOR_H - 0.45f
-                val dx = lx - p.x
-                val dz = lz - originZ
-                val len = sqrt(dx * dx + dz * dz).coerceAtLeast(0.01f)
-                bullets += Bullet(p.x, originZ, f, dx / len * PLAYER_BULLET_V, dz / len * PLAYER_BULLET_V, true, 1, 0, 0, targetLight = li)
-                afterShot(ground, originZ, 0.26f)
-                if (!infinite && --p.ammo <= 0) startReload()
-                return
-            }
-        }
-
-        val target = pickTarget()
         if (target != null) p.facing = if (target.x >= p.x) 1 else -1
         val dmg = 1 + stacks(Perk.HOLLOW_POINT)
         val pierce = stacks(Perk.PIERCE)
@@ -884,7 +1270,7 @@ class World(val config: RunConfig) {
         val startX = p.x + p.facing * 0.35f
 
         fun shoot(z: Float, vz: Float = 0f, range: Float = 30f, damage: Int = dmg) {
-            bullets += Bullet(startX, z, f, p.facing * PLAYER_BULLET_V, vz, true, damage, pierce, bounce, range = range)
+            bullets += Bullet(startX, z, f, p.facing * PLAYER_BULLET_V, vz, true, damage, pierce, bounce, range = range, hall = h)
         }
 
         // Where to aim: straight at a standing target, low at a ducking one, up at a turret.
@@ -915,18 +1301,18 @@ class World(val config: RunConfig) {
             else -> {
                 shoot(aimZ, aimVz)
                 if (stacks(Perk.SPLIT_SHOT) > 0) shoot(if (aimZ > 0.8f) 0.4f else 1.1f, aimVz)
-                cooldown = 0.27f
+                cooldown = GUN_COOLDOWN
             }
         }
-        afterShot(ground, aimZ, cooldown * Math.pow(0.8, stacks(Perk.RAPID_FIRE).toDouble()).toFloat())
+        afterShot(f, h, ground, aimZ, cooldown * Math.pow(0.8, stacks(Perk.RAPID_FIRE).toDouble()).toFloat())
         if (!infinite && --p.ammo <= 0) startReload()
     }
 
-    private fun afterShot(ground: Float, z: Float, cooldown: Float) {
+    private fun afterShot(f: Int, h: Int, ground: Float, z: Float, cooldown: Float) {
         val p = player
         // Gunfire is loud. Takedowns are the quiet way.
         for (e in enemies) {
-            if (e.floor == p.floor && e.alive && abs(e.x - p.x) < Heat.GUNSHOT_RADIUS &&
+            if (e.floor == f && e.hall == h && e.alive && abs(e.x - p.x) < Heat.GUNSHOT_RADIUS &&
                 (e.state == EnemyState.PATROL || e.state == EnemyState.SEARCH)
             ) {
                 alert(e)
@@ -949,12 +1335,13 @@ class World(val config: RunConfig) {
             return
         }
         p.grenades--
+        stats.grenadesThrown++
         val target = pickTarget()
         val dx = if (target != null) target.x - p.x else p.facing * 4.5f
         if (target != null) p.facing = if (dx >= 0) 1 else -1
         val t = 0.6f
         val z0 = p.z + 1.2f
-        grenades += Grenade(p.x, z0, p.floor, dx / t, (0.5f * GRAVITY * t * t - z0) / t)
+        grenades += Grenade(p.x, z0, p.floor, dx / t, (0.5f * GRAVITY * t * t - z0) / t, p.hall)
         events += GameEvent.Jump
     }
 
@@ -977,12 +1364,12 @@ class World(val config: RunConfig) {
             g.fuse -= dt
             if (g.fuse <= 0f) {
                 it.remove()
-                explode(g.x, g.z, g.floor, 2.3f + 0.6f * stacks(Perk.DEMOLITION))
+                explode(g.x, g.z, g.floor, g.hall, 2.3f + 0.6f * stacks(Perk.DEMOLITION))
             }
         }
     }
 
-    private fun explode(x: Float, z: Float, floor: Int, radius: Float, byGhost: Boolean = false) {
+    private fun explode(x: Float, z: Float, floor: Int, hall: Int, radius: Float, byGhost: Boolean = false) {
         val y = Geo.groundY(floor) - z
         events += GameEvent.Explosion(big = radius > 2.5f, pan = pan(x))
         shake = max(shake, if (byGhost) 0.5f else 0.9f)
@@ -993,13 +1380,16 @@ class World(val config: RunConfig) {
         fx.burst(ParticleKind.SMOKE, x, y, 14, 2.5f, 1.3f, 0.5f, upBias = 0.5f)
         fx.burst(ParticleKind.SPARK, x, y, 18, 12f, 0.3f, 0.1f)
         for (e in enemies.toList()) {
-            if (e.floor == floor && e.alive && abs(e.x - x) < radius) {
+            if (e.floor == floor && e.hall == hall && e.alive && abs(e.x - x) < radius) {
                 damageEnemy(e, 3, KillMethod.EXPLOSION, if (e.x >= x) 1 else -1)
+            } else if (e.floor == floor && e.hall == hall && e.asleep && e.alive) {
+                alert(e) // nobody sleeps through that
             }
         }
-        floors[floor]?.let { fs ->
-            for (i in fs.plan.lights.indices) {
-                if (fs.lightAlive[i] && abs(fs.plan.lights[i] - x) < radius * 0.8f) shootLight(fs, i)
+        // A GHOST BOX ambush goes off in your arms: it leaves the ceiling alone rather than drop a light on you.
+        if (!byGhost) hall(floor, hall)?.let { hs ->
+            for (i in hs.plan.lights.indices) {
+                if (hs.lightAlive[i] && abs(hs.plan.lights[i] - x) < radius * 0.8f) shootLight(hs, i)
             }
         }
     }
@@ -1007,8 +1397,42 @@ class World(val config: RunConfig) {
     private fun alert(e: Enemy) {
         e.state = EnemyState.ALERT
         e.stateTime = 0f
-        e.timer = Heat.reaction(floors[e.floor]?.plan?.heat ?: 0f) * rng.range(0.8f, 1.2f)
+        // SILENT: no gunfire to home in on, so it takes them a beat longer to get a bead on you.
+        val quiet = if (silent) SILENT_REACTION else 1f
+        e.timer = Heat.reaction(floors[e.floor]?.plan?.heat ?: 0f) * quiet * rng.range(0.8f, 1.2f)
+        // Just through a door or out of a car: a beat to take in the new hallway first.
+        if (here(e)) e.timer += max(0f, ARRIVAL_GRACE - hallTime)
+        if (e.asleep) {
+            // Rudely awoken: groggy for a moment.
+            e.asleep = false
+            e.timer += WAKE_GROGGY
+            fx.text(Popup.WAKE, e.x, Geo.groundY(e.floor) - e.height - 0.8f, TextStyle.WARN, 0.7f)
+        }
         e.facing = if (player.x >= e.x) 1 else -1
+        spotted(e.floor)
+    }
+
+    /**
+     * The MGS double-take: a box that moves while a walking guard is looking right at it. He
+     * stops ("HUH?") and comes over to check, straight into your arms (BOX'D). GHOST BOX
+     * boxes never raise an eyebrow; Heavies who come to check kick the box off.
+     */
+    private fun seesBoxMove(e: Enemy, dx: Float, range: Float): Boolean {
+        val p = player
+        return p.state == PlayerState.BOX && here(e) && !e.asleep && LevelGen.canNap(e.kind) &&
+            abs(p.vx) > BOX_SUSPICIOUS_SPEED && p.stateTime > 0.25f && stacks(Perk.GHOST_BOX) == 0 &&
+            sign(dx).toInt() == e.facing && abs(dx) < range && abs(dx) > 0.9f
+    }
+
+    private fun suspect(e: Enemy) {
+        e.state = EnemyState.SEARCH
+        e.stateTime = 0f
+        e.lastSeenX = player.x
+        e.vx = 0f
+        e.timer = SEARCH_LINGER
+        stats.suspicions++
+        events += GameEvent.Suspicious(pan(e.x))
+        fx.text(Popup.HUH, e.x, Geo.groundY(e.floor) - e.height - 1.0f, TextStyle.WARN, 0.8f)
     }
 
     private fun damageEnemy(e: Enemy, dmg: Int, method: KillMethod, dir: Int) {
@@ -1040,6 +1464,15 @@ class World(val config: RunConfig) {
         kills++
         combo = if (comboTimer > 0f) combo + 1 else 1
         comboTimer = COMBO_WINDOW
+        stats.bestCombo = max(stats.bestCombo, combo)
+        when (method) {
+            KillMethod.SHOT -> stats.shotKills++
+            KillMethod.STOMP -> stats.stomps++
+            KillMethod.LIGHT -> stats.lightKills++
+            KillMethod.HAZARD -> stats.hazardKills++
+            KillMethod.EXPLOSION -> stats.blastKills++
+            KillMethod.TAKEDOWN -> Unit
+        }
         val mult = min(combo, 8)
         val bonus = when (method) {
             KillMethod.TAKEDOWN -> 50
@@ -1048,10 +1481,16 @@ class World(val config: RunConfig) {
             KillMethod.HAZARD -> 150
             else -> 0
         }
-        val points = (e.kind.score + bonus) * mult
+        var points = (e.kind.score + bonus) * mult
+        // SILENT pays: every kill without a gunshot is worth double.
+        val quiet = silent && method != KillMethod.SHOT && method != KillMethod.EXPLOSION
+        if (quiet) {
+            points *= 2
+            silentKills++
+        }
         score += points
         val y = Geo.groundY(e.floor) - e.targetZ
-        fx.text("+$points", e.x, y - 0.9f, TextStyle.SCORE)
+        fx.text(if (quiet) "+$points SILENT" else "+$points", e.x, y - 0.9f, TextStyle.SCORE)
         // The HUD tracks the combo; the world only celebrates milestones.
         if (combo >= 5 && combo % 5 == 0) fx.text("${combo}x COMBO", e.x, y - 1.5f, TextStyle.COMBO, 0.9f)
         fx.burst(ParticleKind.SHARD, e.x, y, if (method == KillMethod.TAKEDOWN) 8 else 16, 6f, 0.7f, 0.12f, upBias = 0.3f, dir = dir.toFloat())
@@ -1063,42 +1502,45 @@ class World(val config: RunConfig) {
         hitStop = max(hitStop, if (combo >= 3) 0.06f else 0.03f)
         shake = max(shake, 0.18f)
 
-        if (++killsSinceGrenade >= 10) {
+        if (++killsSinceGrenade >= GRENADE_EVERY) {
             killsSinceGrenade = 0
             if (player.grenades < maxGrenades) {
                 player.grenades++
                 fx.text("+GRENADE", player.x, Geo.groundY(player.floor) - 2f, TextStyle.PICKUP)
             }
         }
-        val dropChance = 0.14f * (1 + stacks(Perk.LUCKY)) + if (e.kind == EnemyKind.HEAVY || e.kind == EnemyKind.DEMON) 0.25f else 0f
-        if (rng.chance(dropChance)) dropPickup(e.x, e.floor)
+        val dropChance = 0.16f * (1 + stacks(Perk.LUCKY)) + if (e.kind == EnemyKind.HEAVY || e.kind == EnemyKind.DEMON) 0.25f else 0f
+        if (rng.chance(dropChance)) dropPickup(e.x, e.floor, e.hall)
     }
 
-    private fun dropPickup(x: Float, floor: Int) {
+    private fun dropPickup(x: Float, floor: Int, hall: Int) {
         val lowHp = player.hp <= 1
         val kind = rng.pickWeighted(
             listOf(
                 PickupKind.CASH to 3.5f,
                 PickupKind.MEDKIT to if (lowHp) 3f else 1.2f,
-                PickupKind.GRENADE to 1.2f,
+                PickupKind.GRENADE to if (silent) 2f else 1.2f,
                 PickupKind.SHOTGUN to 1f,
                 PickupKind.MINIGUN to 0.8f,
                 PickupKind.SHIELD to 0.9f,
                 PickupKind.SLOWMO to 0.7f,
             ),
         )
-        pickups += Pickup(kind, x.coerceIn(0.6f, Geo.FLOOR_W - 0.6f), floor)
+        pickups += Pickup(kind, x.coerceIn(0.6f, Geo.FLOOR_W - 0.6f), floor, hall)
     }
 
-    private fun hurtPlayer(sourceX: Float) {
+    private fun hurtPlayer(sourceX: Float, cause: HurtCause, by: EnemyKind? = null, ambush: Boolean = false, hazard: HazardKind? = null) {
         val p = player
         if (p.invuln > 0f || p.state == PlayerState.DEAD || phase != Phase.PLAYING) return
-        if (p.state == PlayerState.DOOR || p.state == PlayerState.INTEL || p.state == PlayerState.STAIRS || p.state == PlayerState.TAKEDOWN) return
+        if (p.state == PlayerState.DOOR || p.state == PlayerState.INTEL || p.state == PlayerState.PASSAGE || p.state == PlayerState.TAKEDOWN) return
+        val hurt = Hurt(cause, by, p.floor, zone, hallTime, ambush, hazard)
         val y = Geo.groundY(p.floorF) - p.z - 0.9f
+        spotted(p.floor)
         if (p.shield || p.armorReady) {
             if (p.shield) p.shield = false else p.armorReady = false
             p.invuln = 0.7f
             events += GameEvent.ShieldBlock
+            fx.text(Popup.NOT_TODAY, p.x, y - 1.3f, TextStyle.WARN, 0.8f)
             fx.ring(p.x, y, 1.1f)
             fx.burst(ParticleKind.SPARK, p.x, y, 12, 6f, 0.3f, 0.08f)
             return
@@ -1108,6 +1550,7 @@ class World(val config: RunConfig) {
             p.state = PlayerState.NORMAL
         }
         p.hp--
+        stats.logHurt(hurt)
         p.invuln = 1.3f
         p.vx = sign(p.x - sourceX) * 5f
         shake = max(shake, 0.6f)
@@ -1124,6 +1567,7 @@ class World(val config: RunConfig) {
             p.z = max(p.z, 0.01f)
             phase = Phase.DYING
             dyingTime = 0f
+            stats.fatal = hurt
             events += GameEvent.PlayerDied
         } else {
             events += GameEvent.PlayerHurt(p.hp)
@@ -1132,9 +1576,12 @@ class World(val config: RunConfig) {
 
     // --------------------------------------------------------------- enemies
 
-    private fun playerVisibleOn(floor: Int): Boolean = when (player.state) {
-        PlayerState.NORMAL, PlayerState.TAKEDOWN -> player.floor == floor
-        PlayerState.ELEVATOR -> elevators[player.elevatorShaft]?.let { it.doorsOpen && it.atFloor == floor } == true
+    /** Can guards in hallway [hall] of [floor] see the player at all right now? */
+    private fun playerVisibleOn(floor: Int, hall: Int): Boolean = when (player.state) {
+        PlayerState.NORMAL, PlayerState.TAKEDOWN -> player.floor == floor && player.hall == hall
+        PlayerState.ELEVATOR -> !player.carBox && elevators[player.elevatorShaft]?.let {
+            it.doorsOpen && it.atFloor == floor && floors[floor]?.plan?.landingHall(it.shaft) == hall
+        } == true
         else -> false
     }
 
@@ -1158,17 +1605,34 @@ class World(val config: RunConfig) {
             }
             if (e.state == EnemyState.CHOKED) continue
             if (phase != Phase.PLAYING && phase != Phase.DYING) continue
-            val fs = floors[e.floor] ?: continue
-            val heat = fs.plan.heat
-            val visible = playerVisibleOn(e.floor)
+            if (e.asleep) {
+                // Zzz. Blind and deaf to footsteps; gunfire, blasts and crashing lights wake him.
+                e.vx = 0f
+                e.timer -= dt
+                if (e.timer <= 0f) {
+                    e.timer = SNORE_EVERY
+                    if (onStage(e.floor, e.hall)) {
+                        fx.text(Popup.SNORE, e.x - e.facing * 0.15f, Geo.groundY(e.floor) - e.height - 0.35f, TextStyle.SCORE, 1.4f)
+                        if (here(e)) events += GameEvent.Snore(pan(e.x))
+                    }
+                }
+                continue
+            }
+            val hs = hall(e.floor, e.hall) ?: continue
+            val heat = hs.plan.heat
+            val visible = playerVisibleOn(e.floor, e.hall)
             val dx = player.x - e.x
             val dist = abs(dx)
-            val range = 7.5f - 4.3f * fs.darkness
+            // SILENT: you're a shadow; guards need you a little closer to pick you out.
+            // Pitch black (a BLACKOUT floor, or every lamp shot out): nobody sees past
+            // arm's length, sensors included. "They can't see you either."
+            val pitchBlack = hs.darkness >= 1f
+            val range = if (pitchBlack) BLACKOUT_SIGHT else (if (silent) SILENT_SIGHT_RANGE else SIGHT_RANGE) - 4.3f * hs.darkness
             val omni = e.kind == EnemyKind.TURRET || e.kind == EnemyKind.DRONE
-            val boxedNearby = player.state == PlayerState.BOX && player.floor == e.floor && dist < 1.8f &&
+            val boxedNearby = player.state == PlayerState.BOX && here(e) && dist < 1.8f &&
                 (e.state == EnemyState.ALERT || e.state == EnemyState.AIM)
-            val sees = (visible && dist < (if (omni) range + 2f else range) &&
-                (sign(dx).toInt() == e.facing || dist < 1.6f || omni)) || boxedNearby
+            val sees = (visible && dist < (if (omni && !pitchBlack) range + 2f else range) &&
+                (sign(dx).toInt() == e.facing || dist < BEHIND_SENSE || omni)) || boxedNearby
             if (sees) e.lastSeenX = player.x
             val speed = Heat.enemySpeed(heat)
 
@@ -1191,18 +1655,8 @@ class World(val config: RunConfig) {
                     }
                 }
                 EnemyState.PATROL -> {
-                    if (e.kind != EnemyKind.TURRET) {
-                        e.timer -= dt
-                        if (e.timer <= 0f) {
-                            e.timer = rng.range(1.5f, 4f)
-                            if (rng.chance(0.4f)) e.facing = -e.facing
-                        }
-                        e.vx = e.facing * speed * 0.4f
-                        if (e.stateTime % 5f > 3.8f && e.kind == EnemyKind.AGENT) e.vx = 0f // pause and look around
-                    } else if (e.timer <= 0f) {
-                        e.timer = 2f
-                    }
-                    if (sees) alert(e)
+                    if (e.kind != EnemyKind.TURRET) patrol(e, speed, dt) else if (e.timer <= 0f) e.timer = 2f
+                    if (sees) alert(e) else if (seesBoxMove(e, dx, range)) suspect(e)
                 }
                 EnemyState.ALERT -> {
                     e.vx = 0f
@@ -1210,6 +1664,7 @@ class World(val config: RunConfig) {
                     if (!sees && e.stateTime > 1.2f) {
                         e.state = EnemyState.SEARCH
                         e.stateTime = 0f
+                        e.timer = SEARCH_LINGER
                     } else {
                         e.timer -= dt
                         val melee = e.kind == EnemyKind.NINJA || e.kind == EnemyKind.DEMON
@@ -1257,7 +1712,7 @@ class World(val config: RunConfig) {
                     e.vx = 0f
                     if (e.stateTime >= 0.3f) {
                         val pz = player.z
-                        if (playerVisibleOn(e.floor) && abs(player.x - e.x) < 1.35f && pz < 0.9f) hurtPlayer(e.x)
+                        if (playerVisibleOn(e.floor, e.hall) && abs(player.x - e.x) < 1.35f && pz < 0.9f) hurtPlayer(e.x, HurtCause.MELEE, e.kind, ambushing(e))
                         fx.burst(ParticleKind.SPARK, e.x + e.facing * 0.6f, Geo.groundY(e.floor) - 0.9f, 6, 5f, 0.18f, 0.07f, dir = e.facing.toFloat())
                         events += GameEvent.Shot(byPlayer = false, heavy = false, pan = pan(e.x))
                         e.state = EnemyState.ALERT
@@ -1267,19 +1722,25 @@ class World(val config: RunConfig) {
                     }
                 }
                 EnemyState.SEARCH -> {
+                    // Still wiggling? He follows the box.
+                    if (seesBoxMove(e, dx, range)) e.lastSeenX = player.x
                     val toGo = e.lastSeenX - e.x
                     if (abs(toGo) > 0.3f && e.kind != EnemyKind.TURRET) {
                         e.facing = if (toGo > 0f) 1 else -1
                         e.vx = e.facing * speed * 0.6f
+                        // He looks around once he gets there, not on the way.
+                        e.timer = SEARCH_LINGER
                     } else {
                         e.vx = 0f
+                        e.timer -= dt
                     }
                     if (sees) {
                         alert(e)
                         e.timer *= 0.5f
-                    } else if (e.stateTime > 3.5f) {
+                    } else if (e.timer <= 0f || e.stateTime > SEARCH_MAX) {
                         e.state = EnemyState.PATROL
                         e.stateTime = 0f
+                        e.timer = PATROL_LOOK
                     }
                 }
                 EnemyState.STUNNED -> {
@@ -1300,8 +1761,37 @@ class World(val config: RunConfig) {
         bullets += toSpawnFire
     }
 
+    /**
+     * The patrol beat, deliberately regular so you can time it: walk to one end, stop and
+     * look for [PATROL_LOOK] seconds, turn, walk back. Guards with no beat stand watch and
+     * turn round every [GUARD_TURN] seconds.
+     */
+    private fun patrol(e: Enemy, speed: Float, dt: Float) {
+        if (e.patrolB - e.patrolA < 0.2f) {
+            e.vx = 0f
+            e.timer -= dt
+            if (e.timer <= 0f) {
+                e.timer = GUARD_TURN
+                e.facing = -e.facing
+            }
+            return
+        }
+        val end = if (e.facing > 0) e.patrolB else e.patrolA
+        if ((end - e.x) * e.facing <= 0.05f) {
+            e.vx = 0f
+            e.timer -= dt
+            if (e.timer <= 0f) {
+                e.timer = PATROL_LOOK
+                e.facing = -e.facing
+            }
+        } else {
+            e.vx = e.facing * speed * PATROL_SPEED
+        }
+    }
+
     private fun enemyShot(e: Enemy, heat: Float): Bullet {
         val v = Heat.bulletSpeed(heat)
+        val amb = ambushing(e)
         events += GameEvent.Shot(byPlayer = false, heavy = e.kind == EnemyKind.HEAVY, pan = pan(e.x))
         val muzzle = e.x + e.facing * (e.halfWidth + 0.2f)
         val bullet = when (e.kind) {
@@ -1310,11 +1800,11 @@ class World(val config: RunConfig) {
                 val dx = player.x - e.x
                 val dz = tz - (e.z + 0.1f)
                 val len = sqrt(dx * dx + dz * dz).coerceAtLeast(0.1f)
-                Bullet(e.x + dx / len * 0.4f, e.z + 0.1f, e.floor, dx / len * v, dz / len * v, false, 1, 0, 0)
+                Bullet(e.x + dx / len * 0.4f, e.z + 0.1f, e.floor, dx / len * v, dz / len * v, false, 1, 0, 0, hall = e.hall, from = e.kind, ambush = amb)
             }
-            EnemyKind.DRONE -> Bullet(muzzle, e.z + 0.1f, e.floor, e.facing * v, 0f, false, 1, 0, 0)
-            EnemyKind.DEMON -> Bullet(muzzle, 1.3f, e.floor, e.facing * v * 0.75f, 3.5f, false, 1, 0, 0, gravity = true)
-            else -> Bullet(muzzle, if (e.aimLow) Body.LOW else Body.HIGH, e.floor, e.facing * v, 0f, false, 1, 0, 0)
+            EnemyKind.DRONE -> Bullet(muzzle, e.z + 0.1f, e.floor, e.facing * v, 0f, false, 1, 0, 0, hall = e.hall, from = e.kind, ambush = amb)
+            EnemyKind.DEMON -> Bullet(muzzle, 1.3f, e.floor, e.facing * v * 0.75f, 3.5f, false, 1, 0, 0, gravity = true, hall = e.hall, from = e.kind, ambush = amb)
+            else -> Bullet(muzzle, if (e.aimLow) Body.LOW else Body.HIGH, e.floor, e.facing * v, 0f, false, 1, 0, 0, hall = e.hall, from = e.kind, ambush = amb)
         }
         val y = Geo.groundY(e.floor) - bullet.z
         fx.burst(ParticleKind.SPARK, muzzle, y, 3, 3f, 0.1f, 0.07f, dir = e.facing.toFloat())
@@ -1358,23 +1848,23 @@ class World(val config: RunConfig) {
             }
             if (b.z < 0f || b.z > Geo.FLOOR_H - 0.1f) {
                 if (b.byPlayer && b.targetLight >= 0) {
-                    floors[b.floor]?.let { if (b.targetLight < it.lightAlive.size && it.lightAlive[b.targetLight]) shootLight(it, b.targetLight) }
+                    hall(b.floor, b.hall)?.let { if (b.targetLight < it.lightAlive.size && it.lightAlive[b.targetLight]) shootLight(it, b.targetLight) }
                 }
                 b.dead = true
                 if (b.gravity) fx.burst(ParticleKind.EMBER, b.x, y, 8, 3f, 0.4f, 0.1f, upBias = 0.5f)
             }
             if (!b.dead && b.byPlayer && b.targetLight >= 0) {
-                val fs = floors[b.floor]
-                if (fs != null && b.targetLight < fs.lightAlive.size && fs.lightAlive[b.targetLight] &&
-                    abs(fs.plan.lights[b.targetLight] - b.x) < 0.3f && b.z > Geo.FLOOR_H - 0.8f
+                val hs = hall(b.floor, b.hall)
+                if (hs != null && b.targetLight < hs.lightAlive.size && hs.lightAlive[b.targetLight] &&
+                    abs(hs.plan.lights[b.targetLight] - b.x) < 0.3f && b.z > Geo.FLOOR_H - 0.8f
                 ) {
-                    shootLight(fs, b.targetLight)
+                    shootLight(hs, b.targetLight)
                     b.dead = true
                 }
             }
-            if (!b.dead && b.byPlayer) {
+            if (!b.dead && b.byPlayer && b.targetLight < 0) {
                 for (e in enemies) {
-                    if (e.floor != b.floor || !e.alive || e.id in b.hitIds) continue
+                    if (e.floor != b.floor || e.hall != b.hall || !e.alive || e.id in b.hitIds) continue
                     // The Elevator Action duel: alert guards duck high shots and answer low.
                     if (e.kind == EnemyKind.AGENT && e.state == EnemyState.ALERT && b.z > 0.8f && b.vz == 0f &&
                         (e.x - b.x) * b.vx > 0f && abs(e.x - b.x) < 2.6f && b.duckRolled.add(e.id) &&
@@ -1394,10 +1884,10 @@ class World(val config: RunConfig) {
                         }
                     }
                 }
-            } else if (!b.dead) {
+            } else if (!b.dead && !b.byPlayer) {
                 val onFloor = when (p.state) {
-                    PlayerState.NORMAL, PlayerState.BOX, PlayerState.TAKEDOWN -> p.floor == b.floor
-                    PlayerState.ELEVATOR -> playerVisibleOn(b.floor)
+                    PlayerState.NORMAL, PlayerState.BOX, PlayerState.TAKEDOWN -> p.floor == b.floor && p.hall == b.hall
+                    PlayerState.ELEVATOR -> playerVisibleOn(b.floor, b.hall)
                     else -> false
                 }
                 if (onFloor) {
@@ -1408,7 +1898,7 @@ class World(val config: RunConfig) {
                             // Already slipped this one: it flies on through.
                         } else if (p.invuln > 0f || phase != Phase.PLAYING) {
                             b.dead = true
-                            hurtPlayer(b.x)
+                            hurtBy(b)
                         } else {
                             b.graze = 0f
                         }
@@ -1427,6 +1917,11 @@ class World(val config: RunConfig) {
         }
     }
 
+    private fun hurtBy(b: Bullet) = hurtPlayer(b.x, if (b.gravity) HurtCause.FIREBALL else HurtCause.BULLET, b.from, b.ambush)
+
+    /** Did [e] step out of a door moments ago? */
+    private fun ambushing(e: Enemy) = e.emergedAt >= 0f && time - e.emergedAt < AMBUSH_WINDOW
+
     /** Does the player's body, as it is right now, cover height [z] (above the player's floor)? */
     private fun bodyCovers(z: Float): Boolean {
         val p = player
@@ -1442,102 +1937,120 @@ class World(val config: RunConfig) {
     private fun resolveGraze(b: Bullet) {
         val p = player
         val stillThere = when (p.state) {
-            PlayerState.NORMAL, PlayerState.BOX -> p.floor == b.floor
-            PlayerState.ELEVATOR -> playerVisibleOn(b.floor)
+            PlayerState.NORMAL, PlayerState.BOX -> p.floor == b.floor && p.hall == b.hall
+            PlayerState.ELEVATOR -> playerVisibleOn(b.floor, b.hall)
             else -> false
         }
         if (stillThere && bodyCovers(b.z)) {
             b.dead = true
-            hurtPlayer(b.x)
+            hurtBy(b)
         } else {
             b.graze = Bullet.DODGED
             p.sinceCloseCall = 0f
             closeCalls++
-            fx.text("CLOSE!", p.x, Geo.groundY(p.floorF) - p.z - 2.1f, TextStyle.WARN, 0.7f)
+            fx.text(Popup.CLOSE, p.x, Geo.groundY(p.floorF) - p.z - 2.1f, TextStyle.WARN, 0.7f)
         }
     }
 
     // ------------------------------------------------------ world furniture
 
-    private fun shootLight(fs: FloorState, i: Int) {
-        if (!fs.lightAlive[i]) return
-        fs.lightAlive[i] = false
-        fs.lightFall[i] = 0f
+    private fun shootLight(hs: HallState, i: Int) {
+        if (!hs.lightAlive[i]) return
+        hs.lightAlive[i] = false
+        hs.lightFall[i] = 0f
         events += GameEvent.LightShot
-        val x = fs.plan.lights[i]
-        val y = Geo.groundY(fs.plan.index) - Geo.FLOOR_H + 0.5f
+        val x = hs.plan.lights[i]
+        val y = Geo.groundY(hs.plan.index) - Geo.FLOOR_H + 0.5f
         fx.burst(ParticleKind.SPARK, x, y, 10, 5f, 0.3f, 0.08f)
     }
 
     private fun updateLightsAndHazards(dt: Float) {
-        for ((f, fs) in floors) {
-            for (i in fs.doorOpen.indices) fs.doorOpen[i] = max(0f, fs.doorOpen[i] - dt * 1.2f)
-            for (i in fs.lightFall.indices) {
-                if (fs.lightFall[i] < 0f) continue
-                fs.lightFall[i] += dt
-                if (fs.lightFall[i] >= LIGHT_FALL_TIME) {
-                    fs.lightFall[i] = -2f
-                    val x = fs.plan.lights[i]
+        for ((f, fs) in floors) for (hs in fs.halls) {
+            val h = hs.plan.hall
+            val stage = onStage(f, h)
+            val playerHere = player.floor == f && player.hall == h
+            for (i in hs.doorOpen.indices) hs.doorOpen[i] = max(0f, hs.doorOpen[i] - dt * 1.2f)
+            for (i in hs.lightFall.indices) {
+                if (hs.lightFall[i] < 0f) continue
+                hs.lightFall[i] += dt
+                if (hs.lightFall[i] >= LIGHT_FALL_TIME) {
+                    hs.lightFall[i] = -2f
+                    val x = hs.plan.lights[i]
                     val y = Geo.groundY(f)
                     events += GameEvent.LightCrash
                     shake = max(shake, 0.3f)
                     fx.burst(ParticleKind.GLASS, x, y - 0.2f, 22, 6f, 0.9f, 0.1f, upBias = 0.4f)
                     fx.burst(ParticleKind.SPARK, x, y - 0.2f, 10, 7f, 0.3f, 0.08f)
+                    var crushed = false
                     for (e in enemies.toList()) {
-                        if (e.floor == f && e.alive && abs(e.x - x) < 0.8f && e.kind != EnemyKind.TURRET) kill(e, KillMethod.LIGHT, if (e.x >= x) 1 else -1)
+                        if (e.floor != f || e.hall != h || !e.alive) continue
+                        if (abs(e.x - x) < 0.8f && e.kind != EnemyKind.TURRET) {
+                            kill(e, KillMethod.LIGHT, if (e.x >= x) 1 else -1)
+                            crushed = true
+                        } else if (e.asleep && abs(e.x - x) < LIGHT_WAKE_RADIUS) {
+                            alert(e)
+                        }
                     }
-                    if (player.floor == f && abs(player.x - x) < 0.55f) hurtPlayer(x)
+                    if (crushed && stage) fx.text(Popup.LIGHTS_OUT, x, y - 2.2f, TextStyle.TAKEDOWN, 0.9f)
+                    if (playerHere && abs(player.x - x) < 0.55f) hurtPlayer(x, HurtCause.LIGHT)
                 }
             }
-            for (h in fs.plan.hazards) {
-                val live = h.state(time) >= 1f
+            for (hz in hs.plan.hazards) {
+                val live = hz.state(time) >= 1f
                 if (!live) continue
                 // Announce each activation once, on the off-to-live edge, where the player is.
-                if (h.state(time - dt) < 1f && f == player.floor) events += GameEvent.HazardFire(pan(h.x))
-                val width = if (h.kind == HazardKind.LASER) 0.22f else 0.42f
-                val height = if (h.kind == HazardKind.LASER) Geo.FLOOR_H else 0.95f
-                if (player.floor == f && playerVisibleOn(f) || player.state == PlayerState.BOX && player.floor == f) {
-                    if (abs(player.x - h.x) < width + Body.HALF_W && player.z < height) hurtPlayer(h.x)
+                if (hz.state(time - dt) < 1f && playerHere) events += GameEvent.HazardFire(pan(hz.x))
+                val width = if (hz.kind == HazardKind.LASER) 0.22f else 0.42f
+                val height = if (hz.kind == HazardKind.LASER) Geo.FLOOR_H else 0.95f
+                if (playerHere && (playerVisibleOn(f, h) || player.state == PlayerState.BOX)) {
+                    if (abs(player.x - hz.x) < width + Body.HALF_W && player.z < height) hurtPlayer(hz.x, HurtCause.HAZARD, hazard = hz.kind)
                 }
-                for (e in enemies.toList()) {
-                    if (e.floor == f && e.alive && e.kind != EnemyKind.TURRET && e.kind != EnemyKind.DRONE && abs(e.x - h.x) < width + e.halfWidth && e.z < height) {
-                        kill(e, KillMethod.HAZARD, if (e.x >= h.x) 1 else -1)
+                // Guards know their own hallway's hazards: only the ones you lure in get burned.
+                if (playerHere) {
+                    for (e in enemies.toList()) {
+                        if (e.floor == f && e.hall == h && e.alive && e.kind != EnemyKind.TURRET && e.kind != EnemyKind.DRONE && abs(e.x - hz.x) < width + e.halfWidth && e.z < height) {
+                            kill(e, KillMethod.HAZARD, if (e.x >= hz.x) 1 else -1)
+                            fx.text(Popup.OOPS, e.x, Geo.groundY(f) - 2.3f, TextStyle.TAKEDOWN, 0.8f)
+                        }
                     }
                 }
-                if (h.kind == HazardKind.VENT && fx.chance(dt * 30f)) {
-                    fx.burst(ParticleKind.EMBER, h.x, Geo.groundY(f) - 0.1f, 1, 3f, 0.5f, 0.12f, upBias = 1.2f)
+                if (stage && hz.kind == HazardKind.VENT && fx.chance(dt * 30f)) {
+                    fx.burst(ParticleKind.EMBER, hz.x, Geo.groundY(f) - 0.1f, 1, 3f, 0.5f, 0.12f, upBias = 1.2f)
                 }
             }
         }
     }
 
     private fun updateSpawns(dt: Float) {
-        if (player.state == PlayerState.INTRO || phase != Phase.PLAYING) return
-        val f = player.floor
+        val p = player
+        if (p.state == PlayerState.INTRO || p.state == PlayerState.ELEVATOR || p.state == PlayerState.PASSAGE || phase != Phase.PLAYING) return
+        val f = p.floor
         if (f == 0) return
-        val fs = floors[f] ?: return
-        fs.spawnTimer -= dt
-        if (fs.spawnTimer > 0f) return
-        val heat = fs.plan.heat
-        fs.spawnTimer = Heat.doorSpawnInterval(heat) * rng.range(0.7f, 1.3f)
-        val alive = enemies.count { it.floor == f && it.alive }
-        if (alive >= Heat.maxAlivePerFloor(heat)) return
-        val doors = fs.plan.doors.indices.filter { fs.plan.doors[it].kind == DoorKind.NORMAL }
+        val hs = playerHall() ?: return
+        hs.spawnTimer -= dt
+        if (hs.spawnTimer > 0f) return
+        val heat = hs.plan.heat
+        hs.spawnTimer = Heat.doorSpawnInterval(heat) * rng.range(0.7f, 1.3f)
+        val alive = enemies.count { here(it) && it.alive }
+        if (alive >= Heat.maxAlivePerHall(heat)) return
+        val doors = hs.plan.doors.indices.filter { hs.plan.doors[it].kind == DoorKind.NORMAL }
         if (doors.isEmpty()) return
         // Prefer doors that aren't right on top of the player.
-        val fair = doors.filter { abs(fs.plan.doors[it].x - player.x) > 1.6f || (player.state == PlayerState.DOOR && player.anchorX == fs.plan.doors[it].x) }
+        val fair = doors.filter { abs(hs.plan.doors[it].x - p.x) > 2.2f || (p.state == PlayerState.DOOR && p.anchorX == hs.plan.doors[it].x) }
         val d = rng.pick(fair.ifEmpty { return })
-        val door = fs.plan.doors[d]
-        var kind = LevelGen.pickEnemy(rng, fs.plan.zone, heat)
+        val door = hs.plan.doors[d]
+        var kind = LevelGen.pickEnemy(rng, hs.plan.zone, heat)
         if (kind == EnemyKind.TURRET) kind = EnemyKind.AGENT
-        val e = spawnEnemy(kind, door.x, f, if (player.x >= door.x) 1 else -1)
+        val e = spawnEnemy(kind, door.x, f, p.hall, if (p.x >= door.x) 1 else -1)
         e.state = EnemyState.EMERGING
         e.stateTime = 0f
-        fs.doorOpen[d] = 1f
+        e.emergedAt = time
+        setPatrol(e, 2f, hs.plan)
+        hs.doorOpen[d] = 1f
         events += GameEvent.DoorOpen
-        if (player.state == PlayerState.DOOR && player.anchorX == door.x) {
+        if (p.state == PlayerState.DOOR && p.anchorX == door.x) {
             // They opened the door you're hiding behind. Bad move.
-            player.state = PlayerState.NORMAL
+            p.state = PlayerState.NORMAL
             startTakedown(e, e.facing)
         }
     }
@@ -1554,10 +2067,11 @@ class World(val config: RunConfig) {
                 k.z = max(0.35f, k.z + k.vz * dt)
                 if (k.z <= 0.35f) k.vz = 0f
             }
-            if (stacks(Perk.MAGNET) > 0 && k.floor == p.floor && abs(k.x - p.x) < 5f) {
+            val sameHall = k.floor == p.floor && k.hall == p.hall
+            if (stacks(Perk.MAGNET) > 0 && sameHall && abs(k.x - p.x) < 5f) {
                 k.x += sign(p.x - k.x) * min(abs(p.x - k.x), 9f * dt)
             }
-            val canGrab = (p.state == PlayerState.NORMAL || p.state == PlayerState.BOX) && p.floor == k.floor
+            val canGrab = (p.state == PlayerState.NORMAL || p.state == PlayerState.BOX) && sameHall
             if (canGrab && abs(k.x - p.x) < 0.55f && p.z < 1.2f) {
                 it.remove()
                 applyPickup(k.kind)
@@ -1602,33 +2116,54 @@ class World(val config: RunConfig) {
                 car.openTime += dt
                 car.pause -= dt
                 if (car.pause <= 0f) {
+                    val at = car.pos.roundToInt()
                     if (car.carrying) {
-                        if (car.pos.roundToInt() >= s.bottom) {
-                            car.pause = 0.5f // hold at the bottom until the player steps out
+                        if (at >= s.bottom) {
+                            car.pause = 0.3f // hold at the bottom until the player steps out
                             continue
                         }
                         car.dir = 1
-                    } else if (car.pos.roundToInt() >= s.bottom) {
-                        car.dir = -1
-                    } else if (car.pos.roundToInt() <= s.top) {
-                        car.dir = 1
+                        events += GameEvent.ElevatorMove
+                    } else if (car.called >= 0 && car.called != at) {
+                        car.dir = if (car.called > at) 1 else -1
+                    } else {
+                        if (car.called == at) car.called = -1
+                        if (at >= s.bottom) car.dir = -1 else if (at <= s.top) car.dir = 1
                     }
-                    if (car.carrying) events += GameEvent.ElevatorMove
                 }
                 continue
             }
             car.openTime = 0f
             val from = car.pos
-            car.pos += car.dir * ELEVATOR_SPEED * dt
-            val crossed = if (car.dir > 0) floor(car.pos) > floor(from) || car.pos == floor(car.pos) else kotlin.math.ceil(car.pos) < kotlin.math.ceil(from)
-            if (crossed) {
-                car.pos = if (car.dir > 0) floor(car.pos) else kotlin.math.ceil(car.pos)
-                car.pause = if (car.carrying) 0.75f else 1.4f
-                val at = car.pos.roundToInt()
-                if (car.carrying || at == player.floor) events += GameEvent.ElevatorDing
-                if (car.carrying) {
+            car.pos += car.dir * (if (s.express) EXPRESS_SPEED else ELEVATOR_SPEED) * dt
+            val crossed: Int? = if (car.dir > 0) {
+                if (floor(car.pos) > floor(from) || car.pos == floor(car.pos)) floor(car.pos).toInt() else null
+            } else {
+                if (kotlin.math.ceil(car.pos) < kotlin.math.ceil(from)) kotlin.math.ceil(car.pos).toInt() else null
+            }
+            if (crossed == null) continue
+            val at = crossed
+            if (car.carrying) {
+                // Carrying the player it runs straight down: the only stop on the way is an express's.
+                player.floorF = car.pos
+                onFloorEntered(at)
+                if (at >= s.bottom || s.express && at == s.stop) {
+                    car.pos = at.toFloat()
+                    car.pause = if (at >= s.bottom) 1f else EXPRESS_STOP_TIME
                     player.floorF = car.pos
-                    onFloorEntered(at)
+                    player.hall = floors[at]?.plan?.landingHall(s)?.coerceAtLeast(0) ?: 0
+                    onHallEntered(at, player.hall)
+                    events += GameEvent.ElevatorDing
+                }
+            } else {
+                val called = car.called
+                val stop = called < 0 || at == called
+                if (called >= 0 && !stop) car.dir = if (called > at) 1 else -1
+                if (stop || at >= s.bottom || at <= s.top) {
+                    car.pos = at.toFloat()
+                    car.pause = if (at == called) CALL_HOLD else 1.4f
+                    if (at == called) car.called = -1
+                    if (at == player.floor) events += GameEvent.ElevatorDing
                 }
             }
         }
@@ -1677,6 +2212,7 @@ class World(val config: RunConfig) {
         flash = Flash.GOLD
         flashAmount = 0.5f
         fx.text(perk.title, p.x, Geo.groundY(p.floor) - 2.2f, TextStyle.BIG, 1.6f)
+        fx.text(perk.flavor.uppercase(), p.x, Geo.groundY(p.floor) - 1.6f, TextStyle.PICKUP, 1.6f)
     }
 
     /** -1..1 stereo position of a world x. */
@@ -1687,15 +2223,80 @@ class World(val config: RunConfig) {
         const val JUMP_V = 10.4f
         const val RUN_SPEED = 4.4f
         const val PLAYER_BULLET_V = 24f
+        const val GUN_COOLDOWN = 0.27f
         const val TAKEDOWN_TIME = 0.36f
-        const val STAIRS_TIME = 0.5f
         const val COMBO_WINDOW = 2.6f
-        const val FLOORS_ABOVE = 4
+        const val FLOORS_ABOVE = 5
         const val FLOORS_BELOW = 7
+        /** The player's floor sits this far down the screen. */
+        const val CAMERA_ANCHOR = 0.4f
         const val RELOAD_TIME = 1.05f
         const val TACTICAL_RELOAD_DELAY = 1.4f
         const val LIGHT_FALL_TIME = 0.42f
         const val ELEVATOR_SPEED = 1.9f
+        const val EXPRESS_SPEED = 3.2f
+        /** An express carrying you opens its doors this long at its stop on the way down. */
+        const val EXPRESS_STOP_TIME = 1.5f
+        /** A called car holds its doors open this long for you. */
+        const val CALL_HOLD = 3f
+        /** At the bottom of the ride you step out on your own after this long. */
+        const val AUTO_EXIT_TIME = 0.55f
+        /** Through a passage door: the hallway swaps halfway through. */
+        const val PASSAGE_TIME = 0.42f
+        /** GUNS HOT fires at threats within this range. */
+        const val AUTO_FIRE_RANGE = 7.5f
+        /** GUNS HOT also fires at an unaware guard this close (he's about to bump into you). */
+        const val AUTO_FIRE_POINT_BLANK = 2.5f
+        /** How far guards see down a lit hallway (darkness cuts it). */
+        const val SIGHT_RANGE = 7.5f
+        /** ...and in SILENT, where nothing gives you away but being seen. */
+        const val SILENT_SIGHT_RANGE = 6.5f
+        /** Patrol walking pace, as a fraction of the heat's enemy speed. */
+        const val PATROL_SPEED = 0.45f
+        /** A patrolling guard stops and looks this long at each end of the beat. */
+        const val PATROL_LOOK = 1.6f
+        /** A guard standing watch turns round this often. */
+        const val GUARD_TURN = 3.2f
+        /** SILENT: guards take this much longer to react when they spot you. */
+        const val SILENT_REACTION = 1.35f
+        /** One grenade earned back per this many kills. */
+        const val GRENADE_EVERY = 8
+        /** A hit from a guard who stepped out of a door less than this long ago counts as a door ambush (stats only). */
+        const val AMBUSH_WINDOW = 3f
+        /** Guards who spot you this soon after you arrive in a hallway take this much longer to react (minus the time you've been there). */
+        const val ARRIVAL_GRACE = 0.8f
+        /** A searching guard looks around this long once he reaches the spot, then gives up... */
+        const val SEARCH_LINGER = 3.5f
+        /** ...or after this long in all, however far he had to walk. */
+        const val SEARCH_MAX = 9f
+        /**
+         * A guard senses you behind him this close. Inside the takedown lunge (reach + magnet), so
+         * pushing into his back always wins the race, even with GUNS HOT.
+         */
+        const val BEHIND_SENSE = 1.0f
+        /** How far anyone can make you out in pitch darkness: arm's length. */
+        const val BLACKOUT_SIGHT = 1.0f
+        /** A napping guard who gets woken up needs this long to get his bearings. */
+        const val WAKE_GROGGY = 0.6f
+        /** How often a napping guard snores (a "z" over his head). */
+        const val SNORE_EVERY = 1.3f
+        /** A ceiling light crashing this close wakes a napping guard. */
+        const val LIGHT_WAKE_RADIUS = 3.5f
+        /** The box moving faster than this in a guard's view makes him suspicious. */
+        const val BOX_SUSPICIOUS_SPEED = 0.5f
+        /** GHOST: leaving a floor unseen pays this, plus a little per floor (double in SILENT). */
+        const val GHOST_BONUS = 300
+        const val GHOST_BONUS_PER_FLOOR = 10
+        /** Coach tips only show on the first this-many floors of a run from the roof... */
+        const val COACH_FLOORS = 6
+        /** ...and never closer together than this. */
+        const val TIP_GAP = 4f
+        /** Chance a ride down comes with smooth jazz. */
+        const val MUZAK_CHANCE = 0.12f
+        private const val MUZAK_KEY = 0x302A4L
+        private const val PAYDAY_KEY = 0xCA54L
+        /** PAYDAY loot doesn't evaporate like dropped pickups do. */
+        const val PAYDAY_LIFE = 600f
 
         // ---- Controls & feel (see docs/CONTROLS.md) ----
         const val RUN_ACCEL = 70f
@@ -1716,10 +2317,13 @@ class World(val config: RunConfig) {
         const val LATE_POUND_Z = 0.6f
         /** Swipe down again to leave a box or doorway, but not in the same breath. */
         const val TOGGLE_GUARD = 0.35f
-        /** Elevator doors must be open this long before a swipe down takes the car. */
+        /** Elevator doors must be open this long before a tap takes the car. */
         const val ELEVATOR_REACT_TIME = 0.12f
-        const val ELEVATOR_REACH = 0.65f
-        const val DOOR_REACH = 0.55f
+        /** A tap on a door waits this long for a second tap (a grenade) before it opens the door. */
+        const val TAP_CONFIRM = 0.28f
+        const val ELEVATOR_REACH = 0.8f
+        const val TAP_REACH = 0.8f
+        const val DOOR_REACH = 0.6f
         /** Context targets in front of you win ties by this much. */
         const val FACING_BIAS = 0.1f
         /** Extra takedown reach while pushing toward the guard. */

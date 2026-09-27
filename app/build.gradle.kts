@@ -118,7 +118,12 @@ tasks.register<Test>("screenshots") {
     val unitTest = tasks.named<Test>("testDebugUnitTest")
     testClassesDirs = unitTest.get().testClassesDirs
     classpath = unitTest.get().classpath
-    systemProperty("ata.screenshots", rootProject.file("docs/screenshots").absolutePath)
+    // -Pata.shots=<dir> renders somewhere else; -Pata.scene=<name> renders just one scene.
+    systemProperty("ata.screenshots", (project.findProperty("ata.shots") as String?) ?: rootProject.file("docs/screenshots").absolutePath)
+    systemProperty("ata.scene", (project.findProperty("ata.scene") as String?) ?: "")
+    systemProperty("ata.full", (project.findProperty("ata.full") as String?) ?: "false")
+    // -Pata.size=720x1600 renders the scenes at another screen size.
+    systemProperty("ata.size", (project.findProperty("ata.size") as String?) ?: "")
     systemProperty("java.awt.headless", "true")
     filter { includeTestsMatching("*ScreenshotTest*") }
     outputs.upToDateWhen { false }

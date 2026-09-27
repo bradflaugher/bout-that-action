@@ -55,14 +55,23 @@ object Heat {
     /** Chance an alerted enemy aims low (must be jumped) instead of high (must be ducked). */
     fun lowShotChance(heat: Float) = lerp(0.15f, 0.5f, sat(heat))
 
-    /** Enemies placed on a floor when it's built. */
-    fun enemiesPerFloor(heat: Float) = min(7, 1 + (heat * 1.7f).toInt())
+    /**
+     * Guards placed in each hallway when a floor is built (the fraction is a chance of one
+     * more): a couple each, spread across the hallways, so every hallway is a small puzzle.
+     */
+    fun enemiesPerHall(heat: Float) = min(3.2f, 0.75f + heat * 0.55f)
 
-    /** Seconds between reinforcements walking out of doors on the player's floor. */
-    fun doorSpawnInterval(heat: Float) = lerp(4.8f, 1.2f, sat(heat, 4f))
+    /** Hard cap on guards placed on one floor, however many hallways it has. */
+    const val MAX_ENEMIES_PER_FLOOR = 8
 
-    /** Most enemies alive on one floor at once. */
-    fun maxAlivePerFloor(heat: Float) = min(8, 2 + (heat * 1.6f).toInt())
+    /** Seconds between door ambushes in the player's hallway (rare up top, frequent in Hell). */
+    fun doorSpawnInterval(heat: Float) = lerp(14f, 3.5f, sat(heat, 4.5f))
+
+    /** Seconds after entering a hallway before its doors may spit anyone out. */
+    fun firstAmbushDelay(heat: Float) = lerp(7f, 2.5f, sat(heat, 4.5f))
+
+    /** Most enemies alive in one hallway at once (door ambushes stop there). */
+    fun maxAlivePerHall(heat: Float) = min(5, 2 + (heat * 0.7f).toInt())
 
     fun enemySpeed(heat: Float) = lerp(1.3f, 2.6f, sat(heat))
 

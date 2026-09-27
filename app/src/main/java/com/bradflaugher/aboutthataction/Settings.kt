@@ -15,9 +15,12 @@ data class Settings(
     val custom: Difficulty = Difficulty(),
     val seedMode: SeedMode = SeedMode.RANDOM,
     val seedText: String = "",
-    val autoFire: Boolean = false,
+    /** SILENT (never fire) instead of GUNS HOT (auto-fire). Flipped by the HUD button, kept between runs. */
+    val silent: Boolean = false,
     val haptics: Boolean = true,
     val touchGuide: Boolean = true,
+    /** One-line hints the first time each move would help, on the first floors of a run from the roof. */
+    val coach: Boolean = true,
     val musicVolume: Float = 0.8f,
     val sfxVolume: Float = 1f,
 ) {
@@ -55,9 +58,10 @@ class Prefs(context: Context) {
             ),
             seedMode = SeedMode.entries.firstOrNull { it.name == sp.getString("seed_mode", null) } ?: d.seedMode,
             seedText = sp.getString("seed_text", d.seedText) ?: "",
-            autoFire = sp.getBoolean("auto_fire", d.autoFire),
+            silent = sp.getBoolean("silent", d.silent),
             haptics = sp.getBoolean("haptics", d.haptics),
             touchGuide = sp.getBoolean("touch_guide", d.touchGuide),
+            coach = sp.getBoolean("coach", d.coach),
             musicVolume = sp.getFloat("music", d.musicVolume),
             sfxVolume = sp.getFloat("sfx", d.sfxVolume),
         )
@@ -73,9 +77,11 @@ class Prefs(context: Context) {
             .putInt("c_floor", s.custom.startFloor)
             .putString("seed_mode", s.seedMode.name)
             .putString("seed_text", s.seedText)
-            .putBoolean("auto_fire", s.autoFire)
+            .remove("auto_fire") // retired by the GUNS HOT / SILENT mode
+            .putBoolean("silent", s.silent)
             .putBoolean("haptics", s.haptics)
             .putBoolean("touch_guide", s.touchGuide)
+            .putBoolean("coach", s.coach)
             .putFloat("music", s.musicVolume)
             .putFloat("sfx", s.sfxVolume)
             .apply()

@@ -19,7 +19,12 @@ sealed interface GameEvent {
     data object DoorOpen : GameEvent
     data object ElevatorDing : GameEvent
     data object ElevatorMove : GameEvent
-    data object Stairs : GameEvent
+    /** Through a passage door into another hallway (a whoosh). */
+    data object Passage : GameEvent
+    /** Tapped a landing to call its car. */
+    data object ElevatorCalled : GameEvent
+    /** The GUNS HOT / SILENT toggle flipped; [silent] is the new mode. */
+    data class ModeToggled(val silent: Boolean) : GameEvent
     data class PlayerHurt(val hpLeft: Int) : GameEvent
     data object ShieldBlock : GameEvent
     data object PlayerDied : GameEvent
@@ -37,6 +42,18 @@ sealed interface GameEvent {
     data object SpecialEmpty : GameEvent
     /** The magazine ran dry (or the player paused shooting) and a reload started. */
     data object Reload : GameEvent
+    /** A guard double-took at a box that moved ("HUH?"): he's coming over to look. */
+    data class Suspicious(val pan: Float) : GameEvent
+    /** Left a floor without anyone on it ever spotting you. */
+    data object Ghost : GameEvent
+    /** Stepped onto a special floor (a blackout, nap time, payday). */
+    data class FloorEventStarted(val event: FloorEvent) : GameEvent
+    /** This ride comes with smooth elevator jazz. */
+    data object Muzak : GameEvent
+    /** A napping guard snores (only in your hallway). */
+    data class Snore(val pan: Float) : GameEvent
+    /** A Heavy kicked your box off: busted. */
+    data object BoxKicked : GameEvent
 }
 
 enum class KillMethod { SHOT, TAKEDOWN, STOMP, LIGHT, EXPLOSION, HAZARD }

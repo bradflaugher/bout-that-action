@@ -192,13 +192,16 @@ private fun SeedField(text: String, onText: (String) -> Unit) {
 fun HowToPlay() {
     val rows = listOf(
         "DRAG ← →" to "Run. Hold to keep going; nudge back to turn. Lift to stop.",
-        "TAP" to "Shoot. Auto-aims at the nearest threat, high or low.",
+        "TAP" to "Use what you're next to: a green passage door, a red INTEL door, an elevator (tap a landing to call the car).",
         "DOUBLE-TAP" to "Throw a grenade.",
         "SWIPE ↑" to "Jump. Clears low shots. Land on heads to stomp.",
-        "SWIPE ↓" to "Hide: doorway, cardboard box, or ride an open elevator down. At a red INTEL door: pick a perk.",
-        "WALK INTO" to "An enemy to choke him out instantly. Heavies only from behind.",
-        "JUMP + TAP" to "Shoot out a ceiling light: it crushes whoever is below and darkens the floor.",
-        "STAIRS" to "Run off the open end of a floor to go down. Keep going. Forever.",
+        "SWIPE ↓" to "Hide in a doorway or pop the cardboard box. Swipe ↓ again to stand up.",
+        "WALK INTO" to "An enemy to choke him out instantly. Heavies only from behind. Nappers from anywhere.",
+        "THE BOX" to "Move it while a guard's looking and he comes over to check. Let him. (Heavies and ninjas kick it.)",
+        "JUMP + TAP" to "Shoot out a ceiling light: it crushes whoever is below. Silent, in either mode.",
+        "MODE" to "The button under pause: GUNS HOT auto-fires at threats; SILENT never fires and quiet kills score double.",
+        "GHOST" to "Leave a floor without anyone spotting you for a bonus. Double in SILENT.",
+        "DOWN" to "Only elevators go down, and only some hallways have one. Find it. Keep going, or take a break. It'll wait.",
     )
     Column(verticalArrangement = Arrangement.spacedBy(Space.s)) {
         for ((k, v) in rows) {

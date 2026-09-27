@@ -1,6 +1,6 @@
 package com.bradflaugher.aboutthataction.render
 
-import com.bradflaugher.aboutthataction.engine.FloorState
+import com.bradflaugher.aboutthataction.engine.HallState
 import com.bradflaugher.aboutthataction.engine.Geo
 import com.bradflaugher.aboutthataction.engine.Zone
 import kotlin.math.sin
@@ -24,13 +24,14 @@ internal class EnvRooms(private val f: Frame, private val walls: EnvWalls) {
     }
 
     /** True if slot [i] carries no door, shaft or hazard. Fills [free] as a side effect. */
-    fun scanFree(fs: FloorState): BooleanArray {
+    fun scanFree(fs: HallState): BooleanArray {
         val plan = fs.plan
         for (i in Geo.SLOTS.indices) {
             val sx = Geo.SLOTS[i]
             var used = false
             for (k in plan.doors.indices) if (plan.doors[k].x == sx) used = true
-            for (k in plan.shafts.indices) if (plan.shafts[k].x == sx) used = true
+            // A shaft that doesn't open into this hallway runs behind the wall: the slot is free.
+            for (k in plan.shafts.indices) if (plan.shafts[k].x == sx && plan.opens(plan.shafts[k])) used = true
             for (k in plan.hazards.indices) if (plan.hazards[k].x == sx) used = true
             free[i] = !used
         }
@@ -41,7 +42,7 @@ internal class EnvRooms(private val f: Frame, private val walls: EnvWalls) {
      * The special-room span on this floor as (first slot shl 8) or last slot, or -1.
      * Call [scanFree] first.
      */
-    fun specialSpan(fs: FloorState): Int {
+    fun specialSpan(fs: HallState): Int {
         val plan = fs.plan
         if (plan.isVoid || plan.index == 0) return -1
         val chance = when (plan.zone) {
@@ -50,7 +51,7 @@ internal class EnvRooms(private val f: Frame, private val walls: EnvWalls) {
             Zone.MINES -> 0.4f
             else -> SPECIAL_CHANCE
         }
-        if (hash(plan.index, 702) > chance) return -1
+        if (hash(plan.look, 702) > chance) return -1
         var bestS = -1
         var bestE = -1
         var s = -1
@@ -70,11 +71,11 @@ internal class EnvRooms(private val f: Frame, private val walls: EnvWalls) {
     }
 
     /** Some metro floors are flooded ankle-deep across the whole platform (all of the special ones). */
-    fun flooded(fs: FloorState, span: Int) =
-        fs.plan.zone == Zone.METRO && !fs.plan.isVoid && (span >= 0 || hash(fs.plan.index, 711) < 0.2f)
+    fun flooded(fs: HallState, span: Int) =
+        fs.plan.zone == Zone.METRO && !fs.plan.isVoid && (span >= 0 || hash(fs.plan.look, 711) < 0.2f)
 
-    fun special(zone: Zone, pal: Palette, fs: FloorState, span: Int, rt: Float, gy: Float, backdrop: Backdrop) {
-        val fi = fs.plan.index
+    fun special(zone: Zone, pal: Palette, fs: HallState, span: Int, rt: Float, gy: Float, backdrop: Backdrop) {
+        val fi = fs.plan.look
         val x0 = Geo.SLOTS[span shr 8] - 0.55f
         val x1 = Geo.SLOTS[span and 0xFF] + 0.55f
         when (zone) {
@@ -200,7 +201,7 @@ internal class EnvRooms(private val f: Frame, private val walls: EnvWalls) {
     }
 
     /** Ankle-deep water over the floor, with reflections of the lamps. Drawn after actors. */
-    fun water(pal: Palette, fs: FloorState, gy: Float) {
+    fun water(pal: Palette, fs: HallState, gy: Float) {
         val top = gy - 0.16f
         g.fillVerticalGradient(0f, top, W, gy, 0x70204A5A, 0xA00A1C28.toInt())
         g.fillRect(0f, top, W, top + 0.014f, 0xA0B8E8FF.toInt())
@@ -218,8 +219,8 @@ internal class EnvRooms(private val f: Frame, private val walls: EnvWalls) {
         }
         g.blend(Gfx.Blend.NORMAL)
         for (k in 0 until 6) {
-            val ph = fract(f.t * 0.8f + hash(k + fs.plan.index, 96))
-            val x = hash(k * 3 + fs.plan.index + (f.t * 0.8f + hash(k + fs.plan.index, 96)).toInt() * 7, 97) * W
+            val ph = fract(f.t * 0.8f + hash(k + fs.plan.look, 96))
+            val x = hash(k * 3 + fs.plan.look + (f.t * 0.8f + hash(k + fs.plan.look, 96)).toInt() * 7, 97) * W
             g.line(x - 0.05f - ph * 0.3f, top + 0.007f, x + 0.05f + ph * 0.3f, top + 0.007f, 0.012f, Col.alpha(0xFFE0F4FF.toInt(), 0.6f * (1f - ph)))
         }
     }

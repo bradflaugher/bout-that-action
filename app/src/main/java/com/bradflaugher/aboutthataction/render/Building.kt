@@ -1,11 +1,11 @@
 package com.bradflaugher.aboutthataction.render
 
 import com.bradflaugher.aboutthataction.engine.DoorKind
-import com.bradflaugher.aboutthataction.engine.FloorState
+import com.bradflaugher.aboutthataction.engine.HallState
 import com.bradflaugher.aboutthataction.engine.Geo
 import com.bradflaugher.aboutthataction.engine.HazardKind
 import com.bradflaugher.aboutthataction.engine.PlayerState
-import com.bradflaugher.aboutthataction.engine.Side
+import com.bradflaugher.aboutthataction.engine.Shaft
 import com.bradflaugher.aboutthataction.engine.World
 import com.bradflaugher.aboutthataction.engine.Zone
 import kotlin.math.abs
@@ -27,7 +27,7 @@ internal class Building(private val f: Frame) {
     private val walls = EnvWalls(f)
     private val rooms = EnvRooms(f, walls)
     private val carOpen = HashMap<Int, FloatArray>()
-    private val cutBuf = FloatArray(8)
+    private val cutBuf = FloatArray(16)
 
     companion object {
         const val SLAB = 0.35f
@@ -37,6 +37,10 @@ internal class Building(private val f: Frame) {
         private const val HAIR = EnvWalls.HAIR
         private const val INTEL_RED = 0xFFFF1E3C.toInt()
         private const val INTEL_GOLD = 0xFFFFC65A.toInt()
+        /** Wayfinding green: passages to other hallways, and nothing else. */
+        const val PASSAGE = 0xFF4CFFA8.toInt()
+        /** The lift's cyan (HUD chip, map, plates). */
+        const val LIFT_CYAN = 0xFF3CF4FF.toInt()
         private const val STEEL = 0xFF4A4858.toInt()
         private const val STEEL_HI = 0xFF9A98AC.toInt()
         private const val STEEL_LO = 0xFF1E1C26.toInt()
@@ -46,6 +50,9 @@ internal class Building(private val f: Frame) {
         /** Lamp cone: bottom half-widths and alphas, from faint penumbra to bright core. */
         private val CONE_W = floatArrayOf(1.9f, 1.4f, 1.0f, 0.66f, 0.36f)
         private val CONE_A = floatArrayOf(0.016f, 0.022f, 0.028f, 0.034f, 0.045f)
+        /** Receding floors: a cool multiply grade, then a veil of deep blue-black. */
+        private const val RECEDE_TINT = 0xFF5A6CA8.toInt()
+        private const val RECEDE_INK = 0xFF03050C.toInt()
     }
 
     /** 1 on the player's floor, fading to 0 one floor away: the stage gets the brightest trims. */
@@ -53,7 +60,7 @@ internal class Building(private val f: Frame) {
 
     // =================================================================== rooms
 
-    fun room(fs: FloorState, backdrop: Backdrop) {
+    fun room(fs: HallState, backdrop: Backdrop) {
         val plan = fs.plan
         val fi = plan.index
         val top = fi * H
@@ -63,41 +70,40 @@ internal class Building(private val f: Frame) {
         val pal = f.palette(fs)
         val zone = plan.zone
         val sf = stage(fi)
-
-        // Stairwell behind everything (it reaches up through the slab hole above).
-        stairwell(fs, pal, top, gy)
+        // Hallway A keeps the floor's own look; the other hallways get their own.
+        val look = plan.look
 
         val free = rooms.scanFree(fs)
         val span = rooms.specialSpan(fs)
         g.save()
         g.clipRect(0f, rt, W, gy)
         if (plan.isVoid) {
-            rooms.voidRoom(pal, fi, rt, gy)
+            rooms.voidRoom(pal, look, rt, gy)
         } else {
             g.fillVerticalGradient(0f, rt, W, gy, pal.wallTop, pal.wallBottom)
-            walls.material(zone, pal, fi, rt, gy)
+            walls.material(zone, pal, look, rt, gy)
             // Free slots become windows onto the backdrop, or set dressing; a run of them may
             // become this floor's special room instead.
             val s0 = if (span >= 0) span shr 8 else -1
             val s1 = if (span >= 0) span and 0xFF else -1
-            val windowChance = 0.35f + hash(fi, 709) * 0.35f
+            val windowChance = 0.35f + hash(look, 709) * 0.35f
             for (i in Geo.SLOTS.indices) {
                 if (!free[i] || i in s0..s1) continue
                 val sx = Geo.SLOTS[i]
-                val hv = hash(fi * 13 + i, 5)
-                if (hv < windowChance) walls.window(zone, pal, sx, rt, gy, false, backdrop, fi * 7 + i)
-                else walls.decor(zone, pal, sx, gy, rt, (hash(fi * 29 + i, 6) * 4000).toInt())
+                val hv = hash(look * 13 + i, 5)
+                if (hv < windowChance) walls.window(zone, pal, sx, rt, gy, false, backdrop, look * 7 + i)
+                else walls.decor(zone, pal, sx, gy, rt, (hash(look * 29 + i, 6) * 4000).toInt())
             }
             if (span >= 0) rooms.special(zone, pal, fs, span, rt, gy, backdrop)
         }
 
         // Lamp light on the lower wall and floor (the darkness overlay swallows it when shot out).
         val deepZone = depth(zone)
-        val lc = lampColor(pal, zone, fi)
+        val lc = lampColor(pal, zone, look)
         for (i in plan.lights.indices) {
             val lx = plan.lights[i]
             if (fs.lightAlive[i]) {
-                if (!lampOn(fi, i, zone)) continue
+                if (!lampOn(look, i, zone)) continue
                 // Additive light: a broad wash on the wall, a pool where the cone lands.
                 g.blend(Gfx.Blend.ADD)
                 g.glow(lx, rt + 0.6f, 2.9f, Col.alpha(lc, 0.1f + 0.06f * deepZone))
@@ -107,29 +113,29 @@ internal class Building(private val f: Frame) {
                 g.glow(0f, 0f, 1.9f, Col.alpha(lc, 0.35f + 0.15f * deepZone))
                 g.restore()
                 g.blend(Gfx.Blend.NORMAL)
-            } else if (fs.lightFall[i] < 0f) {
+            } else if (fs.lightFall[i] < 0f && !blackout(fi)) {
                 brokenLamp(pal, lx, rt, gy, i)
             }
         }
 
         // Deep zones: the room falls off into darkness toward its ends.
         if (deepZone > 0f) {
-            g.fillRectRadial(0f, rt, W, gy, W / 2f, (rt + gy) / 2f, 5.6f, 0x00000000, Col.alpha(0xFF000000.toInt(), 0.5f * deepZone))
+            g.fillRectRadial(0f, rt, W, gy, W / 2f, (rt + gy) / 2f, W * 0.56f, 0x00000000, Col.alpha(0xFF000000.toInt(), 0.5f * deepZone))
         }
         // Deeper floors: a dead fixture dangling from its wire between the working lamps.
-        if (deepZone > 0f && hash(fi, 714) < 0.45f) {
-            val dx = 2.2f + hash(fi, 715) * 5.6f
+        if (deepZone > 0f && hash(look, 714) < 0.45f) {
+            val dx = 2.2f + hash(look, 715) * (W - 4.4f)
             var clear = true
             for (i in plan.lights.indices) if (abs(plan.lights[i] - dx) < 0.9f) clear = false
-            if (clear) danglingLamp(dx, rt, fi)
+            if (clear) danglingLamp(dx, rt, look)
         }
-        stairSign(plan.stairsDown, pal, rt, 1f)
+        if (f.isStage(fi)) hallSign(fs, pal, rt, gy, 1f)
         ceiling(pal, rt, sf)
         baseboard(pal, gy, sf)
-        if (plan.isVoid) walls.voidGlitch(pal, fi, rt, gy)
+        if (plan.isVoid) walls.voidGlitch(pal, look, rt, gy)
         g.restore()
 
-        for (s in plan.shafts) shaftOnFloor(fs, pal, s.x, s.top, s.bottom, top, rt, gy)
+        for (s in plan.shafts) shaftOnFloor(fs, pal, s, top, rt, gy)
         for (i in plan.doors.indices) door(fs, pal, zone, i, gy)
         for (h in plan.hazards) hazardBase(h.kind, pal, h.x, rt, gy, h.state(f.wt))
     }
@@ -203,79 +209,26 @@ internal class Building(private val f: Frame) {
         g.fillRect(0f, gy - 0.12f, W, gy - 0.1f, Col.fade(pal.neon2, 0.15f + 0.25f * sf))
     }
 
-    private fun stairSign(side: Side, pal: Palette, rt: Float, a: Float) {
-        val x = if (side == Side.LEFT) 0.72f else W - 0.72f
-        val y = rt + 0.62f
-        val green = 0xFF3CFF7A.toInt()
-        g.fillRoundRect(x - 0.5f, y - 0.28f, x + 0.5f, y + 0.28f, 0.1f, Col.fade(0x143CFF7A, a))
-        g.fillRoundRect(x - 0.4f, y - 0.19f, x + 0.4f, y + 0.19f, 0.05f, Col.fade(0xEE061208.toInt(), a))
-        g.strokeRoundRect(x - 0.4f, y - 0.19f, x + 0.4f, y + 0.19f, 0.05f, 0.022f, Col.fade(green, a))
-        f.worldText("EXIT", x + 0.08f, y + 0.085f, 0.22f, Col.fade(green, a))
-        Glyphs.arrow(g, x - 0.26f, y, 0.09f, 0f, 1f, 0.028f, Col.fade(green, a))
-    }
-
-    // ------------------------------------------------------------- stairwell
-
-    /** The switchback down from the floor above lands on this floor's arrival side. */
-    private fun stairwell(fs: FloorState, pal: Palette, top: Float, gy: Float) {
-        val side = fs.plan.arrival
-        val left = side == Side.LEFT
-        val xin = if (left) Geo.STAIR_W else W - Geo.STAIR_W
-        val xw = if (left) 0.12f else W - 0.12f
-        val x0 = min(xin, if (left) 0f else W)
-        val x1 = max(xin, if (left) 0f else W)
-        // A deep, quiet shaft: darker up top where it pierces the slab.
-        g.fillVerticalGradient(x0, top, x1, gy, Col.mul(pal.wallBottom, 0.45f), Col.mul(pal.wallTop, 0.72f))
-        // Emergency light strip on the outer wall.
-        val sx = if (left) x0 + 0.05f else x1 - 0.05f
-        g.fillRect(sx - 0.02f, top + 0.2f, sx + 0.02f, gy - 0.2f, Col.alpha(pal.neon2, 0.35f))
-        g.fillRect(sx - 0.1f, top + 0.2f, sx + 0.1f, gy - 0.2f, Col.alpha(pal.neon2, 0.06f))
-        // Newel wall on the inner edge with a lit bevel.
-        val nx0 = if (left) xin - 0.05f else xin
-        g.fillRect(nx0, top, nx0 + 0.05f, gy, Col.mul(pal.panel, 0.8f))
-        g.fillRect(if (left) xin - HAIR else xin, top, if (left) xin else xin + HAIR, gy, Col.alpha(pal.trim, 0.3f))
-        val mid = top + H * 0.52f
-        // Back flight (wall → inner edge, down to this floor) then the landing, then the front flight.
-        flight(pal, xw, mid, xin, gy, Col.mul(pal.panel, 0.75f), Col.fade(pal.neon2, 0.3f), false)
-        val lx0 = min(xw, xw + (xin - xw) * 0.25f)
-        val lx1 = max(xw, xw + (xin - xw) * 0.25f)
-        g.fillRect(lx0, mid, lx1, mid + 0.2f, Col.mul(pal.panel, 1.1f))
-        g.fillRect(lx0, mid, lx1, mid + HAIR, Col.alpha(pal.trim, 0.7f))
-        flight(pal, xin, top, xw, mid, Col.mul(pal.panel, 1.15f), Col.fade(pal.neon2, 0.75f), true)
-    }
-
-    private fun flight(pal: Palette, xa: Float, ya: Float, xb: Float, yb: Float, color: Int, rail: Int, front: Boolean) {
-        val n = 6
-        val dx = (xb - xa) / n
-        val dy = (yb - ya) / n
-        val p = poly.begin()
-        p.add(xa, ya)
-        for (k in 0 until n) {
-            p.add(xa + dx * (k + 1), ya + dy * k)
-            p.add(xa + dx * (k + 1), ya + dy * (k + 1))
-        }
-        p.add(xb, yb + 0.22f)
-        p.add(xa, ya + 0.22f)
-        p.fill(g, color)
-        // Tread nosings catch the light; the stringer's underside falls into shadow.
-        val nose = Col.alpha(pal.trim, if (front) 0.75f else 0.4f)
-        for (k in 0 until n) g.line(xa + dx * k, ya + dy * k, xa + dx * (k + 1), ya + dy * k, 0.022f, nose)
-        g.line(xa, ya + 0.22f, xb, yb + 0.22f, 0.025f, Col.alpha(pal.deep, 0.8f))
-        // Handrail on posts.
-        val rh = 0.85f
-        g.line(xa, ya - rh, xb, yb - rh, 0.08f, Col.fade(rail, 0.15f))
-        g.line(xa, ya - rh, xb, yb - rh, 0.03f, rail)
-        for (k in 0..2) {
-            val t = k / 2f
-            val px = xa + (xb - xa) * t
-            val py = ya + (yb - ya) * t
-            g.line(px, py - rh, px, py, 0.022f, Col.fade(rail, 0.45f))
-        }
+    /**
+     * Wayfinding at the hallway's left end: the hallway's letter, big, over the floor number,
+     * so the map on the HUD and the building agree. Emergency-lit, so it survives a blackout.
+     */
+    private fun hallSign(fs: HallState, pal: Palette, rt: Float, gy: Float, a: Float) {
+        val plan = fs.plan
+        if (plan.index == 0) return
+        val x = 0.56f
+        val y = rt + 0.64f
+        val c = Col.lerp(pal.neon2, 0xFFFFFFFF.toInt(), 0.2f)
+        g.fillRoundRect(x - 0.34f, y - 0.3f, x + 0.34f, y + 0.3f, 0.07f, Col.fade(0x22000000, a))
+        g.fillRoundRect(x - 0.3f, y - 0.26f, x + 0.3f, y + 0.26f, 0.05f, Col.fade(0xF008060E.toInt(), a))
+        g.strokeRoundRect(x - 0.3f, y - 0.26f, x + 0.3f, y + 0.26f, 0.05f, 0.018f, Col.fade(c, 0.55f * a))
+        f.worldText(com.bradflaugher.aboutthataction.engine.Geo.hallName(plan.hall), x, y + 0.07f, 0.3f, Col.fade(c, a), Gfx.Font.TITLE)
+        f.worldText(EnvLabels.short(plan.index), x, y + 0.21f, 0.09f, Col.fade(pal.trim, 0.75f * a))
     }
 
     // ------------------------------------------------------------------ doors
 
-    private fun door(fs: FloorState, pal: Palette, zone: Zone, i: Int, gy: Float) {
+    private fun door(fs: HallState, pal: Palette, zone: Zone, i: Int, gy: Float) {
         val d = fs.plan.doors[i]
         val fi = fs.plan.index
         val x0 = d.x - Geo.DOOR_W / 2f
@@ -289,7 +242,13 @@ internal class Building(private val f: Frame) {
         val pulse = 0.5f + 0.5f * sin(f.t * 3.2f)
         // Per-floor door family: tone, casing weight and signage vary floor to floor.
         val dv = (hash(fi, 706) * 3f).toInt()
+        // Distant floors: silhouettes of doors, no small print.
+        val far = f.lod(fi) > 0
 
+        if (d.kind == DoorKind.PASSAGE) {
+            passageDoor(fs, pal, i, gy, open)
+            return
+        }
         if (fs.plan.isVoid && !intel) {
             rooms.voidDoor(pal, x0, y0, x1, gy, open)
             statusLamp(pal, d.x, y0, open)
@@ -334,7 +293,7 @@ internal class Building(private val f: Frame) {
             else -> Col.lerp(pal.wallTop, pal.door, 0.45f + dv * 0.15f - 0.2f * depth(zone))
         }
         poly.quad(g, x0, y0, x0 + lw, y0 + 0.12f * open, x0 + lw, gy - 0.02f, x0, gy, leaf)
-        if (lw > 0.3f) {
+        if (lw > 0.3f && (intel || !far)) {
             g.save()
             g.translate(x0, y0)
             g.scale(lw / Geo.DOOR_W, 1f)
@@ -368,6 +327,7 @@ internal class Building(private val f: Frame) {
             f.worldText(label, d.x, py1 - 0.08f, 0.21f, if (used) 0xFF7A4A50.toInt() else 0xFFFF5A70.toInt())
         } else {
             // Someone's room beyond: a line of light under some doors.
+            if (far) return
             if (open < 0.02f && hash(fi * 11 + i, 708) < 0.3f) {
                 val c = if (hash(fi * 11 + i, 710) < 0.5f) WARM else pal.lamp
                 g.fillRect(x0 + 0.04f, gy - 0.025f, x1 - 0.04f, gy, Col.alpha(c, 0.85f))
@@ -390,6 +350,143 @@ internal class Building(private val f: Frame) {
                 else -> Unit
             }
         }
+    }
+
+    /**
+     * A passage to another hallway on this floor. It must never read as a hiding doorway:
+     * a heavy steel portal with a wayfinding-green neon outline, split sliding doors with a
+     * lit corridor behind them, a plate naming the hallway it leads to (with a lift glyph if
+     * that hallway has a ride down) and chevrons on the threshold.
+     */
+    private fun passageDoor(fs: HallState, pal: Palette, i: Int, gy: Float, open: Float) {
+        val d = fs.plan.doors[i]
+        val fi = fs.plan.index
+        val x0 = d.x - 0.56f
+        val x1 = d.x + 0.56f
+        val y0 = gy - DOOR_H - 0.05f
+        val c = PASSAGE
+        val pulse = 0.5f + 0.5f * sin(f.t * 2.6f + d.x)
+        if (!f.isStage(fi)) {
+            quietPassage(pal, d.x, gy, f.lod(fi))
+            return
+        }
+        val toLift = f.w.floors[fi]?.plan?.halls?.getOrNull(d.to)?.downLandings?.isNotEmpty() == true
+        val visited = f.w.floors[fi]?.halls?.getOrNull(d.to)?.visited == true
+
+        // Wayfinding light: a soft wash on the wall and a pool on the floor.
+        g.blend(Gfx.Blend.ADD)
+        g.glow(d.x, y0 + 0.9f, 1.5f, Col.alpha(c, 0.07f + 0.03f * pulse))
+        g.save()
+        g.translate(d.x, gy - 0.02f)
+        g.scale(1f, 0.14f)
+        g.glow(0f, 0f, 1.25f, Col.alpha(c, 0.22f + 0.1f * open))
+        g.restore()
+        g.blend(Gfx.Blend.NORMAL)
+
+        // Portal: a deep steel jamb, top-lit, shadowed on the right return.
+        g.fillRect(x0 - 0.16f, y0 - 0.16f, x1 + 0.16f, gy, STEEL_LO)
+        g.fillRect(x0 - 0.12f, y0 - 0.12f, x1 + 0.12f, gy, Col.lerp(STEEL, pal.doorFrame, 0.3f))
+        g.fillRect(x0 - 0.12f, y0 - 0.12f, x1 + 0.12f, y0 - 0.1f, STEEL_HI)
+        g.fillRect(x0 - 0.12f, y0 - 0.1f, x0 - 0.1f, gy, 0x50FFFFFF)
+        g.fillRect(x1 + 0.09f, y0 - 0.1f, x1 + 0.12f, gy, STEEL_LO)
+
+        // Beyond: a corridor running away from you, lit at the far end.
+        g.fillRect(x0, y0, x1, gy, 0xFF040509.toInt())
+        val vx0 = d.x - 0.2f
+        val vx1 = d.x + 0.2f
+        val vy0 = y0 + 0.62f
+        val vy1 = gy - 0.62f
+        g.fillVerticalGradient(vx0, vy0, vx1, vy1, Col.mul(pal.lamp, 0.55f), Col.mul(pal.lamp, 0.25f))
+        val edge = Col.alpha(c, 0.35f)
+        g.line(x0, y0, vx0, vy0, 0.018f, edge)
+        g.line(x1, y0, vx1, vy0, 0.018f, edge)
+        g.line(x0, gy, vx0, vy1, 0.018f, edge)
+        g.line(x1, gy, vx1, vy1, 0.018f, edge)
+        for (k in 1..3) {
+            val t = k / 4f
+            val lx0 = x0 + (vx0 - x0) * t
+            val lx1 = x1 + (vx1 - x1) * t
+            g.fillRect(lx0, y0 + (vy0 - y0) * t, lx1, y0 + (vy0 - y0) * t + 0.015f, Col.alpha(pal.lamp, 0.25f * t))
+        }
+        g.fillRect(vx0 + 0.05f, vy1 - 0.02f, vx1 - 0.05f, vy1, Col.alpha(c, 0.6f))
+
+        // Split sliding doors: they part down the middle (a hiding door swings on a hinge).
+        val half = (x1 - x0) / 2f
+        val slide = half * 0.94f * open
+        val panel = Col.lerp(0xFF1C2228.toInt(), pal.door, 0.25f)
+        for (k in 0..1) {
+            val a = if (k == 0) x0 else d.x + slide
+            val b = if (k == 0) d.x - slide else x1
+            if (b - a < 0.02f) continue
+            g.fillRect(a, y0, b, gy, panel)
+            g.fillRect(a, y0, b, y0 + 0.02f, Col.alpha(pal.trim, 0.3f))
+            // A glowing window strip near the seam.
+            val sx = if (k == 0) b - 0.16f else a + 0.1f
+            if (sx > a + 0.02f && sx + 0.06f < b) {
+                g.fillRect(sx, y0 + 0.3f, sx + 0.06f, gy - 0.6f, Col.alpha(c, 0.18f + 0.1f * pulse))
+                g.fillRect(sx + 0.02f, y0 + 0.3f, sx + 0.04f, gy - 0.6f, Col.alpha(c, 0.55f))
+            }
+            g.fillRect(a, gy - 0.3f, b, gy - 0.26f, Col.alpha(0xFF000000.toInt(), 0.35f))
+        }
+        if (slide < 0.02f) g.fillRect(d.x - 0.008f, y0, d.x + 0.008f, gy, 0xFF0A0C10.toInt())
+
+        // Neon outline: the one frame on the floor in this colour.
+        val core = 0xFFE8FFF4.toInt()
+        f.glowLine(x0 - 0.06f, y0 - 0.06f, x1 + 0.06f, y0 - 0.06f, 0.03f, Col.fade(c, 0.85f + 0.15f * pulse), core, 0.8f)
+        f.glowLine(x0 - 0.06f, y0 - 0.06f, x0 - 0.06f, gy, 0.03f, Col.fade(c, 0.85f), core, 0.6f)
+        f.glowLine(x1 + 0.06f, y0 - 0.06f, x1 + 0.06f, gy, 0.03f, Col.fade(c, 0.85f), core, 0.6f)
+
+        // Plate: which way, which hallway, and a lift glyph if that's where the ride down is.
+        val py0 = y0 - 0.64f
+        val py1 = y0 - 0.2f
+        val pw = if (toLift) 0.62f else 0.46f
+        val px0 = d.x - pw
+        val px1 = d.x + pw
+        g.fillRoundRect(px0 - 0.03f, py0 + 0.04f, px1 + 0.03f, py1 + 0.06f, 0.07f, 0x55000000)
+        g.fillRoundRect(px0, py0, px1, py1, 0.06f, 0xF2050C09.toInt())
+        g.strokeRoundRect(px0, py0, px1, py1, 0.06f, 0.022f, Col.alpha(c, 0.9f))
+        val cy = (py0 + py1) / 2f
+        val dir = if (d.to > fs.plan.hall) 1f else -1f
+        val ax = d.x - pw + 0.2f
+        Glyphs.arrow(g, if (dir > 0) ax else px1 - 0.2f, cy, 0.1f, dir, 0f, 0.035f, c)
+        val name = com.bradflaugher.aboutthataction.engine.Geo.hallName(d.to)
+        val tx = if (toLift) d.x - 0.04f else d.x + 0.02f * dir
+        f.worldText(name, tx, cy + 0.12f, 0.34f, Col.alpha(c, 0.35f), Gfx.Font.TITLE)
+        f.worldText(name, tx, cy + 0.11f, 0.32f, if (visited) Col.lerp(c, 0xFFFFFFFF.toInt(), 0.2f) else 0xFFF2FFF8.toInt(), Gfx.Font.TITLE)
+        if (toLift) HudIcons.elevator(g, if (dir > 0) px1 - 0.2f else px0 + 0.2f, cy, 0.3f, LIFT_CYAN)
+
+        // Threshold chevrons, pointing in.
+        for (k in 0..1) {
+            val cx = d.x + (k - 0.5f) * 0.32f
+            val a = 0.35f + 0.3f * sin(f.t * 5f - k * 1.4f)
+            HudIcons.chevronDown(g, cx, gy - 0.07f, 0.07f, 0.022f, Col.alpha(c, a.coerceIn(0.1f, 0.7f)))
+        }
+    }
+
+    /**
+     * A passage off the stage: the same steel portal and split doors, shut, with one fine
+     * green line round the frame. It still can't be mistaken for a hiding door, but it
+     * doesn't call out: plates, arrows and light belong to the floor you're on.
+     */
+    private fun quietPassage(pal: Palette, x: Float, gy: Float, lod: Int) {
+        val x0 = x - 0.56f
+        val x1 = x + 0.56f
+        val y0 = gy - DOOR_H - 0.05f
+        g.fillRect(x0 - 0.12f, y0 - 0.12f, x1 + 0.12f, gy, Col.lerp(STEEL_LO, pal.doorFrame, 0.3f))
+        g.fillRect(x0 - 0.12f, y0 - 0.12f, x1 + 0.12f, y0 - 0.1f, Col.alpha(STEEL_HI, 0.6f))
+        g.fillRect(x0, y0, x1, gy, Col.lerp(0xFF161B20.toInt(), pal.door, 0.2f))
+        g.fillRect(x - 0.008f, y0, x + 0.008f, gy, 0xFF07090C.toInt())
+        if (lod == 0) {
+            g.fillRect(x0, y0, x1, y0 + 0.02f, Col.alpha(pal.trim, 0.25f))
+            g.fillRect(x - 0.1f, y0 + 0.3f, x - 0.07f, gy - 0.6f, Col.alpha(PASSAGE, 0.3f))
+            g.fillRect(x + 0.07f, y0 + 0.3f, x + 0.1f, gy - 0.6f, Col.alpha(PASSAGE, 0.3f))
+        }
+        val c = Col.alpha(PASSAGE, if (lod == 0) 0.6f else 0.4f)
+        val o = 0.06f
+        val lw = 0.022f
+        g.fillRect(x0 - o - lw / 2f, y0 - o - lw / 2f, x1 + o + lw / 2f, y0 - o + lw / 2f, c)
+        g.fillRect(x0 - o - lw / 2f, y0 - o, x0 - o + lw / 2f, gy, c)
+        g.fillRect(x1 + o - lw / 2f, y0 - o, x1 + o + lw / 2f, gy, c)
     }
 
     /** Small status lamp above normal doors: red when someone's coming through (a gameplay cue). */
@@ -523,14 +620,32 @@ internal class Building(private val f: Frame) {
 
     // ----------------------------------------------------------------- shafts
 
-    private fun shaftOnFloor(fs: FloorState, pal: Palette, sx: Float, topFloor: Int, bottomFloor: Int, top: Float, rt: Float, gy: Float) {
+    /**
+     * One floor of a shaft column. A column only shows in the hallway it opens into (landing
+     * portal, hall lantern, call button); everywhere else it runs behind the wall, unseen,
+     * except the one the player rides, glazed so the ride reads all the way down.
+     */
+    private fun shaftOnFloor(fs: HallState, pal: Palette, s: Shaft, top: Float, rt: Float, gy: Float) {
+        val landing = fs.plan.opens(s)
+        val ridden = f.riding(s)
+        if (!landing && !ridden) return
         val fi = fs.plan.index
+        val sx = s.x
+        val topFloor = s.top
+        val bottomFloor = s.bottom
         val x0 = sx - Geo.SHAFT_W / 2f
         val x1 = sx + Geo.SHAFT_W / 2f
         val y0 = if (fi == topFloor) rt else top
         val y1 = if (fi < bottomFloor) gy + SLAB else gy
         // Shaft void, guide rails and a bolted divider beam at each floor line.
-        g.fillVerticalGradient(x0, y0, x1, y1, 0xFF040308.toInt(), 0xFF0D0B14.toInt())
+        if (landing) {
+            g.fillVerticalGradient(x0, y0, x1, y1, 0xFF040308.toInt(), 0xFF0D0B14.toInt())
+        } else {
+            // Glazed: the room shows faintly through, edged in the lift's cyan.
+            g.fillVerticalGradient(x0, y0, x1, y1, 0xB0040308.toInt(), 0xC80D0B14.toInt())
+            g.fillRect(x0, rt, x0 + HAIR, gy, Col.alpha(LIFT_CYAN, 0.4f))
+            g.fillRect(x1 - HAIR, rt, x1, gy, Col.alpha(LIFT_CYAN, 0.4f))
+        }
         for (k in 0..1) {
             val rx = if (k == 0) x0 + 0.08f else x1 - 0.12f
             g.fillRect(rx, y0, rx + 0.04f, y1, 0xFF2A2834.toInt())
@@ -548,6 +663,7 @@ internal class Building(private val f: Frame) {
             g.strokeCircle(sx, rt + 0.26f, 0.13f, 0.02f, 0xFF5A586A.toInt())
             g.fillCircle(sx, rt + 0.26f, 0.05f, 0xFF12101A.toInt())
         }
+        if (!landing) return
         // Landing portal on this floor: brushed steel, lit header.
         val fy = gy - 2.6f
         g.fillRect(x0 - 0.1f, fy - 0.12f, x1 + 0.1f, fy, STEEL)
@@ -557,13 +673,29 @@ internal class Building(private val f: Frame) {
         g.fillRect(x0 - 0.1f, fy, x0 - 0.08f, gy, 0x50FFFFFF)
         g.fillRect(x1 + 0.07f, fy, x1 + 0.1f, gy, STEEL_LO)
         g.fillRect(x0, gy - 0.04f, x1, gy, 0xFF6A6878.toInt())
+        // A ride down from here: a cyan call button, lit while the car is on its way.
+        val car = f.w.elevators[s.id]
+        val ride = fi < bottomFloor
+        if (ride) {
+            val bx = x1 + 0.28f
+            val by = gy - 1.25f
+            val calledHere = car != null && car.called == fi
+            g.fillRoundRect(bx - 0.09f, by - 0.16f, bx + 0.09f, by + 0.16f, 0.03f, STEEL_LO)
+            val bc = if (calledHere) LIFT_CYAN else Col.alpha(LIFT_CYAN, 0.35f)
+            if (calledHere) f.glowDot(bx, by, 0.045f, LIFT_CYAN, 0.9f) else g.fillCircle(bx, by, 0.04f, bc)
+        }
+        if (s.express) {
+            // Express shafts wear a gold band on the header: 3–5 floors in one go.
+            g.fillRect(x0 - 0.1f, fy - 0.12f, x1 + 0.1f, fy - 0.06f, 0xFFFFC23C.toInt())
+            f.worldText("EXPRESS", sx, fy - 0.075f, 0.07f, 0xFF201404.toInt())
+        }
+        if (f.lod(fi) > 0) return
         // Hall lantern: floor number and direction.
-        val car = f.w.elevators[topFloor]
         val here = car != null && car.doorsOpen && car.atFloor == fi
         val iy = fy - 0.36f
         // Plate sized for four characters ("B149") plus the direction arrow.
         g.fillRoundRect(sx - 0.42f, iy - 0.15f, sx + 0.42f, iy + 0.15f, 0.05f, 0xFF08070C.toInt())
-        g.strokeRoundRect(sx - 0.42f, iy - 0.15f, sx + 0.42f, iy + 0.15f, 0.05f, HAIR, 0xFF3A3846.toInt())
+        g.strokeRoundRect(sx - 0.42f, iy - 0.15f, sx + 0.42f, iy + 0.15f, 0.05f, HAIR, if (ride) Col.alpha(LIFT_CYAN, 0.6f) else 0xFF3A3846.toInt())
         if (car != null) {
             val num = car.pos.roundToInt()
             val c = if (here) pal.neon2 else Col.fade(pal.neon, 0.85f)
@@ -574,84 +706,119 @@ internal class Building(private val f: Frame) {
         }
     }
 
-    /** Elevator cars drawn over the floors; the player rides inside, behind glass doors. */
-    fun elevators(actors: Actors) {
+    /** Eases every car's doors toward open or shut, once per frame. */
+    fun updateCars() {
         val w = f.w
         // Forget door animation state for shafts the world has culled.
         if (carOpen.size > w.elevators.size) carOpen.keys.retainAll(w.elevators.keys)
         for (car in w.elevators.values) {
-            val s = car.shaft
-            val yb = Geo.groundY(car.pos)
-            val top = yb - 2.45f
-            val pulleyY = s.top * H + SLAB + 0.26f
-            // Counterweight rides the other way down the shaft's right rail.
-            val shaftBottom = Geo.groundY(s.bottom)
-            val cwY = pulleyY + 0.3f + (shaftBottom - yb) * 0.9f
-            if (f.visibleY(cwY, cwY + 0.9f) && cwY + 0.9f < shaftBottom) {
-                g.line(s.x + 0.4f, pulleyY, s.x + 0.4f, cwY, 0.02f, 0xFF5A5868.toInt())
-                g.fillRect(s.x + 0.3f, cwY, s.x + 0.5f, cwY + 0.9f, 0xFF24222C.toInt())
-                g.fillRect(s.x + 0.3f, cwY, s.x + 0.5f, cwY + 0.02f, 0x40FFFFFF)
-                for (k in 1..3) g.fillRect(s.x + 0.3f, cwY + k * 0.22f, s.x + 0.5f, cwY + k * 0.22f + 0.02f, 0xFF121018.toInt())
-            }
-            if (!f.visibleY(top - 4f, yb + 0.3f)) continue
-            val fs = w.floors[car.pos.roundToInt()] ?: w.floors[s.top]
-            val pal = f.palette(fs)
-            val state = carOpen.getOrPut(s.id) { floatArrayOf(if (car.doorsOpen) 1f else 0f) }
+            val state = carOpen.getOrPut(car.shaft.id) { floatArrayOf(if (car.doorsOpen) 1f else 0f) }
             val target = if (car.doorsOpen) 1f else 0f
             state[0] += (target - state[0]) * min(1f, f.dt * 7f)
             if (f.dt == 0f) state[0] = target
-            val open = state[0]
-            val x0 = s.x - 0.52f
-            val x1 = s.x + 0.52f
-            // Hoist ropes to the crosshead.
-            for (k in -1..1) g.line(s.x + k * 0.12f, pulleyY, s.x + k * 0.12f, top - 0.3f, 0.022f, 0xFF7A788A.toInt())
-            // Crosshead and sheave.
-            g.fillRect(x0 + 0.1f, top - 0.34f, x1 - 0.1f, top - 0.24f, 0xFF24222C.toInt())
-            g.fillCircle(s.x, top - 0.3f, 0.08f, 0xFF4A4858.toInt())
-            g.line(x0 + 0.1f, top - 0.24f, x0 - 0.02f, top - 0.14f, 0.03f, 0xFF24222C.toInt())
-            g.line(x1 - 0.1f, top - 0.24f, x1 + 0.02f, top - 0.14f, 0.03f, 0xFF24222C.toInt())
-            // Body and lit interior.
-            g.fillRoundRect(x0 - 0.06f, top - 0.16f, x1 + 0.06f, yb + 0.14f, 0.05f, 0xFF2C2A36.toInt())
-            g.fillRect(x0 - 0.06f, top - 0.16f, x1 + 0.06f, top - 0.14f, STEEL_HI)
-            g.fillVerticalGradient(x0, top, x1, yb, Col.mul(pal.lamp, 0.6f), Col.mul(pal.lamp, 0.24f))
-            g.fillRect(x0 + 0.34f, top + 0.12f, x0 + 0.36f, yb - 0.08f, 0x18000000)
-            g.fillRect(x1 - 0.36f, top + 0.12f, x1 - 0.34f, yb - 0.08f, 0x18000000)
-            g.fillRect(x0 + 0.08f, top + 0.04f, x1 - 0.08f, top + 0.09f, 0xFFFFFFFF.toInt())
-            g.fillVerticalGradient(x0, top + 0.09f, x1, top + 0.7f, Col.alpha(pal.lamp, 0.3f), Col.alpha(pal.lamp, 0f))
-            g.fillRect(x0, yb - 1.05f, x1, yb - 1.02f, 0x40FFFFFF)
-            g.fillRect(x0, yb - 0.07f, x1, yb, 0xFF7A7888.toInt())
-            g.fillRect(x0, yb - 0.07f, x1, yb - 0.06f, 0xFFB8B6C8.toInt())
-            val riding = w.player.state == PlayerState.ELEVATOR && w.player.elevatorShaft == s.id
-            if (riding) actors.player(force = true)
-            // Glass doors.
-            val half = (x1 - x0) / 2f
-            val closed = half * (1f - open)
-            if (closed > 0.01f) {
-                val glass = Col.alpha(Col.lerp(pal.lamp, 0xFF203040.toInt(), 0.6f), 0.4f)
-                g.fillRect(x0, top, x0 + closed, yb, glass)
-                g.fillRect(x1 - closed, top, x1, yb, glass)
-                g.fillRect(x0 + closed - 0.03f, top, x0 + closed, yb, 0xFF8A8898.toInt())
-                g.fillRect(x1 - closed, top, x1 - closed + 0.03f, yb, 0xFF8A8898.toInt())
-                g.line(x0 + 0.05f, yb - 0.3f, x0 + closed * 0.8f, top + 0.4f, 0.03f, 0x28FFFFFF)
-            }
-            // Hazard-striped toe guard under the car, status light on top.
-            g.save()
-            g.clipRect(x0 - 0.06f, yb + 0.02f, x1 + 0.06f, yb + 0.14f)
-            g.fillRect(x0 - 0.06f, yb + 0.02f, x1 + 0.06f, yb + 0.14f, 0xFF15150E.toInt())
-            var hx = x0 - 0.2f
-            while (hx < x1 + 0.06f) {
-                poly.quad(g, hx, yb + 0.14f, hx + 0.08f, yb + 0.14f, hx + 0.2f, yb + 0.02f, hx + 0.12f, yb + 0.02f, 0xFFB08E1C.toInt())
-                hx += 0.16f
-            }
-            g.restore()
-            g.fillRect(x0 - 0.06f, top - 0.16f, x1 + 0.06f, top - 0.12f, Col.fade(pal.neon, 0.9f))
-            f.glowDot(s.x + 0.32f, top - 0.24f, 0.045f, if (car.doorsOpen) 0xFF40FF80.toInt() else 0xFFFF4040.toInt(), 0.9f)
         }
+    }
+
+    /**
+     * The cars in floor [hs]'s band (its room and the slab under it), clipped to it, and only in
+     * columns that open into this hallway: elsewhere the shaft runs behind the wall. Drawn inside
+     * [Frame.views], so mid-slide a car travels with its hallway.
+     */
+    fun cars(hs: HallState, actors: Actors) {
+        val fi = hs.plan.index
+        val bandTop = if (fi == 0) f.camY - 2f else fi * H + SLAB
+        val bandBottom = (fi + 1) * H + SLAB
+        if (!f.visibleY(bandTop, bandBottom)) return
+        for (car in f.w.elevators.values) {
+            val s = car.shaft
+            if (f.riding(s) || !hs.plan.opens(s)) continue
+            val yb = Geo.groundY(car.pos)
+            val pulleyY = s.top * H + SLAB + 0.26f
+            // Anything of this car (ropes, counterweight, body) in this band?
+            if (pulleyY > bandBottom || yb + 0.2f < bandTop) continue
+            g.save()
+            g.clipRect(-0.6f, bandTop, W + 0.6f, bandBottom)
+            drawCar(car, actors)
+            g.restore()
+        }
+    }
+
+    /** The car the player rides, whole: its column is glazed on every floor it passes. */
+    fun riddenCar(actors: Actors) {
+        val p = f.w.player
+        if (p.state != PlayerState.ELEVATOR) return
+        val car = f.w.elevators[p.elevatorShaft] ?: return
+        drawCar(car, actors)
+    }
+
+    private fun drawCar(car: com.bradflaugher.aboutthataction.engine.Elevator, actors: Actors) {
+        val w = f.w
+        val s = car.shaft
+        val yb = Geo.groundY(car.pos)
+        val top = yb - 2.45f
+        val pulleyY = s.top * H + SLAB + 0.26f
+        // Counterweight rides the other way down the shaft's right rail.
+        val shaftBottom = Geo.groundY(s.bottom)
+        val cwY = pulleyY + 0.3f + (shaftBottom - yb) * 0.9f
+        if (f.visibleY(cwY, cwY + 0.9f) && cwY + 0.9f < shaftBottom) {
+            g.line(s.x + 0.4f, pulleyY, s.x + 0.4f, cwY, 0.02f, 0xFF5A5868.toInt())
+            g.fillRect(s.x + 0.3f, cwY, s.x + 0.5f, cwY + 0.9f, 0xFF24222C.toInt())
+            g.fillRect(s.x + 0.3f, cwY, s.x + 0.5f, cwY + 0.02f, 0x40FFFFFF)
+            for (k in 1..3) g.fillRect(s.x + 0.3f, cwY + k * 0.22f, s.x + 0.5f, cwY + k * 0.22f + 0.02f, 0xFF121018.toInt())
+        }
+        if (!f.visibleY(top - 4f, yb + 0.3f)) return
+        val fs = w.floors[car.pos.roundToInt()] ?: w.floors[s.top]
+        val pal = f.palette(fs)
+        val open = carOpen[s.id]?.get(0) ?: if (car.doorsOpen) 1f else 0f
+        val x0 = s.x - 0.52f
+        val x1 = s.x + 0.52f
+        // Hoist ropes to the crosshead.
+        for (k in -1..1) g.line(s.x + k * 0.12f, pulleyY, s.x + k * 0.12f, top - 0.3f, 0.022f, 0xFF7A788A.toInt())
+        // Crosshead and sheave.
+        g.fillRect(x0 + 0.1f, top - 0.34f, x1 - 0.1f, top - 0.24f, 0xFF24222C.toInt())
+        g.fillCircle(s.x, top - 0.3f, 0.08f, 0xFF4A4858.toInt())
+        g.line(x0 + 0.1f, top - 0.24f, x0 - 0.02f, top - 0.14f, 0.03f, 0xFF24222C.toInt())
+        g.line(x1 - 0.1f, top - 0.24f, x1 + 0.02f, top - 0.14f, 0.03f, 0xFF24222C.toInt())
+        // Body and lit interior.
+        g.fillRoundRect(x0 - 0.06f, top - 0.16f, x1 + 0.06f, yb + 0.14f, 0.05f, 0xFF2C2A36.toInt())
+        g.fillRect(x0 - 0.06f, top - 0.16f, x1 + 0.06f, top - 0.14f, STEEL_HI)
+        g.fillVerticalGradient(x0, top, x1, yb, Col.mul(pal.lamp, 0.6f), Col.mul(pal.lamp, 0.24f))
+        g.fillRect(x0 + 0.34f, top + 0.12f, x0 + 0.36f, yb - 0.08f, 0x18000000)
+        g.fillRect(x1 - 0.36f, top + 0.12f, x1 - 0.34f, yb - 0.08f, 0x18000000)
+        g.fillRect(x0 + 0.08f, top + 0.04f, x1 - 0.08f, top + 0.09f, 0xFFFFFFFF.toInt())
+        g.fillVerticalGradient(x0, top + 0.09f, x1, top + 0.7f, Col.alpha(pal.lamp, 0.3f), Col.alpha(pal.lamp, 0f))
+        g.fillRect(x0, yb - 1.05f, x1, yb - 1.02f, 0x40FFFFFF)
+        g.fillRect(x0, yb - 0.07f, x1, yb, 0xFF7A7888.toInt())
+        g.fillRect(x0, yb - 0.07f, x1, yb - 0.06f, 0xFFB8B6C8.toInt())
+        if (f.riding(s)) actors.player(force = true)
+        // Glass doors.
+        val half = (x1 - x0) / 2f
+        val closed = half * (1f - open)
+        if (closed > 0.01f) {
+            val glass = Col.alpha(Col.lerp(pal.lamp, 0xFF203040.toInt(), 0.6f), 0.4f)
+            g.fillRect(x0, top, x0 + closed, yb, glass)
+            g.fillRect(x1 - closed, top, x1, yb, glass)
+            g.fillRect(x0 + closed - 0.03f, top, x0 + closed, yb, 0xFF8A8898.toInt())
+            g.fillRect(x1 - closed, top, x1 - closed + 0.03f, yb, 0xFF8A8898.toInt())
+            g.line(x0 + 0.05f, yb - 0.3f, x0 + closed * 0.8f, top + 0.4f, 0.03f, 0x28FFFFFF)
+        }
+        // Hazard-striped toe guard under the car, status light on top.
+        g.save()
+        g.clipRect(x0 - 0.06f, yb + 0.02f, x1 + 0.06f, yb + 0.14f)
+        g.fillRect(x0 - 0.06f, yb + 0.02f, x1 + 0.06f, yb + 0.14f, 0xFF15150E.toInt())
+        var hx = x0 - 0.2f
+        while (hx < x1 + 0.06f) {
+            poly.quad(g, hx, yb + 0.14f, hx + 0.08f, yb + 0.14f, hx + 0.2f, yb + 0.02f, hx + 0.12f, yb + 0.02f, 0xFFB08E1C.toInt())
+            hx += 0.16f
+        }
+        g.restore()
+        g.fillRect(x0 - 0.06f, top - 0.16f, x1 + 0.06f, top - 0.12f, Col.fade(pal.neon, 0.9f))
+        f.glowDot(s.x + 0.32f, top - 0.24f, 0.045f, if (car.doorsOpen) 0xFF40FF80.toInt() else 0xFFFF4040.toInt(), 0.9f)
     }
 
     // ------------------------------------------------------------------ slabs
 
-    fun slab(fs: FloorState) {
+    fun slab(fs: HallState) {
         val plan = fs.plan
         val fi = plan.index
         val gy = Geo.groundY(fi)
@@ -660,15 +827,15 @@ internal class Building(private val f: Frame) {
         val below = f.w.floors[fi + 1]
         val palBelow = if (below != null) f.palette(below) else pal
         val sf = stage(fi)
-        val holeL = plan.stairsDown == Side.LEFT
-        val hole0 = if (holeL) 0f else W - Geo.STAIR_W
-        val hole1 = if (holeL) Geo.STAIR_W else W
-        // Segments: [-0.6, W+0.6] minus the stair hole and continuing shafts.
+        // Segments: [-0.6, W+0.6] minus the shafts that continue down (no stairwells: floors end in walls).
         var x = -0.6f
         val cuts = cutBuf
         var n = 0
-        cuts[n++] = hole0; cuts[n++] = hole1
-        for (s in plan.shafts) if (fi < s.bottom && n < 8) {
+        val here = f.w.floors[fi]?.hall(f.w.viewHall(fi))
+        for (s in plan.shafts) if (fi < s.bottom && n < cuts.size - 1) {
+            // Only a column that shows on this floor cuts the slab; one that only shows below
+            // comes out of that floor's ceiling, from behind the wall.
+            if (here == null || !f.shaftShows(here, s)) continue
             cuts[n++] = s.x - Geo.SHAFT_W / 2f; cuts[n++] = s.x + Geo.SHAFT_W / 2f
         }
         // Sort cut pairs by start (tiny n, insertion sort).
@@ -689,14 +856,6 @@ internal class Building(private val f: Frame) {
             if (end > x + 0.001f) slabSegment(pal, palBelow, x, end, gy, fi, sf)
             if (k < n) x = cuts[k + 1]
             k += 2
-        }
-        // Striped safety lip on the stair hole edge.
-        val lip = if (holeL) hole1 else hole0
-        g.fillRect(lip - 0.05f, gy, lip + 0.05f, gy + SLAB, 0xFF15150E.toInt())
-        var y = gy
-        while (y < gy + SLAB) {
-            g.fillRect(lip - 0.05f, y, lip + 0.05f, min(gy + SLAB, y + 0.06f), 0xFFD8B01E.toInt())
-            y += 0.12f
         }
     }
 
@@ -853,18 +1012,14 @@ internal class Building(private val f: Frame) {
 
     // ------------------------------------------------------------ the rooftop
 
-    fun roof(fs: FloorState) {
+    fun roof(fs: HallState) {
         val gy = Geo.groundY(0)
         val pal = Palette.of(Zone.ROOFTOP)
-        val hutRight = fs.plan.stairsDown == Side.RIGHT
-        // Water tower, left.
-        waterTower(if (hutRight) 0.75f else W - 0.75f, gy)
+        val liftX = fs.plan.shafts.firstOrNull()?.x ?: (W - 2f)
+        waterTower(0.75f, gy)
         billboard(pal, gy)
-        hut(pal, gy, hutRight)
-        // Low AC units.
-        acUnit(if (hutRight) 3.9f else W - 3.9f, gy)
-        acUnit(if (hutRight) 7.0f else W - 7.0f, gy)
-        // Stairwell down to floor 1 sits under the hut; the floor-1 room draws it.
+        acUnit(W - 0.95f, gy)
+        penthouse(pal, gy, liftX, fs.plan.shafts.firstOrNull())
         rain(gy)
     }
 
@@ -873,14 +1028,14 @@ internal class Building(private val f: Frame) {
         val top = max(f.camY, gy - 9f)
         val h = gy - top
         if (h <= 0f) return
-        for (k in 0 until 46) {
+        for (k in 0 until 60) {
             val x = hash(k, 221) * (W + 1.2f) - 0.6f
             val sp = 6f + hash(k, 222) * 3f
             val y = top + fract(hash(k, 223) + f.t * sp / h.coerceAtLeast(1f)) * h
             val len = 0.25f + hash(k, 224) * 0.2f
             g.line(x, y, x - len * 0.18f, y - len, 0.012f, if (k % 5 == 0) 0x50FFB0E0 else 0x38C0D8FF)
         }
-        for (k in 0 until 8) {
+        for (k in 0 until 10) {
             val ph = fract(f.t * 1.7f + hash(k, 225))
             val x = hash(k + (f.t * 1.7f + hash(k, 225)).toInt() * 13, 226) * W
             g.strokeCircle(x, gy - 0.01f, 0.03f + ph * 0.08f, 0.01f, Col.alpha(0xFFC0D8FF.toInt(), 0.35f * (1f - ph)))
@@ -917,27 +1072,28 @@ internal class Building(private val f: Frame) {
 
     private val rows = arrayOf(
         "DRAG ← →" to "RUN",
-        "TAP" to "SHOOT",
         "SWIPE ↑" to "JUMP",
         "SWIPE ↓" to "HIDE",
+        "TAP" to "DOORS & ELEVATORS",
+        "2×TAP" to "GRENADE",
     )
 
-    /** The tutorial, as a rooftop billboard + graffiti. */
+    /** The tutorial, as a rooftop billboard: the gestures, the takedown ticker and the mode button. */
     private fun billboard(pal: Palette, gy: Float) {
-        val x0 = 2.9f
-        val x1 = 8.05f
-        val y0 = gy - 5.75f
-        val y1 = gy - 2.25f
+        val x0 = 2.75f
+        val x1 = 9.0f
+        val y0 = gy - 6.55f
+        val y1 = gy - 2.3f
         val legC = 0xFF151022.toInt()
         // Scaffold legs.
         for (k in 0..1) {
-            val lx = if (k == 0) x0 + 0.5f else x1 - 0.5f
+            val lx = if (k == 0) x0 + 0.6f else x1 - 0.6f
             g.fillRect(lx - 0.07f, y1, lx + 0.07f, gy, legC)
-            g.line(lx - 0.07f, y1 + 0.3f, lx + 0.5f * (if (lx < 5f) 1 else -1), gy - 0.1f, 0.04f, legC)
+            g.line(lx - 0.07f, y1 + 0.3f, lx + 0.5f * (if (k == 0) 1 else -1), gy - 0.1f, 0.04f, legC)
         }
         g.fillRect(x0 + 0.3f, y1 + 0.8f, x1 - 0.3f, y1 + 0.9f, legC)
         // Glow the board throws onto the night.
-        g.fillRectRadial(x0 - 1f, y0 - 1f, x1 + 1f, y1 + 1.2f, (x0 + x1) / 2f, (y0 + y1) / 2f, 3.6f, 0x22FF2E88, 0x00FF2E88)
+        g.fillRectRadial(x0 - 1f, y0 - 1f, x1 + 1f, y1 + 1.2f, (x0 + x1) / 2f, (y0 + y1) / 2f, 4.2f, 0x22FF2E88, 0x00FF2E88)
         // Board.
         g.fillRoundRect(x0 - 0.12f, y0 - 0.12f, x1 + 0.12f, y1 + 0.12f, 0.12f, 0xFF0B0716.toInt())
         g.fillVerticalGradient(x0, y0, x1, y1, 0xFF140C2A.toInt(), 0xFF0A0618.toInt())
@@ -946,21 +1102,39 @@ internal class Building(private val f: Frame) {
         g.strokeRoundRect(x0 + 0.06f, y0 + 0.06f, x1 - 0.06f, y1 - 0.06f, 0.1f, 0.14f, Col.fade(pal.neon, 0.18f * flick))
         g.strokeRoundRect(x0 + 0.06f, y0 + 0.06f, x1 - 0.06f, y1 - 0.06f, 0.1f, 0.035f, Col.fade(pal.neon, flick))
         // Header.
-        f.worldText("'BOUT THAT ACTION", (x0 + x1) / 2f, y0 + 0.5f, 0.3f, pal.neon, Gfx.Font.TITLE)
-        g.fillRect(x0 + 0.4f, y0 + 0.62f, x1 - 0.4f, y0 + 0.645f, Col.fade(pal.neon, 0.5f))
-        // Rows: gesture (white) → action (cyan).
-        val size = 0.36f
-        val pitch = 0.62f
+        f.worldText("'BOUT THAT ACTION", (x0 + x1) / 2f, y0 + 0.5f, 0.32f, pal.neon, Gfx.Font.TITLE)
+        g.fillRect(x0 + 0.4f, y0 + 0.64f, x1 - 0.4f, y0 + 0.665f, Col.fade(pal.neon, 0.5f))
+        // Rows: gesture (white) → action (cyan), shrunk to fit if a row runs long.
+        val size = 0.32f
+        val pitch = 0.54f
         val colX = x0 + 0.35f
         val actX = x1 - 0.35f
         for (k in rows.indices) {
             val row = rows[k]
-            val y = y0 + 1.22f + k * pitch
+            val y = y0 + 1.2f + k * pitch
             worldRich(row.first, colX, y, size, 0xFFF4ECFF.toInt(), Gfx.Align.LEFT)
-            g.fillRect(colX + 2.1f, y - 0.11f, actX - 1.25f, y - 0.09f, 0x40FFFFFF)
-            f.worldText(row.second, actX, y, size, Col.fade(pal.neon2, 0.2f), Gfx.Font.TITLE, Gfx.Align.RIGHT)
-            f.worldText(row.second, actX, y, size, pal.neon2, Gfx.Font.TITLE, Gfx.Align.RIGHT)
+            val room = actX - colX - 1.75f
+            val aw = g.textWidth(row.second, size * f.s, Gfx.Font.TITLE) / f.s
+            val asz = if (aw > room) size * room / aw else size
+            val lead = colX + Glyphs.width(g, row.first, size * f.s, Gfx.Font.HUD) / f.s + 0.18f
+            val tail = actX - g.textWidth(row.second, asz * f.s, Gfx.Font.TITLE) / f.s - 0.18f
+            if (tail > lead) g.fillRect(lead, y - 0.11f, tail, y - 0.09f, 0x40FFFFFF)
+            f.worldText(row.second, actX, y, asz, Col.fade(pal.neon2, 0.2f), Gfx.Font.TITLE, Gfx.Align.RIGHT)
+            f.worldText(row.second, actX, y, asz, pal.neon2, Gfx.Font.TITLE, Gfx.Align.RIGHT)
         }
+        // The mode button, drawn like the HUD's, with what it does.
+        val my = y1 - 0.42f
+        val mx = colX + 0.2f
+        g.fillCircle(mx, my, 0.2f, 0xFF0C0A14.toInt())
+        g.strokeCircle(mx, my, 0.2f, 0.03f, 0xFFFF6A3A.toInt())
+        g.fillCircle(mx, my, 0.07f, 0xFFFF6A3A.toInt())
+        worldRich("TOP BUTTON:", mx + 0.34f, my + 0.1f, 0.24f, 0xFFD8D0EC.toInt(), Gfx.Align.LEFT)
+        val ms = 0.24f
+        val silentW = g.textWidth("SILENT", ms * f.s, Gfx.Font.TITLE) / f.s
+        val slashX = actX - silentW - 0.2f
+        f.worldText("SILENT", actX, my + 0.1f, ms, 0xFF9C8CFF.toInt(), Gfx.Font.TITLE, Gfx.Align.RIGHT)
+        f.worldText("/", slashX, my + 0.1f, ms, 0x80FFFFFF.toInt(), Gfx.Font.TITLE, Gfx.Align.CENTER)
+        f.worldText("GUNS HOT", slashX - 0.2f, my + 0.1f, ms, 0xFFFF6A3A.toInt(), Gfx.Font.TITLE, Gfx.Align.RIGHT)
         // LED ticker bar under the board.
         val ty0 = y1 + 0.2f
         g.fillRoundRect(x0 + 0.1f, ty0, x1 - 0.1f, ty0 + 0.42f, 0.06f, 0xFF120308.toInt())
@@ -976,10 +1150,14 @@ internal class Building(private val f: Frame) {
         g.restore()
     }
 
-    private fun hut(pal: Palette, gy: Float, right: Boolean) {
-        val x0 = if (right) W - 1.75f else -0.25f
-        val x1 = if (right) W + 0.25f else 1.75f
-        val top = gy - 2.5f
+    /**
+     * The elevator penthouse: the only way off the roof. A brick machine room over the shaft,
+     * a steel landing portal the car docks in, a neon LIFT sign and a beacon.
+     */
+    private fun penthouse(pal: Palette, gy: Float, sx: Float, shaft: Shaft?) {
+        val x0 = sx - 1.05f
+        val x1 = sx + 1.05f
+        val top = gy - 3.3f
         g.fillVerticalGradient(x0, top, x1, gy, 0xFF261E3C.toInt(), 0xFF1A1430.toInt())
         g.fillRect(x0 - 0.12f, top - 0.14f, x1 + 0.12f, top, 0xFF3A3056.toInt())
         g.fillRect(x0 - 0.12f, top - 0.14f, x1 + 0.12f, top - 0.125f, 0xFF8A7AB8.toInt())
@@ -997,35 +1175,179 @@ internal class Building(private val f: Frame) {
             y += 0.3f
             r++
         }
-        // Doorway down.
-        val dx = if (right) W - 0.8f else 0.8f
-        g.fillRect(dx - 0.42f, gy - 2.0f, dx + 0.42f, gy, 0xFF050308.toInt())
-        g.fillVerticalGradient(dx - 0.42f, gy - 2.0f, dx + 0.42f, gy, 0x10FFD0A0, 0x40FFD0A0)
-        g.strokeRect(dx - 0.45f, gy - 2.03f, dx + 0.45f, gy, 0.06f, 0xFF4A3E6A.toInt())
-        // Door lamp and its cone.
-        f.glowDot(dx, gy - 2.18f, 0.06f, 0xFFFFD9A0.toInt(), 1f)
-        poly.quad(g, dx - 0.08f, gy - 2.15f, dx + 0.08f, gy - 2.15f, dx + 0.7f, gy, dx - 0.7f, gy, 0x14FFD9A0)
-        poly.quad(g, dx - 0.06f, gy - 2.15f, dx + 0.06f, gy - 2.15f, dx + 0.4f, gy, dx - 0.4f, gy, 0x10FFD9A0)
-        // Graffiti: the grenade tip, spray-painted.
-        val gx = if (right) x0 + 0.5f else x1 - 0.5f
+        // The shaft opening the car docks in, with its steel portal.
+        val sx0 = sx - Geo.SHAFT_W / 2f
+        val sx1 = sx + Geo.SHAFT_W / 2f
+        val fy = gy - 2.6f
+        g.fillVerticalGradient(sx0, fy, sx1, gy + SLAB, 0xFF040308.toInt(), 0xFF0D0B14.toInt())
+        g.fillRect(sx0 - 0.1f, fy - 0.12f, sx1 + 0.1f, fy, STEEL)
+        g.fillRect(sx0 - 0.1f, fy, sx0, gy, STEEL)
+        g.fillRect(sx1, fy, sx1 + 0.1f, gy, STEEL)
+        g.fillRect(sx0 - 0.1f, fy - 0.12f, sx1 + 0.1f, fy - 0.1f, STEEL_HI)
+        g.fillRect(sx1 + 0.07f, fy, sx1 + 0.1f, gy, STEEL_LO)
+        // Lit LIFT sign over the portal.
+        val ly = fy - 0.38f
+        g.fillRoundRect(sx - 0.56f, ly - 0.2f, sx + 0.56f, ly + 0.2f, 0.06f, 0xF0060810.toInt())
+        g.strokeRoundRect(sx - 0.56f, ly - 0.2f, sx + 0.56f, ly + 0.2f, 0.06f, 0.025f, LIFT_CYAN)
+        HudIcons.elevator(g, sx - 0.36f, ly, 0.26f, LIFT_CYAN)
+        f.worldText("LIFT", sx + 0.12f, ly + 0.08f, 0.2f, LIFT_CYAN, Gfx.Font.TITLE)
+        g.blend(Gfx.Blend.ADD)
+        g.glow(sx, ly, 1.1f, Col.alpha(LIFT_CYAN, 0.12f))
+        g.blend(Gfx.Blend.NORMAL)
+        // Call button.
+        val car = if (shaft != null) f.w.elevators[shaft.id] else null
+        val bx = sx1 + 0.3f
+        g.fillRoundRect(bx - 0.09f, gy - 1.41f, bx + 0.09f, gy - 1.09f, 0.03f, STEEL_LO)
+        if (car?.called == 0) f.glowDot(bx, gy - 1.25f, 0.045f, LIFT_CYAN, 0.9f) else g.fillCircle(bx, gy - 1.25f, 0.04f, Col.alpha(LIFT_CYAN, 0.4f))
+        // Graffiti on the brick: the man himself.
         g.save()
-        g.translate(gx, gy - 1.35f)
-        g.rotate(-8f)
+        g.translate(x0 + 0.3f, top + 0.62f)
+        g.rotate(-6f)
         g.scale(1f / f.s, 1f / f.s)
-        val sz = 0.25f * f.s
-        g.text("2×TAP", 1.5f, 1.5f, sz, 0x80000000.toInt(), Gfx.Font.TITLE, Gfx.Align.CENTER)
-        g.text("2×TAP", 0f, 0f, sz, 0xFFB6FF3C.toInt(), Gfx.Font.TITLE, Gfx.Align.CENTER)
-        g.text("GRENADE", 0f, sz * 1.1f, sz * 0.82f, 0xFFFFD23C.toInt(), Gfx.Font.TITLE, Gfx.Align.CENTER)
-        g.text("i'm just 'bout that action, boss", 0f, sz * 2.4f, sz * 0.36f, 0x70E8E0FF, Gfx.Font.HUD, Gfx.Align.CENTER)
+        g.text("'bout that action, boss", 0f, 0f, 0.11f * f.s, 0x90E8E0FF.toInt(), Gfx.Font.HUD, Gfx.Align.LEFT)
         g.restore()
         // Antenna with a blinking beacon.
-        val ax = if (right) x1 - 0.35f else x0 + 0.35f
+        val ax = x1 - 0.3f
         g.line(ax, top - 0.14f, ax, top - 1.6f, 0.04f, 0xFF2A2240.toInt())
         g.line(ax - 0.2f, top - 1.0f, ax + 0.2f, top - 1.0f, 0.03f, 0xFF2A2240.toInt())
         if (sin(f.t * 4f) > 0f) f.glowDot(ax, top - 1.62f, 0.06f, 0xFFFF3040.toInt(), 1f)
     }
 
+    // ------------------------------------------------------------- the stage
+
+    /**
+     * The player's floor is the stage: a soft pool of the zone's light where they stand and a
+     * faint back-light on the wall, so the eye lands on them first. Environment light only,
+     * under the actors.
+     */
+    fun stageLight() {
+        val p = f.w.player
+        if (p.state == PlayerState.DEAD || p.state == PlayerState.INTEL) return
+        val fi = p.floor
+        val fs = f.w.floors[fi] ?: return
+        val gy = Geo.groundY(p.floorF)
+        if (!f.visibleY(gy - H, gy)) return
+        val pal = f.palette(fs)
+        val x = p.x + f.playerSlideDx()
+        val lift = f.clamp01(1f - p.z / 2f)
+        val c = Col.lerp(pal.neon2, 0xFFFFFFFF.toInt(), 0.35f)
+        g.blend(Gfx.Blend.ADD)
+        g.glow(x, gy - 1.1f, 2.1f, Col.alpha(c, 0.07f))
+        g.save()
+        g.translate(x, gy - 0.02f)
+        g.scale(1f, 0.15f)
+        g.glow(0f, 0f, 1.5f, Col.alpha(c, 0.3f * lift))
+        g.restore()
+        g.blend(Gfx.Blend.NORMAL)
+    }
+
+    /**
+     * Floors away from the stage recede: a cool colour grade (warm neon cools and greys) and a
+     * dark veil, both scaled by [Frame.recede]. Actors, lamps and all go under it together.
+     */
+    fun recede(fi: Int) {
+        if (fi == 0) return
+        val v = f.recede(fi)
+        if (v <= 0.01f) return
+        val fs = f.w.floors[fi] ?: return
+        val top = fi * H + SLAB
+        val bottom = (fi + 1) * H + SLAB
+        if (!f.visibleY(top, bottom)) return
+        // Quantized, so the cached fills don't churn during a ride.
+        val q = (v * 32f).toInt() / 32f
+        g.blend(Gfx.Blend.MULTIPLY)
+        g.fillRect(-0.6f, top, W + 0.6f, bottom, Col.alpha(RECEDE_TINT, q))
+        g.blend(Gfx.Blend.NORMAL)
+        g.fillRect(-0.6f, top, W + 0.6f, bottom, Col.alpha(Col.lerp(f.palette(fs).skyTop, RECEDE_INK, 0.6f), q * 0.7f))
+    }
+
     // ------------------------------------------------------ lamps & darkness
+
+    private fun blackout(fi: Int) = f.w.floors[fi]?.plan?.event == com.bradflaugher.aboutthataction.engine.FloorEvent.BLACKOUT
+
+    /**
+     * BLACKOUT: the emergency circuit is all that's left. A red LED strip chasing along the
+     * floor toward the rides down, green EXIT boxes by every lift, and a red beacon sweeping
+     * the ceiling.
+     */
+    private fun emergency(fs: HallState, rt: Float, gy: Float) {
+        val plan = fs.plan
+        val red = 0xFFFF2A36.toInt()
+        // Which way is out: toward the nearest ride down, else toward the nearest passage.
+        // (Indexed loops over the plan's own lists: no per-frame allocation.)
+        var target = -1f
+        var rides = 0
+        for (i in plan.landings.indices) {
+            val s = plan.landings[i]
+            if (plan.index >= s.bottom) continue
+            rides++
+            if (target < 0f || abs(s.x - W / 2f) < abs(target - W / 2f)) target = s.x
+        }
+        if (target < 0f) for (i in plan.doors.indices) {
+            val d = plan.doors[i]
+            if (d.kind == DoorKind.PASSAGE && (target < 0f || abs(d.x - W / 2f) < abs(target - W / 2f))) target = d.x
+        }
+        g.blend(Gfx.Blend.ADD)
+        // The beacon: a slow red sweep across the ceiling and down the walls.
+        val bx = W / 2f + sin(f.t * 1.3f) * W * 0.42f
+        g.glow(bx, rt + 0.5f, 2.8f, Col.alpha(red, 0.2f))
+        g.save()
+        g.translate(bx, gy - 0.02f)
+        g.scale(1f, 0.14f)
+        g.glow(0f, 0f, 1.8f, Col.alpha(red, 0.3f))
+        g.restore()
+        var x = 0.25f
+        while (x < W) {
+            val toward = if (target < 0f) 1f else if (x < target) 1f else -1f
+            val wave = sin(x * 2.2f - toward * f.t * 7f)
+            val k = 0.25f + 0.75f * max(0f, wave) * max(0f, wave) * max(0f, wave)
+            g.glow(x, gy - 0.06f, 0.28f, Col.alpha(red, 0.5f * k))
+            x += 0.36f
+        }
+        g.blend(Gfx.Blend.NORMAL)
+        x = 0.25f
+        while (x < W) {
+            val toward = if (target < 0f) 1f else if (x < target) 1f else -1f
+            val wave = sin(x * 2.2f - toward * f.t * 7f)
+            val k = 0.3f + 0.7f * max(0f, wave)
+            g.fillRoundRect(x - 0.07f, gy - 0.09f, x + 0.07f, gy - 0.035f, 0.02f, Col.lerp(0xFF701420.toInt(), 0xFFFFD0D0.toInt(), k))
+            x += 0.36f
+        }
+        // Beacon fixture.
+        g.fillRect(W / 2f - 0.14f, rt + 0.02f, W / 2f + 0.14f, rt + 0.1f, 0xFF1A1A20.toInt())
+        f.glowDot(W / 2f, rt + 0.14f, 0.06f, red, 0.7f + 0.3f * sin(f.t * 8f))
+        // EXIT boxes beside each ride down.
+        for (i in plan.landings.indices) {
+            val s = plan.landings[i]
+            if (plan.index >= s.bottom) continue
+            val side = if (s.x < W / 2f) 1f else -1f
+            exitSign(s.x + side * 0.95f, gy - 2.5f)
+        }
+        // No ride down in this hallway: the way out is through a passage.
+        if (rides == 0) for (i in plan.doors.indices) {
+            val d = plan.doors[i]
+            if (d.kind != DoorKind.PASSAGE) continue
+            val side = if (d.x < W / 2f) 1f else -1f
+            exitSign(d.x + side * 0.95f, gy - 2.5f)
+        }
+    }
+
+    private fun exitSign(x: Float, y: Float) {
+        val green = 0xFF3CFF7A.toInt()
+        g.blend(Gfx.Blend.ADD)
+        g.glow(x, y, 0.75f, Col.alpha(green, 0.35f))
+        g.blend(Gfx.Blend.NORMAL)
+        g.fillRect(x - 0.4f, y - 0.14f, x + 0.4f, y + 0.14f, 0xFF06140A.toInt())
+        g.strokeRect(x - 0.4f, y - 0.14f, x + 0.4f, y + 0.14f, 0.025f, green)
+        f.worldText("EXIT", x + 0.1f, y + 0.065f, 0.18f, green, Gfx.Font.TITLE)
+        // A tiny running figure.
+        val rx = x - 0.28f
+        g.fillCircle(rx + 0.02f, y - 0.07f, 0.025f, green)
+        g.line(rx, y - 0.04f, rx - 0.02f, y + 0.03f, 0.025f, green)
+        g.line(rx - 0.02f, y + 0.03f, rx + 0.03f, y + 0.09f, 0.022f, green)
+        g.line(rx - 0.02f, y + 0.03f, rx - 0.06f, y + 0.09f, 0.022f, green)
+        g.line(rx, y - 0.02f, rx + 0.05f, y + 0.01f, 0.02f, green)
+    }
 
     private fun brokenLamp(pal: Palette, lx: Float, rt: Float, gy: Float, i: Int) {
         // Snapped cable, sparking now and then; wreck and glass on the floor.
@@ -1043,7 +1365,7 @@ internal class Building(private val f: Frame) {
     }
 
     /** Shot-out floors go properly dark, except for a small glow around the player. */
-    fun darkness(fs: FloorState) {
+    fun darkness(fs: HallState) {
         val d = fs.darkness
         if (d <= 0.01f) return
         val fi = fs.plan.index
@@ -1053,7 +1375,7 @@ internal class Building(private val f: Frame) {
         val a = 0.93f * d
         val dark = 0xFF020106.toInt()
         val p = f.w.player
-        val onFloor = p.floor == fi && p.state != PlayerState.INTEL && p.state != PlayerState.DEAD
+        val onFloor = f.playerIn(fs) && p.state != PlayerState.INTEL && p.state != PlayerState.DEAD
         // Quantize so the cached gradient shaders don't churn as lights die.
         val aq = (a * 16f).toInt() / 16f
         if (onFloor) {
@@ -1066,7 +1388,7 @@ internal class Building(private val f: Frame) {
         }
     }
 
-    fun lightsAndHazards(fs: FloorState) {
+    fun lightsAndHazards(fs: HallState) {
         val plan = fs.plan
         val fi = plan.index
         if (fi == 0) return
@@ -1079,27 +1401,29 @@ internal class Building(private val f: Frame) {
             rooms.scanFree(fs)
             if (rooms.flooded(fs, rooms.specialSpan(fs))) rooms.water(pal, fs, gy)
         }
-        // Emergency lighting survives a blackout: the exit sign still glows.
+        // Emergency lighting survives a blackout: the hallway sign still glows.
         val d = fs.darkness
-        if (d > 0.3f) {
-            stairSign(plan.stairsDown, pal, rt, 0.75f * d)
-            val x = if (plan.stairsDown == Side.LEFT) 0.72f else W - 0.72f
-            g.fillRect(x - 0.7f, rt + 0.62f, x + 0.7f, gy, Col.alpha(0xFF3CFF7A.toInt(), 0.025f * d))
-        }
-        val lc = lampColor(pal, plan.zone, fi)
-        val style = if (hash(fi, 703) < 0.5f) 0 else 1
+        if (d > 0.3f && f.isStage(fi)) hallSign(fs, pal, rt, gy, 0.75f * d)
+        val look = plan.look
+        val far = f.lod(fi) > 0
+        val lc = lampColor(pal, plan.zone, look)
+        val style = if (hash(look, 703) < 0.5f) 0 else 1
         for (i in plan.lights.indices) {
             val lx = plan.lights[i]
             val fall = fs.lightFall[i]
             if (fs.lightAlive[i]) {
-                lamp(pal, lc, plan.zone, style, lx, rt, gy, 0f, lampOn(fi, i, plan.zone))
+                lamp(pal, lc, plan.zone, style, lx, rt, gy, 0f, lampOn(look, i, plan.zone), far = far)
             } else if (fall >= 0f) {
                 val t = (fall / World.LIGHT_FALL_TIME).coerceIn(0f, 1f)
                 val y = (gy - 0.25f - rt - 0.45f) * t * t
                 g.line(lx, rt + 0.05f, lx, rt + 0.2f, 0.025f, 0xFF1A1A1A.toInt())
                 lamp(pal, lc, plan.zone, style, lx, rt, gy, y, false, t * 50f)
+            } else if (blackout(fi)) {
+                // Power cut, not shot out: the fixtures hang there, dead.
+                lamp(pal, lc, plan.zone, style, lx, rt, gy, 0f, false, far = far)
             }
         }
+        if (blackout(fi)) emergency(fs, rt, gy)
         for (h in plan.hazards) hazardLive(h.kind, pal, h.x, rt, gy, h.state(f.wt), plan.zone)
     }
 
@@ -1107,7 +1431,7 @@ internal class Building(private val f: Frame) {
      * A ceiling fixture in the zone's style (two variants per zone, chosen per floor) and, when
      * lit, its volumetric cone: five nested sheets from a wide faint penumbra to a bright core.
      */
-    private fun lamp(pal: Palette, c: Int, zone: Zone, style: Int, lx: Float, rt: Float, gy: Float, drop: Float, alive: Boolean, spin: Float = 0f) {
+    private fun lamp(pal: Palette, c: Int, zone: Zone, style: Int, lx: Float, rt: Float, gy: Float, drop: Float, alive: Boolean, spin: Float = 0f, far: Boolean = false) {
         val hang = if ((zone == Zone.MINES || zone == Zone.HELL) && style == 1) 0.62f else 0.4f
         val cy = rt + hang + drop
         val wide = (zone == Zone.TOWER && style == 1) || zone == Zone.METRO && style == 0 || zone == Zone.LABS && style == 0
@@ -1117,13 +1441,15 @@ internal class Building(private val f: Frame) {
             val y0 = cy + 0.08f
             val coneBoost = 1f + 0.7f * depth(zone)
             g.blend(Gfx.Blend.ADD)
+            // Far floors: just the penumbra and the core, no motes.
             for (k in 0 until 5) {
+                if (far && k != 0 && k != 3) continue
                 val bw = CONE_W[k]
                 val tw = top * (0.4f + 0.15f * (4 - k))
                 poly.quad(g, lx - tw, y0, lx + tw, y0, lx + bw, gy, lx - bw, gy, Col.alpha(c, CONE_A[k] * coneBoost))
             }
             // Dust motes drifting through the beam.
-            for (k in 0 until 4) {
+            for (k in 0 until if (far) 0 else 4) {
                 val ph = fract(f.t * (0.05f + hash(k, 231) * 0.05f) + hash(k + (lx * 10f).toInt(), 232))
                 val my = cy + 0.3f + ph * (gy - cy - 0.5f)
                 val mx = lx + (hash(k + (lx * 7f).toInt(), 233) - 0.5f) * 1.6f * ph + sin(f.t * 0.7f + k) * 0.08f

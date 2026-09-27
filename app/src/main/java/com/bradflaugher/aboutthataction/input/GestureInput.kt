@@ -5,17 +5,19 @@ import kotlin.math.abs
 
 /**
  * Turns raw multi-touch into game controls. Every finger is classified on its
- * own, so one thumb can run while the other shoots:
+ * own, so one thumb can run while the other taps:
  *
  *  - **Drag sideways** anywhere and hold: run that way. Moving the finger back
  *    a little the other way reverses instantly (no need to cross a centre
  *    point). Lift to stop.
- *  - **Flick up**: jump. **Flick down**: hide / use (door, elevator, box).
+ *  - **Flick up**: jump. **Flick down**: hide (a doorway, else the box).
  *    Flicks fire the moment they're recognised, even in the middle of a run
  *    drag, without waiting for the finger to lift. A finger that flicked can
  *    keep going: drag it sideways to run, or flick again.
- *  - **Tap**: shoot, on touch-up with no added delay.
- *    **Double-tap**: the second tap throws a grenade instead.
+ *  - **Tap**: interact (a passage, an INTEL door, an elevator), on touch-up with
+ *    no added delay. The gun is automatic (or off, in SILENT), so taps never shoot
+ *    guards; in mid-air a tap is a suppressed shot at a ceiling light.
+ *    **Double-tap**: the second tap throws a grenade.
  *
  * One boundary everywhere: a stroke steeper than 45° is vertical (a flick),
  * shallower is horizontal (a run). Flicks must also be quick (a distance
@@ -197,7 +199,7 @@ class GestureInput(density: Float) {
             }
             Mode.HELD -> {
                 // A quick jab that barely slid past the run slop was a tap with a
-                // rolling thumb, not a deliberate step: shoot.
+                // rolling thumb, not a deliberate step: a tap.
                 val travel = maxOf(f.maxTravel, abs(dx), abs(dy))
                 if (f.lastFlick == 0 && dt < SLOPPY_TAP_MS && travel <= sloppyTapDist) tap(f, x, y, t)
             }
@@ -235,12 +237,12 @@ class GestureInput(density: Float) {
     }
 
     private fun tap(f: Finger, x: Float, y: Float, t: Long) {
-        // The second press must start after the first one lifted: chorded taps are two shots.
+        // The second press must start after the first one lifted: chorded taps are two taps.
         val gap = f.downT - lastTapT
         val quick = gap in 0..DOUBLE_TAP_GAP_MS &&
             abs(x - lastTapX) < doubleTapDist && abs(y - lastTapY) < doubleTapDist
         tapStreak = if (quick) tapStreak + 1 else 1
-        // Only the second tap of a fresh burst is a grenade: mashing stays shots.
+        // Only the second tap of a fresh burst is a grenade: mashing stays taps.
         pending += if (tapStreak == 2) Command.DOUBLE_TAP else Command.TAP
         lastTapT = t
         lastTapX = x
@@ -259,7 +261,7 @@ class GestureInput(density: Float) {
         f.lastFlick = if (dy < 0) -1 else 1
         f.reboundUntil = t + REBOUND_MS
         f.resetHistory(x, y, t)
-        // A flick breaks a tap burst: tap, flick, tap is two shots, not a grenade.
+        // A flick breaks a tap burst: tap, flick, tap is two taps, not a grenade.
         tapStreak = 0
         lastTapT = Long.MIN_VALUE / 2
     }

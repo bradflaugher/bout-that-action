@@ -10,67 +10,145 @@ import kotlin.math.abs
 class LevelGenTest {
     private val d = Difficulty()
 
+    private fun summary(p: FloorPlan) = p.halls.map { h -> listOf(h.doors, h.landings, h.lights, h.hazards, h.spawns) } to p.shafts
+
     @Test
     fun floorsAreDeterministicPerSeed() {
         for (f in listOf(0, 1, 7, 42, 199, 250, 10_000)) {
             val a = LevelGen.build(99L, f, d)
             val b = LevelGen.build(99L, f, d)
-            assertEquals(a.doors, b.doors)
-            assertEquals(a.shafts, b.shafts)
-            assertEquals(a.hazards, b.hazards)
-            assertEquals(a.spawns, b.spawns)
+            assertEquals(summary(a), summary(b))
             assertEquals(a.zone, b.zone)
         }
     }
 
     @Test
     fun seedsChangeTheBuilding() {
-        val a = (1..30).map { LevelGen.build(1L, it, d).doors }
-        val b = (1..30).map { LevelGen.build(2L, it, d).doors }
+        val a = (1..30).map { summary(LevelGen.build(1L, it, d)) }
+        val b = (1..30).map { summary(LevelGen.build(2L, it, d)) }
         assertNotEquals(a, b)
     }
 
+    /** The one rule descent hangs on: from wherever you arrive, passages lead to a ride down. */
     @Test
-    fun stairsZigzagSoEveryFloorMustBeCrossed() {
-        for (f in 0..500) {
-            assertNotEquals(LevelGen.stairsSide(f), LevelGen.stairsSide(f + 1))
-            val plan = LevelGen.build(5L, f, d)
-            assertEquals(plan.stairsDown, LevelGen.stairsSide(f))
+    fun everyFloorHasAReachableRideDown() {
+        var floorsChecked = 0
+        for (seed in 1L..60L) for (f in 0..400) {
+            val plan = LevelGen.build(seed * 7919, f, d)
+            val lifts = plan.elevatorHalls.toSet()
+            assertTrue("seed $seed floor $f has no ride down", lifts.isNotEmpty())
+            // Rides arrive in A, passages can leave you anywhere: every hallway must reach one.
+            for (h in plan.halls.indices) {
+                assertTrue("seed $seed floor $f hall $h is cut off", plan.reachable(h).any { it in lifts })
+            }
+            floorsChecked++
+        }
+        assertTrue(floorsChecked >= 24_000)
+    }
+
+    @Test
+    fun ridesArriveInHallwayAAndLeaveFromTheOthers() {
+        for (seed in 1L..20L) for (f in 1..300) {
+            val plan = LevelGen.build(seed, f, d)
+            for (s in plan.shafts) {
+                val h = plan.landingHall(s)
+                assertTrue(h >= 0)
+                if (f == s.bottom) assertEquals("arrival in A", 0, h) else assertTrue("ride down from B+", h >= 1)
+            }
+            assertTrue(plan.hallCount in 2..Geo.MAX_HALLS)
         }
     }
 
     @Test
-    fun nothingOverlapsOnAFloor() {
+    fun passagesComeInMatchingPairs() {
         for (seed in 1L..20L) for (f in 1..300) {
             val plan = LevelGen.build(seed, f, d)
-            val xs = plan.doors.map { it.x } + plan.shafts.map { it.x } + plan.hazards.map { it.x }
-            assertEquals("seed $seed floor $f $xs", xs.size, xs.toSet().size)
-            for (x in xs) {
-                assertTrue(x - 0.6f > Geo.STAIR_W - 0.2f && x + 0.6f < Geo.FLOOR_W - Geo.STAIR_W + 0.2f)
+            for ((h, hp) in plan.halls.withIndex()) for (door in hp.doors) {
+                if (door.kind != DoorKind.PASSAGE) continue
+                assertNotEquals(h, door.to)
+                val back = plan.halls[door.to].doors[door.toDoor]
+                assertEquals(DoorKind.PASSAGE, back.kind)
+                assertEquals(h, back.to)
             }
+        }
+    }
+
+    @Test
+    fun doorsAreNeverSideBySide() {
+        for (seed in 1L..40L) for (f in 1..400) {
+            val plan = LevelGen.build(seed, f, d)
+            for (hp in plan.halls) {
+                val xs = hp.doors.map { it.x }.sorted()
+                for (i in 1 until xs.size) {
+                    assertTrue("seed $seed floor $f doors $xs", xs[i] - xs[i - 1] >= Geo.MIN_DOOR_GAP - 1e-4f)
+                }
+                for (x in xs) assertTrue(x - Geo.DOOR_W / 2f > 0.5f && x + Geo.DOOR_W / 2f < Geo.FLOOR_W - 0.5f)
+            }
+        }
+    }
+
+    @Test
+    fun nothingOverlapsInAHallway() {
+        for (seed in 1L..20L) for (f in 1..300) {
+            val plan = LevelGen.build(seed, f, d)
+            for (hp in plan.halls) {
+                val xs = hp.doors.map { it.x } + plan.shafts.map { it.x } + hp.hazards.map { it.x }
+                assertEquals("seed $seed floor $f $xs", xs.size, xs.toSet().size)
+                // Doors keep clear of the shaft columns running through the hallway.
+                for (door in hp.doors) for (s in plan.shafts) assertTrue(abs(door.x - s.x) > 1.2f)
+            }
+        }
+    }
+
+    @Test
+    fun guardsDontSpawnOnTopOfTheWayIn() {
+        for (seed in 1L..20L) for (f in 1..300) {
+            val plan = LevelGen.build(seed, f, d)
+            for (hp in plan.halls) {
+                val passages = hp.doors.filter { it.kind == DoorKind.PASSAGE }.map { it.x }
+                for (s in hp.spawns) {
+                    if (s.watch != 0) continue // the express welcoming committee waits at the doors on purpose
+                    for (x in passages) assertTrue("seed $seed floor $f", abs(s.x - x) >= LevelGen.PASSAGE_CLEAR - 1e-4f)
+                }
+                assertTrue(hp.spawns.size <= 5)
+            }
+            assertTrue(plan.halls.sumOf { it.spawns.size } <= Heat.MAX_ENEMIES_PER_FLOOR + plan.shafts.count { it.express })
         }
     }
 
     @Test
     fun elevatorShaftsAreConsistentAcrossTheFloorsTheyServe() {
-        for (seed in 1L..10L) for (f in 1..300) {
+        var express = 0
+        var total = 0
+        for (seed in 1L..10L) for (f in 0..300) {
             for (shaft in LevelGen.shaftsOn(seed, f)) {
                 assertTrue(f in shaft.top..shaft.bottom)
                 for (g in shaft.top..shaft.bottom) assertTrue(shaft in LevelGen.shaftsOn(seed, g))
-                assertTrue(shaft.bottom - shaft.top in 1..2)
+                if (shaft.express) {
+                    assertTrue(shaft.bottom - shaft.top in 3..5)
+                    assertTrue(shaft.stop in shaft.top + 1 until shaft.bottom)
+                } else {
+                    assertTrue(shaft.bottom - shaft.top in 1..2)
+                }
+                if (shaft.top == f) {
+                    total++
+                    if (shaft.express) express++
+                }
             }
             // Shafts sharing a floor never share a column.
             val xs = LevelGen.shaftsOn(seed, f).map { it.x }
             assertEquals(xs.size, xs.toSet().size)
         }
+        // Express shafts are the rare treat.
+        assertTrue("express $express of $total", express in 1..total / 5)
     }
 
     @Test
     fun intelIsCommonButNotEverywhere() {
         val floors = (1..400).map { LevelGen.build(3L, it, d) }
-        val intel = floors.count { p -> p.doors.any { it.kind == DoorKind.INTEL } }
-        assertTrue("intel on $intel/400", intel in 100..200)
-        assertTrue(floors[0].doors.any { it.kind == DoorKind.INTEL })
+        val intel = floors.count { p -> p.halls.any { h -> h.doors.any { it.kind == DoorKind.INTEL } } }
+        assertTrue("intel on $intel/400", intel in 100..220)
+        assertTrue(floors[0].halls.any { h -> h.doors.any { it.kind == DoorKind.INTEL } })
     }
 
     @Test
@@ -96,6 +174,8 @@ class LevelGenTest {
         assertTrue(LevelGen.build(1L, 150, d).heat > 5f)
         assertTrue(Heat.reaction(heats[0]) > Heat.reaction(heats[150]))
         assertTrue(Heat.fireInterval(heats[0]) > Heat.fireInterval(heats[150]))
+        assertTrue(Heat.enemiesPerHall(heats[0]) < Heat.enemiesPerHall(heats[150]))
+        assertTrue(Heat.doorSpawnInterval(heats[0]) > Heat.doorSpawnInterval(heats[150]))
     }
 
     @Test
@@ -111,8 +191,12 @@ class LevelGenTest {
     fun rooftopIsATutorial() {
         val roof = LevelGen.build(1L, 0, d)
         assertEquals(0f, roof.heat)
-        assertTrue(roof.hazards.isEmpty())
-        assertEquals(1, roof.spawns.size)
+        assertEquals(1, roof.hallCount)
+        assertTrue(roof.halls[0].hazards.isEmpty())
+        assertEquals(1, roof.halls[0].spawns.size)
+        // One way off the roof: the penthouse lift down to 49F.
+        assertEquals(1, roof.shafts.size)
+        assertEquals(1, roof.shafts[0].bottom)
     }
 
     @Test
@@ -126,6 +210,8 @@ class LevelGenTest {
         assertEquals("R", FloorLabel.short(0))
         assertEquals("42", FloorLabel.short(8))
         assertEquals("B7", FloorLabel.short(57))
+        assertEquals("A", Geo.hallName(0))
+        assertEquals("D", Geo.hallName(3))
     }
 
     @Test
