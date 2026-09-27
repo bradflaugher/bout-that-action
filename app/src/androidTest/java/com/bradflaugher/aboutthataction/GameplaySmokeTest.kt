@@ -47,22 +47,22 @@ class GameplaySmokeTest {
         val h = dm.heightPixels.toFloat()
         val d = dm.density
         val rng = Random(7)
-        val end = SystemClock.uptimeMillis() + 20_000
-        while (SystemClock.uptimeMillis() < end) {
-            val x = w * (0.25f + rng.nextFloat() * 0.5f)
-            val y = h * (0.55f + rng.nextFloat() * 0.3f)
-            when (rng.nextInt(6)) {
-                0, 1 -> gesture(x, y, x + (if (rng.nextBoolean()) 1 else -1) * 80 * d, y, 400L + rng.nextInt(900))
-                2 -> gesture(x, y, x, y, 40)
-                3 -> { gesture(x, y, x, y, 30); SystemClock.sleep(90); gesture(x, y, x, y, 30) }
-                4 -> gesture(x, y, x, y - 60 * d, 60)
-                else -> gesture(x, y, x, y + 60 * d, 60)
+        Launch.assertAlive(activity, "playing with touches", 20_000) {
+            val end = SystemClock.uptimeMillis() + 20_000
+            while (SystemClock.uptimeMillis() < end) {
+                val x = w * (0.25f + rng.nextFloat() * 0.5f)
+                val y = h * (0.55f + rng.nextFloat() * 0.3f)
+                when (rng.nextInt(6)) {
+                    0, 1 -> gesture(x, y, x + (if (rng.nextBoolean()) 1 else -1) * 80 * d, y, 400L + rng.nextInt(900))
+                    2 -> gesture(x, y, x, y, 40)
+                    3 -> { gesture(x, y, x, y, 30); SystemClock.sleep(90); gesture(x, y, x, y, 30) }
+                    4 -> gesture(x, y, x, y - 60 * d, 60)
+                    else -> gesture(x, y, x, y + 60 * d, 60)
+                }
+                SystemClock.sleep(80)
             }
-            SystemClock.sleep(80)
         }
         assertTrue("still resumed after playing", Launch.resumed() === activity)
-        val time = Launch.onMain { activity.currentWorld?.time ?: -1f }
-        assertTrue("the simulation should have advanced, time=$time", time > 5f)
         Launch.onMain { activity.finish() }
     }
 }

@@ -174,6 +174,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
 
     /** The world on screen, for instrumented tests. */
     val currentWorld: World? get() = gameView.world
+    val framesDrawn: Long get() = gameView.framesDrawn
     val isPlaying: Boolean get() = screen == Screen.PLAYING
 
     // ------------------------------------------------------------- flow

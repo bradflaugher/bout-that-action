@@ -47,6 +47,10 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
             accumulator = 0.0
         }
 
+    /** Frames posted to the screen so far, for instrumented tests. */
+    @Volatile var framesDrawn = 0L
+        private set
+
     /** Attract mode: the world ignores touches, hides the HUD and plays itself. */
     @Volatile var attract = true
     @Volatile var autopilot: Autopilot? = null
@@ -185,6 +189,7 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
             }
         } finally {
             holder.unlockCanvasAndPost(canvas)
+            framesDrawn++
         }
     }
 

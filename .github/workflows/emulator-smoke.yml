@@ -22,7 +22,11 @@ concurrency:
 
 jobs:
   smoke:
-    name: Emulator smoke test
+    name: Emulator smoke test (${{ matrix.gpu }})
+    strategy:
+      fail-fast: false
+      matrix:
+        gpu: [swangle_indirect, swiftshader_indirect]
     # Not ubuntu-latest (24.04): there, emulator 37.1's gfxstream advertises
     # ANDROID_EMU_read_color_buffer_dma, the API 37 image's gralloc mapper asserts
     # it is absent, and SurfaceFlinger aborts (RegionSampling) every ~30 s,
@@ -89,7 +93,7 @@ jobs:
           disk-size: 6G
           emulator-boot-timeout: 900
           # swangle: SwiftShader through ANGLE, the software GPU for headless runners.
-          emulator-options: -no-window -gpu swangle_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
+          emulator-options: -no-window -gpu ${{ matrix.gpu }} -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
           disable-animations: true
           disable-spellchecker: true
           script: .github/scripts/emulator-smoke.sh
@@ -98,7 +102,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: emulator-smoke
+          name: emulator-smoke-${{ matrix.gpu }}
           path: |
             smoke/
           if-no-files-found: warn
