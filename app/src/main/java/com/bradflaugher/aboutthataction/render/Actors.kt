@@ -99,7 +99,7 @@ internal class Actors(private val f: Frame) {
             val cy = if (pl.state == PlayerState.BOX) foot - 0.4f else foot - 0.8f
             val a = p.alphaMul
             g.blend(Gfx.Blend.ADD)
-            g.glow(pl.x, cy, 1.4f, Col.alpha(VISOR, 0.26f * a))
+            g.glow(pl.x, cy, 1.5f, Col.alpha(VISOR, 0.32f * a))
             // Cyan pool on the floor under the agent.
             val fz = (1f - pl.z / 2.5f).coerceIn(0f, 1f)
             if (fz > 0f) {
