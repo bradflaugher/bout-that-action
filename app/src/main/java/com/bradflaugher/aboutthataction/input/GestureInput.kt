@@ -79,6 +79,9 @@ class GestureInput(density: Float) {
                 val i = (hn - 1 - k).mod(HISTORY)
                 if (now - ht[i] <= windowMs) best = i else break
             }
+            // Only the current point is in the window (a sparse digitizer or a single
+            // fast move after a long hold): measure from the sample before it.
+            if (best == (hn - 1).mod(HISTORY) && count > 1) best = (hn - 2).mod(HISTORY)
             return best
         }
 
@@ -232,7 +235,9 @@ class GestureInput(density: Float) {
     }
 
     private fun tap(f: Finger, x: Float, y: Float, t: Long) {
-        val quick = f.downT - lastTapT <= DOUBLE_TAP_GAP_MS &&
+        // The second press must start after the first one lifted: chorded taps are two shots.
+        val gap = f.downT - lastTapT
+        val quick = gap in 0..DOUBLE_TAP_GAP_MS &&
             abs(x - lastTapX) < doubleTapDist && abs(y - lastTapY) < doubleTapDist
         tapStreak = if (quick) tapStreak + 1 else 1
         // Only the second tap of a fresh burst is a grenade: mashing stays shots.

@@ -348,4 +348,22 @@ class GestureInputTest {
         }
         assertEquals(listOf(Command.SWIPE_UP), commands())
     }
+
+    @Test
+    fun flickAfterALongHoldReportedAsOneMoveStillCounts() {
+        g.down(0, 500f, 1500f, 0)
+        g.move(0, 502f, 1501f, 50)
+        // Thumb rests for a while, then one sparse move event carries the whole flick.
+        g.move(0, 504f, 1380f, 900)
+        assertEquals(listOf(Command.SWIPE_UP), commands())
+    }
+
+    @Test
+    fun chordedTapsAreTwoShotsNotAGrenade() {
+        g.down(0, 500f, 1500f, 0)
+        g.down(1, 520f, 1510f, 30)
+        g.up(0, 500f, 1500f, 80)
+        g.up(1, 520f, 1510f, 110)
+        assertEquals(listOf(Command.TAP, Command.TAP), commands())
+    }
 }

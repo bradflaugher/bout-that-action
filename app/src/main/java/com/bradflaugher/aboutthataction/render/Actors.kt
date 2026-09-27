@@ -205,25 +205,8 @@ internal class Actors(private val f: Frame) {
         else -> 0
     }
 
-    /** What the auto-aim would pick, to aim the gun at it (mirrors World.pickTarget). */
-    private fun aimTarget(): Enemy? {
-        val pl = f.w.player
-        var best: Enemy? = null
-        var bestScore = Float.MAX_VALUE
-        val list = f.w.enemies
-        for (i in list.indices) {
-            val e = list[i]
-            if (e.floor != pl.floor || !e.alive) continue
-            val dx = e.x - pl.x
-            if (abs(dx) > 11f) continue
-            val score = abs(dx) + if (dx * pl.facing < -0.2f) 3f else 0f
-            if (score < bestScore) {
-                bestScore = score
-                best = e
-            }
-        }
-        return best
-    }
+    /** What the auto-aim would pick, to aim the gun at it: the engine's own choice. */
+    private fun aimTarget(): Enemy? = f.w.aimTarget()
 
     private fun poseHero(x: Float, foot: Float, dir: Int) {
         val pl = f.w.player

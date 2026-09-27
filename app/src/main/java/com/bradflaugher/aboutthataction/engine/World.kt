@@ -101,6 +101,9 @@ class World(val config: RunConfig) {
         private set
 
     private var hitStop = 0f
+
+    /** True while the simulation is frozen for impact (hit-stop). */
+    val hitStopping: Boolean get() = hitStop > 0f
     private var nextEnemyId = 1
     private var killsSinceGrenade = 0
     private var reflexTime = 0f
@@ -782,6 +785,9 @@ class World(val config: RunConfig) {
         PlayerState.ELEVATOR -> elevators[player.elevatorShaft]?.takeIf { it.doorsOpen }?.atFloor
         else -> null
     }
+
+    /** The enemy auto-aim would shoot right now (the renderer aims the gun pose at it). */
+    fun aimTarget(): Enemy? = pickTarget()
 
     private fun pickTarget(range: Float = 11f): Enemy? {
         val f = playerTargetFloor() ?: return null

@@ -35,7 +35,6 @@ internal class Effects(private val f: Frame) {
     // Smoothed presentation state, advanced in real time.
     private var slowK = 0f
     private var impact = 0f
-    private var lastWorldTime = -1f
 
     fun world() {
         bullets()
@@ -533,10 +532,10 @@ internal class Effects(private val f: Frame) {
         val dying = w.phase == Phase.DYING || w.phase == Phase.OVER
         val dt = f.dt
 
-        // Smooth the grade in and out; detect hit-stop (sim time frozen while real time runs).
+        // Smooth the grade in and out; flash on the engine's own hit-stop, never on a
+        // render that merely landed between two fixed simulation steps.
         slowK += ((if (slow) 1f else 0f) - slowK) * min(1f, if (dt == 0f) 1f else dt * 7f)
-        val frozen = playing && dt > 0f && w.time == lastWorldTime
-        lastWorldTime = w.time
+        val frozen = playing && dt > 0f && w.hitStopping
         impact = if (frozen) 1f else max(0f, impact - dt * 9f)
 
         // --- slow-mo: cool grade, lifted violet shadows, chromatic edges.
