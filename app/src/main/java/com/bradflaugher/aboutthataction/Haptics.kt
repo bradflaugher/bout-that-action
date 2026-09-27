@@ -5,16 +5,33 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import com.bradflaugher.aboutthataction.engine.GameEvent
+import com.bradflaugher.aboutthataction.engine.KillMethod
 
-/** Short, crisp haptic accents for the events that matter. */
+/**
+ * Short, crisp haptic accents. Two tiers:
+ *
+ *  - **Confirmations** (light ticks): every gesture the game recognised
+ *    (shot, jump, hide) and every landing. There are no buttons to feel, so
+ *    this is how the thumb knows a flick registered. They're rate-limited so
+ *    a busy moment never blurs into a buzz.
+ *  - **Impacts** (clicks, thuds, waveforms): takedowns, hits, explosions.
+ *    These always play.
+ */
 class Haptics(context: Context) {
     private val vibrator: Vibrator = context.getSystemService(VibratorManager::class.java).defaultVibrator
     var enabled = true
     private var lastShot = 0L
+    private var lastLight = 0L
 
-    private val tick = VibrationEffect.startComposition().addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.5f).compose()
+    private val shotTick = VibrationEffect.startComposition().addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.5f).compose()
+    private val softTick = VibrationEffect.startComposition().addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.3f).compose()
+    private val hide = VibrationEffect.startComposition().addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.45f).compose()
     private val click = VibrationEffect.startComposition().addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.8f).compose()
     private val thud = VibrationEffect.startComposition().addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1f).compose()
+    private val empty = VibrationEffect.startComposition()
+        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.3f)
+        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.3f, 50)
+        .compose()
     private val takedown = VibrationEffect.startComposition()
         .addPrimitive(VibrationEffect.Composition.PRIMITIVE_QUICK_RISE, 0.6f)
         .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 1f, 40)
@@ -30,24 +47,41 @@ class Haptics(context: Context) {
         if (!enabled) return
         when (e) {
             is GameEvent.Shot -> if (e.byPlayer) {
+                // Throttled harder than the minigun's fire rate so full-auto stays a purr.
                 val now = System.nanoTime()
-                if (now - lastShot > 60_000_000L) { lastShot = now; play(tick) }
+                if (now - lastShot > SHOT_GAP_NS) { lastShot = now; lastLight = now; play(shotTick) }
             }
+            GameEvent.Jump -> light(softTick)
+            GameEvent.Land -> light(softTick)
+            GameEvent.HideBox, GameEvent.HideDoor -> light(hide)
+            GameEvent.SpecialEmpty -> light(empty)
             is GameEvent.PlayerHurt -> play(thud)
             GameEvent.Takedown -> play(takedown)
-            is GameEvent.EnemyKilled -> if (e.combo >= 3) play(click)
+            is GameEvent.EnemyKilled -> if (e.combo >= 3 || e.how == KillMethod.STOMP) play(click)
             is GameEvent.Explosion -> play(boom)
             GameEvent.LightCrash -> play(click)
             GameEvent.PlayerDied -> play(death)
             GameEvent.ShieldBlock -> play(click)
             is GameEvent.PerkChosen -> play(perk)
             is GameEvent.ZoneEntered -> play(boom)
-            GameEvent.Land, GameEvent.HideBox, GameEvent.HideDoor -> play(tick)
             else -> Unit
         }
     }
 
+    /** A confirmation tick, dropped if another light tick just played. */
+    private fun light(effect: VibrationEffect) {
+        val now = System.nanoTime()
+        if (now - lastLight < LIGHT_GAP_NS) return
+        lastLight = now
+        play(effect)
+    }
+
     private fun play(effect: VibrationEffect) {
         vibrator.vibrate(effect)
+    }
+
+    private companion object {
+        const val SHOT_GAP_NS = 95_000_000L
+        const val LIGHT_GAP_NS = 45_000_000L
     }
 }
