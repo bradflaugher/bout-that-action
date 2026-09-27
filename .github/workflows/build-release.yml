@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 30
     outputs:
       version: ${{ steps.version.outputs.version }}
+      signed: ${{ steps.keystore.outputs.signed }}
 
     steps:
       - name: Check out repository
@@ -57,7 +58,11 @@ jobs:
         with:
           validate-wrappers: true
 
+      # Signing is optional until the repository secrets exist: without them
+      # the build and tests still run, but nothing is published (Android
+      # won't install an unsigned APK).
       - name: Restore signing keystore
+        id: keystore
         if: github.event_name != 'pull_request'
         env:
           ATA_KEYSTORE_BASE64: ${{ secrets.ATA_KEYSTORE_BASE64 }}
@@ -71,8 +76,13 @@ jobs:
               missing+=("$variable")
             fi
           done
+          if [ "${#missing[@]}" -eq 4 ]; then
+            printf '::warning title=Release skipped::No signing secrets configured (ATA_KEYSTORE_BASE64, ATA_STORE_PASSWORD, ATA_KEY_ALIAS, ATA_KEY_PASSWORD). Building unsigned; no release will be published.\n'
+            printf 'signed=false\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ "${#missing[@]}" -ne 0 ]; then
-            printf 'Missing required signing secrets: %s\n' "${missing[*]}" >&2
+            printf 'Signing secrets are partially configured. Missing: %s\n' "${missing[*]}" >&2
             exit 1
           fi
           keystore_path="$RUNNER_TEMP/ata-release.jks"
@@ -82,6 +92,7 @@ jobs:
             exit 1
           fi
           printf 'ATA_KEYSTORE_PATH=%s\n' "$keystore_path" >> "$GITHUB_ENV"
+          printf 'signed=true\n' >> "$GITHUB_OUTPUT"
 
       # Signing is all-or-nothing in app/build.gradle.kts. Pull requests get no
       # signing variables at all and build a clean unsigned APK.
@@ -105,7 +116,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.build.outputs.signed == 'true'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10

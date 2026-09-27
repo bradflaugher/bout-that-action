@@ -90,6 +90,8 @@ screenshots.
 
 Every push to `main` builds a signed APK and publishes it as the single
 date-labeled GitHub release `vYYYY.MM.DD.<run>`, deleting all older
-releases. Pull requests build unsigned and publish nothing. Signing needs the
+releases. Pull requests build unsigned and publish nothing. Signing uses the
 repository secrets `ATA_KEYSTORE_BASE64`, `ATA_STORE_PASSWORD`,
-`ATA_KEY_ALIAS` and `ATA_KEY_PASSWORD`.
+`ATA_KEY_ALIAS` and `ATA_KEY_PASSWORD`; until they exist, pushes to `main`
+still build and test but skip the release (with a warning). Never commit a
+keystore.
