@@ -115,10 +115,16 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
         }
     }
 
+    /**
+     * Waits for the in-flight frame to finish, however long it takes: once surfaceDestroyed
+     * returns the surface is gone, and a frame still drawing into it crashes hwui's
+     * RenderThread. (A slow frame outlasted the old 500 ms cap on the emulator's software
+     * GPU.) The loop never waits on the main thread, so this cannot deadlock.
+     */
     private fun stopLoop() {
         val old = thread
         thread = null
-        old?.join(500)
+        old?.join()
     }
 
     private fun loop() {
