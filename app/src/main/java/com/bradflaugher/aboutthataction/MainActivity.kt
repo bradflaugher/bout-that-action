@@ -159,10 +159,12 @@ class MainActivity : ComponentActivity(), GameView.Host {
     override fun onResume() {
         super.onResume()
         audio.start()
+        gameView.onHostResume()
     }
 
     override fun onPause() {
         if (screen == Screen.PLAYING) pause()
+        gameView.onHostPause()
         audio.pause()
         super.onPause()
     }

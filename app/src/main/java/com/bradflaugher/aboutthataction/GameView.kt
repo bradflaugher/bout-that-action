@@ -103,7 +103,26 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
         )
     }
 
-    override fun surfaceCreated(holder: SurfaceHolder) = startLoop()
+    /**
+     * The loop runs only while the activity is resumed AND the surface exists. Stopping on
+     * pause matters: an activity on its way out can have its surface disconnected before
+     * surfaceDestroyed arrives on the main thread, and drawing into it then crashes hwui.
+     */
+    private var hostResumed = false
+
+    fun onHostResume() {
+        hostResumed = true
+        if (holder.surface.isValid) startLoop()
+    }
+
+    fun onHostPause() {
+        hostResumed = false
+        stopLoop()
+    }
+
+    override fun surfaceCreated(holder: SurfaceHolder) {
+        if (hostResumed) startLoop()
+    }
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
     override fun surfaceDestroyed(holder: SurfaceHolder) = stopLoop()
 
@@ -116,9 +135,9 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
     }
 
     /**
-     * Waits for the in-flight frame to finish, however long it takes: once surfaceDestroyed
-     * returns the surface is gone, and a frame still drawing into it crashes hwui's
-     * RenderThread. (A slow frame outlasted the old 500 ms cap on the emulator's software
+     * Waits for the in-flight frame to finish, however long it takes: once onPause or
+     * surfaceDestroyed returns the surface may be gone, and a frame still drawing into it
+     * crashes hwui's RenderThread. (A slow frame outlasted the old 500 ms cap on the emulator's software
      * GPU.) The loop never waits on the main thread, so this cannot deadlock.
      */
     private fun stopLoop() {
