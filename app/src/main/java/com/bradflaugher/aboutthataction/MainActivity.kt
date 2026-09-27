@@ -67,6 +67,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
 
     // Music state, driven from the game thread and reset on the main thread between runs.
     @Volatile private var musicZone: Zone? = null
+    @Volatile private var musicSilent = false
     @Volatile private var musicSlowMo = false
     private var musicFrame = 0
 
@@ -259,9 +260,10 @@ class MainActivity : ComponentActivity(), GameView.Host {
 
     override fun onFrame(world: World) {
         if (gameView.attract) return
-        if (world.musicZone != musicZone) {
+        if (world.musicZone != musicZone || world.silent != musicSilent) {
             musicZone = world.musicZone
-            sound.setZone(world.musicZone)
+            musicSilent = world.silent
+            sound.setZone(world.musicZone, world.silent)
         }
         if (world.slowMo != musicSlowMo) {
             musicSlowMo = world.slowMo

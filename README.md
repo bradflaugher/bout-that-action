@@ -175,7 +175,11 @@ word or number you type.
 The soundtrack is synthesized live: band-limited oscillators, filters,
 drums, delay and reverb. Every zone gets its own procedural track, with its
 own key, tempo and motif-based melodies. The music gets more intense in a
-fight and pitches down in bullet time. Every sound effect is
+fight and pitches down in bullet time. SILENT gets its own sneak mix of every
+zone: the same key and chords at a slow tempo over a heartbeat kick, a roomy
+snare, ticking hats and glassy bell notes in a long echo, with rim clicks
+creeping in as guards get suspicious. Flipping the mode crossfades between
+the two. Every sound effect is
 synthesized too, panned to where it happened on screen, with haptics on the
 big moments.
 

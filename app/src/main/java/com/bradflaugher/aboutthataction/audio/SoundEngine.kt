@@ -22,7 +22,8 @@ class SoundEngine(val sampleRate: Int = 48000) {
 
     // ---- Cross-thread inputs ------------------------------------------------------------
     private val queue = ConcurrentLinkedQueue<Any>()
-    private val zoneCmds = Zone.entries.map { ZoneCmd(it) }
+    private val zoneCmds = Zone.entries.map { ZoneCmd(it, false) }
+    private val sneakCmds = Zone.entries.map { ZoneCmd(it, true) }
 
     @Volatile private var intensityIn = 0.35f
     @Volatile private var musicVolIn = 0.8f
@@ -30,7 +31,7 @@ class SoundEngine(val sampleRate: Int = 48000) {
     @Volatile private var pausedIn = false
     @Volatile private var slowMoIn = false
 
-    private class ZoneCmd(val zone: Zone)
+    private class ZoneCmd(val zone: Zone, val silent: Boolean)
     private object TitleCmd
     private object GameOverCmd
 
@@ -73,9 +74,12 @@ class SoundEngine(val sampleRate: Int = 48000) {
         queue.add(event)
     }
 
-    /** Move the music to [zone]'s track (on the next bar line, with a fill and riser). */
-    fun setZone(zone: Zone) {
-        queue.add(zoneCmds[zone.ordinal])
+    /**
+     * Move the music to [zone]'s track (on the next bar line, with a fill and riser); [silent]
+     * picks its sneak mix. Flipping only the mode crossfades right away, in the same key.
+     */
+    fun setZone(zone: Zone, silent: Boolean = false) {
+        queue.add((if (silent) sneakCmds else zoneCmds)[zone.ordinal])
     }
 
     /** Combat heat 0..1: adds drums, arp and lead and opens the filters as it rises. */
@@ -110,6 +114,9 @@ class SoundEngine(val sampleRate: Int = 48000) {
         queue.add(GameOverCmd)
     }
 
+    /** The track now playing (audio thread; for tests). */
+    internal val songName: String? get() = director.current?.name
+
     // ---- Audio thread ------------------------------------------------------------------
 
     /** Fill [out] with [frames] interleaved stereo float frames. */
@@ -130,7 +137,10 @@ class SoundEngine(val sampleRate: Int = 48000) {
                 is GameEvent -> if (!paused) sfx.play(c)
                 is ZoneCmd -> {
                     gameOverWait = -1
-                    director.request(Songs.forZone(c.zone), immediate = false)
+                    val spec = Songs.forZone(c.zone, c.silent)
+                    // Same zone, other mode: a quick crossfade, not a wait for the bar line.
+                    val modeFlip = director.current.let { it != null && it !== spec && Songs.forZone(c.zone, !c.silent) === it }
+                    director.request(spec, immediate = modeFlip)
                 }
                 TitleCmd -> {
                     gameOverWait = -1
