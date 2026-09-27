@@ -779,15 +779,21 @@ internal class Building(private val f: Frame) {
         }
     }
 
-    /** The bottom of a shaft (where a ride down ended): plain steel and a dim LAST STOP plate. */
+    /**
+     * The bottom of a shaft (where a ride down ended): plain steel with a road-style
+     * DO NOT ENTER sign (red disc, white bar) across the seam, dimmed so it never outshines
+     * the cyan rides down.
+     */
     private fun lastStopMarks(x0: Float, y0: Float, x1: Float, y1: Float, open: Float) {
         val a = 1f - (open / 0.35f).coerceIn(0f, 1f)
         if (a <= 0f) return
         val cx = (x0 + x1) / 2f
-        val cy = y0 + 0.78f
-        g.fillRoundRect(cx - 0.5f, cy - 0.16f, cx + 0.5f, cy + 0.16f, 0.05f, Col.alpha(0xFF101016.toInt(), 0.9f * a))
-        g.strokeRoundRect(cx - 0.5f, cy - 0.16f, cx + 0.5f, cy + 0.16f, 0.05f, 0.02f, Col.alpha(0xFF6A6878.toInt(), a))
-        f.worldText("LAST STOP", cx, cy + 0.055f, 0.155f, Col.alpha(0xFFA8A4B8.toInt(), a), Gfx.Font.TITLE)
+        val cy = y0 + 0.8f
+        val r = 0.27f
+        g.fillCircle(cx, cy + 0.03f, r, Col.alpha(0xFF000000.toInt(), 0.4f * a))
+        g.fillCircle(cx, cy, r, Col.alpha(0xFFF2F0F4.toInt(), 0.9f * a))
+        g.fillCircle(cx, cy, r * 0.88f, Col.alpha(0xFFD8283A.toInt(), 0.9f * a))
+        g.fillRoundRect(cx - r * 0.62f, cy - r * 0.16f, cx + r * 0.62f, cy + r * 0.16f, r * 0.04f, Col.alpha(0xFFF2F0F4.toInt(), 0.95f * a))
     }
 
     /** A pair of brushed-steel landing doors in [x0, x1] × [y0, y1], [open] 0..1. */

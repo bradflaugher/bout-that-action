@@ -550,7 +550,7 @@ class ScreenshotTest {
         return w
     }
 
-    /** A ride down (cyan, chevrons) in this hallway; where it lands, a floor below, says LAST STOP. */
+    /** A ride down (cyan, chevrons) in this hallway; where it lands, a floor below, wears a DO NOT ENTER sign. */
     private fun lifts(): World {
         val f = 13
         val seed = (calmSeed(f, 1300) until calmSeed(f, 1300) + 400).first { sd ->

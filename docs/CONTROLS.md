@@ -123,7 +123,7 @@ mashing a door never bounces you back through it.
 **Which lift goes down.** A landing with a ride down from it has cyan-lit
 jambs and threshold, a cyan call button and ▼ chevrons that chase down its
 shut doors. The bottom of a shaft (the car you arrived in, in hallway A) is
-plain steel with a dim LAST STOP plate and no call button; tapping it does
+plain steel with a road-style DO NOT ENTER sign and no call button; tapping it does
 nothing.
 
 **Elevators.** A car only counts as boardable once its doors have been open

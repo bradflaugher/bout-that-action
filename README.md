@@ -52,7 +52,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   the hallway it opens into; the passage plates and the HALLS map mark the
   hallways with a ride down, so you always know where you're headed. A ride
   down glows cyan with ▼ chevrons chasing down its doors; the car you came in
-  on is plain steel marked LAST STOP. Your
+  on is plain steel with a red DO NOT ENTER sign. Your
   floor is the stage: the floor below, where you're headed, is a step back,
   and the rest of the tower recedes into the dark. The choice is how: which
   door, which hallway's guards, which lift, and when to move.
@@ -111,7 +111,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
     <td align="center" width="33%"><img src="docs/screenshots/payday.png" alt="PAYDAY: loot lying around"><p><em><b>Payday.</b> Somebody's bonus</em></p></td>
   </tr>
   <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/lifts.png" alt="A cyan ride down above, a LAST STOP landing below"><p><em><b>Lifts.</b> Cyan goes down; LAST STOP doesn't</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/lifts.png" alt="A cyan ride down above, a DO NOT ENTER landing below"><p><em><b>Lifts.</b> Cyan goes down; red means no entry</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/coach.png" alt="A coach tip on the first floors"><p><em><b>Coach.</b> Tips, once each</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/bonk.png" alt="A lamp swatted onto a guard"><p><em><b>BONK!</b> Mind the lamp</em></p></td>
   </tr>
