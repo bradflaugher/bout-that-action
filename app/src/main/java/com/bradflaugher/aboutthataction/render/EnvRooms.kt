@@ -30,7 +30,8 @@ internal class EnvRooms(private val f: Frame, private val walls: EnvWalls) {
             val sx = Geo.SLOTS[i]
             var used = false
             for (k in plan.doors.indices) if (plan.doors[k].x == sx) used = true
-            for (k in plan.shafts.indices) if (plan.shafts[k].x == sx) used = true
+            // A shaft that doesn't open into this hallway runs behind the wall: the slot is free.
+            for (k in plan.shafts.indices) if (plan.shafts[k].x == sx && plan.opens(plan.shafts[k])) used = true
             for (k in plan.hazards.indices) if (plan.hazards[k].x == sx) used = true
             free[i] = !used
         }

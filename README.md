@@ -46,10 +46,12 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 
 - **Every floor is a little puzzle.** A floor is two to four hallways joined
   by passage doors, and the whole hallway is always on screen. You arrive in
-  hallway **A**; the ride down is always somewhere else. Lift shafts run
-  through every hallway, tagged with the letter of the one they open into, so
-  you always know where you're headed. The choice is how: which door, which
-  hallway's guards, which lift, and when to move.
+  hallway **A**; the ride down is always somewhere else. A lift only shows in
+  the hallway it opens into; the passage plates and the HALLS map mark the
+  hallways with a ride down, so you always know where you're headed. Your
+  floor is the stage: the floor below, where you're headed, is a step back,
+  and the rest of the tower recedes into the dark. The choice is how: which
+  door, which hallway's guards, which lift, and when to move.
 - **Elevators are the only way down.** No stairs. Most shafts are short 1–2
   floor hops. Rare gold **express** shafts drop 3–5 floors at once, but open
   their doors once on the way, onto someone waiting. Cars cycle on their own;

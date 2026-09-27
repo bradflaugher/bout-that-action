@@ -77,11 +77,15 @@ class ScreenshotTest {
                 val img = render(world, scene, 270, 600)
                 assertEquals(270, img.width)
             } else {
-                val img = render(world, scene, 1080, 2400)
+                // -Pata.size=720x1600 renders another phone shape (checks the HUD at other sizes).
+                val size = System.getProperty("ata.size").orEmpty().split('x').mapNotNull { it.toIntOrNull() }
+                val (sw, sh) = if (size.size == 2) size[0] to size[1] else 1080 to 2400
+                world.viewAspect = sh.toFloat() / sw
+                val img = render(world, scene, sw, sh)
                 dir.mkdirs()
                 // Rendered at phone resolution, saved at half size to keep the repo light.
                 val full = System.getProperty("ata.full") == "true"
-                ImageIO.write(if (full) img else downscale(img, 540, 1200), "png", File(dir, "${scene.name}.png"))
+                ImageIO.write(if (full || sw != 1080) img else downscale(img, 540, 1200), "png", File(dir, "${scene.name}.png"))
                 println("wrote ${File(dir, "${scene.name}.png")}")
             }
         }

@@ -307,12 +307,14 @@ internal class Hud(private val f: Frame) {
         val here = if (p.state == PlayerState.PASSAGE) p.passageTo else p.hall
         fun cx(h: Int) = x0 + h * (pw + gap) + pw / 2f
         // Links: adjacent hallways join straight across, others arc over the row.
-        val drawn = HashSet<Int>()
+        // Links already drawn, as bits of a small pair index (no per-frame allocation).
+        var drawn = 0L
         for (h in 0 until n) {
             if (!fs.halls[h].visited) continue
             for (to in fs.plan.neighbours(h)) {
                 val key = minOf(h, to) * 8 + maxOf(h, to)
-                if (!drawn.add(key)) continue
+                if (drawn and (1L shl key) != 0L) continue
+                drawn = drawn or (1L shl key)
                 val a = cx(minOf(h, to))
                 val b = cx(maxOf(h, to))
                 val lc = Col.alpha(Building.PASSAGE, 0.7f)
@@ -783,7 +785,9 @@ internal class Hud(private val f: Frame) {
         val W = g.width
         val H = g.height
         val u = unit(W)
-        val cy = H * 0.34f
+        // Never over the stage: the band sits under the player's floor, across the receded ones.
+        val stageBottom = (com.bradflaugher.aboutthataction.engine.Geo.groundY(w.player.floorF) + Building.SLAB - f.camY) * f.s
+        val cy = min(H * 0.7f, max(H * 0.34f, stageBottom + 28f * u))
         val pal = if (zone == Zone.VOID) Palette.void(Zone.VOID, f.t, 0) else Palette.of(zone)
         val neon = pal.neon
         val out = HudType.clamp01(bt / 0.5f)

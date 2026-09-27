@@ -69,8 +69,12 @@ class Renderer {
             building.slab(fs.hall(0))
         }
         building.outerWalls()
-        building.elevators(actors)
-        for (i in first..last) f.views(i) { building.sealedShafts(it) }
+        // Cars ride with their floor's hallway (so they slide with it) and only show where
+        // their shaft opens; the car the player rides shows all the way down.
+        building.updateCars()
+        for (i in first..last) f.views(i) { building.cars(it, actors) }
+        building.riddenCar(actors)
+        building.stageLight()
 
         // Actors per floor, then darkness on top of the rooms, then the lights that survive it.
         for (i in first..last) f.views(i) { actors.floorActors(i, it) }
@@ -81,20 +85,12 @@ class Renderer {
         actors.player()
         g.restore()
         for (i in first..last) f.views(i) { building.darkness(it) }
-        val pf = world.player.floorF
-        // Focus: the zoomed-out tower shows many floors, so the further a floor is from the
-        // player's, the further it recedes. The stage stays at full strength.
-        for (i in first..last) {
-            if (i == 0 || world.floors[i] == null) continue
-            val d = kotlin.math.abs(i - pf)
-            if (d < 1f) continue
-            val a = (0.2f + 0.09f * (d - 1f)).coerceAtMost(0.46f)
-            val top = i * Geo.FLOOR_H + 0.35f
-            g.fillRect(-0.6f, top, Geo.FLOOR_W + 0.6f, (i + 1) * Geo.FLOOR_H + 0.35f, Col.alpha(0xFF000000.toInt(), a))
-        }
+        // Focus: distant floors keep their lamps under the veil, so they recede with the rest.
+        for (i in first..last) if (f.lod(i) > 0) f.views(i) { building.lightsAndHazards(it) }
+        for (i in first..last) building.recede(i)
         for (i in first..last) f.views(i) {
             actors.darkEyes(i, it)
-            building.lightsAndHazards(it)
+            if (f.lod(i) == 0) building.lightsAndHazards(it)
         }
         actors.playerOverlay()
         effects.bloom()
@@ -334,7 +330,54 @@ internal class Frame {
 
     fun clamp01(v: Float) = min(1f, max(0f, v))
 
+    /**
+     * How far floor [fi] recedes from the stage, 0..1: 0 on the player's floor, a light veil on
+     * the floor below (where you're headed), more above (where you've been), and a hard
+     * falloff beyond. Continuous in the player's floorF, so a ride cross-fades the stage.
+     */
+    fun recede(fi: Int): Float {
+        val v = recedeBase(fi)
+        // Lights out on the stage: the rest of the tower goes quieter too, so a lit floor next
+        // door never out-shouts the one you're on.
+        val dark = w.playerHall()?.darkness ?: 0f
+        return if (dark > 0.01f && v > 0f) v + (1f - v) * 0.45f * dark else v
+    }
+
+    private fun recedeBase(fi: Int): Float {
+        val d = fi - w.player.floorF
+        return if (d >= 0f) {
+            when {
+                d <= 1f -> RECEDE_BELOW[0] * d
+                d <= 2f -> RECEDE_BELOW[0] + (RECEDE_BELOW[1] - RECEDE_BELOW[0]) * (d - 1f)
+                else -> min(RECEDE_BELOW[2], RECEDE_BELOW[1] + (RECEDE_BELOW[2] - RECEDE_BELOW[1]) * (d - 2f))
+            }
+        } else {
+            val u = -d
+            if (u <= 1f) RECEDE_ABOVE[0] * u else min(RECEDE_ABOVE[1], RECEDE_ABOVE[0] + (RECEDE_ABOVE[1] - RECEDE_ABOVE[0]) * (u - 1f))
+        }
+    }
+
+    /** Level of detail for floor [fi]: 0 = full (the stage and the floor below), 1 = distant. */
+    fun lod(fi: Int): Int = if (recede(fi) < LOD_FAR) 0 else 1
+
+    /** Is floor [fi] the stage: the player's own floor (the one nearest floorF)? */
+    fun isStage(fi: Int): Boolean = recede(fi) < 0.2f
+
+    /** Does floor [fi]'s hallway [hs] show shaft [s]'s column: it opens here, or the player rides it? */
+    fun shaftShows(hs: HallState, s: com.bradflaugher.aboutthataction.engine.Shaft): Boolean =
+        hs.plan.opens(s) || riding(s)
+
+    /** Is the player riding shaft [s]'s car? */
+    fun riding(s: com.bradflaugher.aboutthataction.engine.Shaft): Boolean =
+        w.player.state == PlayerState.ELEVATOR && w.player.elevatorShaft == s.id
+
     companion object {
+        /** Recede at 1, 2 and 3+ floors below the player. */
+        private val RECEDE_BELOW = floatArrayOf(0.34f, 0.68f, 0.82f)
+        /** Recede at 1 and 2+ floors above the player. */
+        private val RECEDE_ABOVE = floatArrayOf(0.6f, 0.8f)
+        /** Floors receded at least this far drop to the simplified look. */
+        const val LOD_FAR = 0.5f
         /** Seconds a hallway slide takes. */
         const val SLIDE_TIME = 0.26f
     }

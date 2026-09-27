@@ -122,6 +122,8 @@ tasks.register<Test>("screenshots") {
     systemProperty("ata.screenshots", (project.findProperty("ata.shots") as String?) ?: rootProject.file("docs/screenshots").absolutePath)
     systemProperty("ata.scene", (project.findProperty("ata.scene") as String?) ?: "")
     systemProperty("ata.full", (project.findProperty("ata.full") as String?) ?: "false")
+    // -Pata.size=720x1600 renders the scenes at another screen size.
+    systemProperty("ata.size", (project.findProperty("ata.size") as String?) ?: "")
     systemProperty("java.awt.headless", "true")
     filter { includeTestsMatching("*ScreenshotTest*") }
     outputs.upToDateWhen { false }
