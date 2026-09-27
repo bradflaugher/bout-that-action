@@ -91,9 +91,25 @@ jobs:
             ./gradlew installDebug
             adb shell am start -W -n "$APP_ID/$MAIN_ACTIVITY"
             sleep 6
-            adb exec-out screencap -p > smoke/smoke.png
-            sleep 10
-            adb exec-out screencap -p > smoke/smoke-later.png
+            adb exec-out screencap -p > smoke/title.png
+            adb shell am force-stop "$APP_ID"
+            adb shell am start -W -n "$APP_ID/$MAIN_ACTIVITY" --ez autostart true
+            sleep 4
+            adb exec-out screencap -p > smoke/rooftop.png
+            adb shell input swipe 300 1900 700 1900 1500
+            adb shell input tap 540 1700
+            adb shell input tap 540 1700
+            adb shell input swipe 540 1800 540 1500 60
+            adb shell input swipe 300 1900 750 1900 2500
+            adb exec-out screencap -p > smoke/playing.png
+            adb shell input swipe 540 1600 540 1900 60
+            sleep 1
+            adb exec-out screencap -p > smoke/hiding.png
+            adb shell input swipe 700 1900 250 1900 3000
+            adb shell input tap 540 1700
+            sleep 1
+            adb exec-out screencap -p > smoke/playing-later.png
+            adb shell pidof "$APP_ID" > smoke/pid.txt || touch smoke/tests-failed
             adb shell dumpsys activity activities > smoke/activities.txt || true
             adb logcat -d > smoke/logcat.txt
             test ! -f smoke/tests-failed
