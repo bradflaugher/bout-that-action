@@ -110,6 +110,10 @@ class World(val config: RunConfig) {
         private set
     /** Smoothed 0..1 combat intensity for the music. */
     var intensity = 0f
+    /** Is anyone onto you (ALERT), looking for you (CAUTION), or neither (CALM)? */
+    var alertPhase = AlertPhase.CALM
+        private set
+    private var cautionLeft = 0f
         private set
     var dyingTime = 0f
         private set
@@ -230,6 +234,7 @@ class World(val config: RunConfig) {
         val alert = enemies.count { it.floor == player.floor && it.hall == player.hall && it.alive && it.state != EnemyState.PATROL }
         val target = ((alert / 3f) + combo * 0.08f + if (slowMo) 0.3f else 0f).coerceIn(0f, 1f)
         intensity += (target - intensity) * min(1f, dt * 1.5f)
+        updateAlertPhase(dt)
 
         camY += (targetCamY() - camY) * min(1f, dt * 7f)
         ensureFloors()
@@ -339,10 +344,11 @@ class World(val config: RunConfig) {
         }
         for (shaft in plan.shafts) {
             elevators.getOrPut(shaft.id) {
+                // Cars wait, parked with their doors shut, until somebody calls them.
                 Elevator(shaft).also {
                     it.pos = (shaft.top + rng.nextInt(shaft.bottom - shaft.top + 1)).toFloat()
-                    it.dir = if (rng.chance(0.5f)) 1 else -1
-                    it.pause = rng.range(0.2f, 1.2f)
+                    it.pause = 0f
+                    it.parked = true
                 }
             }
         }
@@ -726,6 +732,18 @@ class World(val config: RunConfig) {
     private fun callElevator(car: Elevator) {
         val f = player.floor
         if (car.carrying || car.called == f) return
+        if (car.parked) {
+            car.parked = false
+            val at = car.pos.roundToInt()
+            if (at == f) {
+                // Already here: the doors just open.
+                car.pause = CALL_HOLD
+                car.openTime = 0f
+                events += GameEvent.ElevatorDing
+                return
+            }
+            car.dir = if (f > at) 1 else -1
+        }
         car.called = f
         // Don't dawdle at another floor: it heads over as soon as its doors can close.
         if (car.doorsOpen && car.atFloor != f) car.pause = min(car.pause, 0.35f)
@@ -1394,7 +1412,31 @@ class World(val config: RunConfig) {
         }
     }
 
+    private fun updateAlertPhase(dt: Float) {
+        var hunting = false
+        var searching = false
+        for (e in enemies) {
+            if (!e.alive || !here(e)) continue
+            when (e.state) {
+                EnemyState.ALERT, EnemyState.AIM, EnemyState.WINDUP -> hunting = true
+                EnemyState.SEARCH -> searching = true
+                else -> Unit
+            }
+        }
+        cautionLeft -= dt
+        if (hunting || searching) cautionLeft = CAUTION_TIME
+        alertPhase = when {
+            hunting -> AlertPhase.ALERT
+            cautionLeft > 0f && (searching || alertPhase != AlertPhase.CALM) -> AlertPhase.CAUTION
+            else -> AlertPhase.CALM
+        }
+    }
+
     private fun alert(e: Enemy) {
+        // Spotted (not a guard who already had you): the "!" sting, only where you are.
+        val spotting = e.state == EnemyState.PATROL || e.state == EnemyState.SEARCH || e.state == EnemyState.EMERGING
+        // One sting for a whole group spotting you at once.
+        if (spotting && here(e) && events.none { it is GameEvent.Alerted }) events += GameEvent.Alerted(pan(e.x))
         e.state = EnemyState.ALERT
         e.stateTime = 0f
         // SILENT: no gunfire to home in on, so it takes them a beat longer to get a bead on you.
@@ -2110,6 +2152,10 @@ class World(val config: RunConfig) {
 
     private fun updateElevators(dtW: Float, dtP: Float) {
         for (car in elevators.values) {
+            if (car.parked) {
+                if (car.pause <= 0f) continue
+                car.parked = false // its doors were opened: it's back in service
+            }
             val dt = if (car.carrying) dtP else dtW
             val s = car.shaft
             if (car.pause > 0f) {
@@ -2127,8 +2173,10 @@ class World(val config: RunConfig) {
                     } else if (car.called >= 0 && car.called != at) {
                         car.dir = if (car.called > at) 1 else -1
                     } else {
+                        // Nobody waiting elsewhere: the doors shut and it stays put.
                         if (car.called == at) car.called = -1
-                        if (at >= s.bottom) car.dir = -1 else if (at <= s.top) car.dir = 1
+                        car.parked = true
+                        car.openTime = 0f
                     }
                 }
                 continue
@@ -2225,6 +2273,8 @@ class World(val config: RunConfig) {
         const val PLAYER_BULLET_V = 24f
         const val GUN_COOLDOWN = 0.27f
         const val TAKEDOWN_TIME = 0.36f
+        /** After the last guard loses you, the music stays tense this long. */
+        const val CAUTION_TIME = 6f
         const val COMBO_WINDOW = 2.6f
         const val FLOORS_ABOVE = 5
         const val FLOORS_BELOW = 7

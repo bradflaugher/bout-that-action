@@ -42,6 +42,52 @@ class WavExportTest {
             AudioTestUtil.writeWav(File(out, "music_$name.wav"), x)
             stats(name, x.copyOfRange(x.size * 3 / 4, x.size))
         }
+        for (z in Zone.entries) {
+            val e = SoundEngine()
+            e.setIntensity(0.1f)
+            e.setZone(z, silent = true)
+            val chunk = 480
+            // 30 s of sneaking; tension creeps in over the second half.
+            val x = AudioTestUtil.render(e, 30f, chunk) { c -> e.setIntensity(if (c * chunk > 48000 * 15) 0.65f else 0.1f) }
+            AudioTestUtil.writeWav(File(out, "sneak_${z.name.lowercase()}.wav"), x)
+            stats("sneak_${z.name.lowercase()}", x)
+        }
+        run {
+            // SILENT in the Neon Tower, as the game drives it: sneaking, spotted ("!", ALERT and
+            // the full track), a takedown, CAUTION while they look for you, then calm again.
+            val e = SoundEngine()
+            e.setIntensity(0.1f)
+            e.setZone(Zone.TOWER, silent = true)
+            val chunk = 480
+            val at = { s: Float -> (s * 48000 / chunk).toInt() }
+            val x = AudioTestUtil.render(e, 44f, chunk) { c ->
+                when (c) {
+                    at(12f) -> {
+                        e.trigger(GameEvent.Alerted(0.2f)); e.setAlert(com.bradflaugher.aboutthataction.engine.AlertPhase.ALERT)
+                        e.setZone(Zone.TOWER, silent = false); e.setIntensity(0.7f)
+                    }
+                    at(20f) -> e.trigger(GameEvent.Takedown)
+                    at(20.36f) -> e.trigger(GameEvent.EnemyKilled(com.bradflaugher.aboutthataction.engine.EnemyKind.AGENT, com.bradflaugher.aboutthataction.engine.KillMethod.TAKEDOWN, 1, 0.1f))
+                    at(22f) -> { e.setAlert(com.bradflaugher.aboutthataction.engine.AlertPhase.CAUTION); e.setIntensity(0.1f) }
+                    at(30f) -> { e.setAlert(com.bradflaugher.aboutthataction.engine.AlertPhase.CALM); e.setZone(Zone.TOWER, silent = true) }
+                }
+            }
+            AudioTestUtil.writeWav(File(out, "spotted_sequence.wav"), x)
+        }
+        run {
+            // Three takedowns and a sting, dry, to hear the grunts.
+            val e = SoundEngine()
+            e.setMusicVolume(0f)
+            val chunk = 480
+            val x = AudioTestUtil.render(e, 6f, chunk) { c ->
+                for (s in listOf(0.2f, 1.6f, 3.0f)) {
+                    if (c == (s * 100).toInt()) e.trigger(GameEvent.Takedown)
+                    if (c == ((s + 0.36f) * 100).toInt()) e.trigger(GameEvent.EnemyKilled(com.bradflaugher.aboutthataction.engine.EnemyKind.AGENT, com.bradflaugher.aboutthataction.engine.KillMethod.TAKEDOWN, 0, 0f))
+                }
+                if (c == 450) e.trigger(GameEvent.Alerted(0f))
+            }
+            AudioTestUtil.writeWav(File(out, "takedowns_and_alert.wav"), x)
+        }
         run {
             val e = SoundEngine()
             e.setZone(Zone.TOWER); e.setIntensity(0.8f)

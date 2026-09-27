@@ -73,9 +73,10 @@ class Renderer {
         }
         building.outerWalls()
         // Cars ride with their floor's hallway (so they slide with it) and only show where
-        // their shaft opens; the car the player rides shows all the way down.
-        building.updateCars()
+        // their shaft opens, behind landing doors that open when a car stands there; the car
+        // the player rides shows all the way down.
         for (i in first..last) f.views(i) { building.cars(it, actors) }
+        for (i in first..last) f.views(i) { building.landingDoors(it) }
         building.riddenCar(actors)
         building.stageLight()
 

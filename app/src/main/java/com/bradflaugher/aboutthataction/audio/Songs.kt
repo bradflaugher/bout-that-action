@@ -439,7 +439,84 @@ internal object Songs {
         wind = 0.12f, fixedIntensity = 0.15f, arpThreshold = -1f, leadThreshold = 2f,
     )
 
-    val all: List<SongSpec> = listOf(title, gameOver, rooftop, tower, labs, metro, mines, magma, hell, void)
+    // ---- SILENT: every zone's sneak mix ---------------------------------------------------
+
+    private val heartKit = DrumTuning(
+        kickHi = 135f, kickLo = 50f, kickPitchDecay = 0.05f, kickDecay = 0.3f, kickClick = 0.14f, kickDrive = 0.1f,
+        snareTone = 170f, snareNoiseHz = 2600f, snareDecay = 0.16f, snareToneMix = 0.3f, snareVerb = 0.65f,
+        hatTone = 1.15f, hatDecay = 0.03f, hatLevel = 0.2f, snareLevel = 0.55f,
+        percHz = 1650f, percRatio = 1.5f, percDecay = 0.05f, percFm = 0.8f, percNoise = 0.35f, percLevel = 0.3f,
+    )
+    private val glassBell = Patch(
+        wave1 = Wave.SINE, wave2 = Wave.SINE, osc2Semi = 19f, osc2Level = 0.35f, detune = 0.02f,
+        cutoff = 5000f, a = 0.002f, d = 1.8f, s = 0f, r = 1.6f, gain = 0.15f, bright = 0.2f,
+    )
+    private val lowDrone = Patch(
+        wave1 = Wave.TRIANGLE, sub = 0.9f, cutoff = 380f, a = 0.8f, d = 1f, s = 1f, r = 1.4f, gain = 0.3f, bright = 0.2f,
+    )
+    private val breathLead = Patch(
+        wave1 = Wave.SINE, wave2 = Wave.TRIANGLE, osc2Semi = 12f, osc2Level = 0.25f, cutoff = 2200f,
+        a = 0.12f, d = 0.6f, s = 0.7f, r = 0.9f, glide = 0.08f, vibrato = 0.2f, gain = 0.15f, bright = 0.3f,
+    )
+
+    /**
+     * [base]'s sneak mix for SILENT: same key and chords (so switching modes feels like the
+     * same song holding its breath), at a slow tempo over a heartbeat. A soft lub-dub kick
+     * that never stops, a roomy snare, ticking hats, a low drone under a pad that pulses with
+     * the heart, and glassy bell notes sprinkled through a long echo. Tension (guards on to
+     * you) brings in rim clicks and busier hats; only real trouble lets a melody surface.
+     */
+    private fun sneak(base: SongSpec, bpm: Float) = SongSpec(
+        name = base.name + "-sneak", bpm = bpm, tonic = base.tonic, scale = base.scale,
+        progA = base.progA, progB = base.progB, barsPerChord = 2,
+        drumsA = DrumPattern(
+            kick = "X.x.....X.x.....", snare = "........o.......",
+            hat = "x...o...x...o...", perc = "......x.......x.",
+        ),
+        drumsB = DrumPattern(
+            kick = "X.x.....X.x.....", snare = "....o.......x...",
+            hat = "x.o.x.o.x.o.x.o.", perc = "..x...x...x...x.",
+        ),
+        fill = DrumPattern(kick = "X.x.....X.x.....", snare = "..........o.o.ox", hat = "x.o.x.o.x.o.oooo"),
+        kit = heartKit,
+        bassA = "R~~~~~~~~~~~~~~~", bassB = "R~~~~~~~~~~~~~~~",
+        arpA = "......2.......4.", arpB = "..3.........1...", arpGate = 3f,
+        padRhythm = "x...............",
+        bassCenter = base.bassCenter, padCenter = base.padCenter, arpCenter = base.arpCenter + 12, leadOctave = base.leadOctave,
+        leadTemplates = arrayOf("x.......x.......", "x...........x...", "x..............."),
+        motifSeed = base.motifSeed + 7,
+        pad = supersawPad.copyish(cutoff = 650f, a = 2.2f, r = 2.4f, gain = 0.1f),
+        bass = lowDrone, arp = glassBell, lead = breathLead,
+        mix = Mix(
+            drums = 0.85f, bass = 0.36f, pad = 0.75f, arp = 0.8f, lead = 0.55f,
+            padVerb = 0.55f, arpDelay = 0.6f, arpVerb = 0.45f, leadDelay = 0.35f, leadVerb = 0.4f,
+            padDuck = 0.4f, bassDuck = 0.25f, arpDuck = 0.1f, arpPan = 0.5f,
+        ),
+        wind = base.wind, rotor = base.rotor * 0.4f, glitch = base.glitch,
+        kickThreshold = -1f, arpThreshold = -1f, leadThreshold = 0.8f,
+        sections = arrayOf(Section.A, Section.A, Section.B, Section.A2, Section.A, Section.B, Section.A2, Section.B2),
+        delayBeats = 0.75f,
+    )
+
+    private val sneaks = Zone.entries.associateWith { z ->
+        // Slow, and a notch quicker (tenser) the deeper you go.
+        val bpm = when (z) {
+            Zone.ROOFTOP -> 66f
+            Zone.TOWER -> 70f
+            Zone.LABS -> 74f
+            Zone.METRO -> 77f
+            Zone.MINES -> 68f
+            Zone.MAGMA -> 80f
+            Zone.HELL -> 86f
+            Zone.VOID -> 83f
+        }
+        sneak(forZone(z), bpm)
+    }
+
+    val all: List<SongSpec> = listOf(title, gameOver, rooftop, tower, labs, metro, mines, magma, hell, void) + sneaks.values
+
+    /** [zone]'s track: its own in GUNS HOT, its sneak mix in SILENT. */
+    fun forZone(zone: Zone, silent: Boolean): SongSpec = if (silent) sneaks.getValue(zone) else forZone(zone)
 
     fun forZone(zone: Zone): SongSpec = when (zone) {
         Zone.ROOFTOP -> rooftop

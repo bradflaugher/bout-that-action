@@ -127,8 +127,10 @@ bounces you back through it.
 
 **Elevators.** A car only counts as boardable once its doors have been open
 for 0.12 s (`ELEVATOR_REACT_TIME`): a car opening under your thumb is called,
-not boarded. Tapping a landing whose car is elsewhere calls it: the car heads
-straight for you and holds its doors 3 s (`CALL_HOLD`). The ride only ever
+not boarded. Idle cars stay parked with their doors shut. Tapping a landing
+calls its car: if it's parked right there the doors just open, otherwise it
+heads straight for you. Either way it holds its doors 3 s (`CALL_HOLD`), then
+shuts them and waits where it is. The ride only ever
 goes down, straight to the bottom of the shaft; an express opens once on the
 way (`EXPRESS_STOP_TIME` 1.5 s) and you can step off there. At the bottom
 you step out on your own after 0.55 s (`AUTO_EXIT_TIME`), into hallway A.

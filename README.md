@@ -56,8 +56,8 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   door, which hallway's guards, which lift, and when to move.
 - **Elevators are the only way down.** No stairs. Most shafts are short 1–2
   floor hops. Rare gold **express** shafts drop 3–5 floors at once, but open
-  their doors once on the way, onto someone waiting. Cars cycle on their own;
-  tap a landing to call one, and hide while it comes.
+  their doors once on the way, onto someone waiting. Cars wait behind closed
+  landing doors until called: tap a landing to call one, and hide while it comes.
 - **Guns hot or silent.** In GUNS HOT the gun fires itself at whoever is about
   to hurt you first, and leaves guards who haven't spotted you to you. In SILENT you never fire: take guards from behind, drop
   from above, wait them out in a doorway or under the box, lure them into
@@ -175,7 +175,14 @@ word or number you type.
 The soundtrack is synthesized live: band-limited oscillators, filters,
 drums, delay and reverb. Every zone gets its own procedural track, with its
 own key, tempo and motif-based melodies. The music gets more intense in a
-fight and pitches down in bullet time. Every sound effect is
+fight and pitches down in bullet time. SILENT gets its own sneak mix of every
+zone: the same key and chords at a slow tempo over a heartbeat kick, a roomy
+snare, ticking hats and glassy bell notes in a long echo, with rim clicks
+creeping in as guards get suspicious. Flipping the mode crossfades between
+the two. Getting spotted plays a sharp "!" sting and throws the music into
+ALERT (full drums and lead; in SILENT, the sneak mix gives way to the zone's
+full track). Once they lose you it stays tense through CAUTION for a few
+seconds, then calms down. Takedowns get a strangled grunt. Every sound effect is
 synthesized too, panned to where it happened on screen, with haptics on the
 big moments.
 

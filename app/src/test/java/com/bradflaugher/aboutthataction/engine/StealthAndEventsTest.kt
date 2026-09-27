@@ -70,6 +70,47 @@ class StealthAndEventsTest {
     }
 
     @Test
+    fun beingSpottedSoundsOneAlertAndTheMusicGoesToAlertThenCautionThenCalm() {
+        val w = world(silent = true)
+        w.player.x = 3f
+        w.player.invuln = 99f
+        assertEquals(AlertPhase.CALM, w.alertPhase)
+        // Two guards clock you at the same moment: one sting, not two.
+        val a = enemy(w, EnemyKind.AGENT, 6f, facing = -1)
+        val b = enemy(w, EnemyKind.AGENT, 6.4f, facing = -1)
+        run(w, 0.3f) { a.x = 6f; b.x = 6.4f; it.player.invuln = 99f }
+        assertTrue(a.state != EnemyState.PATROL && b.state != EnemyState.PATROL)
+        assertEquals(1, w.events.count { it is GameEvent.Alerted })
+        assertEquals(AlertPhase.ALERT, w.alertPhase)
+        // Already onto you: no new sting while they stay on you.
+        w.events.clear()
+        run(w, 0.5f) { it.player.invuln = 99f }
+        assertEquals(0, w.events.count { it is GameEvent.Alerted })
+        // They're gone: the music stays tense a while, then calms down.
+        w.enemies.clear()
+        run(w, 0.1f)
+        assertEquals(AlertPhase.CAUTION, w.alertPhase)
+        run(w, World.CAUTION_TIME - 0.5f)
+        assertEquals(AlertPhase.CAUTION, w.alertPhase)
+        run(w, 0.6f)
+        assertEquals(AlertPhase.CALM, w.alertPhase)
+    }
+
+    @Test
+    fun aSuspiciousGuardMeansCautionNotAlert() {
+        val w = world(silent = true)
+        val g = enemy(w, EnemyKind.AGENT, 8f, facing = -1)
+        g.state = EnemyState.SEARCH
+        g.lastSeenX = 7f
+        g.timer = 5f
+        w.player.x = 1f
+        w.player.state = PlayerState.BOX
+        run(w, 0.1f) { it.player.state = PlayerState.BOX }
+        assertEquals(AlertPhase.CAUTION, w.alertPhase)
+        assertEquals(0, w.events.count { it is GameEvent.Alerted })
+    }
+
+    @Test
     fun hidingDuringTheDoubleTapWindowIsNotUndoneByTheTap() {
         val w = world(silent = false)
         val hs = w.playerHall()!!

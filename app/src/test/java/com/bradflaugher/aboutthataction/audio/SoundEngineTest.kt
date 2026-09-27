@@ -82,6 +82,97 @@ class SoundEngineTest {
         assertEquals(0.0, rms(out), 1e-6)
     }
 
+    /** Low-band (kick) pulse strength: peak over median of 50 ms low-passed RMS windows. */
+    private fun heartbeat(x: FloatArray): Double {
+        val m = AudioTestUtil.mono(x)
+        var lp = 0f
+        val a = kotlin.math.exp(-2.0 * Math.PI * 120.0 / AudioTestUtil.SR).toFloat()
+        val win = AudioTestUtil.SR / 20
+        val rmsW = ArrayList<Double>()
+        var acc = 0.0
+        for (i in m.indices) {
+            lp = a * lp + (1 - a) * m[i]
+            acc += lp * lp
+            if ((i + 1) % win == 0) { rmsW += kotlin.math.sqrt(acc / win); acc = 0.0 }
+        }
+        val sorted = rmsW.sorted()
+        return sorted.last() / sorted[sorted.size / 2].coerceAtLeast(1e-6)
+    }
+
+    @Test
+    fun silentModeHasASneakMixWithAHeartbeat() {
+        for (z in Zone.entries) {
+            fun take(silent: Boolean): FloatArray {
+                val e = SoundEngine()
+                e.setIntensity(0f)
+                e.setZone(z, silent)
+                val out = render(e, 10f)
+                assertEquals(if (silent) "${Songs.forZone(z).name}-sneak" else Songs.forZone(z).name, e.songName)
+                return out.copyOfRange(AudioTestUtil.SR * 2 * 2, out.size)
+            }
+            val sneak = take(true)
+            val loud = take(false)
+            assertSane(sneak, "$z sneak")
+            val beat = heartbeat(sneak)
+            println("sneak %-8s rms=%.3f heartbeat=%.1f (loud mix at zero heat %.1f)".format(z.name, rms(sneak), beat, heartbeat(loud)))
+            assertTrue("$z sneak mix is silent", rms(sneak) > 0.015)
+            assertTrue("$z sneak mix should pulse with a heartbeat even at zero heat ($beat)", beat > 2.5)
+            var diff = 0.0
+            for (k in sneak.indices) diff += abs(sneak[k] - loud[k])
+            assertTrue("$z sneak mix is the loud mix", diff / sneak.size > 0.005)
+        }
+    }
+
+    @Test
+    fun aTakedownChokesOutAGrunt() {
+        val e = SoundEngine()
+        e.setMusicVolume(0f)
+        e.trigger(GameEvent.Takedown)
+        val out = render(e, 0.8f)
+        val sr = AudioTestUtil.SR
+        // The grab is over in ~0.15 s; the strangled voice carries on well past it.
+        val grunt = rms(out.copyOfRange(sr * 2 * 20 / 100, sr * 2 * 40 / 100))
+        println("choke grunt rms 0.2-0.4 s = %.4f".format(grunt))
+        assertTrue("the choke grunt should carry on after the grab ($grunt)", grunt > 0.01)
+    }
+
+    @Test
+    fun beingSpottedDrivesTheMusicHarder() {
+        fun take(phase: com.bradflaugher.aboutthataction.engine.AlertPhase): Double {
+            val e = SoundEngine()
+            e.setIntensity(0f)
+            e.setZone(Zone.TOWER)
+            e.setAlert(phase)
+            val out = render(e, 8f)
+            return rms(out.copyOfRange(AudioTestUtil.SR * 2 * 4, out.size))
+        }
+        val calm = take(com.bradflaugher.aboutthataction.engine.AlertPhase.CALM)
+        val caution = take(com.bradflaugher.aboutthataction.engine.AlertPhase.CAUTION)
+        val alert = take(com.bradflaugher.aboutthataction.engine.AlertPhase.ALERT)
+        println("tower at zero heat: calm %.3f caution %.3f alert %.3f".format(calm, caution, alert))
+        assertTrue("caution is tenser than calm", caution > calm * 1.1)
+        assertTrue("alert drives hardest", alert > caution * 1.05)
+    }
+
+    @Test
+    fun flippingTheModeCrossfadesRightAway() {
+        val e = SoundEngine()
+        e.setIntensity(0.5f)
+        e.setZone(Zone.TOWER)
+        render(e, 3f)
+        assertEquals("tower", e.songName)
+        e.setZone(Zone.TOWER, silent = true)
+        val out = render(e, 0.2f)
+        assertEquals("no waiting for the bar line", "tower-sneak", e.songName)
+        assertSane(out, "flip")
+        e.setZone(Zone.LABS, silent = true)
+        render(e, 0.2f)
+        // A new zone still lands on the bar with its fill and riser.
+        assertEquals("tower-sneak", e.songName)
+        render(e, 8f)
+        assertEquals("labs-sneak", e.songName)
+    }
+
     @Test
     fun everyZoneHasItsOwnNonSilentMusic() {
         val songs = listOf<Pair<String, (SoundEngine) -> Unit>>("title" to { it.playTitle() }) +

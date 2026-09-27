@@ -42,6 +42,8 @@ sealed interface GameEvent {
     data object SpecialEmpty : GameEvent
     /** The magazine ran dry (or the player paused shooting) and a reload started. */
     data object Reload : GameEvent
+    /** A guard in your hallway just spotted you ("!"). */
+    data class Alerted(val pan: Float) : GameEvent
     /** A guard double-took at a box that moved ("HUH?"): he's coming over to look. */
     data class Suspicious(val pan: Float) : GameEvent
     /** Left a floor without anyone on it ever spotting you. */
@@ -57,3 +59,10 @@ sealed interface GameEvent {
 }
 
 enum class KillMethod { SHOT, TAKEDOWN, STOMP, LIGHT, EXPLOSION, HAZARD }
+
+/**
+ * The hallway's alert status, MGS style, for the music: ALERT while anyone is onto you,
+ * CAUTION while a guard is checking something out and for a few seconds after you lose them,
+ * then CALM.
+ */
+enum class AlertPhase { CALM, CAUTION, ALERT }

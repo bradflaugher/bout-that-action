@@ -1,5 +1,6 @@
 package com.bradflaugher.aboutthataction.audio
 
+import com.bradflaugher.aboutthataction.engine.AlertPhase
 import com.bradflaugher.aboutthataction.engine.GameEvent
 import com.bradflaugher.aboutthataction.engine.Zone
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -22,15 +23,17 @@ class SoundEngine(val sampleRate: Int = 48000) {
 
     // ---- Cross-thread inputs ------------------------------------------------------------
     private val queue = ConcurrentLinkedQueue<Any>()
-    private val zoneCmds = Zone.entries.map { ZoneCmd(it) }
+    private val zoneCmds = Zone.entries.map { ZoneCmd(it, false) }
+    private val sneakCmds = Zone.entries.map { ZoneCmd(it, true) }
 
     @Volatile private var intensityIn = 0.35f
+    @Volatile private var alertFloor = 0f
     @Volatile private var musicVolIn = 0.8f
     @Volatile private var sfxVolIn = 1f
     @Volatile private var pausedIn = false
     @Volatile private var slowMoIn = false
 
-    private class ZoneCmd(val zone: Zone)
+    private class ZoneCmd(val zone: Zone, val silent: Boolean)
     private object TitleCmd
     private object GameOverCmd
 
@@ -73,14 +76,30 @@ class SoundEngine(val sampleRate: Int = 48000) {
         queue.add(event)
     }
 
-    /** Move the music to [zone]'s track (on the next bar line, with a fill and riser). */
-    fun setZone(zone: Zone) {
-        queue.add(zoneCmds[zone.ordinal])
+    /**
+     * Move the music to [zone]'s track (on the next bar line, with a fill and riser); [silent]
+     * picks its sneak mix. Flipping only the mode crossfades right away, in the same key.
+     */
+    fun setZone(zone: Zone, silent: Boolean = false) {
+        queue.add((if (silent) sneakCmds else zoneCmds)[zone.ordinal])
     }
 
     /** Combat heat 0..1: adds drums, arp and lead and opens the filters as it rises. */
     fun setIntensity(intensity: Float) {
         intensityIn = if (intensity.isNaN()) 0f else intensity.coerceIn(0f, 1f)
+    }
+
+    /**
+     * The hallway's alert phase: under ALERT the music drives at full tilt, under CAUTION it
+     * stays tense, whatever the heat says. (The host swaps SILENT's sneak mix for the zone's
+     * full track outside CALM.)
+     */
+    fun setAlert(phase: AlertPhase) {
+        alertFloor = when (phase) {
+            AlertPhase.ALERT -> ALERT_INTENSITY
+            AlertPhase.CAUTION -> CAUTION_INTENSITY
+            AlertPhase.CALM -> 0f
+        }
     }
 
     fun playTitle() {
@@ -110,6 +129,9 @@ class SoundEngine(val sampleRate: Int = 48000) {
         queue.add(GameOverCmd)
     }
 
+    /** The track now playing (audio thread; for tests). */
+    internal val songName: String? get() = director.current?.name
+
     // ---- Audio thread ------------------------------------------------------------------
 
     /** Fill [out] with [frames] interleaved stereo float frames. */
@@ -130,7 +152,10 @@ class SoundEngine(val sampleRate: Int = 48000) {
                 is GameEvent -> if (!paused) sfx.play(c)
                 is ZoneCmd -> {
                     gameOverWait = -1
-                    director.request(Songs.forZone(c.zone), immediate = false)
+                    val spec = Songs.forZone(c.zone, c.silent)
+                    // Same zone, other mode: a quick crossfade, not a wait for the bar line.
+                    val modeFlip = director.current.let { it != null && it !== spec && Songs.forZone(c.zone, !c.silent) === it }
+                    director.request(spec, immediate = modeFlip)
                 }
                 TitleCmd -> {
                     gameOverWait = -1
@@ -152,7 +177,9 @@ class SoundEngine(val sampleRate: Int = 48000) {
         }
         val slow = slowMoIn
         val blockSec = n.toFloat() / sr
-        intensity += (intensityIn - intensity) * k(blockSec, 1.2f)
+        val want = max(intensityIn, alertFloor)
+        // Spotted: the music jumps to it; it eases back down on its own time.
+        intensity += (want - intensity) * k(blockSec, if (want > intensity) 0.25f else 1.2f)
         val rateTarget = if (slow) SLOWMO_RATE else 1f
         rate += (rateTarget - rate) * k(blockSec, if (slow) 0.35f else 0.2f)
         val cutTarget = when {
@@ -227,6 +254,8 @@ class SoundEngine(val sampleRate: Int = 48000) {
         private const val BLOCK = 256
         private const val SFX_VOICES = 24
         private const val SLOWMO_RATE = 0.7f
+        private const val ALERT_INTENSITY = 0.95f
+        private const val CAUTION_INTENSITY = 0.5f
         private const val MUSIC_LEVEL = 0.75f
         private const val SFX_LEVEL = 0.95f
     }
