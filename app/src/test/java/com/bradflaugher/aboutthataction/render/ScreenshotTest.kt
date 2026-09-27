@@ -74,6 +74,7 @@ class ScreenshotTest {
         Scene("payday", 6.2f, ::payday),
         Scene("ghost", 7.6f, ::ghost),
         Scene("bonk", 5.7f, ::bonk),
+        Scene("lifts", 2.4f, ::lifts),
     )
 
     @Test
@@ -545,6 +546,27 @@ class ScreenshotTest {
         w.enemy(EnemyKind.AGENT, s.x + side * 2.6f, -side, EnemyState.AIM, w.aimTime() * 0.6f, floor = s.stop, hall = hall)
         w.enemy(EnemyKind.HEAVY, s.x + side * 4.4f, -side, EnemyState.ALERT, 0.2f, floor = s.stop, hall = hall)
         w.fx.texts.clear()
+        w.ambient(EnemyKind.AGENT, EnemyKind.AGENT)
+        return w
+    }
+
+    /** A ride down (cyan, chevrons) in this hallway; where it lands, a floor below, says LAST STOP. */
+    private fun lifts(): World {
+        val f = 13
+        val seed = (calmSeed(f, 1300) until calmSeed(f, 1300) + 400).first { sd ->
+            LevelGen.build(sd, f, Difficulty(startFloor = f)).halls.drop(1).any { h -> h.downLandings.any { !it.express && it.bottom == f + 1 } }
+        }
+        val w = newWorld(seed, f)
+        w.run(4.5f) // past the zone title card
+        val plan = w.floors[f]!!.plan
+        val h = (1 until plan.hallCount).first { i -> plan.halls[i].downLandings.any { !it.express && it.bottom == f + 1 } }
+        val s = plan.halls[h].downLandings.first { !it.express }
+        w.player.hall = h
+        w.playerHall()!!.visited = true
+        val x = if (s.x < Geo.FLOOR_W / 2f) s.x + 3.2f else s.x - 3.2f
+        w.settle(x, 1.2f)
+        w.player.facing = if (s.x < x) -1 else 1
+        w.visit(0, h)
         w.ambient(EnemyKind.AGENT, EnemyKind.AGENT)
         return w
     }

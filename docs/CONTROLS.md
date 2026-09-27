@@ -120,6 +120,12 @@ Now grenades have their own HUD button, so taps act the instant you lift, at
 any rhythm. Taps that land while you're already mid-passage are dropped, so
 mashing a door never bounces you back through it.
 
+**Which lift goes down.** A landing with a ride down from it has cyan-lit
+jambs and threshold, a cyan call button and ▼ chevrons that chase down its
+shut doors. The bottom of a shaft (the car you arrived in, in hallway A) is
+plain steel with a dim LAST STOP plate and no call button; tapping it does
+nothing.
+
 **Elevators.** A car only counts as boardable once its doors have been open
 for 0.12 s (`ELEVATOR_REACT_TIME`): a car opening under your thumb is called,
 not boarded. Idle cars stay parked with their doors shut. Tapping a landing
