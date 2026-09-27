@@ -110,6 +110,16 @@ building, and the zone (and its music and heat) comes from the floor.
   </tr>
 </table>
 
+## The front end
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="docs/screenshots/menu-title.png" alt="Title screen with the neon logo over a live demo run"><p><em><b>Title</b>: a neon sign over a live autopilot run</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/menu-settings.png" alt="Settings with the custom heat curve"><p><em><b>Settings</b>: shape your own heat curve</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/menu-gameover.png" alt="Game over with a new deepest floor"><p><em><b>Game over</b>: the depth counts down the building</em></p></td>
+  </tr>
+</table>
+
 ## Difficulty and seeds
 
 Everything scales from one number, **heat**: enemy reaction time, fire rate,
@@ -152,6 +162,8 @@ policy. The only permission is vibration.
 ```sh
 ./gradlew lint test assembleDebug   # what CI runs (plus assembleRelease)
 ./gradlew :app:screenshots          # re-render docs/screenshots
+./gradlew :app:menuShots            # render the Compose menus to app/build/menushots
+                                    # (Robolectric; -PallDevices, -Ponly=title,pause)
 ```
 
 The whole game (simulation, touch controls, renderer and synth) is pure

@@ -7,12 +7,23 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
@@ -25,6 +36,7 @@ import com.bradflaugher.aboutthataction.engine.RunConfig
 import com.bradflaugher.aboutthataction.engine.World
 import com.bradflaugher.aboutthataction.engine.Zone
 import com.bradflaugher.aboutthataction.ui.GameOverScreen
+import com.bradflaugher.aboutthataction.ui.Motion
 import com.bradflaugher.aboutthataction.ui.PauseScreen
 import com.bradflaugher.aboutthataction.ui.RunSummary
 import com.bradflaugher.aboutthataction.ui.SettingsScreen
@@ -91,30 +103,40 @@ class MainActivity : ComponentActivity(), GameView.Host {
             val pad = with(density) { PaddingValues(top = insetTop.toDp(), bottom = insetBottom.toDp()) }
             Box(Modifier.fillMaxSize()) {
                 AndroidView(factory = { gameView }, modifier = Modifier.fillMaxSize())
-                when (screen) {
-                    Screen.TITLE -> TitleScreen(
-                        settings, records, pad,
-                        onPlay = ::startRun,
-                        onSettings = { screen = Screen.SETTINGS },
-                        onPreset = { updateSettings(settings.copy(preset = it, custom = it.difficulty)) },
-                    )
-                    Screen.SETTINGS -> SettingsScreen(settings, pad, ::updateSettings) { screen = Screen.TITLE }
-                    Screen.PAUSED -> PauseScreen(
-                        settings, runSeedLabel, pad,
-                        onResume = ::resume,
-                        onRestart = { runConfig?.let { startRun(it) } },
-                        onQuit = ::toTitle,
-                        onSettings = ::updateSettings,
-                    )
-                    Screen.GAME_OVER -> lastRun?.let { run ->
-                        GameOverScreen(
-                            run, pad,
-                            onRetry = { runConfig?.let { startRun(it) } },
-                            onNewRun = ::startRun,
-                            onTitle = ::toTitle,
+                AnimatedContent(
+                    targetState = screen,
+                    // Full size even while PLAYING shows nothing, so menus never grow from 0×0.
+                    modifier = Modifier.fillMaxSize(),
+                    transitionSpec = { menuTransition(initialState, targetState) },
+                    contentAlignment = Alignment.Center,
+                    label = "screen",
+                ) { target ->
+                    when (target) {
+                        Screen.TITLE -> TitleScreen(
+                            settings, records, pad,
+                            onPlay = ::startRun,
+                            onSettings = { screen = Screen.SETTINGS },
+                            onPreset = { updateSettings(settings.copy(preset = it, custom = it.difficulty)) },
                         )
+                        Screen.SETTINGS -> SettingsScreen(settings, pad, ::updateSettings) { screen = Screen.TITLE }
+                        Screen.PAUSED -> PauseScreen(
+                            settings, runSeedLabel, pad,
+                            onResume = ::resume,
+                            onRestart = { runConfig?.let { startRun(it) } },
+                            onQuit = ::toTitle,
+                            onSettings = ::updateSettings,
+                        )
+                        Screen.GAME_OVER -> lastRun?.let { run ->
+                            GameOverScreen(
+                                run, pad,
+                                onRetry = { runConfig?.let { startRun(it) } },
+                                onNewRun = ::startRun,
+                                onTitle = ::toTitle,
+                                records = records,
+                            )
+                        }
+                        Screen.PLAYING -> Unit
                     }
-                    Screen.PLAYING -> Unit
                 }
             }
         }
@@ -277,6 +299,24 @@ class MainActivity : ComponentActivity(), GameView.Host {
         endSlowMo()
         sound.gameOver()
         screen = Screen.GAME_OVER
+    }
+
+    /** Presentation only: how one menu hands over to the next. Snappy, never floaty. */
+    private fun menuTransition(from: Screen, to: Screen): ContentTransform {
+        val quick = tween<Float>(Motion.fast)
+        val base = tween<Float>(Motion.base, easing = Motion.out)
+        return when {
+            // Into play: get out of the way immediately.
+            to == Screen.PLAYING -> fadeIn(quick) togetherWith fadeOut(tween(Motion.fast)) + scaleOut(tween(Motion.fast), 1.04f)
+            // Settings slides in over the title and back out.
+            to == Screen.SETTINGS -> (slideInHorizontally(tween(Motion.base, easing = Motion.out)) { it / 5 } + fadeIn(base)) togetherWith
+                fadeOut(quick)
+            from == Screen.SETTINGS -> fadeIn(base) togetherWith
+                (slideOutHorizontally(tween(Motion.base, easing = Motion.out)) { it / 5 } + fadeOut(quick))
+            // Pause pops in; game over has its own staged entrance.
+            to == Screen.PAUSED -> (fadeIn(quick) + scaleIn(tween(Motion.base, easing = Motion.out), 0.94f)) togetherWith fadeOut(quick)
+            else -> fadeIn(base) togetherWith fadeOut(quick)
+        }
     }
 
     companion object {

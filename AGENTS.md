@@ -82,8 +82,9 @@ the JVM.
 - Tap and swipe ↓ never compete: taps use passages, INTEL and elevators;
   swipe ↓ only hides. See `docs/CONTROLS.md`.
 - Screenshots in `docs/screenshots/` come from `./gradlew :app:screenshots`,
-  which renders real scenes through the real renderer. Regenerate them when
-  the look changes. `-Pata.scene=<name>` renders one scene,
+  which renders real scenes through the real renderer and then runs
+  `:app:menuShots` for the Compose menus (Robolectric). Regenerate them when
+  the look changes. `-Pata.scene=<name>` renders one game scene,
   `-Pata.shots=<dir>` writes elsewhere and `-Pata.full=true` keeps full
   1080x2400 resolution, for iterating on the look.
 

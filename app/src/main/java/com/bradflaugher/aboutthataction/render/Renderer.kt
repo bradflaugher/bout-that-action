@@ -103,7 +103,7 @@ class Renderer {
         g.restore()
 
         effects.screen()
-        effects.texts()
+        if (showHud) effects.texts() // attract mode: no popups under the menus
         if (showHud) {
             if (world.phase != Phase.PERK_CHOICE) hud.banner()
             hud.draw()
