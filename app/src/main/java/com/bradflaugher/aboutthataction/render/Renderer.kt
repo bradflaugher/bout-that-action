@@ -21,7 +21,17 @@ class Renderer {
     private val backdrop = Backdrop(f)
     private val actors = Actors(f)
     private val effects = Effects(f)
-    private val hud = Hud(f, building)
+    private val hud = Hud(f)
+
+    /** Optional film grain over the whole frame (off by default; a settings toggle). */
+    var filmGrain: Boolean
+        get() = effects.grain
+        set(v) { effects.grain = v }
+
+    /** Optional CRT scanlines over the whole frame (off by default; a settings toggle). */
+    var scanlines: Boolean
+        get() = effects.scanlines
+        set(v) { effects.scanlines = v }
 
     /**
      * Draw one frame. [time] = real seconds (for idle anims), insets in px keep HUD clear of
@@ -87,6 +97,7 @@ class Renderer {
         g.restore()
 
         effects.screen()
+        effects.texts()
         if (showHud) {
             if (world.phase != Phase.PERK_CHOICE) hud.banner()
             hud.draw()
@@ -126,8 +137,14 @@ internal class Frame {
     var dt = 0f
     private var lastT = -1f
 
+    /** Screen-space rect (l, t, r, b) the HUD reserved this frame, e.g. the context chip; floating text avoids it. */
+    val reserved = FloatArray(4)
+    var hasReserved = false
+
     fun setup(g: Gfx, w: World, t: Float, topInset: Float, bottomInset: Float) {
         this.g = g
+        g.blend(Gfx.Blend.NORMAL)
+        hasReserved = false
         this.w = w
         dt = if (lastT < 0f) 0f else (t - lastT).coerceIn(0f, 0.1f)
         lastT = t

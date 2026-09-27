@@ -3,6 +3,8 @@ package com.bradflaugher.aboutthataction.render
 import java.awt.AlphaComposite
 import java.awt.BasicStroke
 import java.awt.Color
+import java.awt.Composite
+import java.awt.CompositeContext
 import java.awt.Font
 import java.awt.GradientPaint
 import java.awt.Graphics2D
@@ -11,6 +13,7 @@ import java.awt.RadialGradientPaint
 import java.awt.RenderingHints
 import java.awt.Shape
 import java.awt.geom.AffineTransform
+import java.awt.geom.Arc2D
 import java.awt.geom.Ellipse2D
 import java.awt.geom.Line2D
 import java.awt.geom.Path2D
@@ -18,6 +21,11 @@ import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
 import java.awt.geom.RoundRectangle2D
 import java.awt.image.BufferedImage
+import java.awt.image.ColorModel
+import java.awt.image.DataBuffer
+import java.awt.image.DirectColorModel
+import java.awt.image.Raster
+import java.awt.image.WritableRaster
 import java.io.File
 
 /** [Gfx] on java.awt, so the unit tests can render real frames headlessly. */
@@ -178,6 +186,129 @@ class AwtGfx(private val image: BufferedImage) : Gfx {
 
     override fun textWidth(text: String, size: Float, font: Gfx.Font): Float =
         font(size, font).getStringBounds(text, g.fontRenderContext).width.toFloat()
+
+    override fun blend(mode: Gfx.Blend) {
+        g.composite = when (mode) {
+            Gfx.Blend.NORMAL -> AlphaComposite.SrcOver
+            else -> BlendComposite.of(mode)
+        }
+    }
+
+    private val glowFractions = floatArrayOf(0f, 0.16f, 0.42f, 1f)
+
+    override fun glow(cx: Float, cy: Float, radius: Float, color: Int) {
+        val a = (color ushr 24) / 255f
+        if (radius <= 0f || a <= 0f) return
+        val rgb = color and 0xFFFFFF
+        fun c(k: Float) = Color(((k * a * 255f).toInt().coerceIn(0, 255) shl 24) or rgb, true)
+        g.paint = RadialGradientPaint(
+            Point2D.Float(cx, cy), radius, glowFractions, arrayOf(c(1f), c(0.55f), c(0.18f), c(0f)),
+            MultipleGradientPaint.CycleMethod.NO_CYCLE,
+        )
+        ellipse.setFrame(cx - radius, cy - radius, radius * 2, radius * 2)
+        g.fill(ellipse)
+    }
+
+    private val arc = Arc2D.Float()
+
+    override fun strokeArc(cx: Float, cy: Float, radius: Float, startDeg: Float, sweepDeg: Float, strokeWidth: Float, color: Int) {
+        g.color = color(color)
+        g.stroke = stroke(strokeWidth)
+        arc.setArc((cx - radius).toDouble(), (cy - radius).toDouble(), (radius * 2).toDouble(), (radius * 2).toDouble(), -startDeg.toDouble(), -sweepDeg.toDouble(), Arc2D.OPEN)
+        g.draw(arc)
+    }
+
+    override fun fillArc(cx: Float, cy: Float, radius: Float, startDeg: Float, sweepDeg: Float, color: Int) {
+        g.color = color(color)
+        arc.setArc((cx - radius).toDouble(), (cy - radius).toDouble(), (radius * 2).toDouble(), (radius * 2).toDouble(), -startDeg.toDouble(), -sweepDeg.toDouble(), Arc2D.PIE)
+        g.fill(arc)
+    }
+
+    /** Additive / screen / multiply compositing, so headless screenshots match the phone. */
+    private class BlendComposite(private val mode: Gfx.Blend) : Composite {
+        override fun createContext(srcColorModel: ColorModel, dstColorModel: ColorModel, hints: RenderingHints?): CompositeContext =
+            Ctx(mode, srcColorModel, dstColorModel)
+
+        private class Ctx(val mode: Gfx.Blend, val srcCm: ColorModel, val dstCm: ColorModel) : CompositeContext {
+            override fun dispose() = Unit
+
+            override fun compose(src: Raster, dstIn: Raster, dstOut: WritableRaster) {
+                val w = minOf(src.width, dstIn.width)
+                val h = minOf(src.height, dstIn.height)
+                val fast = srcCm is DirectColorModel && dstCm is DirectColorModel &&
+                    src.transferType == DataBuffer.TYPE_INT && dstIn.transferType == DataBuffer.TYPE_INT
+                val sPre = srcCm.isAlphaPremultiplied
+                val dPre = dstCm.isAlphaPremultiplied
+                val sRow = IntArray(w)
+                val dRow = IntArray(w)
+                for (y in 0 until h) {
+                    if (fast) {
+                        src.getDataElements(0, y, w, 1, sRow)
+                        dstIn.getDataElements(0, y, w, 1, dRow)
+                        for (x in 0 until w) {
+                            val s = if (sPre) unpre(sRow[x]) else sRow[x]
+                            val d = if (dPre) unpre(dRow[x]) else dRow[x]
+                            val o = mix(s, d)
+                            dRow[x] = if (dPre) pre(o) else o
+                        }
+                        dstOut.setDataElements(0, y, w, 1, dRow)
+                    } else {
+                        for (x in 0 until w) {
+                            val s = srcCm.getRGB(src.getDataElements(x, y, null))
+                            val d = dstCm.getRGB(dstIn.getDataElements(x, y, null))
+                            dstOut.setDataElements(x, y, dstCm.getDataElements(mix(s, d), null))
+                        }
+                    }
+                }
+            }
+
+            private fun unpre(c: Int): Int {
+                val a = c ushr 24
+                if (a == 0 || a == 255) return c
+                val r = minOf(255, ((c shr 16) and 0xFF) * 255 / a)
+                val g = minOf(255, ((c shr 8) and 0xFF) * 255 / a)
+                val b = minOf(255, (c and 0xFF) * 255 / a)
+                return (a shl 24) or (r shl 16) or (g shl 8) or b
+            }
+
+            private fun pre(c: Int): Int {
+                val a = c ushr 24
+                if (a == 255) return c
+                val r = ((c shr 16) and 0xFF) * a / 255
+                val g = ((c shr 8) and 0xFF) * a / 255
+                val b = (c and 0xFF) * a / 255
+                return (a shl 24) or (r shl 16) or (g shl 8) or b
+            }
+
+            private fun mix(s: Int, d: Int): Int {
+                val sa = (s ushr 24) / 255f
+                if (sa <= 0f) return d
+                val da = d ushr 24
+                val r = ch(s shr 16, d shr 16, sa)
+                val gg = ch(s shr 8, d shr 8, sa)
+                val b = ch(s, d, sa)
+                val a = maxOf(da, (255 * sa).toInt())
+                return (a shl 24) or (r shl 16) or (gg shl 8) or b
+            }
+
+            private fun ch(s: Int, d: Int, sa: Float): Int {
+                val sc = (s and 0xFF) / 255f
+                val dc = (d and 0xFF) / 255f
+                val v = when (mode) {
+                    Gfx.Blend.ADD -> dc + sc * sa
+                    Gfx.Blend.SCREEN -> dc + sc * sa * (1f - dc)
+                    Gfx.Blend.MULTIPLY -> dc * (1f - sa) + dc * sc * sa
+                    Gfx.Blend.NORMAL -> dc * (1f - sa) + sc * sa
+                }
+                return (v.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+            }
+        }
+
+        companion object {
+            private val cache = HashMap<Gfx.Blend, BlendComposite>()
+            fun of(mode: Gfx.Blend) = cache.getOrPut(mode) { BlendComposite(mode) }
+        }
+    }
 
     companion object {
         private val baseFonts = HashMap<Gfx.Font, Font>()
