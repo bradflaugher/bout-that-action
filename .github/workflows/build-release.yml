@@ -61,9 +61,11 @@ jobs:
       # Signing is optional until the repository secrets exist: without them
       # the build and tests still run, but nothing is published (Android
       # won't install an unsigned APK).
+      # Secrets only ever reach builds of main (never PRs or a manual
+      # dispatch of another branch), so branch build logic can't read them.
       - name: Restore signing keystore
         id: keystore
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           ATA_KEYSTORE_BASE64: ${{ secrets.ATA_KEYSTORE_BASE64 }}
           ATA_STORE_PASSWORD: ${{ secrets.ATA_STORE_PASSWORD }}
@@ -94,13 +96,13 @@ jobs:
           printf 'ATA_KEYSTORE_PATH=%s\n' "$keystore_path" >> "$GITHUB_ENV"
           printf 'signed=true\n' >> "$GITHUB_OUTPUT"
 
-      # Signing is all-or-nothing in app/build.gradle.kts. Pull requests get no
-      # signing variables at all and build a clean unsigned APK.
+      # Signing is all-or-nothing in app/build.gradle.kts. Anything but a
+      # signed main build gets no signing variables and builds unsigned.
       - name: Lint, test, and build release APK
         env:
-          ATA_STORE_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.ATA_STORE_PASSWORD || '' }}
-          ATA_KEY_ALIAS: ${{ github.event_name != 'pull_request' && secrets.ATA_KEY_ALIAS || '' }}
-          ATA_KEY_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.ATA_KEY_PASSWORD || '' }}
+          ATA_STORE_PASSWORD: ${{ steps.keystore.outputs.signed == 'true' && secrets.ATA_STORE_PASSWORD || '' }}
+          ATA_KEY_ALIAS: ${{ steps.keystore.outputs.signed == 'true' && secrets.ATA_KEY_ALIAS || '' }}
+          ATA_KEY_PASSWORD: ${{ steps.keystore.outputs.signed == 'true' && secrets.ATA_KEY_PASSWORD || '' }}
         run: ./gradlew lint test assembleRelease
 
       - name: Name APK
