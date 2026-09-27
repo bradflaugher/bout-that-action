@@ -32,6 +32,7 @@ android {
         targetSdk = 37
         versionCode = versionCodeFromEnvironment.toInt()
         versionName = System.getenv("ATA_VERSION_NAME") ?: "dev"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     androidResources {
@@ -89,6 +90,9 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
     testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.ext.junit)
 }
 
 // Headless screenshots: renders real game scenes through the same Renderer the

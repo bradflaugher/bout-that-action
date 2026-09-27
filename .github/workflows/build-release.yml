@@ -1,0 +1,145 @@
+name: Build and release
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One release pipeline at a time; never cancel a run that may be
+# mid-way through replacing the published release.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Date-labeled versions: 2026.09.27.<run>. The run number keeps the
+      # versionCode increasing so sideloaded updates install over the old APK.
+      - name: Compute version
+        id: version
+        run: |
+          version="$(date -u +%Y.%m.%d).${GITHUB_RUN_NUMBER}"
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+          printf 'ATA_VERSION_NAME=%s\nATA_VERSION_CODE=%s\n' "$version" "$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # API 37 platforms install as platforms;android-37.0 (not android-37).
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          packages: 'platform-tools platforms;android-37.0 build-tools;37.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          validate-wrappers: true
+
+      - name: Restore signing keystore
+        if: github.event_name != 'pull_request'
+        env:
+          ATA_KEYSTORE_BASE64: ${{ secrets.ATA_KEYSTORE_BASE64 }}
+          ATA_STORE_PASSWORD: ${{ secrets.ATA_STORE_PASSWORD }}
+          ATA_KEY_ALIAS: ${{ secrets.ATA_KEY_ALIAS }}
+          ATA_KEY_PASSWORD: ${{ secrets.ATA_KEY_PASSWORD }}
+        run: |
+          missing=()
+          for variable in ATA_KEYSTORE_BASE64 ATA_STORE_PASSWORD ATA_KEY_ALIAS ATA_KEY_PASSWORD; do
+            if [ -z "${!variable:-}" ]; then
+              missing+=("$variable")
+            fi
+          done
+          if [ "${#missing[@]}" -ne 0 ]; then
+            printf 'Missing required signing secrets: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+          keystore_path="$RUNNER_TEMP/ata-release.jks"
+          printf '%s' "$ATA_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          if [ ! -s "$keystore_path" ]; then
+            printf 'The restored signing keystore is empty\n' >&2
+            exit 1
+          fi
+          printf 'ATA_KEYSTORE_PATH=%s\n' "$keystore_path" >> "$GITHUB_ENV"
+
+      # Signing is all-or-nothing in app/build.gradle.kts. Pull requests get no
+      # signing variables at all and build a clean unsigned APK.
+      - name: Lint, test, and build release APK
+        env:
+          ATA_STORE_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.ATA_STORE_PASSWORD || '' }}
+          ATA_KEY_ALIAS: ${{ github.event_name != 'pull_request' && secrets.ATA_KEY_ALIAS || '' }}
+          ATA_KEY_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.ATA_KEY_PASSWORD || '' }}
+        run: ./gradlew lint test assembleRelease
+
+      - name: Name APK
+        run: |
+          apk="$(ls app/build/outputs/apk/release/*.apk | head -1)"
+          mv "$apk" app/build/outputs/apk/release/about-that-action.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: about-that-action-${{ steps.version.outputs.version }}
+          path: app/build/outputs/apk/release/about-that-action.apk
+          if-no-files-found: error
+
+  release:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download signed APK
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: about-that-action-${{ needs.build.outputs.version }}
+          path: release-apk
+
+      # Exactly one release lives at a time: publish the new date-labeled
+      # release, then delete every other release and its tag.
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          tag="v${VERSION}"
+          cd release-apk
+          sha256sum about-that-action.apk | tee about-that-action.apk.sha256
+
+          gh release create "$tag" about-that-action.apk about-that-action.apk.sha256 \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "About That Action ${VERSION}" \
+            --notes "Signed build of ${GITHUB_SHA} from $(date -u +%Y-%m-%d). Sideload about-that-action.apk; verify with about-that-action.apk.sha256." \
+            --latest
+
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[].tagName' |
+          while read -r old_tag; do
+            if [ "$old_tag" != "$tag" ]; then
+              gh release delete "$old_tag" --cleanup-tag --yes --repo "$GITHUB_REPOSITORY"
+            fi
+          done
