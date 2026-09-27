@@ -1,6 +1,7 @@
 package com.bradflaugher.aboutthataction.audio
 
 import com.bradflaugher.aboutthataction.engine.EnemyKind
+import com.bradflaugher.aboutthataction.engine.FloorEvent
 import com.bradflaugher.aboutthataction.engine.GameEvent
 import com.bradflaugher.aboutthataction.engine.KillMethod
 import com.bradflaugher.aboutthataction.engine.PickupKind
@@ -41,6 +42,10 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         is GameEvent.HazardFire -> 4.5f
         is GameEvent.FloorReached -> 2f
         GameEvent.SpecialEmpty, GameEvent.Reload -> 2f
+        is GameEvent.Suspicious -> 1.6f
+        GameEvent.Ghost -> 1.8f
+        is GameEvent.Snore -> 1.2f
+        GameEvent.Muzak -> 1.5f
         else -> 1f
     }
 
@@ -81,6 +86,12 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
             GameEvent.SlowMoEnd -> slowMo(down = false)
             GameEvent.SpecialEmpty -> emptyClick()
             GameEvent.Reload -> reload()
+            is GameEvent.Suspicious -> huh(e.pan)
+            GameEvent.Ghost -> ghost()
+            is GameEvent.FloorEventStarted -> floorEvent(e.event)
+            GameEvent.Muzak -> muzak()
+            is GameEvent.Snore -> snore(e.pan)
+            GameEvent.BoxKicked -> boxKicked()
         }
     }
 
@@ -672,6 +683,100 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         }
     }
 
+    // ---- Silly business ---------------------------------------------------------------
+
+    /** A guard's "huh?": two quick rising, slightly bent blips. */
+    private fun huh(pan: Float) {
+        voice {
+            wave = Wave.TRIANGLE; f0 = 420f * j(); f1 = 470f; sweep = 0.06f; attack = 0.005f; decay = 0.07f; gain = 0.14f
+            this.pan = pan; reverb = 0.1f
+        }
+        voice {
+            wave = Wave.TRIANGLE; f0 = 480f * j(); f1 = 760f; sweep = 0.14f; attack = 0.005f; hold = 0.05f; decay = 0.12f
+            vibRate = 9f; vibDepth = 0.02f; gain = 0.15f; this.pan = pan; reverb = 0.15f; delay = 0.11f
+        }
+    }
+
+    /** GHOST: an airy, shimmering pentatonic run that evaporates. */
+    private fun ghost() {
+        for (k in PENTA.indices) voice {
+            wave = Wave.SINE; wave2 = Wave.SINE; ratio2 = 2f; fm = 0.4f; f0 = 1046.5f * Dsp.semis(PENTA[k].toFloat()); f1 = f0
+            attack = 0.02f; decay = 0.55f; gain = 0.07f; pan = (k - 2f) * 0.3f; reverb = 0.6f; delay = k * 0.045f
+            tremRate = 10f; tremDepth = 0.3f; priority = 1.2f
+        }
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.HIGH; cut0 = 6000f; cut1 = 9000f; cutTime = 0.4f; attack = 0.1f
+            decay = 0.4f; gain = 0.05f; reverb = 0.5f
+        }
+    }
+
+    private fun floorEvent(event: FloorEvent) {
+        when (event) {
+            FloorEvent.BLACKOUT -> {
+                // Power-down: the hum sags to nothing, then a breaker thunks.
+                voice {
+                    wave = Wave.SAW; wave2 = Wave.SAW; ratio2 = 2f; level2 = 0.5f; f0 = 120f; f1 = 30f; sweep = 0.9f
+                    filter = FilterMode.LOW; cut0 = 1200f; cut1 = 120f; cutTime = 0.9f; attack = 0.01f; decay = 1f; gain = 0.16f
+                    priority = 2f
+                }
+                voice {
+                    level1 = 0f; noise = 1f; filter = FilterMode.LOW; cut0 = 700f; cut1 = 200f; cutTime = 0.1f; decay = 0.15f
+                    gain = 0.35f; delay = 0.85f; priority = 2f
+                }
+                voice { wave = Wave.SINE; f0 = 70f; f1 = 40f; sweep = 0.15f; decay = 0.2f; gain = 0.4f; delay = 0.85f; priority = 2f }
+            }
+            FloorEvent.NAP_TIME -> {
+                // A music-box lullaby, three notes down.
+                for ((k, sm) in LULLABY.withIndex()) voice {
+                    wave = Wave.SINE; wave2 = Wave.SINE; ratio2 = 4.2f; fm = 0.7f; f0 = 1568f * Dsp.semis(sm.toFloat()); f1 = f0
+                    attack = 0.002f; decay = 0.8f; gain = 0.1f; reverb = 0.5f; delay = k * 0.26f; priority = 1.5f
+                }
+            }
+            FloorEvent.PAYDAY -> {
+                // Cha-ching: register bell, then the drawer rolling out.
+                bell(2093f, 0f)
+                voice {
+                    level1 = 0f; noise = 1f; filter = FilterMode.BAND; cut0 = 2200f; cut1 = 1400f; cutTime = 0.2f; q = 1.5f
+                    attack = 0.01f; decay = 0.22f; tremRate = 40f; tremDepth = 0.6f; gain = 0.2f; delay = 0.12f
+                }
+                arp(1046.5f, MAJOR_ARP, 0.05f, Wave.PULSE, 0.2f, 0.08f, start = 0.25f)
+            }
+            FloorEvent.NONE -> Unit
+        }
+    }
+
+    /** Smooth elevator jazz: a soft electric-piano maj7 to min7 vamp with a brushed shaker. */
+    private fun muzak() {
+        for ((c, chord) in MUZAK_CHORDS.withIndex()) {
+            for ((k, sm) in chord.withIndex()) voice {
+                wave = Wave.SINE; wave2 = Wave.SINE; ratio2 = 1f; fm = 0.9f; f0 = 261.6f * Dsp.semis(sm.toFloat()); f1 = f0
+                attack = 0.004f; hold = 0.1f; decay = 1.1f; tremRate = 5f; tremDepth = 0.25f; gain = 0.045f
+                pan = (k - 1.5f) * 0.35f; reverb = 0.45f; delay = c * 0.72f + k * 0.03f; priority = 0.8f
+            }
+        }
+        for (k in 0 until 8) voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.HIGH; cut0 = 7000f; cut1 = 7000f; attack = 0.01f; decay = 0.05f
+            gain = if (k % 2 == 0) 0.05f else 0.03f; delay = k * 0.18f; priority = 0.5f
+        }
+    }
+
+    /** A soft, low snore: filtered breath with a wobble. */
+    private fun snore(pan: Float) {
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.BAND; cut0 = 260f * j(0.1f); cut1 = 380f; cutTime = 0.5f; q = 2.5f
+            attack = 0.35f; decay = 0.3f; tremRate = 22f; tremDepth = 0.7f; gain = 0.05f; this.pan = pan; priority = 0.2f
+        }
+    }
+
+    /** A Heavy boots the box: a hollow cardboard thump and a flutter. */
+    private fun boxKicked() {
+        voice { wave = Wave.SINE; f0 = 150f; f1 = 70f; sweep = 0.08f; decay = 0.12f; gain = 0.4f }
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.BAND; cut0 = 900f; cut1 = 1800f; cutTime = 0.3f; q = 0.9f
+            attack = 0.005f; decay = 0.35f; tremRate = 30f; tremDepth = 0.6f; crush = 2; gain = 0.25f
+        }
+    }
+
     /** Game-over stinger: a dying minor chord over a boom. */
     fun gameOverStinger() {
         trim = 1f
@@ -690,6 +795,9 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
 
     companion object {
         private val PENTA = intArrayOf(0, 2, 4, 7, 9)
+        private val LULLABY = intArrayOf(0, -3, -7)
+        /** Cmaj7, then Am7 (semitones above middle C). */
+        private val MUZAK_CHORDS = arrayOf(intArrayOf(0, 4, 7, 11), intArrayOf(-3, 0, 4, 7))
         private val MAJOR_ARP = intArrayOf(0, 4, 7, 12)
         private val MINOR_ARP = intArrayOf(12, 7, 3, 0)
         private val SHIELD_ARP = intArrayOf(0, 4, 7, 12, 16)

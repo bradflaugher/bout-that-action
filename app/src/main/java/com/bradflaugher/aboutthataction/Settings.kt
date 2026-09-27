@@ -19,6 +19,8 @@ data class Settings(
     val silent: Boolean = false,
     val haptics: Boolean = true,
     val touchGuide: Boolean = true,
+    /** One-line hints the first time each move would help, on the first floors of a run from the roof. */
+    val coach: Boolean = true,
     val musicVolume: Float = 0.8f,
     val sfxVolume: Float = 1f,
 ) {
@@ -59,6 +61,7 @@ class Prefs(context: Context) {
             silent = sp.getBoolean("silent", d.silent),
             haptics = sp.getBoolean("haptics", d.haptics),
             touchGuide = sp.getBoolean("touch_guide", d.touchGuide),
+            coach = sp.getBoolean("coach", d.coach),
             musicVolume = sp.getFloat("music", d.musicVolume),
             sfxVolume = sp.getFloat("sfx", d.sfxVolume),
         )
@@ -78,6 +81,7 @@ class Prefs(context: Context) {
             .putBoolean("silent", s.silent)
             .putBoolean("haptics", s.haptics)
             .putBoolean("touch_guide", s.touchGuide)
+            .putBoolean("coach", s.coach)
             .putFloat("music", s.musicVolume)
             .putFloat("sfx", s.sfxVolume)
             .apply()

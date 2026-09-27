@@ -196,10 +196,12 @@ fun HowToPlay() {
         "DOUBLE-TAP" to "Throw a grenade.",
         "SWIPE ↑" to "Jump. Clears low shots. Land on heads to stomp.",
         "SWIPE ↓" to "Hide in a doorway or pop the cardboard box. Swipe ↓ again to stand up.",
-        "WALK INTO" to "An enemy to choke him out instantly. Heavies only from behind.",
+        "WALK INTO" to "An enemy to choke him out instantly. Heavies only from behind. Nappers from anywhere.",
+        "THE BOX" to "Move it while a guard's looking and he comes over to check. Let him. (Heavies and ninjas kick it.)",
         "JUMP + TAP" to "Shoot out a ceiling light: it crushes whoever is below. Silent, in either mode.",
         "MODE" to "The button under pause: GUNS HOT auto-fires at threats; SILENT never fires and quiet kills score double.",
-        "DOWN" to "Only elevators go down, and only some hallways have one. Find it. Keep going. Forever.",
+        "GHOST" to "Leave a floor without anyone spotting you for a bonus. Double in SILENT.",
+        "DOWN" to "Only elevators go down, and only some hallways have one. Find it. Keep going, or take a break. It'll wait.",
     )
     Column(verticalArrangement = Arrangement.spacedBy(Space.s)) {
         for ((k, v) in rows) {

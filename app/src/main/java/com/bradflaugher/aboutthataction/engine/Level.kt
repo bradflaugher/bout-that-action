@@ -108,8 +108,23 @@ data class Hazard(val x: Float, val kind: HazardKind, val period: Float, val pha
 /**
  * An enemy placed when a floor is built. Walkers patrol [patrol] units either side of [x]
  * (a fixed beat you can time); [watch] (-1/1) makes them start facing that way, 0 = random.
+ * [asleep] guards nap at their post until something wakes them.
  */
-data class Spawn(val kind: EnemyKind, val x: Float, val patrol: Float = 0f, val watch: Int = 0)
+data class Spawn(val kind: EnemyKind, val x: Float, val patrol: Float = 0f, val watch: Int = 0, val asleep: Boolean = false)
+
+/**
+ * The rare special floor, rolled from (seed, floor) on its own stream so it never disturbs the
+ * layout. Announced when you first set foot on the floor.
+ */
+enum class FloorEvent(val title: String) {
+    NONE(""),
+    /** The power's out: every light on the floor is dead. They can't see you either. */
+    BLACKOUT("BLACKOUT"),
+    /** Most of the guards are asleep at their posts. Tiptoe. */
+    NAP_TIME("NAP TIME"),
+    /** Somebody left the loot lying around in one of the hallways. */
+    PAYDAY("PAYDAY"),
+}
 
 /**
  * One hallway of a floor: its doors, lamps, hazards and guards. [shafts] are every elevator
@@ -158,6 +173,8 @@ class FloorPlan(
     val heat: Float,
     val halls: List<HallPlan>,
     val shafts: List<Shaft>,
+    /** A rare special floor, or [FloorEvent.NONE]. */
+    val event: FloorEvent = FloorEvent.NONE,
 ) {
     val hallCount: Int get() = halls.size
 
@@ -183,7 +200,7 @@ class FloorPlan(
     /** Hallways with a ride down. */
     val elevatorHalls: List<Int> get() = halls.indices.filter { halls[it].downLandings.isNotEmpty() }
 
-    fun copy(halls: List<HallPlan> = this.halls) = FloorPlan(index, zone, isVoid, heat, halls, shafts)
+    fun copy(halls: List<HallPlan> = this.halls) = FloorPlan(index, zone, isVoid, heat, halls, shafts, event)
 }
 
 object LevelGen {
@@ -193,6 +210,7 @@ object LevelGen {
     private const val HALL_KEY = 0x4A11L
     private const val LANDING_KEY = 0x1A4DL
     private const val VOID_KEY = 0x701DL
+    private const val EVENT_KEY = 0xE7E27L
 
     /** Chance an even floor starts a local shaft (odd floors always do: every floor has a ride down). */
     const val EVEN_SHAFT_CHANCE = 0.4f
@@ -202,6 +220,28 @@ object LevelGen {
     const val PASSAGE_CLEAR = 2.4f
     /** ... and this far from where you arrive in hallway A. */
     const val ARRIVAL_CLEAR = 3.4f
+    /** Special floors start this far down (after the roof and 49F have taught the basics). */
+    const val EVENT_MIN_FLOOR = 2
+    const val BLACKOUT_CHANCE = 0.05f
+    const val NAP_CHANCE = 0.07f
+    const val PAYDAY_CHANCE = 0.05f
+    /** On a NAP TIME floor, each walking guard is asleep with this chance. */
+    const val NAP_SHARE = 0.75f
+
+    /** The special floor rolled for [floor] (its own stream: layouts never change because of it). */
+    fun eventOn(seed: Long, floor: Int): FloorEvent {
+        if (floor < EVENT_MIN_FLOOR) return FloorEvent.NONE
+        val r = Rng.forKey(seed, EVENT_KEY, floor.toLong()).nextFloat()
+        return when {
+            r < BLACKOUT_CHANCE -> FloorEvent.BLACKOUT
+            r < BLACKOUT_CHANCE + NAP_CHANCE -> FloorEvent.NAP_TIME
+            r < BLACKOUT_CHANCE + NAP_CHANCE + PAYDAY_CHANCE -> FloorEvent.PAYDAY
+            else -> FloorEvent.NONE
+        }
+    }
+
+    /** Guards that walk a beat (and so can nap at their post). */
+    fun canNap(kind: EnemyKind) = kind == EnemyKind.AGENT || kind == EnemyKind.HEAVY || kind == EnemyKind.NINJA || kind == EnemyKind.DEMON
 
     /** Zone and heat for [floor]. Past floor 200, each block rolls its own. */
     fun zoneAndHeat(seed: Long, floor: Int, difficulty: Difficulty): Pair<Zone, Float> {
@@ -362,6 +402,8 @@ object LevelGen {
         }
         val perHall = Heat.enemiesPerHall(heat)
         var budget = Heat.MAX_ENEMIES_PER_FLOOR
+        val event = eventOn(seed, floor)
+        val napRng = Rng.forKey(seed, EVENT_KEY xor 0x5A9L, floor.toLong())
         val halls = (0 until n).map { h ->
             val used = sorted[h].map { it.slot }.toSet()
             val passages = doors[h].filter { it.kind == DoorKind.PASSAGE }.map { it.x }
@@ -409,6 +451,9 @@ object LevelGen {
                     }
                 }
             }
+            if (event == FloorEvent.NAP_TIME) {
+                spawns.replaceAll { if (canNap(it.kind) && napRng.chance(NAP_SHARE)) it.copy(patrol = 0f, asleep = true) else it }
+            }
             // An express that opens here on its way down: someone is waiting at the doors.
             for (s in landings[h]) if (s.express && s.stop == floor) {
                 val side = if (s.x < Geo.FLOOR_W / 2f) 1 else -1
@@ -419,7 +464,7 @@ object LevelGen {
             }
             HallPlan(floor, h, zone, isVoid, heat, doors[h], shafts, landings[h], lights, hazards, spawns)
         }
-        return FloorPlan(floor, zone, isVoid, heat, halls, shafts)
+        return FloorPlan(floor, zone, isVoid, heat, halls, shafts, event)
     }
 
     /** Most doors that fit in [slots] at [Geo.MIN_DOOR_GAP] (greedy left to right is optimal on a line). */
@@ -445,7 +490,8 @@ object LevelGen {
             index = 0, hall = 0, zone = zone, isVoid = false, heat = 0f,
             doors = emptyList(), shafts = shafts, landings = shafts,
             lights = emptyList(), hazards = emptyList(),
-            spawns = listOf(Spawn(EnemyKind.AGENT, 7.4f, patrol = 1.4f)),
+            // The first guard of the run is dozing at his post, back to you: walk into him.
+            spawns = listOf(Spawn(EnemyKind.AGENT, 7.4f, watch = 1, asleep = true)),
         )
         return FloorPlan(0, zone, false, 0f, listOf(hall), shafts)
     }

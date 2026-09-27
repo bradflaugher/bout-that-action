@@ -152,6 +152,10 @@ class Enemy(
     /** Patrol beat: walks between these, pausing to look at each end. Equal = stands guard. */
     var patrolA = x
     var patrolB = x
+    /** World time this enemy stepped out of a door, or -1 if it was placed with the floor. */
+    var emergedAt = -1f
+    /** Dozing at his post (a NAP TIME floor, or the roof): blind, deaf to footsteps, woken by noise. */
+    var asleep = false
 
     val alive: Boolean get() = state != EnemyState.DEAD && state != EnemyState.CHOKED
     val ducking: Boolean get() = state == EnemyState.AIM && aimLow && kind != EnemyKind.DRONE && kind != EnemyKind.TURRET
@@ -196,6 +200,10 @@ class Bullet(
     var range: Float = 30f,
     /** The hallway of [floor] it flies through. */
     val hall: Int = 0,
+    /** Who fired it (enemy bullets), for the run's hurt log. */
+    val from: EnemyKind? = null,
+    /** The shooter stepped out of a door moments ago (a door ambush). */
+    val ambush: Boolean = false,
 ) {
     var dead = false
     var life = 0f
@@ -258,6 +266,13 @@ class HallState(val plan: HallPlan) {
 class FloorState(val plan: FloorPlan) {
     val halls: List<HallState> = plan.halls.map { HallState(it) }
     var visited = false
+    /** Some guard on this floor has spotted you (or you got hurt here): no GHOST bonus. */
+    var spotted = false
+    var ghostPaid = false
+    /** The special floor has been announced. */
+    var announced = false
+    /** Guards placed when the floor was built (a floor with nobody on it can't be ghosted). */
+    val guards: Int = plan.halls.sumOf { it.spawns.size }
 
     fun hall(i: Int): HallState = halls[i.coerceIn(0, halls.size - 1)]
 }

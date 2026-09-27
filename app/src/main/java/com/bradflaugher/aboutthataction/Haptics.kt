@@ -67,6 +67,10 @@ class Haptics(context: Context) {
             GameEvent.ShieldBlock -> play(click)
             is GameEvent.PerkChosen -> play(perk)
             is GameEvent.ZoneEntered -> play(boom)
+            GameEvent.Ghost -> play(perk)
+            is GameEvent.Suspicious -> light(softTick)
+            is GameEvent.FloorEventStarted -> play(click)
+            GameEvent.BoxKicked -> play(thud)
             else -> Unit
         }
     }

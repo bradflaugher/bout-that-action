@@ -60,6 +60,18 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
                     dodgeCooldown = 0.5f
                     return
                 }
+                // The lure: a guard strolling this way, looking at the box? Wiggle it. He'll come
+                // over to check, straight into an ambush. (Heavies and ninjas kick the box; skip them.)
+                val mark = w.enemies.firstOrNull {
+                    it.floor == p.floor && it.hall == p.hall && it.alive && !it.asleep && it.state == EnemyState.PATROL &&
+                        (it.kind == EnemyKind.AGENT || it.kind == EnemyKind.DEMON) &&
+                        it.facing == (if (p.x > it.x) 1 else -1) && abs(it.x - p.x) in 1.5f..sight(w) &&
+                        w.stacks(Perk.GHOST_BOX) == 0
+                }
+                if (mark != null && p.stateTime > 0.3f) {
+                    w.moveAxis = if (mark.x > p.x) 1 else -1
+                    return
+                }
                 // Stand up once nobody is shooting or looking this way (or give up waiting).
                 if (p.stateTime > 0.5f && (safe(w) || p.stateTime > 6f) && tapCooldown <= 0f) {
                     w.commands += Command.SWIPE_DOWN
@@ -101,7 +113,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
 
         // Crowds eat a grenade in either mode; SILENT also grenades what it can't choke.
         if (grenadeCooldown <= 0f && p.grenades > 0 && w.grenades.isEmpty()) {
-            val near = enemies.filter { abs(it.x - p.x) in 1.5f..6f }
+            val near = enemies.filter { !it.asleep && abs(it.x - p.x) in 1.5f..6f }
             val unchokeable = w.silent && near.any { it.kind == EnemyKind.TURRET || (it.kind == EnemyKind.HEAVY && it.state != EnemyState.PATROL) }
             if (near.size >= 2 || unchokeable) {
                 w.commands += Command.DOUBLE_TAP
@@ -174,6 +186,11 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         val toward = if (blocker.x > p.x) 1 else -1
         val facingMe = blocker.facing == -toward
         val alert = blocker.state == EnemyState.ALERT || blocker.state == EnemyState.AIM || blocker.state == EnemyState.WINDUP
+        if (blocker.asleep) {
+            // Night night.
+            w.moveAxis = toward
+            return true
+        }
         when (blocker.kind) {
             EnemyKind.TURRET -> return false // run past it (a grenade goes first if there is one)
             EnemyKind.DRONE -> {
@@ -223,7 +240,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         val p = w.player
         if (w.bullets.any { !it.byPlayer && it.floor == p.floor && it.hall == p.hall && abs(it.x - p.x) < 3f }) return false
         return w.enemies.none {
-            it.floor == p.floor && it.hall == p.hall && it.alive && abs(it.x - p.x) < sight(w) &&
+            it.floor == p.floor && it.hall == p.hall && it.alive && !it.asleep && abs(it.x - p.x) < sight(w) &&
                 (it.state == EnemyState.ALERT || it.state == EnemyState.AIM || it.facing == (if (p.x > it.x) 1 else -1))
         }
     }

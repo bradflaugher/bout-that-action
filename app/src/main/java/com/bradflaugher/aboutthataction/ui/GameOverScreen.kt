@@ -101,6 +101,10 @@ fun GameOverScreen(
             verticalArrangement = Arrangement.spacedBy(Space.s),
         ) {
             MissionFailed()
+            if (run.quip.isNotBlank()) {
+                NeonText("\u201C${run.quip}\u201D", size = Type.small, color = Neon.soft, glow = 0f, align = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().reveal(520, 6.dp))
+            }
 
             Panel(Modifier.fillMaxWidth().reveal(260, 24.dp), accent = zoneColor, padding = Space.l, spacing = Space.xs) {
                 Kicker("DEEPEST FLOOR", Neon.soft, Modifier.fillMaxWidth(), TextAlign.Center)
@@ -116,6 +120,18 @@ fun GameOverScreen(
                         color = Neon.gold.copy(alpha = 0.75f), letterSpacing = 1.5.sp, glow = 0f, align = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().padding(top = Space.xxs).reveal(1250, 6.dp))
                 }
+                if (run.title.isNotBlank() || run.deathLine.isNotBlank()) {
+                    Hairline(Modifier.padding(vertical = Space.s))
+                    if (run.title.isNotBlank()) {
+                        Kicker("PLAYSTYLE", Neon.dim, Modifier.fillMaxWidth(), TextAlign.Center)
+                        NeonText(run.title, size = Type.body, color = Neon.gold, letterSpacing = 2.sp, glow = 0.5f, align = TextAlign.Center,
+                            maxLines = 1, modifier = Modifier.fillMaxWidth().reveal(1300, 6.dp))
+                    }
+                    if (run.deathLine.isNotBlank()) {
+                        NeonText(run.deathLine, size = Type.small, color = Neon.soft, glow = 0f, align = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(top = Space.xxs).reveal(1380, 6.dp))
+                    }
+                }
                 Hairline(Modifier.padding(vertical = Space.s))
                 Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
                     StatTile("SCORE", run.score, Modifier.weight(1f), 600, if (run.newBestScore) Neon.gold else Color.White) { grouped(it) }
@@ -127,6 +143,7 @@ fun GameOverScreen(
                         String.format(Locale.US, "%d:%02d", it / 60, it % 60)
                     }
                 }
+                if (run.highlights.isNotEmpty()) Highlights(run.highlights, Modifier.padding(top = Space.s).reveal(1000, 6.dp))
                 Row(Modifier.fillMaxWidth().padding(top = Space.s).reveal(1000, 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Kicker("SEED", Neon.dim)
                     NeonText(run.seedLabel, size = Type.small, color = Neon.soft, glow = 0f, align = TextAlign.End, maxLines = 1,
@@ -139,6 +156,24 @@ fun GameOverScreen(
             Row(Modifier.reveal(780, 16.dp), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
                 NeonButton("NEW RUN", Neon.cyan, Modifier.weight(1f), onClick = onNewRun)
                 NeonButton("TITLE", Neon.soft, Modifier.weight(1f), style = ButtonStyle.GHOST, onClick = onTitle)
+            }
+        }
+    }
+}
+
+/** The run's highlights, two to a row: label on the left, value on the right. */
+@Composable
+private fun Highlights(items: List<Pair<String, String>>, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Space.xxs)) {
+        for (pair in items.chunked(2)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                for ((label, value) in pair) {
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                        Kicker(label, Neon.dim, Modifier.weight(1f))
+                        NeonText(value, size = Type.small, color = Color.White, glow = 0.2f, maxLines = 1)
+                    }
+                }
+                if (pair.size == 1) Box(Modifier.weight(1f))
             }
         }
     }

@@ -42,6 +42,11 @@ the JVM.
     heat to every enemy stat.
   - `Autopilot.kt` — the bot (balance tests and the title-screen demo): it
     routes through passages to a ride down, calls cars, and plays both modes.
+  - `RunStats.kt` (highlights, the hurt log, the fatal hit) and
+    `RunReport.kt` (the game-over card: playstyle title, death line, quip).
+    Special floors (`FloorEvent`: blackout, nap time, payday) roll from
+    `(seed, floor)` on their own RNG stream in `LevelGen.eventOn`, so they
+    never change a floor's layout.
   - `Zone.kt` — the descent: Rooftop → Neon Tower → Black Labs → Deep Metro →
     Iron Mines → Magma Core → Hell (150–199) → the Void (200+, random zones).
   - `Entities.kt`, `Perk.kt`, `Fx.kt`, `Events.kt`, `Rng.kt` (SplitMix64).
@@ -68,9 +73,15 @@ the JVM.
 - Keep the pure packages pure: no `android.*` in `engine/`, `input/`,
   `render/` or `audio/` (except `AudioOutput.kt`).
 - Every engine rule change gets a test in `MechanicsTest` (or a new test
-  class). Run the bot (`BotPlaythroughTest`, it prints a per-preset report)
-  after balance changes and keep the difficulty ordering CHILL < AGENT <
-  BRUTAL < STRAIGHT_TO_HELL.
+  class, like `StealthAndEventsTest`). Run the bot (`BotPlaythroughTest`,
+  it prints a per-preset balance report and a pacing report) after balance
+  changes and keep the difficulty ordering CHILL < AGENT < BRUTAL <
+  STRAIGHT_TO_HELL.
+- Fun, not compulsion: no streaks, daily rewards, timers or "come back"
+  nags. Text is short, silly and family-friendly.
+- Enums the renderer switches on exhaustively (`Perk`, `PickupKind`,
+  `TextStyle`, `ParticleKind`, `ContextAction`, `EnemyKind`, states) need a
+  render change alongside any new value; prefer fields and events.
 - Determinism: a run is a pure function of `RunConfig` and the input
   sequence. Never use wall-clock time or unseeded randomness in `engine/`.
 - The game is portrait-only and the floor exactly fills the screen width:

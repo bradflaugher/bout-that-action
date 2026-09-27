@@ -267,10 +267,39 @@ class ControlsTest {
         e.patrolB = 6f
         run(w, 1f)
         assertTrue(w.events.none { it is GameEvent.Shot && it.byPlayer })
-        // ...until he's right on top of you.
+        // Still his back, right on top of you: the takedown is yours, the gun stays quiet.
         e.x = 2f + World.AUTO_FIRE_POINT_BLANK - 0.3f
+        run(w, 0.2f)
+        assertTrue(w.events.none { it is GameEvent.Shot && it.byPlayer })
+        // He turns round at point-blank: now he's about to be a problem.
+        e.facing = -1
         w.step(dt)
         assertTrue(w.events.any { it is GameEvent.Shot && it.byPlayer })
+    }
+
+    @Test
+    fun gunsHotLetsYouWalkUpBehindAGuardForTheTakedown() {
+        val w = world(silent = false)
+        w.player.x = 2f
+        val e = enemy(w, EnemyKind.AGENT, 5f, facing = 1)
+        e.patrolA = 5f
+        e.patrolB = 5f
+        run(w, 1.2f) { it.moveAxis = 1 }
+        assertFalse(e.alive)
+        assertEquals(KillMethod.TAKEDOWN, e.killedBy)
+        assertTrue(w.events.none { it is GameEvent.Shot && it.byPlayer })
+    }
+
+    @Test
+    fun gunsHotNeverShootsASleepingGuard() {
+        val w = world(silent = false)
+        w.player.x = 2f
+        val e = enemy(w, EnemyKind.AGENT, 3.5f, facing = -1)
+        e.asleep = true
+        run(w, 1f)
+        assertTrue(e.alive)
+        assertTrue(w.events.none { it is GameEvent.Shot && it.byPlayer })
+        assertNull(w.aimTarget())
     }
 
     @Test
