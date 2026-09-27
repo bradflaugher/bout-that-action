@@ -279,7 +279,7 @@ class ScreenshotTest {
         w.fx.burst(ParticleKind.CASING, 2.0f, gy - 1f, 2, 2f, 0.7f, 0.07f, upBias = 1f)
         w.fx.update(0.06f)
         w.fx.text("+300", 4.8f, gy - 2.1f, TextStyle.SCORE)
-        w.fx.text("3x COMBO", 4.8f, gy - 2.7f, TextStyle.COMBO)
+        w.fx.text("TAKEDOWN", 6.9f, gy - 2.4f, TextStyle.TAKEDOWN)
         w.playerBullet(3.7f, 1.02f)
         w.enemyBullet(5.7f, Body.HIGH, -9f)
         w.ambient(EnemyKind.AGENT, EnemyKind.AGENT, EnemyKind.HEAVY)
@@ -439,7 +439,7 @@ class ScreenshotTest {
         w.fx.burst(ParticleKind.SMOKE, 6.6f, gy - 0.6f, 14, 2.5f, 1.3f, 0.5f, upBias = 0.5f)
         w.fx.burst(ParticleKind.SPARK, 6.6f, gy - 0.6f, 18, 12f, 0.3f, 0.1f)
         w.fx.update(0.1f)
-        w.fx.text("4x COMBO", 2.6f, gy - 2.6f, TextStyle.COMBO)
+        w.fx.text("25x COMBO", 2.6f, gy - 2.6f, TextStyle.COMBO)
         w.ambient(EnemyKind.DEMON, EnemyKind.AGENT, EnemyKind.DEMON, EnemyKind.NINJA)
         return w
     }

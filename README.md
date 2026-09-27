@@ -16,7 +16,7 @@ procedural sound effects. No asset files, no ads, no network.
   <img src="docs/screenshots/rooftop.png" width="32%" alt="Rooftop insertion with the tutorial billboard">
   <img src="docs/screenshots/tower.png" width="32%" alt="A firefight in the Neon Tower">
   <img src="docs/screenshots/hell.png" width="32%" alt="Hell: demons, fireballs, a 23x combo">
-  <p><em><b>Rooftop</b> insertion · <b>Neon Tower</b> firefight · <b>Hell</b>, floor 165</em></p>
+  <p><em><b>Rooftop</b> insertion · <b>Neon Tower</b> firefight · <b>Hell</b>, B115</em></p>
 </div>
 
 ## Controls
@@ -72,14 +72,14 @@ threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 
 | Floors | Zone | Vibe |
 |---|---|---|
-| Roof | **Rooftop** | Helicopter drop, skyline, the tutorial on a billboard |
-| 1–24 | **Neon Tower** | Corporate synthwave, 118 BPM |
-| 25–49 | **Black Labs** | Laser grids, drones, cold techno |
-| 50–74 | **Deep Metro** | Steam vents, turrets, breakbeats |
-| 75–99 | **Iron Mines** | The crust. Industrial clank |
-| 100–149 | **Magma Core** | Lava vents, darksynth |
-| 150–199 | **Hell** | Demons and fireballs at 165 BPM. Built to be (nearly) impossible |
-| 200+ | **The Void** | Every block of floors rolls a random zone and a random, brutal heat |
+| ROOF | **Rooftop** | Helicopter drop, skyline, the tutorial on a billboard |
+| 49F–26F | **Neon Tower** | Corporate synthwave, 118 BPM |
+| 25F–1F | **Black Labs** | Laser grids, drones, cold techno |
+| B0–B24 | **Deep Metro** | Steam vents, turrets, breakbeats |
+| B25–B49 | **Iron Mines** | The crust. Industrial clank |
+| B50–B99 | **Magma Core** | Lava vents, darksynth |
+| B100–B149 | **Hell** | Demons and fireballs at 165 BPM. Built to be (nearly) impossible |
+| B150+ | **The Void** | Every block of floors rolls a random zone and a random, brutal heat |
 
 <table>
   <tr>

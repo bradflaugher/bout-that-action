@@ -1046,7 +1046,8 @@ class World(val config: RunConfig) {
         score += points
         val y = Geo.groundY(e.floor) - e.targetZ
         fx.text("+$points", e.x, y - 0.9f, TextStyle.SCORE)
-        if (combo >= 2) fx.text("${combo}x COMBO", e.x, y - 1.5f, TextStyle.COMBO, 0.9f)
+        // The HUD tracks the combo; the world only celebrates milestones.
+        if (combo >= 5 && combo % 5 == 0) fx.text("${combo}x COMBO", e.x, y - 1.5f, TextStyle.COMBO, 0.9f)
         fx.burst(ParticleKind.SHARD, e.x, y, if (method == KillMethod.TAKEDOWN) 8 else 16, 6f, 0.7f, 0.12f, upBias = 0.3f, dir = dir.toFloat())
         if (e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET) {
             fx.burst(ParticleKind.SMOKE, e.x, y, 6, 1.5f, 1f, 0.35f, upBias = 0.4f)

@@ -1,6 +1,7 @@
 package com.bradflaugher.aboutthataction
 
 import android.content.Context
+import android.graphics.BlendMode
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
@@ -47,6 +48,7 @@ class AndroidGfx(context: Context) : Gfx {
     /** Call once per frame before handing this to the renderer. */
     fun begin(canvas: Canvas) {
         this.canvas = canvas
+        blend(Gfx.Blend.NORMAL)
     }
 
     override fun save() {
@@ -181,5 +183,63 @@ class AndroidGfx(context: Context) : Gfx {
     override fun textWidth(text: String, size: Float, font: Gfx.Font): Float {
         textSetup(size, font)
         return textPaint.measureText(text)
+    }
+
+    private var blendMode = Gfx.Blend.NORMAL
+
+    override fun blend(mode: Gfx.Blend) {
+        if (mode == blendMode) return
+        blendMode = mode
+        val bm = when (mode) {
+            Gfx.Blend.NORMAL -> null
+            Gfx.Blend.ADD -> BlendMode.PLUS
+            Gfx.Blend.SCREEN -> BlendMode.SCREEN
+            Gfx.Blend.MULTIPLY -> BlendMode.MULTIPLY
+        }
+        fill.blendMode = bm
+        stroke.blendMode = bm
+        rectStroke.blendMode = bm
+        shaderPaint.blendMode = bm
+        glowPaint.blendMode = bm
+        textPaint.blendMode = bm
+    }
+
+    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    private val glows = HashMap<Int, Shader>()
+    private val glowStops = floatArrayOf(0f, 0.16f, 0.42f, 1f)
+
+    private fun glowShader(rgb: Int): Shader {
+        if (glows.size > 96) glows.clear()
+        return glows.getOrPut(rgb) {
+            val c = rgb or 0xFF000000.toInt()
+            val colors = intArrayOf(c, (0x8C shl 24) or rgb, (0x2E shl 24) or rgb, rgb and 0xFFFFFF)
+            RadialGradient(0f, 0f, 1f, colors, glowStops, Shader.TileMode.CLAMP)
+        }
+    }
+
+    override fun glow(cx: Float, cy: Float, radius: Float, color: Int) {
+        val a = color ushr 24
+        if (radius <= 0f || a == 0) return
+        // Quantised hue so animated colours (the Void's cycling neon) reuse shaders instead of churning.
+        glowPaint.shader = glowShader(color and 0xF8F8F8)
+        glowPaint.alpha = a
+        c.save()
+        c.translate(cx, cy)
+        c.scale(radius, radius)
+        c.drawCircle(0f, 0f, 1f, glowPaint)
+        c.restore()
+    }
+
+    override fun strokeArc(cx: Float, cy: Float, radius: Float, startDeg: Float, sweepDeg: Float, strokeWidth: Float, color: Int) {
+        stroke.color = color
+        stroke.strokeWidth = strokeWidth
+        rect.set(cx - radius, cy - radius, cx + radius, cy + radius)
+        c.drawArc(rect, startDeg, sweepDeg, false, stroke)
+    }
+
+    override fun fillArc(cx: Float, cy: Float, radius: Float, startDeg: Float, sweepDeg: Float, color: Int) {
+        fill.color = color
+        rect.set(cx - radius, cy - radius, cx + radius, cy + radius)
+        c.drawArc(rect, startDeg, sweepDeg, true, fill)
     }
 }
