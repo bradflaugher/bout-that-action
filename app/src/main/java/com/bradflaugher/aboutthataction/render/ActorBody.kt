@@ -49,10 +49,10 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
             // Key light from the ceiling on the shoulders, neon rim down the back.
             p.detail(tx(0.97f, -c * 0.18f), ty(0.97f, -c * 0.18f), tx(0.95f, c * 0.22f), ty(0.95f, c * 0.22f), 0.04f * k.hs, l.torsoLit)
             if (l.rim != 0) {
+                // One neon stroke down the back: the whole rim in a single call.
                 p.g.blend(Gfx.Blend.ADD)
                 val i = ActorPaint.RIM_W * 0.5f
-                p.detail(tx(0.3f, -w * 0.52f + i), ty(0.3f, -w * 0.52f + i), tx(0.8f, -c * 0.5f + i), ty(0.8f, -c * 0.5f + i), ActorPaint.RIM_W, l.rim)
-                p.detail(tx(0.8f, -c * 0.5f + i), ty(0.8f, -c * 0.5f + i), tx(1.0f, -c * 0.26f + i), ty(1.0f, -c * 0.26f + i), ActorPaint.RIM_W, l.rim)
+                p.detail(tx(0.25f, -w * 0.52f + i), ty(0.25f, -w * 0.52f + i), tx(0.9f, -c * 0.46f + i), ty(0.9f, -c * 0.46f + i), ActorPaint.RIM_W, l.rim)
                 p.g.blend(Gfx.Blend.NORMAL)
             }
         }
@@ -99,7 +99,6 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
         val aw = k.limbW * look.armW
         val col = if (far) look.armsFar else look.arms
         val sep = !far
-        if (!far) p.disc(l.ax, l.ay, aw * 0.62f, col)
         p.bone(l.ax, l.ay, l.jx, l.jy, aw * 1.0f, aw * 0.82f, col, sep)
         p.bone(l.jx, l.jy, l.ex, l.ey, aw * 0.82f, aw * 0.7f, col, sep)
         if (!far && look.rim != 0) {
@@ -154,44 +153,40 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
         when (kind) {
             0 -> {
                 // Compact pistol: slide over the hand, grip in it.
-                p.begin().add(-0.035f, -0.03f).add(0.03f, -0.03f).add(0.0f, 0.07f).add(-0.06f, 0.065f).shape(body)
-                p.begin().add(-0.06f, -0.085f).add(0.2f, -0.085f).add(0.2f, -0.03f).add(-0.05f, -0.022f).shape(metal)
-                p.detail(-0.04f, -0.08f, 0.18f, -0.08f, 0.012f, lit)
-                p.detail(0.0f, -0.055f, 0.13f, -0.055f, 0.012f, trim)
+                // One silhouette: slide and grip as a single outline, a trim light along the slide.
+                p.begin().add(-0.065f, -0.09f).add(0.21f, -0.09f).add(0.21f, -0.028f).add(0.03f, -0.024f)
+                    .add(0.0f, 0.07f).add(-0.065f, 0.065f).shape(metal)
+                p.detail(-0.03f, -0.066f, 0.17f, -0.066f, 0.022f, trim)
                 muzzleAt(hx, hy, 0.21f * scale, -0.055f * scale, up)
             }
             1 -> {
                 // Pump shotgun: long barrel, pump grip, stock under the arm.
-                p.begin().add(-0.03f, -0.03f).add(0.03f, -0.03f).add(0.0f, 0.06f).add(-0.06f, 0.06f).shape(body)
-                p.begin().add(-0.05f, -0.03f).add(-0.26f, 0.0f).add(-0.27f, 0.07f).add(-0.05f, 0.02f).shape(0xFF3A2418.toInt())
-                p.seg(-0.04f, -0.06f, 0.5f, -0.06f, 0.05f, metal)
-                p.seg(0.14f, -0.02f, 0.3f, -0.02f, 0.05f, 0xFF4A3020.toInt())
-                p.detail(-0.02f, -0.075f, 0.48f, -0.075f, 0.012f, lit)
-                p.detail(0.02f, -0.045f, 0.1f, -0.045f, 0.012f, trim)
+                p.begin().add(0.03f, -0.03f).add(0.0f, 0.06f).add(-0.06f, 0.06f).add(-0.05f, 0.02f)
+                    .add(-0.27f, 0.07f).add(-0.26f, 0.0f).add(-0.05f, -0.035f).shape(0xFF3A2418.toInt())
+                p.seg(-0.04f, -0.06f, 0.5f, -0.06f, 0.06f, metal)
+                p.seg(0.14f, -0.015f, 0.3f, -0.015f, 0.06f, 0xFF4A3020.toInt())
+                p.detail(0.0f, -0.07f, 0.46f, -0.07f, 0.02f, trim)
                 muzzleAt(hx, hy, 0.52f * scale, -0.06f * scale, up)
             }
             2 -> {
                 // Hand minigun: drum body, spinning barrel cluster.
-                p.begin().add(-0.03f, -0.02f).add(0.03f, -0.02f).add(0.0f, 0.06f).add(-0.06f, 0.06f).shape(body)
-                p.begin().add(-0.12f, -0.13f).add(0.1f, -0.13f).add(0.12f, 0.0f).add(-0.1f, 0.02f).shape(metal)
-                val sp = sin(spin) * 0.02f
-                p.seg(0.1f, -0.1f + sp, 0.52f, -0.1f + sp, 0.03f, body)
-                p.seg(0.1f, -0.06f, 0.52f, -0.06f, 0.035f, lit)
-                p.seg(0.1f, -0.02f - sp, 0.52f, -0.02f - sp, 0.03f, body)
-                p.detail(0.46f, -0.13f, 0.46f, 0.01f, 0.03f, metal)
-                p.detail(-0.08f, -0.11f, 0.06f, -0.11f, 0.014f, trim)
+                p.begin().add(-0.12f, -0.13f).add(0.1f, -0.13f).add(0.12f, 0.0f).add(0.0f, 0.06f)
+                    .add(-0.06f, 0.06f).add(-0.1f, 0.02f).shape(metal)
+                // The barrel cluster as one fat stroke, with a spinning glint.
+                p.seg(0.1f, -0.06f, 0.52f, -0.06f, 0.11f, body)
+                val sp = sin(spin) * 0.03f
+                p.detail(0.12f, -0.06f + sp, 0.5f, -0.06f + sp, 0.02f, lit)
+                p.detail(-0.08f, -0.1f, 0.06f, -0.1f, 0.022f, trim)
                 muzzleAt(hx, hy, 0.54f * scale, -0.06f * scale, up)
             }
             else -> {
                 // Heavy rotary cannon with an ammo drum.
                 p.begin().add(-0.2f, -0.1f).add(0.16f, -0.12f).add(0.18f, 0.06f).add(-0.18f, 0.07f).shape(metal)
                 p.disc(-0.1f, 0.1f, 0.09f, body)
-                val sp = sin(spin) * 0.025f
-                p.seg(0.14f, -0.07f + sp, 0.58f, -0.07f + sp, 0.04f, body)
-                p.seg(0.14f, -0.02f, 0.6f, -0.02f, 0.045f, lit)
-                p.seg(0.14f, 0.03f - sp, 0.58f, 0.03f - sp, 0.04f, body)
-                p.detail(0.5f, -0.1f, 0.5f, 0.06f, 0.035f, metal)
-                p.detail(-0.16f, -0.08f, 0.1f, -0.09f, 0.02f, trim)
+                p.seg(0.14f, -0.02f, 0.6f, -0.02f, 0.15f, body)
+                val sp = sin(spin) * 0.04f
+                p.detail(0.16f, -0.02f + sp, 0.58f, -0.02f + sp, 0.025f, lit)
+                p.detail(-0.16f, -0.08f, 0.1f, -0.09f, 0.03f, trim)
                 muzzleAt(hx, hy, 0.62f * scale, -0.02f * scale, up)
             }
         }
