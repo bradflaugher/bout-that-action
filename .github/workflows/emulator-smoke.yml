@@ -1,0 +1,100 @@
+name: Emulator smoke test
+
+# Boots a real API 37 emulator (KVM-accelerated on GitHub's Linux runners),
+# runs the instrumented tests (app/src/androidTest), then launches the game
+# and captures screenshots and logcat as artifacts.
+#
+# Emulator runs are slow and flaky by nature (fresh API images especially), so
+# this is not a gate: the fast JVM suite in ci.yml covers the game's logic,
+# controls, renderer and synth. Run it on demand before a release, and weekly
+# as an early warning.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Emulator smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      APP_ID: com.bradflaugher.aboutthataction.debug
+      MAIN_ACTIVITY: com.bradflaugher.aboutthataction.MainActivity
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # API 37 platforms install as platforms;android-37.0 (not android-37).
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          packages: 'platform-tools platforms;android-37.0 build-tools;37.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          validate-wrappers: true
+
+      # Compile before the emulator boots so the emulator's lifetime is spent
+      # testing, not building.
+      - name: Build debug and test APKs
+        run: ./gradlew assembleDebug assembleDebugAndroidTest
+
+      # The runner interpolates api-level verbatim into
+      # system-images;android-<api-level>;<target>;<arch> and platforms;android-<api-level>,
+      # so '37.0' selects system-images;android-37.0;google_apis;x86_64.
+      #
+      # The script waits for the package manager, installs without streaming
+      # (API 37 images can report boot-complete before installs work), runs the
+      # instrumented tests, plays a little and always captures screenshots and
+      # logcat before failing.
+      - name: Run instrumented tests and capture screenshots
+        timeout-minutes: 30
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: '37.0'
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          cores: 4
+          ram-size: 4096M
+          disk-size: 6G
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
+          disable-animations: true
+          disable-spellchecker: true
+          script: .github/scripts/emulator-smoke.sh
+
+      - name: Upload screenshots and logcat
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: emulator-smoke
+          path: |
+            smoke/
+          if-no-files-found: warn
+          retention-days: 14
