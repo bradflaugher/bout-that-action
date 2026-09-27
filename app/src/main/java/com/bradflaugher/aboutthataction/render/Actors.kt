@@ -192,7 +192,7 @@ internal class Actors(private val f: Frame) {
         g.save()
         g.translate(x, cy)
         g.scale(if (boxed) 1f else 0.62f, 1f)
-        g.glow(0f, 0f, if (boxed) 1.1f else 1.55f, Col.alpha(VISOR, 0.34f * a))
+        g.glow(0f, 0f, if (boxed) 1.15f else 1.6f, Col.alpha(VISOR, 0.46f * a))
         g.restore()
         val fz = (1f - z / 2.5f).coerceIn(0f, 1f)
         if (fz > 0f) {
@@ -560,6 +560,16 @@ internal class Actors(private val f: Frame) {
         val bx1 = body.ptX(0.05f, -k.waistD * 0.5f); val by1 = body.ptY(0.05f, -k.waistD * 0.5f)
         val bx2 = body.ptX(0.05f, k.waistD * 0.5f); val by2 = body.ptY(0.05f, k.waistD * 0.5f)
         p.detail(bx1, by1, bx2, by2, 0.055f * hs, ARMOR)
+        if (!ghost) {
+            // Harness light across the chest and a strip down the near thigh: the suit is lit
+            // like a sign, so the agent out-glows every costume in every zone.
+            g.blend(Gfx.Blend.ADD)
+            val strip = p.c(Col.alpha(VISOR, 0.9f))
+            g.line(body.ptX(0.9f, k.chestD * 0.3f), body.ptY(0.9f, k.chestD * 0.3f), body.ptX(0.2f, -k.waistD * 0.25f), body.ptY(0.2f, -k.waistD * 0.25f), 0.032f, strip)
+            val l = k.legF
+            g.line(Rig.mix(l.ax, l.jx, 0.25f) + 0.03f * dir, Rig.mix(l.ay, l.jy, 0.25f), Rig.mix(l.ax, l.jx, 0.8f) + 0.03f * dir, Rig.mix(l.ay, l.jy, 0.8f), 0.032f, strip)
+            g.blend(Gfx.Blend.NORMAL)
+        }
         if (!showGun && !ghost && f.w.silent) {
             val l = k.legF
             p.detail(Rig.mix(l.ax, l.jx, 0.2f) - 0.03f * dir, Rig.mix(l.ay, l.jy, 0.2f), Rig.mix(l.ax, l.jx, 0.62f) - 0.035f * dir, Rig.mix(l.ay, l.jy, 0.62f), 0.1f, ARMOR)
@@ -572,8 +582,8 @@ internal class Actors(private val f: Frame) {
         val af = k.armF
         g.blend(Gfx.Blend.ADD)
         val strip = p.c(Col.alpha(VISOR, 0.95f))
-        g.line(Rig.mix(lf.jx, lf.ex, 0.15f) + 0.025f * dir, Rig.mix(lf.jy, lf.ey, 0.15f), Rig.mix(lf.jx, lf.ex, 0.75f) + 0.025f * dir, Rig.mix(lf.jy, lf.ey, 0.75f), 0.034f, strip)
-        g.line(Rig.mix(af.jx, af.ex, 0.2f), Rig.mix(af.jy, af.ey, 0.2f) - 0.01f, Rig.mix(af.jx, af.ex, 0.75f), Rig.mix(af.jy, af.ey, 0.75f) - 0.01f, 0.03f, strip)
+        g.line(Rig.mix(lf.jx, lf.ex, 0.15f) + 0.025f * dir, Rig.mix(lf.jy, lf.ey, 0.15f), Rig.mix(lf.jx, lf.ex, 0.75f) + 0.025f * dir, Rig.mix(lf.jy, lf.ey, 0.75f), 0.04f, strip)
+        g.line(Rig.mix(af.jx, af.ex, 0.2f), Rig.mix(af.jy, af.ey, 0.2f) - 0.01f, Rig.mix(af.jx, af.ex, 0.75f), Rig.mix(af.jy, af.ey, 0.75f) - 0.01f, 0.036f, strip)
         g.blend(Gfx.Blend.NORMAL)
     }
 
