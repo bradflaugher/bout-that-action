@@ -2,6 +2,7 @@ package com.bradflaugher.aboutthataction.render
 
 import com.bradflaugher.aboutthataction.engine.ContextAction
 import com.bradflaugher.aboutthataction.engine.EnemyState
+import com.bradflaugher.aboutthataction.engine.FloorLabel
 import com.bradflaugher.aboutthataction.engine.Geo
 import com.bradflaugher.aboutthataction.engine.Perk
 import com.bradflaugher.aboutthataction.engine.Phase
@@ -28,6 +29,9 @@ internal class Hud(private val f: Frame) {
     // Cached strings: rebuilt only when their value changes, never per frame.
     private var lastFloor = Int.MIN_VALUE
     private var floorText = ""
+    private var depthPre = ""
+    private var depthNum = ""
+    private var depthSuf = ""
     private var lastDeepest = -1
     private var deepestText = ""
     private var lastZoneLabel: Zone? = null
@@ -151,7 +155,8 @@ internal class Hud(private val f: Frame) {
             Perk.DEMOLITION, Perk.MAGNET, Perk.LUCKY -> "UTILITY"
         }
 
-        fun floorLabel(floor: Int) = if (floor <= 0) "ROOF" else "B-" + floor.toString().padStart(3, '0')
+        /** The building's own floor naming: "ROOF", "49F" … "1F", then "B0", "B1" … */
+        fun floorLabel(floor: Int) = FloorLabel.of(floor)
 
         fun formatScore(s: Long): String {
             val raw = s.toString()
@@ -246,6 +251,13 @@ internal class Hud(private val f: Frame) {
         if (floor != lastFloor) {
             lastFloor = floor
             floorText = floorLabel(floor)
+            // Split "B123" / "49F" into a small unit letter and the big number.
+            when {
+                floor <= 0 -> { depthPre = ""; depthNum = floorText; depthSuf = "" }
+                floorText.startsWith("B") -> { depthPre = "B"; depthNum = floorText.substring(1); depthSuf = "" }
+                floorText.endsWith("F") -> { depthPre = ""; depthNum = floorText.dropLast(1); depthSuf = "F" }
+                else -> { depthPre = ""; depthNum = floorText; depthSuf = "" }
+            }
         }
         val zone = if (floor == 0) Zone.ROOFTOP else w.zone
         if (zone != lastZoneLabel) {
@@ -261,7 +273,12 @@ internal class Hud(private val f: Frame) {
         // Depth: the hero number, with a neon backlight.
         val ds = 7.6f * u
         val by = top + 10.2f * u
-        val dw = g.textWidth(floorText, ds, Gfx.Font.TITLE)
+        val us = ds * 0.52f
+        val ugap = 0.6f * u
+        val preW = if (depthPre.isEmpty()) 0f else g.textWidth(depthPre, us, Gfx.Font.TITLE) + ugap
+        val numW = g.textWidth(depthNum, ds, Gfx.Font.TITLE)
+        val sufW = if (depthSuf.isEmpty()) 0f else g.textWidth(depthSuf, us, Gfx.Font.TITLE) + ugap
+        val dw = preW + numW + sufW
         g.blend(Gfx.Blend.ADD)
         g.save()
         g.translate(x + dw * 0.5f, by - ds * 0.36f)
@@ -269,8 +286,18 @@ internal class Hud(private val f: Frame) {
         g.glow(0f, 0f, dw * 0.75f, Col.alpha(neon, 0.28f))
         g.restore()
         g.blend(Gfx.Blend.NORMAL)
-        g.text(floorText, x + 0.35f * u, by + 0.45f * u, ds, SHADOW, Gfx.Font.TITLE)
-        g.text(floorText, x, by, ds, INK, Gfx.Font.TITLE)
+        val unit = Col.lerp(neon, WHITE, 0.35f)
+        if (depthPre.isNotEmpty()) {
+            g.text(depthPre, x + 0.3f * u, by + 0.4f * u, us, SHADOW, Gfx.Font.TITLE)
+            g.text(depthPre, x, by, us, unit, Gfx.Font.TITLE)
+        }
+        g.text(depthNum, x + preW + 0.35f * u, by + 0.45f * u, ds, SHADOW, Gfx.Font.TITLE)
+        g.text(depthNum, x + preW, by, ds, INK, Gfx.Font.TITLE)
+        if (depthSuf.isNotEmpty()) {
+            val sx = x + preW + numW + ugap
+            g.text(depthSuf, sx + 0.3f * u, by + 0.4f * u, us, SHADOW, Gfx.Font.TITLE)
+            g.text(depthSuf, sx, by, us, unit, Gfx.Font.TITLE)
+        }
 
         // Heat: 14 segments ramping green → amber → red, hottest segment glowing.
         val hy = by + 1.8f * u
