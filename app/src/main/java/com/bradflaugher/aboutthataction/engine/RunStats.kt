@@ -39,6 +39,8 @@ class RunStats {
     var blastKills = 0
     var boxHides = 0
     var doorHides = 0
+    var jumps = 0
+    var grenadesThrown = 0
     var rides = 0
     var expressRides = 0
     var intel = 0

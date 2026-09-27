@@ -180,9 +180,11 @@ class MechanicsTest {
         run(w, 0.8f) { it.moveAxis = 1 }
         assertFalse(victim.alive)
         assertEquals(EnemyState.PATROL, listener.state)
-        // Go loud: the gun wakes him.
+        // Go loud: the gun opens up on a drone, and the noise wakes him.
+        enemy(w, EnemyKind.DRONE, w.player.x - 3f).hp = 99
         w.commands += Command.TOGGLE_MODE
-        run(w, 0.05f)
+        run(w, 0.3f)
+        assertTrue(w.events.any { it is GameEvent.Shot && it.byPlayer })
         assertTrue(listener.state == EnemyState.ALERT || listener.state == EnemyState.AIM || !listener.alive)
     }
 
@@ -380,6 +382,9 @@ class MechanicsTest {
         val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
         w.player.x = door.x
         val hall = w.player.hall
+        // Someone to throw it at, across the hallway.
+        val far = if (door.x < Geo.FLOOR_W / 2f) Geo.FLOOR_W - 1f else 1f
+        enemy(w, EnemyKind.AGENT, far, facing = if (far > door.x) 1 else -1).hp = 99
         w.commands += Command.TAP
         run(w, 0.12f)
         w.commands += Command.DOUBLE_TAP
@@ -387,6 +392,37 @@ class MechanicsTest {
         assertEquals(hall, w.player.hall)
         assertEquals(1, w.player.grenades)
         assertTrue(w.events.none { it == GameEvent.Passage })
+    }
+
+    @Test
+    fun withNobodyAroundADoorTapIsInstantAndMashingItNeverWastesAGrenade() {
+        val w = world()
+        w.player.grenades = 2
+        val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
+        w.player.x = door.x
+        // Nobody awake to throw at: no double-tap wait, the door opens this very step.
+        w.commands += Command.TAP
+        w.step(dt)
+        assertEquals(PlayerState.PASSAGE, w.player.state)
+        // The impatient second tap is dropped, not a grenade, and doesn't bounce you back.
+        w.commands += Command.DOUBLE_TAP
+        run(w, 0.8f)
+        assertEquals(door.to, w.player.hall)
+        assertEquals(2, w.player.grenades)
+        assertTrue(w.grenades.isEmpty())
+        assertEquals(1, w.events.count { it == GameEvent.Passage })
+    }
+
+    @Test
+    fun aDoubleTapAtADoorWithNobodyAroundIsTheTap() {
+        val w = world()
+        w.player.grenades = 2
+        val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
+        w.player.x = door.x
+        w.commands += Command.DOUBLE_TAP
+        run(w, 0.8f)
+        assertEquals(door.to, w.player.hall)
+        assertEquals(2, w.player.grenades)
     }
 
     @Test

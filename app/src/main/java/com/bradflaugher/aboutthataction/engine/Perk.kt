@@ -4,22 +4,29 @@ package com.bradflaugher.aboutthataction.engine
  * Run-long upgrades. Every red INTEL door offers three; the player keeps one.
  * Perks stack up to [maxStacks].
  */
-enum class Perk(val title: String, val blurb: String, val maxStacks: Int) {
-    RAPID_FIRE("RAPID FIRE", "Shoot 25% faster", 3),
-    HOLLOW_POINT("HOLLOW POINT", "+1 bullet damage", 2),
-    PIERCE("PIERCE", "Bullets punch through one more body", 3),
-    RICOCHET("RICOCHET", "Bullets bounce off walls", 2),
-    SPLIT_SHOT("SPLIT SHOT", "Fire high and low at once", 1),
-    VITALITY("VITALITY", "+1 max heart, full heal", 3),
-    CQC("CQC MASTER", "Takedowns heal and reach further", 2),
-    GHOST_BOX("GHOST BOX", "Sneak fast in the box; ambushes explode", 1),
-    DOUBLE_JUMP("DOUBLE JUMP", "Swipe up again mid-air", 1),
-    DEMOLITION("DEMOLITION", "+1 grenade, bigger blasts", 3),
-    MAGNET("MAGNET", "Pickups fly to you", 1),
-    REFLEX("REFLEX", "Time slows when a bullet is about to hit", 2),
-    ARMOR("KEVLAR", "Blocks a hit; recharges every 3 floors", 1),
-    LUCKY("LUCKY", "Enemies drop loot twice as often", 2),
-    SHOCKWAVE("SHOCKWAVE", "Landing a stomp blasts the whole corridor", 1),
+enum class Perk(
+    val title: String,
+    /** What it does, plainly. */
+    val blurb: String,
+    val maxStacks: Int,
+    /** A one-line joke for the perk card, under the blurb. */
+    val flavor: String,
+) {
+    RAPID_FIRE("RAPID FIRE", "Shoot 25% faster", 3, "Trigger finger: caffeinated."),
+    HOLLOW_POINT("HOLLOW POINT", "+1 bullet damage", 2, "Hits different."),
+    PIERCE("PIERCE", "Bullets punch through one more body", 3, "Why stop at one?"),
+    RICOCHET("RICOCHET", "Bullets bounce off walls", 2, "The walls are in on it."),
+    SPLIT_SHOT("SPLIT SHOT", "Fire high and low at once", 1, "High road and low road."),
+    VITALITY("VITALITY", "+1 max heart, full heal", 3, "Ate your vegetables."),
+    CQC("CQC MASTER", "Takedowns heal and reach further", 2, "Hugs, but aggressive."),
+    GHOST_BOX("GHOST BOX", "Fast, unsuspected box; ambushes explode", 1, "Nobody suspects a box."),
+    DOUBLE_JUMP("DOUBLE JUMP", "Swipe up again mid-air", 1, "Gravity is more of a suggestion."),
+    DEMOLITION("DEMOLITION", "+1 grenade, bigger blasts", 3, "Boom, but more."),
+    MAGNET("MAGNET", "Pickups fly to you", 1, "Loot has a crush on you."),
+    REFLEX("REFLEX", "Time slows when a bullet is about to hit", 2, "Everything's in slow motion. Briefly."),
+    ARMOR("KEVLAR", "Blocks a hit; recharges every 3 floors", 1, "Not today."),
+    LUCKY("LUCKY", "Enemies drop loot twice as often", 2, "Found a penny, heads up."),
+    SHOCKWAVE("SHOCKWAVE", "Landing a stomp blasts the whole corridor", 1, "Landings: legendary."),
 }
 
 /** Short-lived pickups dropped by enemies and found in the building. */

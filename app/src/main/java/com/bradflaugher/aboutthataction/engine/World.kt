@@ -16,6 +16,11 @@ data class RunConfig(
     val difficulty: Difficulty = Difficulty(),
     /** Start in SILENT mode (never fire) instead of GUNS HOT (auto-fire). Toggled mid-run by [Command.TOGGLE_MODE]. */
     val silent: Boolean = false,
+    /**
+     * Coach tips: on a run from the roof, the first few floors pop a one-line hint the first
+     * time each verb would help ("SWIPE DOWN: HIDE"). Text only; never changes the run.
+     */
+    val coach: Boolean = true,
 )
 
 enum class Phase { PLAYING, PERK_CHOICE, DYING, OVER }
@@ -124,6 +129,13 @@ class World(val config: RunConfig) {
         private set
 
     private var hitStop = 0f
+    private val tipsShown = HashSet<Tip>()
+    private var tipCooldown = 0f
+    /** The last coach tip shown (null if none yet), and when: for the HUD and tests. */
+    var coachTip: String? = null
+        private set
+    var coachTipAt = -1f
+        private set
 
     /** True while the simulation is frozen for impact (hit-stop). */
     val hitStopping: Boolean get() = hitStop > 0f
@@ -200,6 +212,7 @@ class World(val config: RunConfig) {
 
         if (phase == Phase.PLAYING) handleCommands()
         if (phase == Phase.PLAYING) pendingTap(dt)
+        if (phase == Phase.PLAYING) coach(dt)
         updatePlayer(dtP)
         if (phase == Phase.PLAYING) flushBuffer(dt)
         updateElevators(dtW, dtP)
@@ -306,7 +319,23 @@ class World(val config: RunConfig) {
                     e.facing = if (near > e.x) 1 else -1
                 }
                 if (s.patrol > 0f) setPatrol(e, s.patrol, hp)
+                if (s.asleep) e.asleep = true
             }
+        }
+        when (plan.event) {
+            // The power's out on the whole floor.
+            FloorEvent.BLACKOUT -> for (hs in state.halls) hs.lightAlive.fill(false)
+            // Somebody's bonus, left lying around one hallway.
+            FloorEvent.PAYDAY -> {
+                val loot = Rng.forKey(seed, PAYDAY_KEY, f.toLong())
+                val h = loot.nextInt(plan.hallCount)
+                val bonus = loot.pick(listOf(PickupKind.MEDKIT, PickupKind.GRENADE, PickupKind.SHIELD, PickupKind.SLOWMO))
+                val xs = listOf(3.2f, 5.8f, 8.4f, 11f).shuffledBy(loot)
+                listOf(PickupKind.CASH, PickupKind.CASH, PickupKind.CASH, bonus).forEachIndexed { i, kind ->
+                    pickups += Pickup(kind, xs[i], f, h).also { it.life = PAYDAY_LIFE; it.z = 0.35f; it.vz = 0f }
+                }
+            }
+            else -> Unit
         }
         for (shaft in plan.shafts) {
             elevators.getOrPut(shaft.id) {
@@ -317,6 +346,15 @@ class World(val config: RunConfig) {
                 }
             }
         }
+    }
+
+    private fun <T> List<T>.shuffledBy(r: Rng): List<T> {
+        val a = toMutableList()
+        for (i in a.size - 1 downTo 1) {
+            val j = r.nextInt(i + 1)
+            val t = a[i]; a[i] = a[j]; a[j] = t
+        }
+        return a
     }
 
     /** A patrol beat [r] either side of the guard, stopping short of walls and hazards. */
@@ -366,6 +404,14 @@ class World(val config: RunConfig) {
 
     private fun onHallEntered(f: Int, h: Int) {
         hallTime = 0f
+        floors[f]?.let { fs ->
+            if (!fs.announced && fs.plan.event != FloorEvent.NONE) {
+                fs.announced = true
+                stats.floorEvents++
+                events += GameEvent.FloorEventStarted(fs.plan.event)
+                fx.text(fs.plan.event.title, player.x, Geo.groundY(f) - 2.7f, TextStyle.BIG, 1.8f)
+            }
+        }
         val hs = hall(f, h) ?: return
         val heat = hs.plan.heat
         if (!hs.visited) {
@@ -422,6 +468,8 @@ class World(val config: RunConfig) {
             toggleMode()
             return true
         }
+        // A tap during a passage was for the door you're already going through: never bounce back.
+        if (p.state == PlayerState.PASSAGE && (c == Command.TAP || c == Command.DOUBLE_TAP)) return true
         when (p.state) {
             PlayerState.TAKEDOWN, PlayerState.PASSAGE, PlayerState.INTRO -> return false
             PlayerState.DEAD, PlayerState.INTEL -> return true
@@ -436,12 +484,19 @@ class World(val config: RunConfig) {
                     return true
                 }
                 if (tapTarget() == null) return true
-                // Wait out the double-tap window only when a double-tap would throw a grenade.
-                if (p.grenades > 0 && grenades.isEmpty()) p.tapTimer = TAP_CONFIRM else interact()
+                // Wait out the double-tap window only when a double-tap would throw a grenade
+                // at someone: with nobody awake in the hallway the door opens at once.
+                if (p.grenades > 0 && grenades.isEmpty() && grenadeWorthy()) p.tapTimer = TAP_CONFIRM else interact()
             }
             Command.DOUBLE_TAP -> {
-                p.tapTimer = 0f
                 if (p.state == PlayerState.ELEVATOR) return true
+                // Mashing a door with nobody around is impatience, not a grenade: it's the tap.
+                if (!grenadeWorthy() && p.grounded && (p.state == PlayerState.NORMAL || p.state == PlayerState.BOX) && tapTarget() != null) {
+                    p.tapTimer = 0f
+                    interact()
+                    return true
+                }
+                p.tapTimer = 0f
                 if (p.grenades <= 0) {
                     events += GameEvent.SpecialEmpty
                     fx.text("NO GRENADES", p.x, Geo.groundY(p.floor) - 2f, TextStyle.WARN, 0.7f)
@@ -463,6 +518,49 @@ class World(val config: RunConfig) {
         }
         return true
     }
+
+    /** One-line hints for a first run, each shown once, the first time it would help. */
+    private enum class Tip(val text: String) {
+        TAKEDOWN("WALK INTO HIM"),
+        HIDE("SWIPE DOWN: HIDE"),
+        JUMP("SWIPE UP: JUMP"),
+        GRENADE("DOUBLE-TAP: GRENADE"),
+        FIND_LIFT("NO LIFT HERE: GREEN DOORS"),
+    }
+
+    /**
+     * Teach by doing: on a run from the roof, for the first [COACH_FLOORS] floors, the first
+     * time a verb would help (and you haven't used it yet) a tip pops over your head.
+     */
+    private fun coach(dt: Float) {
+        if (!config.coach || difficulty.startFloor != 0 || deepest > COACH_FLOORS) return
+        tipCooldown -= dt
+        val p = player
+        if (tipCooldown > 0f || p.state != PlayerState.NORMAL && p.state != PlayerState.BOX) return
+        val mine = enemies.filter { here(it) && it.alive }
+        fun alerted(e: Enemy) = e.state == EnemyState.ALERT || e.state == EnemyState.AIM
+        fun wants(t: Tip): Boolean = when (t) {
+            Tip.TAKEDOWN -> takedowns == 0 && p.state == PlayerState.NORMAL && mine.any {
+                LevelGen.canNap(it.kind) && abs(it.x - p.x) < 4.5f &&
+                    (it.asleep || it.state == EnemyState.PATROL && it.facing == (if (it.x > p.x) 1 else -1))
+            }
+            Tip.HIDE -> stats.boxHides + stats.doorHides == 0 && p.state == PlayerState.NORMAL && mine.any { alerted(it) && abs(it.x - p.x) < 7f }
+            Tip.JUMP -> stats.jumps == 0 && bullets.any {
+                !it.byPlayer && it.floor == p.floor && it.hall == p.hall && it.z < 0.7f && (p.x - it.x) * it.vx > 0f && abs(p.x - it.x) < 4f
+            }
+            Tip.GRENADE -> stats.grenadesThrown == 0 && p.grenades > 0 && mine.count { alerted(it) } >= 2
+            Tip.FIND_LIFT -> passages == 0 && p.floor >= 1 && hallTime > 1.2f && playerHall()?.plan?.downLandings?.isEmpty() == true
+        }
+        val tip = Tip.entries.firstOrNull { it !in tipsShown && wants(it) } ?: return
+        tipsShown += tip
+        tipCooldown = TIP_GAP
+        coachTip = tip.text
+        coachTipAt = time
+        fx.text(tip.text, p.x, Geo.groundY(p.floor) - 2.9f, TextStyle.WARN, 1.8f)
+    }
+
+    /** Is anyone awake in the player's hallway to throw a grenade at? */
+    private fun grenadeWorthy(): Boolean = enemies.any { here(it) && it.alive && !it.asleep }
 
     /** GUNS HOT ⇄ SILENT. */
     fun toggleMode() {
@@ -581,6 +679,11 @@ class World(val config: RunConfig) {
 
     private fun boardElevator(car: Elevator) {
         val p = player
+        ghostCheck(p.floor)
+        if (Rng.forKey(seed, MUZAK_KEY, car.shaft.id * 997L + p.floor).chance(MUZAK_CHANCE)) {
+            events += GameEvent.Muzak
+            fx.text("SMOOTH JAZZ", car.shaft.x, Geo.groundY(p.floor) - 2.9f, TextStyle.PICKUP, 1.6f)
+        }
         p.state = PlayerState.ELEVATOR
         p.stateTime = 0f
         p.elevatorShaft = car.shaft.id
@@ -595,6 +698,26 @@ class World(val config: RunConfig) {
         stats.rides++
         if (car.shaft.express) stats.expressRides++
         events += GameEvent.ElevatorDing
+    }
+
+    /**
+     * Leaving floor [f] for good: if nobody on it ever spotted you, that's a GHOST (worth
+     * double in SILENT). Floors built with nobody on them don't count.
+     */
+    private fun ghostCheck(f: Int) {
+        val fs = floors[f] ?: return
+        if (fs.spotted || fs.ghostPaid || fs.guards == 0) return
+        fs.ghostPaid = true
+        stats.ghostFloors++
+        val bonus = (GHOST_BONUS + GHOST_BONUS_PER_FLOOR * f) * (if (silent) 2 else 1)
+        score += bonus
+        events += GameEvent.Ghost
+        fx.text("GHOST +$bonus", player.x, Geo.groundY(f) - 2.5f, TextStyle.COMBO, 1.3f)
+    }
+
+    /** A guard on [f] saw you (or you got hurt there): that floor can't be ghosted any more. */
+    private fun spotted(f: Int) {
+        floors[f]?.spotted = true
     }
 
     private fun callElevator(car: Elevator) {
@@ -717,6 +840,7 @@ class World(val config: RunConfig) {
             return
         }
         p.vz = JUMP_V
+        stats.jumps++
         events += GameEvent.Jump
     }
 
@@ -917,8 +1041,13 @@ class World(val config: RunConfig) {
             val inReach = abs(dx) <= reach + e.halfWidth
             if (!inReach && !(pushing && abs(dx) <= reach + e.halfWidth + TAKEDOWN_MAGNET)) continue
             if (e.state == EnemyState.WINDUP) continue // mid-slash: it wins
-            if (!e.chokeable(fromDir)) {
+            // A napping guard can't resist from any side.
+            if (!e.asleep && !e.chokeable(fromDir)) {
                 if (!inReach) continue
+                if (p.state == PlayerState.BOX) {
+                    // A Heavy isn't fooled by cardboard: he kicks it off you.
+                    kickBox(e)
+                }
                 // Armor blocks: you can't walk through a Heavy to get behind him.
                 p.x = e.x - fromDir * (reach + e.halfWidth)
                 if (p.vx * fromDir > 0f) p.vx = 0f
@@ -933,14 +1062,32 @@ class World(val config: RunConfig) {
                 }
                 continue
             }
+            // A ninja who came over to check a suspicious box isn't falling for it.
+            if (p.state == PlayerState.BOX && e.state == EnemyState.SEARCH && e.kind == EnemyKind.NINJA) {
+                kickBox(e)
+                return
+            }
             startTakedown(e, fromDir)
             return
         }
     }
 
+    /** Busted: [e] boots the box off you and he's onto you. */
+    private fun kickBox(e: Enemy) {
+        val p = player
+        unhide()
+        events += GameEvent.BoxKicked
+        fx.burst(ParticleKind.CARDBOARD, p.x, Geo.groundY(p.floor) - 0.5f, 12, 5f, 0.8f, 0.14f, upBias = 0.5f)
+        fx.text("HEY!", e.x, Geo.groundY(e.floor) - e.height - 0.9f, TextStyle.WARN, 0.8f)
+        alert(e)
+    }
+
     private fun startTakedown(e: Enemy, dir: Int) {
         val p = player
         val ambush = p.state == PlayerState.BOX
+        val napping = e.asleep
+        e.asleep = false
+        if (napping) stats.napTakedowns++
         p.state = PlayerState.TAKEDOWN
         p.stateTime = 0f
         p.facing = dir
@@ -956,7 +1103,7 @@ class World(val config: RunConfig) {
         hitStop = 0.05f
         shake = max(shake, 0.2f)
         val y = Geo.groundY(e.floor) - 1.1f
-        fx.text(if (ambush) "AMBUSH!" else "TAKEDOWN", e.x, y - 0.8f, TextStyle.TAKEDOWN)
+        fx.text(if (napping) "NIGHT NIGHT" else if (ambush) "BOX'D!" else "TAKEDOWN", e.x, y - 0.8f, TextStyle.TAKEDOWN)
         if (stacks(Perk.CQC) > 0 && takedowns % 2 == 0 && p.hp < p.maxHp) {
             p.hp++
             fx.text("+♥", p.x, y - 1.4f, TextStyle.PICKUP)
@@ -971,6 +1118,7 @@ class World(val config: RunConfig) {
             val top = e.z + e.height
             if (abs(e.x - p.x) < e.halfWidth + 0.32f && oldZ >= top - 0.3f && p.z <= top + 0.05f) {
                 kill(e, KillMethod.STOMP, p.facing)
+                fx.text("BONK!", e.x, Geo.groundY(e.floor) - top - 1.1f, TextStyle.TAKEDOWN, 0.8f)
                 p.vz = 8.5f
                 p.jumpsUsed = 1
                 p.z = top
@@ -1000,9 +1148,22 @@ class World(val config: RunConfig) {
     }
 
     /** The enemy auto-aim would shoot right now (the renderer aims the gun pose at it). */
-    fun aimTarget(): Enemy? = if (silent) null else pickTarget()
+    fun aimTarget(): Enemy? = if (silent) null else pickTarget(11f, ::fireable)
 
-    private fun pickTarget(range: Float = 11f): Enemy? {
+    /**
+     * GUNS HOT fires only at threats: anyone who has noticed you, drones and turrets, and an
+     * unaware guard facing you from point-blank (he's about to). A guard with his back to you,
+     * or asleep, is yours to sneak up on.
+     */
+    private fun fireable(e: Enemy): Boolean {
+        if (e.kind == EnemyKind.TURRET || e.kind == EnemyKind.DRONE) return true
+        if (e.asleep) return false
+        if (threatTier(e) <= 1) return true
+        val towardYou = e.facing == (if (player.x >= e.x) 1 else -1)
+        return towardYou && abs(e.x - player.x) <= AUTO_FIRE_POINT_BLANK
+    }
+
+    private fun pickTarget(range: Float = 11f, allow: (Enemy) -> Boolean = { true }): Enemy? {
         val t = playerTarget()
         if (t < 0) return null
         val f = t / 8
@@ -1010,7 +1171,7 @@ class World(val config: RunConfig) {
         var best: Enemy? = null
         var bestScore = Float.MAX_VALUE
         for (e in enemies) {
-            if (e.floor != f || e.hall != h || !e.alive) continue
+            if (e.floor != f || e.hall != h || !e.alive || !allow(e)) continue
             val dx = e.x - player.x
             if (abs(dx) > range) continue
             // Whoever is about to hurt you first, then what's in front, then the nearest.
@@ -1041,11 +1202,10 @@ class World(val config: RunConfig) {
     private fun autoFire() {
         val p = player
         if (silent || p.fireCooldown > 0f || p.carBox) return
-        val target = pickTarget(if (p.weapon == PickupKind.MINIGUN) 11f else AUTO_FIRE_RANGE) ?: return
+        // Threats only: a guard who hasn't noticed you is yours to choose: sneak past, walk in
+        // for the takedown, or wait for him to turn.
+        val target = pickTarget(if (p.weapon == PickupKind.MINIGUN) 11f else AUTO_FIRE_RANGE, ::fireable) ?: return
         if (target.state == EnemyState.EMERGING && target.stateTime < 0.25f) return
-        // Threats only: a guard who hasn't noticed you (and isn't in your face) is yours to
-        // choose: sneak past, walk in for the takedown, or wait for him to turn.
-        if (threatTier(target) > 1 && abs(target.x - p.x) > AUTO_FIRE_POINT_BLANK && !(target.kind == EnemyKind.TURRET || target.kind == EnemyKind.DRONE)) return
         fire(target)
     }
 
@@ -1172,6 +1332,7 @@ class World(val config: RunConfig) {
             return
         }
         p.grenades--
+        stats.grenadesThrown++
         val target = pickTarget()
         val dx = if (target != null) target.x - p.x else p.facing * 4.5f
         if (target != null) p.facing = if (dx >= 0) 1 else -1
@@ -1218,9 +1379,12 @@ class World(val config: RunConfig) {
         for (e in enemies.toList()) {
             if (e.floor == floor && e.hall == hall && e.alive && abs(e.x - x) < radius) {
                 damageEnemy(e, 3, KillMethod.EXPLOSION, if (e.x >= x) 1 else -1)
+            } else if (e.floor == floor && e.hall == hall && e.asleep && e.alive) {
+                alert(e) // nobody sleeps through that
             }
         }
-        hall(floor, hall)?.let { hs ->
+        // A GHOST BOX ambush goes off in your arms: it leaves the ceiling alone rather than drop a light on you.
+        if (!byGhost) hall(floor, hall)?.let { hs ->
             for (i in hs.plan.lights.indices) {
                 if (hs.lightAlive[i] && abs(hs.plan.lights[i] - x) < radius * 0.8f) shootLight(hs, i)
             }
@@ -1233,7 +1397,39 @@ class World(val config: RunConfig) {
         // SILENT: no gunfire to home in on, so it takes them a beat longer to get a bead on you.
         val quiet = if (silent) SILENT_REACTION else 1f
         e.timer = Heat.reaction(floors[e.floor]?.plan?.heat ?: 0f) * quiet * rng.range(0.8f, 1.2f)
+        // Just through a door or out of a car: a beat to take in the new hallway first.
+        if (here(e)) e.timer += max(0f, ARRIVAL_GRACE - hallTime)
+        if (e.asleep) {
+            // Rudely awoken: groggy for a moment.
+            e.asleep = false
+            e.timer += WAKE_GROGGY
+            fx.text("?!", e.x, Geo.groundY(e.floor) - e.height - 0.8f, TextStyle.WARN, 0.7f)
+        }
         e.facing = if (player.x >= e.x) 1 else -1
+        spotted(e.floor)
+    }
+
+    /**
+     * The MGS double-take: a box that moves while a walking guard is looking right at it. He
+     * stops ("HUH?") and comes over to check, straight into your arms (BOX'D). GHOST BOX
+     * boxes never raise an eyebrow; Heavies who come to check kick the box off.
+     */
+    private fun seesBoxMove(e: Enemy, dx: Float, range: Float): Boolean {
+        val p = player
+        return p.state == PlayerState.BOX && here(e) && !e.asleep && LevelGen.canNap(e.kind) &&
+            abs(p.vx) > BOX_SUSPICIOUS_SPEED && p.stateTime > 0.25f && stacks(Perk.GHOST_BOX) == 0 &&
+            sign(dx).toInt() == e.facing && abs(dx) < range && abs(dx) > 0.9f
+    }
+
+    private fun suspect(e: Enemy) {
+        e.state = EnemyState.SEARCH
+        e.stateTime = 0f
+        e.lastSeenX = player.x
+        e.vx = 0f
+        e.timer = SEARCH_LINGER
+        stats.suspicions++
+        events += GameEvent.Suspicious(pan(e.x))
+        fx.text("HUH?", e.x, Geo.groundY(e.floor) - e.height - 1.0f, TextStyle.WARN, 0.8f)
     }
 
     private fun damageEnemy(e: Enemy, dmg: Int, method: KillMethod, dir: Int) {
@@ -1336,10 +1532,12 @@ class World(val config: RunConfig) {
         if (p.state == PlayerState.DOOR || p.state == PlayerState.INTEL || p.state == PlayerState.PASSAGE || p.state == PlayerState.TAKEDOWN) return
         val hurt = Hurt(cause, by, p.floor, zone, hallTime, ambush, hazard)
         val y = Geo.groundY(p.floorF) - p.z - 0.9f
+        spotted(p.floor)
         if (p.shield || p.armorReady) {
             if (p.shield) p.shield = false else p.armorReady = false
             p.invuln = 0.7f
             events += GameEvent.ShieldBlock
+            fx.text("NOT TODAY", p.x, y - 1.3f, TextStyle.WARN, 0.8f)
             fx.ring(p.x, y, 1.1f)
             fx.burst(ParticleKind.SPARK, p.x, y, 12, 6f, 0.3f, 0.08f)
             return
@@ -1404,6 +1602,19 @@ class World(val config: RunConfig) {
             }
             if (e.state == EnemyState.CHOKED) continue
             if (phase != Phase.PLAYING && phase != Phase.DYING) continue
+            if (e.asleep) {
+                // Zzz. Blind and deaf to footsteps; gunfire, blasts and crashing lights wake him.
+                e.vx = 0f
+                e.timer -= dt
+                if (e.timer <= 0f) {
+                    e.timer = SNORE_EVERY
+                    if (onStage(e.floor, e.hall)) {
+                        fx.text("z", e.x - e.facing * 0.15f, Geo.groundY(e.floor) - e.height - 0.35f, TextStyle.SCORE, 1.4f)
+                        if (here(e)) events += GameEvent.Snore(pan(e.x))
+                    }
+                }
+                continue
+            }
             val hs = hall(e.floor, e.hall) ?: continue
             val heat = hs.plan.heat
             val visible = playerVisibleOn(e.floor, e.hall)
@@ -1415,7 +1626,7 @@ class World(val config: RunConfig) {
             val boxedNearby = player.state == PlayerState.BOX && here(e) && dist < 1.8f &&
                 (e.state == EnemyState.ALERT || e.state == EnemyState.AIM)
             val sees = (visible && dist < (if (omni) range + 2f else range) &&
-                (sign(dx).toInt() == e.facing || dist < 1.6f || omni)) || boxedNearby
+                (sign(dx).toInt() == e.facing || dist < BEHIND_SENSE || omni)) || boxedNearby
             if (sees) e.lastSeenX = player.x
             val speed = Heat.enemySpeed(heat)
 
@@ -1439,7 +1650,7 @@ class World(val config: RunConfig) {
                 }
                 EnemyState.PATROL -> {
                     if (e.kind != EnemyKind.TURRET) patrol(e, speed, dt) else if (e.timer <= 0f) e.timer = 2f
-                    if (sees) alert(e)
+                    if (sees) alert(e) else if (seesBoxMove(e, dx, range)) suspect(e)
                 }
                 EnemyState.ALERT -> {
                     e.vx = 0f
@@ -1447,6 +1658,7 @@ class World(val config: RunConfig) {
                     if (!sees && e.stateTime > 1.2f) {
                         e.state = EnemyState.SEARCH
                         e.stateTime = 0f
+                        e.timer = SEARCH_LINGER
                     } else {
                         e.timer -= dt
                         val melee = e.kind == EnemyKind.NINJA || e.kind == EnemyKind.DEMON
@@ -1504,17 +1716,22 @@ class World(val config: RunConfig) {
                     }
                 }
                 EnemyState.SEARCH -> {
+                    // Still wiggling? He follows the box.
+                    if (seesBoxMove(e, dx, range)) e.lastSeenX = player.x
                     val toGo = e.lastSeenX - e.x
                     if (abs(toGo) > 0.3f && e.kind != EnemyKind.TURRET) {
                         e.facing = if (toGo > 0f) 1 else -1
                         e.vx = e.facing * speed * 0.6f
+                        // He looks around once he gets there, not on the way.
+                        e.timer = SEARCH_LINGER
                     } else {
                         e.vx = 0f
+                        e.timer -= dt
                     }
                     if (sees) {
                         alert(e)
                         e.timer *= 0.5f
-                    } else if (e.stateTime > 3.5f) {
+                    } else if (e.timer <= 0f || e.stateTime > SEARCH_MAX) {
                         e.state = EnemyState.PATROL
                         e.stateTime = 0f
                         e.timer = PATROL_LOOK
@@ -1758,9 +1975,17 @@ class World(val config: RunConfig) {
                     shake = max(shake, 0.3f)
                     fx.burst(ParticleKind.GLASS, x, y - 0.2f, 22, 6f, 0.9f, 0.1f, upBias = 0.4f)
                     fx.burst(ParticleKind.SPARK, x, y - 0.2f, 10, 7f, 0.3f, 0.08f)
+                    var crushed = false
                     for (e in enemies.toList()) {
-                        if (e.floor == f && e.hall == h && e.alive && abs(e.x - x) < 0.8f && e.kind != EnemyKind.TURRET) kill(e, KillMethod.LIGHT, if (e.x >= x) 1 else -1)
+                        if (e.floor != f || e.hall != h || !e.alive) continue
+                        if (abs(e.x - x) < 0.8f && e.kind != EnemyKind.TURRET) {
+                            kill(e, KillMethod.LIGHT, if (e.x >= x) 1 else -1)
+                            crushed = true
+                        } else if (e.asleep && abs(e.x - x) < LIGHT_WAKE_RADIUS) {
+                            alert(e)
+                        }
                     }
+                    if (crushed && stage) fx.text("LIGHTS OUT", x, y - 2.2f, TextStyle.TAKEDOWN, 0.9f)
                     if (playerHere && abs(player.x - x) < 0.55f) hurtPlayer(x, HurtCause.LIGHT)
                 }
             }
@@ -1779,6 +2004,7 @@ class World(val config: RunConfig) {
                     for (e in enemies.toList()) {
                         if (e.floor == f && e.hall == h && e.alive && e.kind != EnemyKind.TURRET && e.kind != EnemyKind.DRONE && abs(e.x - hz.x) < width + e.halfWidth && e.z < height) {
                             kill(e, KillMethod.HAZARD, if (e.x >= hz.x) 1 else -1)
+                            fx.text("OOPS", e.x, Geo.groundY(f) - 2.3f, TextStyle.TAKEDOWN, 0.8f)
                         }
                     }
                 }
@@ -1980,6 +2206,7 @@ class World(val config: RunConfig) {
         flash = Flash.GOLD
         flashAmount = 0.5f
         fx.text(perk.title, p.x, Geo.groundY(p.floor) - 2.2f, TextStyle.BIG, 1.6f)
+        fx.text(perk.flavor.uppercase(), p.x, Geo.groundY(p.floor) - 1.6f, TextStyle.PICKUP, 1.6f)
     }
 
     /** -1..1 stereo position of a world x. */
@@ -2030,6 +2257,38 @@ class World(val config: RunConfig) {
         const val GRENADE_EVERY = 8
         /** A hit from a guard who stepped out of a door less than this long ago counts as a door ambush (stats only). */
         const val AMBUSH_WINDOW = 3f
+        /** Guards who spot you this soon after you arrive in a hallway take this much longer to react (minus the time you've been there). */
+        const val ARRIVAL_GRACE = 0.8f
+        /** A searching guard looks around this long once he reaches the spot, then gives up... */
+        const val SEARCH_LINGER = 3.5f
+        /** ...or after this long in all, however far he had to walk. */
+        const val SEARCH_MAX = 9f
+        /**
+         * A guard senses you behind him this close. Inside the takedown lunge (reach + magnet), so
+         * pushing into his back always wins the race, even with GUNS HOT.
+         */
+        const val BEHIND_SENSE = 1.0f
+        /** A napping guard who gets woken up needs this long to get his bearings. */
+        const val WAKE_GROGGY = 0.6f
+        /** How often a napping guard snores (a "z" over his head). */
+        const val SNORE_EVERY = 1.3f
+        /** A ceiling light crashing this close wakes a napping guard. */
+        const val LIGHT_WAKE_RADIUS = 3.5f
+        /** The box moving faster than this in a guard's view makes him suspicious. */
+        const val BOX_SUSPICIOUS_SPEED = 0.5f
+        /** GHOST: leaving a floor unseen pays this, plus a little per floor (double in SILENT). */
+        const val GHOST_BONUS = 300
+        const val GHOST_BONUS_PER_FLOOR = 10
+        /** Coach tips only show on the first this-many floors of a run from the roof... */
+        const val COACH_FLOORS = 6
+        /** ...and never closer together than this. */
+        const val TIP_GAP = 4f
+        /** Chance a ride down comes with smooth jazz. */
+        const val MUZAK_CHANCE = 0.12f
+        private const val MUZAK_KEY = 0x302A4L
+        private const val PAYDAY_KEY = 0xCA54L
+        /** PAYDAY loot doesn't evaporate like dropped pickups do. */
+        const val PAYDAY_LIFE = 600f
 
         // ---- Controls & feel (see docs/CONTROLS.md) ----
         const val RUN_ACCEL = 70f
