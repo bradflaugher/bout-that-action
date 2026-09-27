@@ -34,6 +34,14 @@ interface Gfx {
     fun fillVerticalGradient(left: Float, top: Float, right: Float, bottom: Float, colorTop: Int, colorBottom: Int)
     /** Radial gradient from [colorCenter] at the center to [colorEdge] at [radius]. */
     fun fillRadialGradient(cx: Float, cy: Float, radius: Float, colorCenter: Int, colorEdge: Int)
+    /**
+     * Fills a whole rectangle with a radial gradient centred on (cx, cy); beyond [radius] the
+     * [colorEdge] continues. One cheap call for light pools, darkness-with-a-hole and vignettes.
+     */
+    fun fillRectRadial(
+        left: Float, top: Float, right: Float, bottom: Float,
+        cx: Float, cy: Float, radius: Float, colorCenter: Int, colorEdge: Int,
+    )
 
     fun text(text: String, x: Float, y: Float, size: Float, color: Int, font: Font = Font.HUD, align: Align = Align.LEFT)
     fun textWidth(text: String, size: Float, font: Font = Font.HUD): Float
