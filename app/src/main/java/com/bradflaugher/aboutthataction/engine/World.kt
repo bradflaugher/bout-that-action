@@ -475,6 +475,9 @@ class World(val config: RunConfig) {
             PlayerState.DEAD, PlayerState.INTEL -> return true
             else -> Unit
         }
+        // A swipe is a newer, deliberate intent: it cancels a door tap still waiting out
+        // the double-tap window, so hiding never gets undone by the tap before it.
+        if (c == Command.SWIPE_DOWN || c == Command.SWIPE_UP) p.tapTimer = 0f
         when (c) {
             Command.TAP -> {
                 if (p.state == PlayerState.ELEVATOR || p.state == PlayerState.DOOR) return true
@@ -1621,11 +1624,14 @@ class World(val config: RunConfig) {
             val dx = player.x - e.x
             val dist = abs(dx)
             // SILENT: you're a shadow; guards need you a little closer to pick you out.
-            val range = (if (silent) SILENT_SIGHT_RANGE else SIGHT_RANGE) - 4.3f * hs.darkness
+            // Pitch black (a BLACKOUT floor, or every lamp shot out): nobody sees past
+            // arm's length, sensors included. "They can't see you either."
+            val pitchBlack = hs.darkness >= 1f
+            val range = if (pitchBlack) BLACKOUT_SIGHT else (if (silent) SILENT_SIGHT_RANGE else SIGHT_RANGE) - 4.3f * hs.darkness
             val omni = e.kind == EnemyKind.TURRET || e.kind == EnemyKind.DRONE
             val boxedNearby = player.state == PlayerState.BOX && here(e) && dist < 1.8f &&
                 (e.state == EnemyState.ALERT || e.state == EnemyState.AIM)
-            val sees = (visible && dist < (if (omni) range + 2f else range) &&
+            val sees = (visible && dist < (if (omni && !pitchBlack) range + 2f else range) &&
                 (sign(dx).toInt() == e.facing || dist < BEHIND_SENSE || omni)) || boxedNearby
             if (sees) e.lastSeenX = player.x
             val speed = Heat.enemySpeed(heat)
@@ -2268,6 +2274,8 @@ class World(val config: RunConfig) {
          * pushing into his back always wins the race, even with GUNS HOT.
          */
         const val BEHIND_SENSE = 1.0f
+        /** How far anyone can make you out in pitch darkness: arm's length. */
+        const val BLACKOUT_SIGHT = 1.0f
         /** A napping guard who gets woken up needs this long to get his bearings. */
         const val WAKE_GROGGY = 0.6f
         /** How often a napping guard snores (a "z" over his head). */

@@ -49,6 +49,43 @@ class StealthAndEventsTest {
         error("no $event")
     }
 
+    // ------------------------------------------------------------ review fixes
+
+    @Test
+    fun pitchBlackMeansNobodySeesPastArmsLength() {
+        val w = world(silent = true) // hold fire: this is about what guards can see
+        val hs = w.playerHall()!!
+        for (i in hs.lightAlive.indices) hs.lightAlive[i] = false
+        assertEquals(1f, hs.darkness)
+        w.player.x = 3f
+        val guard = enemy(w, EnemyKind.AGENT, 6f, facing = -1)
+        val drone = enemy(w, EnemyKind.DRONE, 6.5f, facing = -1)
+        run(w, 2f) { guard.x = 6f; drone.x = 6.5f }
+        assertEquals("staring into the dark", EnemyState.PATROL, guard.state)
+        assertEquals("sensors are blind too", EnemyState.PATROL, drone.state)
+        // Arm's length still counts.
+        guard.x = 3.7f
+        run(w, 0.1f)
+        assertTrue(guard.state == EnemyState.ALERT || guard.state == EnemyState.AIM || !guard.alive)
+    }
+
+    @Test
+    fun hidingDuringTheDoubleTapWindowIsNotUndoneByTheTap() {
+        val w = world(silent = false)
+        val hs = w.playerHall()!!
+        val door = hs.plan.doors.first { it.kind == DoorKind.PASSAGE }
+        w.player.x = door.x
+        // An awake guard makes the tap wait out the double-tap window.
+        enemy(w, EnemyKind.AGENT, if (door.x > 7f) 1.5f else 12.5f, facing = if (door.x > 7f) -1 else 1)
+        val hall = w.player.hall
+        w.commands += Command.TAP
+        run(w, 0.05f)
+        w.commands += Command.SWIPE_DOWN
+        run(w, 0.6f)
+        assertEquals(hall, w.player.hall)
+        assertTrue("still hidden", w.player.state == PlayerState.BOX || w.player.state == PlayerState.DOOR)
+    }
+
     // ------------------------------------------------------------ napping guards
 
     @Test
