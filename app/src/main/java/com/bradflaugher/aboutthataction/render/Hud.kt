@@ -17,8 +17,9 @@ import kotlin.math.sin
  * Heads-up display, zone title cards, the perk picker and the swipe-down hint.
  *
  * Layout runs on a grid of [unit] = 1% of the screen width (so 2u ≈ 8 dp on a phone):
- * 4u side margins, rows every 2u. Left column: zone + depth + heat, hearts, gear. Right
- * column: score beside the pause button, combo under it. Bottom: ammo dial, timers.
+ * 4u side margins, rows every 2u. Left column: zone + depth + heat, hearts, perks. Right
+ * column: score beside the pause button, combo under it; under pause, the mode and grenade
+ * buttons. Bottom: ammo dial, timers.
  */
 internal class Hud(private val f: Frame) {
     private val g get() = f.g
@@ -250,7 +251,7 @@ internal class Hud(private val f: Frame) {
             scoreBlock(top, u)
             return
         }
-        gearRow(left, top + 23f * u, u)
+        perkRow(left, top + 23f * u, u)
         pauseButton(u)
         modeButton(u)
         grenadeButton(u)
@@ -606,26 +607,15 @@ internal class Hud(private val f: Frame) {
         icon(cx, cy, s, c)
     }
 
-    // ------------------------------------------------------ grenades + perks
+    // ------------------------------------------------------------------ perks
 
-    private fun gearRow(x: Float, top: Float, u: Float) {
+    private fun perkRow(x: Float, top: Float, u: Float) {
         val w = f.w
-        val p = w.player
         val rowH = 5f * u
         val cy = top + rowH / 2f
+        // Grenades live on their own button (with the count); this row is just the perks.
         var cx = x
-        val gs = 3.6f * u
-        val pop = since(grenadeAt).let { if (it in 0f..0.35f) 1f + 0.35f * HudType.decay(it / 0.35f) else 1f }
-        for (i in 0 until w.maxGrenades) {
-            val have = i < p.grenades
-            val s = if (have && i == p.grenades - 1) gs * pop else gs
-            HudIcons.grenade(g, cx + gs / 2f, cy, s, if (have) 0xFF9AE040.toInt() else 0x33FFFFFF)
-            cx += gs + 0.4f * u
-        }
         if (w.perks.isEmpty()) return
-        cx += 1.4f * u
-        g.fillRect(cx, cy - rowH * 0.36f, cx + 0.2f * u, cy + rowH * 0.36f, 0x40FFFFFF)
-        cx += 1.8f * u
         val limit = 60f * u
         var shown = 0
         for ((perk, n) in w.perks) {
