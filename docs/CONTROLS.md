@@ -118,9 +118,12 @@ something you didn't mean; the HUD chip shows when a tap will do something).
 of a grenade double-tap is still a tap, and next to a passage it would walk
 you through the door before the grenade. So a tap that has a door or lift to
 use waits 0.28 s for a second tap, but only when a double-tap would actually
-throw (you have a grenade and none is in the air). With no grenade to throw,
-the tap acts at once. Doors aren't twitch targets; a quarter-second is
-invisible there and saves the grenade.
+throw at someone: you have a grenade, none is in the air, and somebody awake
+is in the hallway. Otherwise the tap acts at once, which is most door taps
+(you usually leave a hallway once it's quiet). With nobody around, a
+double-tap at a door is impatience, not a grenade: it's the tap. Taps that
+land while you're already mid-passage are dropped, so mashing a door never
+bounces you back through it.
 
 **Elevators.** A car only counts as boardable once its doors have been open
 for 0.12 s (`ELEVATOR_REACT_TIME`): a car opening under your thumb is called,
@@ -151,7 +154,22 @@ held drag, steps you out.
 
 **Takedown magnet (`TAKEDOWN_MAGNET` = 0.3 u).** While you push toward a
 chokeable guard, takedown reach grows by 0.3 u and the choke snaps you into
-place. Heavies still bounce off from the front.
+place. Heavies still bounce off from the front; a napping guard can be taken
+from any side. A guard only senses you behind him inside 1.0 u
+(`BEHIND_SENSE`), which is inside the lunge, so pushing into a guard's back
+always wins the race, even in GUNS HOT.
+
+**Arrival grace (`ARRIVAL_GRACE` = 0.8 s).** A guard who spots you less than
+0.8 s after you stepped into the hallway (through a passage, out of a car)
+takes the rest of that 0.8 s extra to react. The passage slide alone takes
+0.26 s; this is time to read the new hallway, not free time to dawdle.
+
+**The box double-take.** In the box, moving faster than 0.5 u/s
+(`BOX_SUSPICIOUS_SPEED`) in front of a walking guard who's looking at you
+puts him in SEARCH ("HUH?"): he walks over to where the box is and looks
+around for 3.5 s (`SEARCH_LINGER`) once he gets there. If he reaches the
+box, it's an ambush. Heavies and ninjas kick it off instead. GHOST BOX is
+never suspected. Sitting still is always just a box.
 
 **Auto-fire (GUNS HOT).** Whenever the gun is ready, it fires at the top
 threat within 7.5 u (`AUTO_FIRE_RANGE`, 11 u with the minigun), on the move
@@ -159,8 +177,9 @@ and in the air. The target score is `tier × 6 + distance + 3 if behind you`.
 Tier 0 is about to hurt you: aiming at you, mid-slash, or a melee charger
 within 3 u. Tier 1 is alert and facing you. Tier 2 is everyone else. So the
 guard with his gun up behind you beats the idle one in front of you. It only
-fires at **threats**: a guard who hasn't noticed you is left alone unless he's
-within 2.5 u (`AUTO_FIRE_POINT_BLANK`), so even GUNS HOT keeps the choice of
+fires at **threats**: a guard who hasn't noticed you is left alone
+unless he's facing you within 2.5 u (`AUTO_FIRE_POINT_BLANK`); one with his
+back to you, or asleep, is never shot, so even GUNS HOT keeps the choice of
 sneaking past or walking in for the takedown (drones and turrets are always
 fair game). Guards stepping out of a door get a quarter-second before the gun
 turns on them. Hidden (box, doorway, boxed in the car) the gun holds.

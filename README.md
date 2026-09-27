@@ -30,8 +30,8 @@ is read on its own, so one thumb can run while the other taps.
 | **Tap** | Interact with what you're standing at: go through a green **passage** door into another hallway, enter a red **INTEL** door, ride an open **elevator** down, or call a closed one. With nothing in reach, a tap does nothing. |
 | **Swipe ↓** | Hide: press into a nearby **doorway**, otherwise pop the **cardboard box**. In an elevator, box up in the car. Swipe ↓ again to stand up. |
 | **Swipe ↑** | Jump. Clears low shots; land on heads to stomp. Works mid-run. |
-| **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind. |
-| **Double-tap** | Throw a grenade, in either mode. Fast tapping never throws by accident. |
+| **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind; a napping guard from anywhere. Works in GUNS HOT too: the gun never shoots a guard with his back to you. |
+| **Double-tap** | Throw a grenade, in either mode. Fast tapping never throws by accident, and mashing a door with nobody around is just the tap. |
 | **Jump + tap** | A suppressed shot at the ceiling light ahead, when someone's under it (or there's nobody else to shoot). It crushes them, blacks out the hallway and wakes nobody. Works in both modes. |
 | **Mode button** (under pause) | **GUNS HOT**: you auto-fire at threats in range. **SILENT**: you never fire; guards only notice what they see, and quiet kills pay double. Your choice sticks between runs. |
 
@@ -39,7 +39,9 @@ A chip over your head shows what a tap (or a swipe ↓) will do right now, and
 the hallway map in the corner shows where you've been and which hallways have
 a ride down. An optional thumb guide shows where your run drag started.
 Inputs are forgiving: a gesture made a hair early is buffered, and a bullet
-that lands the same instant you dodge counts as a miss ("CLOSE!"). Design
+that lands the same instant you dodge counts as a miss ("CLOSE!"). On a run
+from the roof, **coach tips** pop up the first time each move would help
+("SWIPE DOWN: HIDE"); turn them off in Settings. Design
 notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 
 ## How it plays
@@ -61,7 +63,18 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   and every quiet kill is worth double. Flip modes any time.
 - **Patrols you can time.** Guards walk a regular beat and stop to look
   around at each end. A couple per hallway, and the doors only rarely spit
-  out more. In the box, a patrol that walks into you gets ambushed.
+  out more. In the box, a patrol that walks into you gets ambushed (BOX'D!).
+  Guards who spot you the instant you step into a hallway give you a beat
+  to take it in first.
+- **The box is a lure.** Move it while a guard is looking right at it and he
+  stops ("HUH?") and comes over to check. Let him. Heavies and ninjas aren't
+  fooled: they kick the box off. Leave a floor without anyone spotting you
+  and it's a **GHOST** bonus (double in SILENT).
+- **Special floors.** About one floor in six is something else: a
+  **BLACKOUT** (every light dead, for them too), **NAP TIME** (guards asleep
+  at their posts: tiptoe up for a NIGHT NIGHT), or **PAYDAY** (somebody left
+  the loot lying around). Some rides come with smooth jazz. The first guard
+  of every run is napping on the roof.
 - **Roguelike runs.** Every red INTEL door offers three perks, and they
   stack: Rapid Fire, Pierce, Ricochet, Split Shot, CQC Master, Ghost Box,
   Double Jump, Demolition, Reflex (auto bullet-time), Kevlar, Shockwave
@@ -109,6 +122,14 @@ building, and the zone (and its music and heat) comes from the floor.
     <td align="center" width="25%"><img src="docs/screenshots/void.png" alt="The Void"><p><em>The Void</em></p></td>
   </tr>
 </table>
+
+## When it's over
+
+The game-over card tells the story of the run: a playstyle title
+("CARDBOARD ENTHUSIAST", "BONK SPECIALIST", "THE GHOST"), what got you
+("Steamed like a dumpling"), your highlights, and a sign-off ("I'm just
+'bout that action, boss."). No streaks, no daily rewards, no timers asking
+you back. The building will still be there.
 
 ## The front end
 
@@ -177,6 +198,8 @@ Kotlin behind small interfaces, so it's tested on the JVM:
   stairs, death, replays).
 - `ControlsTest`: input buffering, the hit-grace window, the jump arc,
   turnarounds, auto-aim intent, tap and swipe context, door and car exits.
+- `StealthAndEventsTest`: napping guards, the box double-take and the kick,
+  GHOST, special floors, the arrival grace, coach tips, the run report.
 - `LevelGenTest`: determinism, a reachable ride down from every hallway on
   24,000 floors, rides arriving in hallway A, passage pairs, door spacing,
   shaft consistency, zone order, the heat curve.
@@ -184,7 +207,9 @@ Kotlin behind small interfaces, so it's tested on the JVM:
   two-thumb play.
 - `BotPlaythroughTest`: an autopilot plays full runs on every preset in both
   modes and prints a balance report (floors, seconds and encounters per
-  floor, deaths). The same autopilot plays the demo behind the title screen.
+  floor, deaths) and a pacing report (seconds per floor and hallway,
+  elevator waits, dead time, the first minute, what hurt you and whether it
+  was an ambush or an arrival). The same autopilot plays the demo behind the title screen.
 - `WorldFuzzTest`: minutes of random thumbs on every preset.
 - `ScreenshotTest`: renders the README screenshots headlessly through the
   real renderer, using a `java.awt` backend.
