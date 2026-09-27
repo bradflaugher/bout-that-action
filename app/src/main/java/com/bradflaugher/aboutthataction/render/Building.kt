@@ -34,8 +34,9 @@ internal class Building(private val f: Frame) {
         const val W = Geo.FLOOR_W
         const val DOOR_H = 2.25f
         private const val HAIR = EnvWalls.HAIR
-        private const val INTEL_RED = 0xFFFF1E3C.toInt()
-        private const val INTEL_GOLD = 0xFFFFC65A.toInt()
+        /** The STASH: warm amber light and gold trim (a bonus, not a threat). */
+        private const val STASH_GLOW = 0xFFFFA828.toInt()
+        private const val STASH_GOLD = 0xFFFFD27A.toInt()
         /** Wayfinding green: passages to other hallways, and nothing else. */
         const val PASSAGE = 0xFF4CFFA8.toInt()
         /** The lift's cyan (HUD chip, map, plates). */
@@ -235,10 +236,10 @@ internal class Building(private val f: Frame) {
         val x0 = d.x - Geo.DOOR_W / 2f
         val x1 = d.x + Geo.DOOR_W / 2f
         val y0 = gy - DOOR_H
-        val intel = d.kind == DoorKind.INTEL
-        val used = intel && fs.intelUsed[i]
-        val live = intel && !used
-        val playerIn = f.playerHiddenInDoor(d.x) || (f.w.player.state == PlayerState.INTEL && abs(f.w.player.anchorX - d.x) < 0.05f && f.w.player.floor == fi)
+        val stash = d.kind == DoorKind.STASH
+        val used = stash && fs.stashUsed[i]
+        val live = stash && !used
+        val playerIn = f.playerHiddenInDoor(d.x) || (f.w.player.state == PlayerState.STASH && abs(f.w.player.anchorX - d.x) < 0.05f && f.w.player.floor == fi)
         val open = if (playerIn) 1f else fs.doorOpen[i]
         val pulse = 0.5f + 0.5f * sin(f.t * 3.2f)
         // Per-floor door family: tone, casing weight and signage vary floor to floor.
@@ -250,55 +251,55 @@ internal class Building(private val f: Frame) {
             passageDoor(fs, pal, i, gy, open)
             return
         }
-        if (fs.plan.isVoid && !intel) {
+        if (fs.plan.isVoid && !stash) {
             rooms.voidDoor(pal, x0, y0, x1, gy, open)
             statusLamp(pal, d.x, y0, open)
             return
         }
 
-        // A live intel door radiates: halo on the wall, a pool on the floor.
+        // A live stash radiates warm gold: halo on the wall, a pool on the floor.
         if (live) {
-            g.fillRadialGradient(d.x, y0 + 1.0f, 1.35f + 0.12f * pulse, 0x50FF1E3C, 0x00FF1E3C)
+            g.fillRadialGradient(d.x, y0 + 1.0f, 1.35f + 0.12f * pulse, 0x48FFA828, 0x00FFA828)
             g.save()
             g.translate(d.x, gy - 0.02f)
             g.scale(1f, 0.13f)
-            g.fillRadialGradient(0f, 0f, 1.3f, 0x70FF1E3C, 0x00FF1E3C)
+            g.fillRadialGradient(0f, 0f, 1.3f, 0x66FFA828, 0x00FFA828)
             g.restore()
         }
 
         // Casing: top-lit, shadowed on the right return. Normal doors sit close to the wall value.
         val frameC = when {
-            live -> 0xFF5A0A18.toInt()
-            used -> 0xFF3A1C22.toInt()
+            live -> 0xFF3A2A12.toInt()
+            used -> 0xFF26221E.toInt()
             else -> Col.lerp(pal.wallTop, pal.doorFrame, 0.28f + dv * 0.1f)
         }
-        val hi = if (live) INTEL_GOLD else pal.trim
-        val cw = if (intel) 0.09f else 0.05f + dv * 0.02f
+        val hi = if (live) STASH_GOLD else pal.trim
+        val cw = if (stash) 0.09f else 0.05f + dv * 0.02f
         g.fillRect(x0 - cw, y0 - cw - 0.01f, x1 + cw, gy, frameC)
-        g.fillRect(x0 - cw, y0 - cw - 0.01f, x1 + cw, y0 - cw + 0.012f, Col.alpha(hi, if (used) 0.25f else if (intel) 0.65f else 0.35f))
-        g.fillRect(x0 - cw, y0 - cw, x0 - cw + 0.02f, gy, Col.alpha(hi, if (used) 0.12f else if (intel) 0.3f else 0.14f))
+        g.fillRect(x0 - cw, y0 - cw - 0.01f, x1 + cw, y0 - cw + 0.012f, Col.alpha(hi, if (used) 0.25f else if (stash) 0.65f else 0.35f))
+        g.fillRect(x0 - cw, y0 - cw, x0 - cw + 0.02f, gy, Col.alpha(hi, if (used) 0.12f else if (stash) 0.3f else 0.14f))
         g.fillRect(x1 + cw - 0.03f, y0 - cw, x1 + cw, gy, Col.alpha(pal.deep, 0.6f))
 
         // Doorway interior, lit from within when open.
         g.fillRect(x0, y0, x1, gy, pal.deep)
         if (open > 0.02f) {
-            val spill = if (intel) INTEL_RED else pal.lamp
+            val spill = if (stash) STASH_GLOW else pal.lamp
             g.fillVerticalGradient(x0, y0, x1, gy, Col.alpha(spill, 0.06f), Col.alpha(spill, 0.28f * open))
         }
 
         // Leaf, swinging on the left hinge.
         val lw = Geo.DOOR_W * (1f - 0.82f * open)
         val leaf = when {
-            live -> 0xFF6E0A1C.toInt()
-            used -> 0xFF2A1418.toInt()
+            live -> 0xFF1C2238.toInt()
+            used -> 0xFF1C1E24.toInt()
             else -> Col.lerp(pal.wallTop, pal.door, 0.45f + dv * 0.15f - 0.2f * depth(zone))
         }
         poly.quad(g, x0, y0, x0 + lw, y0 + 0.12f * open, x0 + lw, gy - 0.02f, x0, gy, leaf)
-        if (lw > 0.3f && (intel || !far)) {
+        if (lw > 0.3f && (stash || !far)) {
             g.save()
             g.translate(x0, y0)
             g.scale(lw / Geo.DOOR_W, 1f)
-            if (intel) intelLeaf(live) else {
+            if (stash) stashLeaf(live) else {
                 leafDetail(zone, pal, leaf)
                 // Mute the detail back toward the leaf: doors frame the scene, they don't lead it.
                 g.fillRect(0f, 0.03f, Geo.DOOR_W, DOOR_H, Col.alpha(leaf, 0.4f + 0.2f * depth(zone)))
@@ -306,26 +307,26 @@ internal class Building(private val f: Frame) {
             g.restore()
         }
 
-        if (intel) {
+        if (stash) {
             if (live) {
                 // Light leaking round the leaf and a gold-cored neon outline.
-                val core = 0xFFFFE0B0.toInt()
-                f.glowLine(x0 - 0.045f, y0 - 0.055f, x1 + 0.045f, y0 - 0.055f, 0.035f, INTEL_RED, core)
-                f.glowLine(x0 - 0.045f, y0 - 0.055f, x0 - 0.045f, gy, 0.035f, INTEL_RED, core)
-                f.glowLine(x1 + 0.045f, y0 - 0.055f, x1 + 0.045f, gy, 0.035f, INTEL_RED, core)
-                g.fillRect(x0 + lw - 0.02f, y0 + 0.05f, x0 + lw, gy - 0.05f, Col.alpha(INTEL_GOLD, 0.35f + 0.3f * pulse))
+                val core = 0xFFFFF4D8.toInt()
+                f.glowLine(x0 - 0.045f, y0 - 0.055f, x1 + 0.045f, y0 - 0.055f, 0.035f, STASH_GLOW, core)
+                f.glowLine(x0 - 0.045f, y0 - 0.055f, x0 - 0.045f, gy, 0.035f, STASH_GLOW, core)
+                f.glowLine(x1 + 0.045f, y0 - 0.055f, x1 + 0.045f, gy, 0.035f, STASH_GLOW, core)
+                g.fillRect(x0 + lw - 0.02f, y0 + 0.05f, x0 + lw, gy - 0.05f, Col.alpha(STASH_GOLD, 0.35f + 0.3f * pulse))
             }
-            // Data-core icon on the leaf (or floating in the doorway when open).
+            // A gold star on the leaf (or floating in the doorway when open).
             val cx = if (lw > 0.5f) x0 + lw / 2f else d.x
-            dataCore(cx, y0 + 0.8f, 0.24f, if (used) 0xFF6A3A40.toInt() else 0xFFFFE4C8.toInt(), live)
+            stashStar(cx, y0 + 0.8f, 0.24f, if (used) 0xFF5A5448.toInt() else STASH_GOLD, live)
             // Nameplate.
-            val label = if (used) "CLEARED" else "INTEL"
+            val label = if (used) "EMPTY" else "STASH"
             val py0 = y0 - 0.5f
             val py1 = y0 - 0.19f
-            g.fillRoundRect(d.x - 0.44f, py0, d.x + 0.44f, py1, 0.05f, 0xF0120206.toInt())
-            g.strokeRoundRect(d.x - 0.44f, py0, d.x + 0.44f, py1, 0.05f, 0.02f, if (used) 0xFF4A2A30.toInt() else Col.alpha(INTEL_GOLD, 0.8f))
-            if (live) f.worldText(label, d.x, py1 - 0.075f, 0.23f, Col.alpha(INTEL_RED, 0.35f))
-            f.worldText(label, d.x, py1 - 0.08f, 0.21f, if (used) 0xFF7A4A50.toInt() else 0xFFFF5A70.toInt())
+            g.fillRoundRect(d.x - 0.44f, py0, d.x + 0.44f, py1, 0.05f, 0xF00E0C08.toInt())
+            g.strokeRoundRect(d.x - 0.44f, py0, d.x + 0.44f, py1, 0.05f, 0.02f, if (used) 0xFF3E3A34.toInt() else Col.alpha(STASH_GOLD, 0.8f))
+            if (live) f.worldText(label, d.x, py1 - 0.075f, 0.23f, Col.alpha(STASH_GLOW, 0.35f))
+            f.worldText(label, d.x, py1 - 0.08f, 0.21f, if (used) 0xFF6E685C.toInt() else STASH_GLOW)
         } else {
             // Someone's room beyond: a line of light under some doors.
             if (far) return
@@ -591,33 +592,35 @@ internal class Building(private val f: Frame) {
         if (zone != Zone.LABS) g.fillCircle(w - 0.14f, 1.2f, 0.045f, 0xFFD8C890.toInt())
     }
 
-    /** The precious one: crimson lacquer, gold inlay. */
-    private fun intelLeaf(live: Boolean) {
+    /** The precious one: midnight lacquer, gold inlay. */
+    private fun stashLeaf(live: Boolean) {
         val w = Geo.DOOR_W
         val h = DOOR_H
-        val inlay = if (live) Col.alpha(INTEL_GOLD, 0.85f) else 0x40A06A50
-        g.fillVerticalGradient(0.08f, 0.08f, w - 0.08f, h - 0.08f, if (live) 0xFFB01C36.toInt() else 0xFF301418.toInt(), if (live) 0xFF600A1A.toInt() else 0xFF1E0C10.toInt())
+        val inlay = if (live) Col.alpha(STASH_GOLD, 0.85f) else 0x40908470
+        g.fillVerticalGradient(0.08f, 0.08f, w - 0.08f, h - 0.08f, if (live) 0xFF2E3A60.toInt() else 0xFF22242C.toInt(), if (live) 0xFF161C34.toInt() else 0xFF141519.toInt())
         g.strokeRect(0.12f, 0.12f, w - 0.12f, h - 0.12f, 0.025f, inlay)
         g.strokeRect(0.2f, 1.25f, w - 0.2f, h - 0.22f, 0.018f, Col.fade(inlay, 0.7f))
         g.fillRect(0f, 0f, w, 0.02f, Col.fade(inlay, 0.9f))
-        g.fillCircle(w - 0.14f, 1.2f, 0.05f, if (live) INTEL_GOLD else 0xFF6A4A40.toInt())
+        g.fillCircle(w - 0.14f, 1.2f, 0.05f, if (live) STASH_GOLD else 0xFF5A5448.toInt())
     }
 
-    fun dataCore(cx: Float, cy: Float, r: Float, color: Int, live: Boolean) {
-        val spin = if (live) f.t * 90f else 0f
-        if (live) g.fillCircle(cx, cy, r * 1.6f, Col.alpha(color, 0.18f))
-        g.save()
-        g.translate(cx, cy)
-        g.rotate(45f)
-        g.strokeRect(-r * 0.7f, -r * 0.7f, r * 0.7f, r * 0.7f, r * 0.14f, color)
-        g.rotate(spin)
-        g.fillRect(-r * 0.3f, -r * 0.3f, r * 0.3f, r * 0.3f, color)
-        g.restore()
-        for (k in 0 until 4) {
-            val a = k * 1.5708f
-            g.line(cx + kotlin.math.cos(a) * r * 1.05f, cy + sin(a) * r * 1.05f, cx + kotlin.math.cos(a) * r * 1.35f, cy + sin(a) * r * 1.35f, r * 0.1f, color)
+    /** The stash's emblem: a five-point star, rocking gently and glowing while it's full. */
+    private fun stashStar(cx: Float, cy: Float, r: Float, color: Int, live: Boolean) {
+        if (live) {
+            g.blend(Gfx.Blend.ADD)
+            g.glow(cx, cy, r * 2.2f, Col.alpha(STASH_GLOW, 0.35f))
+            g.blend(Gfx.Blend.NORMAL)
         }
+        val spin = if (live) sin(f.t * 1.4f) * 0.25f else 0f
+        val pb = poly.begin()
+        for (k in 0 until 10) {
+            val a = -kotlin.math.PI.toFloat() / 2f + k * kotlin.math.PI.toFloat() / 5f + spin
+            val rr = if (k % 2 == 0) r else r * 0.44f
+            pb.add(cx + kotlin.math.cos(a) * rr, cy + sin(a) * rr)
+        }
+        pb.fill(g, color)
     }
+
 
     // ----------------------------------------------------------------- shafts
 
@@ -1307,7 +1310,7 @@ internal class Building(private val f: Frame) {
      */
     fun stageLight() {
         val p = f.w.player
-        if (p.state == PlayerState.DEAD || p.state == PlayerState.INTEL) return
+        if (p.state == PlayerState.DEAD || p.state == PlayerState.STASH) return
         val fi = p.floor
         val fs = f.w.floors[fi] ?: return
         val gy = Geo.groundY(p.floorF)
@@ -1460,7 +1463,7 @@ internal class Building(private val f: Frame) {
         val a = 0.93f * d
         val dark = 0xFF020106.toInt()
         val p = f.w.player
-        val onFloor = f.playerIn(fs) && p.state != PlayerState.INTEL && p.state != PlayerState.DEAD
+        val onFloor = f.playerIn(fs) && p.state != PlayerState.STASH && p.state != PlayerState.DEAD
         // Quantize so the cached gradient shaders don't churn as lights die.
         val aq = (a * 16f).toInt() / 16f
         if (onFloor) {

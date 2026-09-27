@@ -66,7 +66,7 @@ enum class DoorKind {
     /** A doorway to hide in (and that guards sometimes come out of). */
     NORMAL,
     /** The red perk room. Once cleared it's a doorway like any other. */
-    INTEL,
+    STASH,
     /** A way through to another hallway on the same floor. */
     PASSAGE,
 }
@@ -351,7 +351,7 @@ object LevelGen {
             landings[h] += s
         }
 
-        // Doors, hallway by hallway: passages first (they must fit), then INTEL, then hiding doors.
+        // Doors, hallway by hallway: passages first (they must fit), then STASH, then hiding doors.
         class Draft(val slot: Int, val kind: DoorKind, val to: Int = -1)
         val drafts = Array(n) { ArrayList<Draft>() }
         fun fits(h: Int, slot: Int) = drafts[h].none { abs(Geo.SLOTS[it.slot] - Geo.SLOTS[slot]) < Geo.MIN_DOOR_GAP }
@@ -379,7 +379,7 @@ object LevelGen {
         }
         if (floor == 1 || rng.chance(0.4f)) {
             val order = (if (n > 1) (1 until n).toList() else listOf(0)).shuffledBy(rng)
-            for (h in order) if (place(h, DoorKind.INTEL)) break
+            for (h in order) if (place(h, DoorKind.STASH)) break
         }
         for (h in 0 until n) {
             val want = 2 + (if (rng.chance(0.5f)) 1 else 0)

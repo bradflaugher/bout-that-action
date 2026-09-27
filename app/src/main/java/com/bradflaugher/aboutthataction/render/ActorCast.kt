@@ -35,6 +35,11 @@ internal class ActorCast(
     private val look = Look()
 
     private companion object {
+        /** Status bubble body height and the tail below it, per unit of pop. */
+        const val BUBBLE_H = 0.52f
+        const val BUBBLE_TAIL = 0.08f
+        /** The "!" / "?" inside it: 0.36 of 0.52 tall, so 0.08 of breathing room above and below. */
+        const val GLYPH_H = 0.36f
         /** Drones are drawn a size up so they read at the zoomed-out camera. */
         const val DRONE_S = 1.15f
         /** The wake-up leap lasts this long. */
@@ -1438,13 +1443,13 @@ internal class ActorCast(
                 val rise = (1f - pop) * 0.15f
                 val fade = if (e.stateTime > 0.75f) 1f - (e.stateTime - 0.75f) / 0.15f else 1f
                 bubble(e.x, top + rise, pop, Col.alpha(0xFFFFD21E.toInt(), fade), fade)
-                if (pop > 0.05f) exclaimGlyph(e.x, top + rise - 0.07f * pop, 0.39f * pop, Col.alpha(0xFF1A0A00.toInt(), fade))
+                if (pop > 0.05f) exclaimGlyph(e.x, bubbleMid(top + rise, pop), GLYPH_H * pop, Col.alpha(0xFF1A0A00.toInt(), fade))
             }
             EnemyState.SEARCH -> if (!(e.stateTime < 0.8f && boxWatch(e))) {
                 val sway = sin(f.t * 4f + e.id) * 0.06f
                 val pop = Rig.backOut(e.stateTime / 0.2f)
                 bubble(e.x + sway, top, pop, 0xE8E8ECFF.toInt(), 1f)
-                if (pop > 0.3f) f.worldText("?", e.x + sway, top - 0.06f, 0.46f * pop, 0xFF1A1A30.toInt(), Gfx.Font.TITLE)
+                if (pop > 0.05f) questionGlyph(e.x + sway, bubbleMid(top, pop), GLYPH_H * pop, 0xFF1A1A30.toInt())
             }
             EnemyState.STUNNED -> {
                 for (i in 0 until 3) {
@@ -1462,8 +1467,8 @@ internal class ActorCast(
     private fun bubble(x: Float, bottom: Float, s: Float, color: Int, fade: Float) {
         if (s <= 0.01f) return
         val w = 0.22f * s
-        val h = 0.52f * s
-        val by = bottom - 0.08f * s
+        val h = BUBBLE_H * s
+        val by = bottom - BUBBLE_TAIL * s
         val o = p.out
         val inkCol = Col.alpha(ActorPaint.INK, fade)
         g.fillRoundRect(x - w - o, by - h - o, x + w + o, by + o, 0.09f * s + o, inkCol)
@@ -1473,12 +1478,30 @@ internal class ActorCast(
         g.line(x - w * 0.55f, by - h + 0.06f * s, x - w * 0.55f, by - h * 0.45f, 0.03f * s, Col.alpha(0xFFFFFFFF.toInt(), 0.35f * fade))
     }
 
-    /** Shape-drawn "!" of height [s] ending at [bottom]. */
-    private fun exclaimGlyph(x: Float, bottom: Float, s: Float, color: Int) {
-        val top = bottom - s - 0.08f * s / 0.34f
-        val barBot = bottom - s * 0.36f
-        f.poly.quad(g, x - 0.06f * s / 0.34f, top, x + 0.06f * s / 0.34f, top, x + 0.035f * s / 0.34f, barBot, x - 0.035f * s / 0.34f, barBot, color)
-        g.fillCircle(x, bottom - s * 0.13f, 0.042f * s / 0.34f, color)
+    /** Vertical middle of the body of a [bubble] whose tail tip is at [bottom] (scale [s]). */
+    private fun bubbleMid(bottom: Float, s: Float): Float = bottom - (BUBBLE_TAIL + BUBBLE_H / 2f) * s
+
+    /** Shape-drawn "!", [h] tall, centred on ([x], [cy]). */
+    private fun exclaimGlyph(x: Float, cy: Float, h: Float, color: Int) {
+        val top = cy - h / 2f
+        val barBot = top + h * 0.64f
+        f.poly.quad(g, x - h * 0.085f, top, x + h * 0.085f, top, x + h * 0.05f, barBot, x - h * 0.05f, barBot, color)
+        g.fillCircle(x, cy + h / 2f - h * 0.1f, h * 0.1f, color)
+    }
+
+    /** Shape-drawn "?", [h] tall, centred on ([x], [cy]): a hook, a short stem and a dot. */
+    private fun questionGlyph(x: Float, cy: Float, h: Float, color: Int) {
+        val top = cy - h / 2f
+        val sw = h * 0.13f
+        val r = h * 0.2f
+        val ay = top + sw / 2f + r
+        // The hook: from the left, over the top, round and down to the lower right.
+        g.strokeArc(x, ay, r, 180f, 250f, sw, color)
+        val ex = x + r * cos(70f * PI.toFloat() / 180f)
+        val ey = ay + r * sin(70f * PI.toFloat() / 180f)
+        g.line(ex, ey, x, top + h * 0.56f, sw, color)
+        g.line(x, top + h * 0.56f, x, top + h * 0.66f, sw, color)
+        g.fillCircle(x, cy + h / 2f - h * 0.1f, h * 0.1f, color)
     }
 
     private fun star(x: Float, y: Float, r: Float, color: Int) {

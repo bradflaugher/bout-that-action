@@ -90,7 +90,7 @@ the JVM.
 - Every floor must have a ride down reachable from every hallway
   (`LevelGenTest.everyFloorHasAReachableRideDown`), and doors are never
   closer than `Geo.MIN_DOOR_GAP`.
-- Tap and swipe ↓ never compete: taps use passages, INTEL and elevators;
+- Tap and swipe ↓ never compete: taps use passages, STASH doors and elevators;
   swipe ↓ only hides. See `docs/CONTROLS.md`.
 - Screenshots in `docs/screenshots/` come from `./gradlew :app:screenshots`,
   which renders real scenes through the real renderer and then runs

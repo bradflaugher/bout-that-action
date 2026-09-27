@@ -436,12 +436,12 @@ class MechanicsTest {
     }
 
     @Test
-    fun intelDoorOffersThreePerksOnATap() {
+    fun aStashDoorOffersThreePerksOnATap() {
         val w = world(floor = 1)
-        val intel = toHallWith(w, DoorKind.INTEL)
-        w.player.x = intel.x
+        val stash = toHallWith(w, DoorKind.STASH)
+        w.player.x = stash.x
         w.player.grenades = 0
-        assertEquals(ContextAction.INTEL, w.tapAction())
+        assertEquals(ContextAction.STASH, w.tapAction())
         w.commands += Command.TAP
         run(w, 0.05f)
         assertEquals(Phase.PERK_CHOICE, w.phase)

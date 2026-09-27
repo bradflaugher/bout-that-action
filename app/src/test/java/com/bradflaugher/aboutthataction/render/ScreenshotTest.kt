@@ -54,7 +54,7 @@ class ScreenshotTest {
         Scene("rooftop", 1.3f, ::rooftop),
         Scene("tower", 2.0f, ::tower),
         Scene("box", 3.1f, ::box),
-        Scene("intel", 4.2f, ::intel),
+        Scene("stash", 4.2f, ::stash),
         Scene("passage", 4.8f, ::passage, ::passageThen),
         Scene("silent", 5.0f, ::silent),
         Scene("labs", 5.3f, ::labs),
@@ -371,15 +371,15 @@ class ScreenshotTest {
         return w
     }
 
-    private fun intel(): World {
+    private fun stash(): World {
         val w = newWorld(5, 1)
         w.run(1.6f)
         val f = w.player.floor
         val fs = w.floors[f]!!
-        val h = fs.halls.indexOfFirst { hs -> hs.plan.doors.any { it.kind == DoorKind.INTEL } }
+        val h = fs.halls.indexOfFirst { hs -> hs.plan.doors.any { it.kind == DoorKind.STASH } }
         w.player.hall = h
         w.visit(0, h)
-        val door = fs.halls[h].plan.doors.first { it.kind == DoorKind.INTEL }
+        val door = fs.halls[h].plan.doors.first { it.kind == DoorKind.STASH }
         w.settle(door.x, 1.0f)
         w.perks[Perk.VITALITY] = 1
         w.perks[Perk.RICOCHET] = 1

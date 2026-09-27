@@ -192,7 +192,7 @@ private fun SeedField(text: String, onText: (String) -> Unit) {
 fun HowToPlay() {
     val rows = listOf(
         "DRAG ← →" to "Run. Hold to keep going; nudge back to turn. Lift to stop.",
-        "TAP" to "Use what you're next to: a green passage door, a red INTEL door, an elevator (tap a landing to call the car).",
+        "TAP" to "Use what you're next to: a green passage door, a gold STASH door, an elevator (tap a landing to call the car).",
         "DOUBLE-TAP" to "Throw a grenade.",
         "SWIPE ↑" to "Jump. Clears low shots. Land on heads to stomp.",
         "SWIPE ↓" to "Hide in a doorway or pop the cardboard box. Swipe ↓ again to stand up.",

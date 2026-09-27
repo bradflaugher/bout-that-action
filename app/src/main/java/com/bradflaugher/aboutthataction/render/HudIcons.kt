@@ -2,6 +2,7 @@ package com.bradflaugher.aboutthataction.render
 
 import com.bradflaugher.aboutthataction.engine.Perk
 import com.bradflaugher.aboutthataction.engine.PickupKind
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -216,10 +217,15 @@ internal object HudIcons {
         g.fillRect(cx - k * 0.12f, cy - k * 0.5f, cx + k * 0.12f, cy + k * 0.75f, tape)
     }
 
-    fun dataCore(g: Gfx, cx: Float, cy: Float, s: Float, c: Int) {
-        val k = s / 2f
-        poly.begin().add(cx, cy - k * 0.9f).add(cx + k * 0.9f, cy).add(cx, cy + k * 0.9f).add(cx - k * 0.9f, cy).fill(g, c)
-        poly.begin().add(cx, cy - k * 0.5f).add(cx + k * 0.5f, cy).add(cx, cy + k * 0.5f).add(cx - k * 0.5f, cy).fill(g, 0xFF0A0810.toInt())
-        g.fillCircle(cx, cy, k * 0.18f, c)
+    /** A five-point star: the STASH (a bonus, not a threat). */
+    fun stash(g: Gfx, cx: Float, cy: Float, s: Float, c: Int) {
+        val r = s * 0.5f
+        val pb = poly.begin()
+        for (i in 0 until 10) {
+            val a = -PI.toFloat() / 2f + i * PI.toFloat() / 5f
+            val rr = if (i % 2 == 0) r else r * 0.44f
+            pb.add(cx + cos(a) * rr, cy + sin(a) * rr + r * 0.06f)
+        }
+        pb.fill(g, c)
     }
 }

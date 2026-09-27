@@ -1,7 +1,7 @@
 package com.bradflaugher.aboutthataction.engine
 
 /**
- * Run-long upgrades. Every red INTEL door offers three; the player keeps one.
+ * Run-long upgrades. Every gold STASH door offers three; the player keeps one.
  * Perks stack up to [maxStacks].
  */
 enum class Perk(

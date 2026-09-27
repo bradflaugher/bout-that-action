@@ -4,7 +4,7 @@ import kotlin.math.abs
 
 /**
  * A heuristic player that drives the real command interface: routes through the passages
- * to a hallway with a ride down, calls and rides elevators, takes intel, jumps low shots,
+ * to a hallway with a ride down, calls and rides elevators, takes stash, jumps low shots,
  * boxes high ones and times hazards. In GUNS HOT it lets the auto-fire work; in SILENT it
  * sneaks up behind guards, waits out the ones looking its way, stomps drones and grenades
  * turrets. Human-ish on purpose: it notices bullets ~220 ms late and misses one in [missOneIn].
@@ -158,7 +158,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
             }
         }
 
-        // At the goal: tap it (ride, call, go through, or intel).
+        // At the goal: tap it (ride, call, go through, or stash).
         if (abs(goal - p.x) < World.TAP_REACH - 0.15f) {
             w.moveAxis = 0
             val action = w.tapAction()
@@ -256,7 +256,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
     private fun goalDir(w: World): Int = if (goalX(w) > w.player.x) 1 else -1
 
     /**
-     * Where to go in this hallway: a live INTEL door, else a landing with a ride down, else the
+     * Where to go in this hallway: a live STASH door, else a landing with a ride down, else the
      * passage on the shortest route to a hallway that has one.
      */
     private fun goalX(w: World): Float {
@@ -264,8 +264,8 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         val fs = w.floor(p.floor) ?: return p.x
         val hs = fs.hall(p.hall)
         val doors = hs.plan.doors
-        val intel = doors.indices.firstOrNull { doors[it].kind == DoorKind.INTEL && !hs.intelUsed[it] }
-        if (intel != null) return doors[intel].x
+        val stash = doors.indices.firstOrNull { doors[it].kind == DoorKind.STASH && !hs.stashUsed[it] }
+        if (stash != null) return doors[stash].x
         val down = hs.plan.downLandings
         if (down.isNotEmpty()) {
             // The car that's closest (or already here) wins.
