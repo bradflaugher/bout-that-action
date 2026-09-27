@@ -26,7 +26,6 @@ internal class Building(private val f: Frame) {
     private val poly get() = f.poly
     private val walls = EnvWalls(f)
     private val rooms = EnvRooms(f, walls)
-    private val carOpen = HashMap<Int, FloatArray>()
     private val cutBuf = FloatArray(16)
 
     companion object {
@@ -44,6 +43,8 @@ internal class Building(private val f: Frame) {
         private const val STEEL = 0xFF4A4858.toInt()
         private const val STEEL_HI = 0xFF9A98AC.toInt()
         private const val STEEL_LO = 0xFF1E1C26.toInt()
+        /** Seconds for elevator doors to slide fully open or shut. */
+        private const val DOOR_SLIDE = 0.3f
         /** Warm practical and cool fluorescent lamp tints for per-floor colour temperature. */
         private const val WARM = 0xFFFFC890.toInt()
         private const val COOL = 0xFFD8F0FF.toInt()
@@ -684,6 +685,102 @@ internal class Building(private val f: Frame) {
             val bc = if (calledHere) LIFT_CYAN else Col.alpha(LIFT_CYAN, 0.35f)
             if (calledHere) f.glowDot(bx, by, 0.045f, LIFT_CYAN, 0.9f) else g.fillCircle(bx, by, 0.04f, bc)
         }
+    }
+
+    /**
+     * How far a car's doors (and the landing doors in front of them) stand open at floor [fi],
+     * 0..1, straight from the car's timing: they slide open as it stops and shut before it
+     * leaves, so a waiting car never shows an empty shaft.
+     */
+    private fun doorOpen(car: com.bradflaugher.aboutthataction.engine.Elevator, fi: Int): Float {
+        if (!car.doorsOpen || abs(car.pos - fi) > 0.01f) return 0f
+        val opening = (car.openTime / DOOR_SLIDE).coerceIn(0f, 1f)
+        // Carrying the player at the bottom it holds open until they step out.
+        val closing = if (car.carrying && fi >= car.shaft.bottom) 1f else (car.pause / DOOR_SLIDE).coerceIn(0f, 1f)
+        val t = min(opening, closing)
+        return t * t * (3f - 2f * t)
+    }
+
+    /**
+     * Floor [hs]'s landings, drawn over the cars: a steel surround that hides the shaft above
+     * the doors, sliding landing doors that open only when the car stands here with its doors
+     * open, the hall lantern and (for expresses) the gold band. Cars in transit stay hidden
+     * behind them, as in a real lobby.
+     */
+    fun landingDoors(hs: HallState) {
+        val plan = hs.plan
+        val fi = plan.index
+        val top = fi * H
+        val gy = top + H
+        val rt = top + SLAB
+        if (!f.visibleY(top, gy + SLAB)) return
+        val pal = f.palette(hs)
+        for (s in plan.shafts) {
+            if (!plan.opens(s)) continue
+            val sx = s.x
+            val x0 = sx - Geo.SHAFT_W / 2f
+            val x1 = sx + Geo.SHAFT_W / 2f
+            val fy = gy - 2.6f
+            val car = f.w.elevators[s.id]
+            val open = if (car != null && !f.riding(s)) doorOpen(car, fi) else 0f
+            if (fi == 0) {
+                // The rooftop lift house has its own brickwork, sign and button.
+                if (fi < s.bottom) g.fillRect(x0, gy, x1, gy + SLAB, pal.slab)
+                steelDoors(pal, x0, fy, x1, gy, open)
+                continue
+            }
+            // Surround: ceiling to door header, so no ropes or counterweights show.
+            g.fillVerticalGradient(x0, rt, x1, fy - 0.12f, 0xFF201E28.toInt(), 0xFF16141C.toInt())
+            g.fillRect(x0, rt, x1, rt + 0.03f, 0x30FFFFFF)
+            var px = x0 + 0.15f
+            while (px < x1 - 0.1f) {
+                g.fillRect(px, rt + 0.06f, px + HAIR, fy - 0.16f, 0x14FFFFFF)
+                px += 0.3f
+            }
+            // The slabs above and below close over the shaft too.
+            if (fi > s.top) g.fillRect(x0, top, x1, rt, pal.slab)
+            if (fi < s.bottom) {
+                g.fillRect(x0, gy, x1, gy + SLAB, pal.slab)
+                g.fillRect(x0, gy, x1, gy + 0.03f, pal.slabEdge)
+            }
+            steelDoors(pal, x0, fy, x1, gy, open)
+            landingFront(pal, s, fi, gy, car)
+        }
+    }
+
+    /** A pair of brushed-steel landing doors in [x0, x1] × [y0, y1], [open] 0..1. */
+    private fun steelDoors(pal: Palette, x0: Float, y0: Float, x1: Float, y1: Float, open: Float) {
+        val half = (x1 - x0) / 2f
+        val leaf = half * (1f - open)
+        if (leaf < 0.01f) return
+        val mid = (x0 + x1) / 2f
+        for (side in 0..1) {
+            // Each leaf slides out from the middle into the frame.
+            val a = if (side == 0) x0 else x1 - leaf
+            val b = if (side == 0) x0 + leaf else x1
+            g.fillVerticalGradient(a, y0, b, y1, 0xFF5E5C6E.toInt(), 0xFF34323F.toInt())
+            // Brushed grain, a soft reflection of the hall's neon, and a kick plate.
+            g.fillRect(a, y0, b, y0 + 0.04f, 0x30FFFFFF)
+            g.fillVerticalGradient(a, y0 + 0.2f, b, y1 - 0.3f, Col.alpha(pal.neon, 0.07f), Col.alpha(pal.neon, 0f))
+            g.fillRect(a, y1 - 0.34f, b, y1 - 0.3f, 0x40000000)
+            g.fillRect(a, y1 - 0.3f, b, y1, 0xFF2A2834.toInt())
+            val edge = if (side == 0) b else a
+            g.fillRect(if (side == 0) edge - 0.025f else edge, y0, if (side == 0) edge else edge + 0.025f, y1, 0xFF2A2834.toInt())
+        }
+        // A diagonal sheen across both leaves while they're shut.
+        if (open < 0.05f) {
+            g.line(mid - half + 0.12f, y1 - 0.5f, mid - half + 0.5f, y0 + 0.3f, 0.05f, 0x18FFFFFF)
+            g.line(mid + 0.18f, y1 - 0.4f, mid + 0.42f, y0 + 0.9f, 0.03f, 0x12FFFFFF)
+        }
+    }
+
+    /** Express band, hall lantern (floor number and direction) and call button light over a landing. */
+    private fun landingFront(pal: Palette, s: Shaft, fi: Int, gy: Float, car: com.bradflaugher.aboutthataction.engine.Elevator?) {
+        val sx = s.x
+        val x0 = sx - Geo.SHAFT_W / 2f
+        val x1 = sx + Geo.SHAFT_W / 2f
+        val fy = gy - 2.6f
+        val ride = fi < s.bottom
         if (s.express) {
             // Express shafts wear a gold band on the header: 3–5 floors in one go.
             g.fillRect(x0 - 0.1f, fy - 0.12f, x1 + 0.1f, fy - 0.06f, 0xFFFFC23C.toInt())
@@ -706,19 +803,6 @@ internal class Building(private val f: Frame) {
         }
     }
 
-    /** Eases every car's doors toward open or shut, once per frame. */
-    fun updateCars() {
-        val w = f.w
-        // Forget door animation state for shafts the world has culled.
-        if (carOpen.size > w.elevators.size) carOpen.keys.retainAll(w.elevators.keys)
-        for (car in w.elevators.values) {
-            val state = carOpen.getOrPut(car.shaft.id) { floatArrayOf(if (car.doorsOpen) 1f else 0f) }
-            val target = if (car.doorsOpen) 1f else 0f
-            state[0] += (target - state[0]) * min(1f, f.dt * 7f)
-            if (f.dt == 0f) state[0] = target
-        }
-    }
-
     /**
      * The cars in floor [hs]'s band (its room and the slab under it), clipped to it, and only in
      * columns that open into this hallway: elsewhere the shaft runs behind the wall. Drawn inside
@@ -726,7 +810,8 @@ internal class Building(private val f: Frame) {
      */
     fun cars(hs: HallState, actors: Actors) {
         val fi = hs.plan.index
-        val bandTop = if (fi == 0) f.camY - 2f else fi * H + SLAB
+        // On the roof the car docks in the lift house: nothing of it shows above the door header.
+        val bandTop = if (fi == 0) Geo.groundY(0) - 2.6f else fi * H + SLAB
         val bandBottom = (fi + 1) * H + SLAB
         if (!f.visibleY(bandTop, bandBottom)) return
         for (car in f.w.elevators.values) {
@@ -769,7 +854,7 @@ internal class Building(private val f: Frame) {
         if (!f.visibleY(top - 4f, yb + 0.3f)) return
         val fs = w.floors[car.pos.roundToInt()] ?: w.floors[s.top]
         val pal = f.palette(fs)
-        val open = carOpen[s.id]?.get(0) ?: if (car.doorsOpen) 1f else 0f
+        val open = doorOpen(car, car.pos.roundToInt())
         val x0 = s.x - 0.52f
         val x1 = s.x + 0.52f
         // Hoist ropes to the crosshead.

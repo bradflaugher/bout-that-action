@@ -578,6 +578,54 @@ class MechanicsTest {
     }
 
     @Test
+    fun idleCarsStayParkedWithTheirDoorsShut() {
+        val (w, _) = atLanding()
+        val parked = w.elevators.mapValues { it.value.pos }
+        assertTrue(w.elevators.values.all { it.parked && !it.doorsOpen })
+        var noise = 0
+        run(w, 20f) {
+            it.player.invuln = 1f
+            noise += it.events.count { e -> e == GameEvent.ElevatorDing || e == GameEvent.ElevatorMove }
+        }
+        for ((id, pos) in parked) w.elevators[id]?.let { assertEquals("car $id stays put", pos, it.pos, 1e-4f) }
+        assertEquals("no dings from cars nobody called", 0, noise)
+    }
+
+    @Test
+    fun aParkedCarAtYourFloorJustOpensAndThenWaitsForYou() {
+        val (w, shaft) = atLanding()
+        val car = w.elevators[shaft.id]!!
+        car.pos = shaft.top.toFloat()
+        assertTrue(car.parked)
+        assertEquals(ContextAction.CALL, w.tapAction())
+        w.commands += Command.TAP
+        w.step(dt)
+        assertTrue(car.doorsOpen)
+        assertTrue(w.events.contains(GameEvent.ElevatorDing))
+        run(w, World.CALL_HOLD + 0.2f) { it.player.invuln = 1f }
+        // Nobody got in: the doors shut and it stays right here, ready for the next tap.
+        assertTrue(car.parked)
+        assertFalse(car.doorsOpen)
+        assertEquals(shaft.top.toFloat(), car.pos, 1e-4f)
+    }
+
+    @Test
+    fun aCalledCarParksWhereItWasCalled() {
+        val (w, shaft) = atLanding()
+        val car = w.elevators[shaft.id]!!
+        car.pos = shaft.bottom.toFloat()
+        w.commands += Command.TAP
+        w.step(dt)
+        assertFalse(car.parked)
+        run(w, (shaft.bottom - shaft.top) / World.ELEVATOR_SPEED + World.CALL_HOLD + 1f) {
+            it.player.invuln = 1f
+            it.player.x = 0.5f // walk off: don't board
+        }
+        assertTrue(car.parked)
+        assertEquals(shaft.top.toFloat(), car.pos, 1e-4f)
+    }
+
+    @Test
     fun enteringANewZoneAnnouncesIt() {
         val (seed, f) = find(20..24) { plan -> plan.shafts.any { it.top == plan.index && it.bottom >= 25 } }
         val w = world(floor = f, seed = seed)

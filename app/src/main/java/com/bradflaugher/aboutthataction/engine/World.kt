@@ -339,10 +339,11 @@ class World(val config: RunConfig) {
         }
         for (shaft in plan.shafts) {
             elevators.getOrPut(shaft.id) {
+                // Cars wait, parked with their doors shut, until somebody calls them.
                 Elevator(shaft).also {
                     it.pos = (shaft.top + rng.nextInt(shaft.bottom - shaft.top + 1)).toFloat()
-                    it.dir = if (rng.chance(0.5f)) 1 else -1
-                    it.pause = rng.range(0.2f, 1.2f)
+                    it.pause = 0f
+                    it.parked = true
                 }
             }
         }
@@ -726,6 +727,18 @@ class World(val config: RunConfig) {
     private fun callElevator(car: Elevator) {
         val f = player.floor
         if (car.carrying || car.called == f) return
+        if (car.parked) {
+            car.parked = false
+            val at = car.pos.roundToInt()
+            if (at == f) {
+                // Already here: the doors just open.
+                car.pause = CALL_HOLD
+                car.openTime = 0f
+                events += GameEvent.ElevatorDing
+                return
+            }
+            car.dir = if (f > at) 1 else -1
+        }
         car.called = f
         // Don't dawdle at another floor: it heads over as soon as its doors can close.
         if (car.doorsOpen && car.atFloor != f) car.pause = min(car.pause, 0.35f)
@@ -2110,6 +2123,10 @@ class World(val config: RunConfig) {
 
     private fun updateElevators(dtW: Float, dtP: Float) {
         for (car in elevators.values) {
+            if (car.parked) {
+                if (car.pause <= 0f) continue
+                car.parked = false // its doors were opened: it's back in service
+            }
             val dt = if (car.carrying) dtP else dtW
             val s = car.shaft
             if (car.pause > 0f) {
@@ -2127,8 +2144,10 @@ class World(val config: RunConfig) {
                     } else if (car.called >= 0 && car.called != at) {
                         car.dir = if (car.called > at) 1 else -1
                     } else {
+                        // Nobody waiting elsewhere: the doors shut and it stays put.
                         if (car.called == at) car.called = -1
-                        if (at >= s.bottom) car.dir = -1 else if (at <= s.top) car.dir = 1
+                        car.parked = true
+                        car.openTime = 0f
                     }
                 }
                 continue

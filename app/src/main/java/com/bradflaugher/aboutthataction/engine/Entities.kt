@@ -244,6 +244,8 @@ class Elevator(val shaft: Shaft) {
     var openTime = 0f
     /** A floor someone called the car to (it goes straight there), or -1. */
     var called = -1
+    /** Idle: standing at a floor with its doors shut until somebody calls it. */
+    var parked = false
     val atFloor: Int? get() = if (pause > 0f) Math.round(pos) else null
     val doorsOpen: Boolean get() = pause > 0f
 }

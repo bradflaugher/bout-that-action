@@ -51,19 +51,19 @@ class AudioOutput(private val engine: SoundEngine) {
                     )
                     .setTransferMode(AudioTrack.MODE_STREAM)
                     .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
-                    .setBufferSizeInBytes(minFrames * BUFFER_MULTIPLE * BYTES_PER_FRAME)
+                    .setBufferSizeInBytes(bufferFrames(sr, minFrames) * BYTES_PER_FRAME)
                     .build()
             }.getOrNull() ?: return
-            if (t.state != AudioTrack.STATE_INITIALIZED || runCatching { t.play() }.isFailure) {
+            if (t.state != AudioTrack.STATE_INITIALIZED) {
                 t.release()
                 return
             }
-            // Write in small chunks: a fraction of the device buffer keeps latency low.
+            // Playback starts from the audio thread once the buffer is primed.
             val chunk = (minFrames / 2).coerceIn(64, 512)
             track = t
             running = true
             paused = false
-            thread = Thread({ loop(t, chunk) }, "ata-audio").apply {
+            thread = Thread({ loop(t, chunk, t.bufferSizeInFrames) }, "ata-audio").apply {
                 priority = Thread.MAX_PRIORITY
                 start()
             }
@@ -112,10 +112,20 @@ class AudioOutput(private val engine: SoundEngine) {
         t?.let { runCatching { it.release() } }
     }
 
-    private fun loop(t: AudioTrack, chunk: Int) {
+    private fun loop(t: AudioTrack, chunk: Int, capacity: Int) {
         Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
         val buf = FloatArray(chunk * 2)
-        while (running) {
+        // Fill the buffer before starting: the first blocks are the slowest (class loading,
+        // JIT) and a track that starts empty underruns and drops out right away.
+        var primed = 0
+        while (running && primed + chunk <= capacity) {
+            engine.render(buf, chunk)
+            val w = try { t.write(buf, 0, buf.size, AudioTrack.WRITE_NON_BLOCKING) } catch (_: IllegalStateException) { -1 }
+            if (w <= 0) break
+            primed += w / 2
+        }
+        if (running && !paused && runCatching { t.play() }.isFailure) dead = true
+        while (running && !dead) {
             if (paused) {
                 lock.withLock {
                     while (paused && running) wake.await()
@@ -145,6 +155,11 @@ class AudioOutput(private val engine: SoundEngine) {
 
     private companion object {
         const val BYTES_PER_FRAME = 8 // stereo float
-        const val BUFFER_MULTIPLE = 2
+
+        /**
+         * About 64 ms of audio: roomy enough that a hiccup (startup, a new run being built, a
+         * GC) can't starve the track and cut the music, still quick enough for effects.
+         */
+        fun bufferFrames(sampleRate: Int, minFrames: Int): Int = maxOf(minFrames * 2, sampleRate * 64 / 1000)
     }
 }
