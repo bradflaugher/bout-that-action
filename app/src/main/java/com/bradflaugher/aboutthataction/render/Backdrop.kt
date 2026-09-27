@@ -25,15 +25,55 @@ internal class Backdrop(private val f: Frame) {
         val pal = Palette.of(Zone.ROOFTOP)
         val top = f.camY - 1f
         val bottom = Geo.groundY(0) + 0.5f
+        val l = -0.6f
+        val r = Geo.FLOOR_W + 0.6f
         g.save()
-        g.clipRect(-0.6f, top, Geo.FLOOR_W + 0.6f, bottom)
+        g.clipRect(l, top, r, bottom)
         // Screen-anchored gradient: deep indigo overhead to a magenta horizon.
-        g.fillVerticalGradient(-0.6f, top, Geo.FLOOR_W + 0.6f, py(9f, 0.05f), pal.skyTop, pal.skyBottom)
-        g.fillRect(-0.6f, py(9f, 0.05f) - 0.01f, Geo.FLOOR_W + 0.6f, bottom, pal.skyBottom)
+        g.fillVerticalGradient(l, top, r, py(9f, 0.05f), pal.skyTop, pal.skyBottom)
+        g.fillRect(l, py(9f, 0.05f) - 0.01f, r, bottom, pal.skyBottom)
         stars(top, bottom)
         synthSun(pal)
-        city(Zone.ROOFTOP, pal, -0.6f, top, Geo.FLOOR_W + 0.6f, bottom, rooftop = true)
+        clouds(pal, top)
+        city(Zone.ROOFTOP, pal, l, top, r, bottom, rooftop = true)
         g.restore()
+    }
+
+    /** Long, thin cloud banks lit from below by the city, drifting slowly. */
+    private fun clouds(pal: Palette, top: Float) {
+        for (i in 0 until 5) {
+            val y = py(1.2f + i * 0.95f, 0.05f)
+            if (y < top - 1f) continue
+            val w = 4f + hash(i, 16) * 5f
+            val x = fract(hash(i, 17) + f.t * (0.004f + i * 0.002f)) * (Geo.FLOOR_W + w + 2f) - w - 1f
+            val h = 0.16f + hash(i, 18) * 0.14f
+            val c = Col.alpha(Col.lerp(pal.skyTop, pal.skyBottom, 0.35f + i * 0.1f), 0.8f)
+            g.fillRoundRect(x, y, x + w, y + h, h / 2f, c)
+            g.fillRoundRect(x + w * 0.2f, y - h * 0.6f, x + w * 0.7f, y + h * 0.3f, h / 2f, c)
+            g.fillRect(x + w * 0.1f, y + h - 0.02f, x + w * 0.9f, y + h, Col.alpha(pal.neon, 0.12f))
+        }
+    }
+
+    /** Two searchlights sweeping the clouds from somewhere down in the city. */
+    private fun searchlights(pal: Palette, y1: Float) {
+        val poly = f.poly
+        for (i in 0 until 2) {
+            val ox = if (i == 0) 1.6f else 9.2f
+            val oy = py(12.5f, 0.16f)
+            if (oy - 12f > y1) continue
+            val a = sin(f.t * (0.23f + i * 0.07f) + i * 2.4f) * 0.55f + (if (i == 0) 0.25f else -0.25f)
+            val len = 14f
+            val dx = kotlin.math.sin(a)
+            val dy = -kotlin.math.cos(a)
+            val nx = -dy
+            val ny = dx
+            val w0 = 0.12f
+            val w1 = 1.1f
+            val ex = ox + dx * len
+            val ey = oy + dy * len
+            poly.quad(g, ox + nx * w0, oy + ny * w0, ox - nx * w0, oy - ny * w0, ex - nx * w1, ey - ny * w1, ex + nx * w1, ey + ny * w1, Col.alpha(pal.haze, 0.07f))
+            poly.quad(g, ox + nx * w0 * 0.5f, oy + ny * w0 * 0.5f, ox - nx * w0 * 0.5f, oy - ny * w0 * 0.5f, ex - nx * w1 * 0.45f, ey - ny * w1 * 0.45f, ex + nx * w1 * 0.45f, ey + ny * w1 * 0.45f, Col.alpha(pal.haze, 0.05f))
+        }
     }
 
     private fun stars(top: Float, bottom: Float) {
@@ -52,9 +92,7 @@ internal class Backdrop(private val f: Frame) {
         val cx = 7.4f
         val cy = py(5.4f, 0.06f)
         val r = 2.3f
-        g.fillCircle(cx, cy, r * 2.4f, 0x10FF3D9A)
-        g.fillCircle(cx, cy, r * 1.6f, 0x18FF3D9A)
-        g.fillCircle(cx, cy, r * 1.2f, 0x22FF8A5A)
+        g.fillRadialGradient(cx, cy, r * 2.8f, 0x55FF5A7A, 0x00FF3D9A)
         g.save()
         g.clipRect(cx - r, cy - r, cx + r, cy + r)
         // Vertical gradient disc: draw the gradient clipped by a stack of slices.
@@ -95,12 +133,36 @@ internal class Backdrop(private val f: Frame) {
     // -------------------------------------------------------------------- city
 
     private fun city(zone: Zone, pal: Palette, x0: Float, y0: Float, x1: Float, y1: Float, rooftop: Boolean) {
+        val fog = Col.lerp(pal.skyBottom, pal.haze, 0.25f)
+        if (rooftop) searchlights(pal, y1)
         cityLayer(pal.bgFar, 0.10f, 1, 2.0f, 7.5f, 0.5f, 1.2f, x0, y0, x1, y1, 0.28f, 0.34f, false)
+        // Atmospheric perspective: fog settles between the layers.
+        g.fillVerticalGradient(x0, max(y0, py(4f, 0.12f)), x1, y1, Col.alpha(fog, 0f), Col.alpha(fog, 0.55f))
         cityLayer(pal.bgMid, 0.22f, 2, 4.2f, 10.5f, 0.8f, 1.7f, x0, y0, x1, y1, 0.34f, 0.42f, rooftop)
+        g.fillVerticalGradient(x0, max(y0, py(9.5f, 0.28f)), x1, y1, Col.alpha(fog, 0f), Col.alpha(fog, 0.3f))
+        if (rooftop) traffic(pal, x0, y0, x1, y1)
         cityLayer(pal.bgNear, 0.38f, 3, 7.0f, 12.5f, 1.1f, 2.2f, x0, y0, x1, y1, 0.42f, 0.5f, rooftop)
         if (zone == Zone.TOWER) {
             // Haze band at the bottom of every window.
             g.fillVerticalGradient(x0, y1 - 1.2f, x1, y1, 0x00FF3D9A, 0x30FF3D9A)
+        }
+    }
+
+    /** Flying traffic: tiny lit craft drifting between the towers. */
+    private fun traffic(pal: Palette, x0: Float, y0: Float, x1: Float, y1: Float) {
+        for (i in 0 until 6) {
+            val lane = py(7.5f + (i % 3) * 1.1f, 0.3f)
+            if (lane < y0 || lane > y1) continue
+            val dir = if (i % 2 == 0) 1f else -1f
+            val sp = 0.6f + hash(i, 19) * 0.8f
+            val span = Geo.FLOOR_W + 4f
+            val u = fract(hash(i, 20) + f.t * sp / span)
+            val x = if (dir > 0f) -2f + u * span else Geo.FLOOR_W + 2f - u * span
+            if (x < x0 - 0.3f || x > x1 + 0.3f) continue
+            g.fillRect(x - 0.12f, lane - 0.02f, x + 0.12f, lane + 0.03f, 0xFF0C0818.toInt())
+            g.fillCircle(x + dir * 0.12f, lane, 0.025f, 0xFFFFF0D0.toInt())
+            g.fillCircle(x - dir * 0.12f, lane, 0.02f, 0xFFFF3050.toInt())
+            g.line(x + dir * 0.12f, lane, x + dir * 0.6f, lane + 0.04f, 0.03f, 0x18FFF0D0)
         }
     }
 
@@ -120,6 +182,10 @@ internal class Backdrop(private val f: Frame) {
             val top = py(topMin + hash(i, salt * 7 + 2) * (topMax - topMin), p)
             if (top > y1) continue
             g.fillRect(bx0, max(top, y0 - 0.1f), bx1, y1, color)
+            // Rim light from the sun/haze side and a lit roofline.
+            if (top > y0 - 0.1f) g.fillRect(bx0, top, bx1, top + 0.03f, Col.lerp(color, 0xFFFF7AB0.toInt(), 0.35f))
+            val rimX = if ((bx0 + bx1) / 2f < 7.4f) bx1 - 0.03f else bx0
+            g.fillRect(rimX, max(top, y0 - 0.1f), rimX + 0.03f, y1, Col.lerp(color, 0xFFFF7AB0.toInt(), 0.22f))
             // Stepped crown on some towers.
             if (hash(i, salt * 7 + 3) > 0.6f && top > y0) {
                 g.fillRect(bx0 + w * 0.2f, top - 0.35f, bx1 - w * 0.2f, top, color)
@@ -386,8 +452,9 @@ internal class Backdrop(private val f: Frame) {
                     val sy = top + fract(f.t * 0.8f + s * 0.2f + hash(j, 104)) * (bot - top)
                     g.fillRect(fx - fw * 0.6f, sy, fx + fw * 0.6f, sy + 0.25f, 0xFFFFE890.toInt())
                 }
-                // Splash glow.
-                g.fillRadialGradient(fx, bot, 0.9f, 0x90FFB040.toInt(), 0x00FFB040)
+                // Splash glow (solid discs: no gradient per waterfall).
+                g.fillCircle(fx, bot, 0.7f, 0x20FFB040)
+                g.fillCircle(fx, bot, 0.35f, 0x40FFD070)
             }
         }
         embers(0xFFFF9A2A.toInt(), x0, y0, x1, y1, 24)
@@ -395,7 +462,9 @@ internal class Backdrop(private val f: Frame) {
 
     private fun embers(color: Int, x0: Float, y0: Float, x1: Float, y1: Float, count: Int) {
         val h = y1 - y0
-        for (i in 0 until count) {
+        // Scale with the visible area so small windows stay calm behind the actors.
+        val n = min(count, ((x1 - x0) * h * 2.5f).toInt() + 2)
+        for (i in 0 until n) {
             val ex = x0 + fract(hash(i, 111) + sin(f.t * 0.7f + i) * 0.03f) * (x1 - x0)
             val ey = y1 - fract(hash(i, 112) + f.t * (0.08f + hash(i, 113) * 0.12f)) * h
             val a = 0.4f + 0.6f * hash(i, 114)
@@ -435,16 +504,16 @@ internal class Backdrop(private val f: Frame) {
             val n = 14
             for (i in 0..n) {
                 val xx = x0 - 0.3f + (x1 - x0 + 0.6f) * i / n
-                val tip = if (i % 2 == 0) 1.6f + sin(f.t * 5f + i * 1.7f + l) * 0.5f + hash(i + l, 123) * 0.8f else 0.4f
+                val tip = if (i % 2 == 0) 0.9f + sin(f.t * 5f + i * 1.7f + l) * 0.3f + hash(i + l, 123) * 0.5f else 0.25f
                 poly.add(xx, fy - tip)
             }
-            poly.fill(g, 0xE0FF3A10.toInt())
+            poly.fill(g, 0xB0E0300C.toInt())
             poly.begin()
             poly.add(x1 + 0.3f, fy + 0.2f)
             poly.add(x0 - 0.3f, fy + 0.2f)
             for (i in 0..n) {
                 val xx = x0 - 0.3f + (x1 - x0 + 0.6f) * (i + 0.5f) / n
-                val tip = if (i % 2 == 0) 0.9f + sin(f.t * 7f + i * 2.3f + l) * 0.3f else 0.2f
+                val tip = if (i % 2 == 0) 0.5f + sin(f.t * 7f + i * 2.3f + l) * 0.2f else 0.12f
                 poly.add(xx, fy - tip)
             }
             poly.fill(g, 0xF0FFB020.toInt())
