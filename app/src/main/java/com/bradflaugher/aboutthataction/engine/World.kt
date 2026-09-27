@@ -1006,7 +1006,8 @@ class World(val config: RunConfig) {
         p.state = PlayerState.NORMAL
         p.stateTime = 0f
         p.facing = dir
-        p.x = car.shaft.x + dir * 0.4f
+        // SILENT hides you right in the car's doorway; GUNS HOT steps you out beside it.
+        p.x = if (silent) car.shaft.x else car.shaft.x + dir * 0.4f
         onFloorEntered(f)
         onHallEntered(f, p.hall)
         arriveHidden()
@@ -2223,6 +2224,9 @@ class World(val config: RunConfig) {
                     player.hall = floors[at]?.plan?.landingHall(s)?.coerceAtLeast(0) ?: 0
                     onHallEntered(at, player.hall)
                     events += GameEvent.ElevatorDing
+                    // SILENT: as the doors part you're already in the doorway's shadow, not
+                    // standing lit in the open car for anyone facing it.
+                    if (silent && at >= s.bottom) exitElevator(car, if (s.x < Geo.FLOOR_W / 2f) 1 else -1)
                 }
             } else {
                 val called = car.called

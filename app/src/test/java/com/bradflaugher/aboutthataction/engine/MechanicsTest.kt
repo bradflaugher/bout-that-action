@@ -468,9 +468,9 @@ class MechanicsTest {
     }
 
     /** A world on a floor where hallway [hall] has a local (not express) ride down, standing at it. */
-    private fun atLanding(express: Boolean = false): Pair<World, Shaft> {
+    private fun atLanding(express: Boolean = false, silent: Boolean = true): Pair<World, Shaft> {
         val (seed, f) = find(3..90) { plan -> plan.halls.any { hp -> hp.downLandings.any { it.top == plan.index && it.express == express } } }
-        val w = world(floor = f, seed = seed)
+        val w = world(floor = f, seed = seed, silent = silent)
         val plan = w.floor(f)!!.plan
         val h = plan.halls.indexOfFirst { hp -> hp.downLandings.any { it.top == f && it.express == express } }
         val shaft = plan.halls[h].downLandings.first { it.top == f && it.express == express }
@@ -498,15 +498,60 @@ class MechanicsTest {
             if (it.player.state == PlayerState.ELEVATOR) {
                 assertTrue("always down", it.player.floorF >= lowest - 1e-3f)
                 lowest = it.player.floorF
-                if (car.doorsOpen && !wasOpen) stops++
-                wasOpen = car.doorsOpen
             }
+            // (In SILENT you're out of the car the moment its doors open at the bottom.)
+            if (car.doorsOpen && !wasOpen) stops++
+            wasOpen = car.doorsOpen
         }
         assertEquals("no stops on the way", 1, stops)
         assertEquals(shaft.bottom, w.player.floor)
         assertEquals("SILENT: you arrive in the doorway's shadow", PlayerState.DOOR, w.player.state)
         assertEquals(0, w.player.hall)
         assertEquals(shaft.bottom, w.deepest)
+    }
+
+    @Test
+    fun inSilentTheCarLetsYouOutHiddenInItsDoorwayTheMomentItStops() {
+        val (w, shaft) = atLanding()
+        val car = w.elevators[shaft.id]!!
+        car.pos = shaft.top.toFloat()
+        car.pause = 5f
+        car.openTime = 1f
+        w.commands += Command.TAP
+        run(w, 0.1f)
+        assertEquals(PlayerState.ELEVATOR, w.player.state)
+        // A guard on the landing below, staring right at the car doors.
+        val landing = w.floor(shaft.bottom)!!.plan.landingHall(shaft).coerceAtLeast(0)
+        val gx = if (shaft.x < Geo.FLOOR_W / 2f) shaft.x + 3f else shaft.x - 3f
+        val g = Enemy(3000, EnemyKind.AGENT, gx, shaft.bottom, if (gx > shaft.x) -1 else 1, landing)
+        g.patrolA = gx
+        g.patrolB = gx
+        g.timer = 99f
+        w.enemies += g
+        var seenInOpenCar = false
+        run(w, 8f) {
+            it.player.invuln = 1f
+            val p = it.player
+            if (p.state == PlayerState.ELEVATOR && car.doorsOpen && car.atFloor == shaft.bottom) seenInOpenCar = true
+        }
+        assertFalse("never standing lit in the open car at the bottom", seenInOpenCar)
+        assertEquals(shaft.bottom, w.player.floor)
+        assertEquals(PlayerState.DOOR, w.player.state)
+        assertEquals("hidden right in the car's doorway", shaft.x, w.player.x, 0.01f)
+        assertEquals("he stares right through you", EnemyState.PATROL, g.state)
+    }
+
+    @Test
+    fun gunsHotStillStepsOutBesideTheCar() {
+        val (w, shaft) = atLanding(silent = false)
+        val car = w.elevators[shaft.id]!!
+        car.pos = shaft.top.toFloat()
+        car.pause = 5f
+        car.openTime = 1f
+        w.commands += Command.TAP
+        run(w, 8f) { it.player.invuln = 1f; it.player.fireCooldown = 99f }
+        assertEquals(shaft.bottom, w.player.floor)
+        assertEquals(PlayerState.NORMAL, w.player.state)
     }
 
     @Test
