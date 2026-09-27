@@ -74,10 +74,6 @@ class MainActivity : ComponentActivity(), GameView.Host {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         window.setDecorFitsSystemWindows(false)
-        window.insetsController?.apply {
-            hide(WindowInsets.Type.systemBars())
-            systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
 
         prefs = Prefs(this)
         settings = prefs.loadSettings()
@@ -140,6 +136,12 @@ class MainActivity : ComponentActivity(), GameView.Host {
                     }
                 }
             }
+        }
+        // After setContent: API 37's PhoneWindow.getInsetsController() dereferences the decor
+        // view without a null check, so asking for it before the decor exists crashes.
+        window.insetsController?.apply {
+            hide(WindowInsets.Type.systemBars())
+            systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
