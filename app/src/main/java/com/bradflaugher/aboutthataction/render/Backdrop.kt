@@ -127,6 +127,10 @@ internal class Backdrop(private val f: Frame) {
             Zone.HELL -> hell(pal, x0, y0, x1, y1)
             Zone.VOID -> void(pal, x0, y0, x1, y1)
         }
+        // Atmospheric perspective: the far side of every view dissolves into the zone's haze.
+        if (zone == Zone.LABS || zone == Zone.METRO || zone == Zone.MINES || zone == Zone.MAGMA) {
+            g.fillVerticalGradient(x0, y0, x1, y1, Col.alpha(pal.haze, 0.12f), Col.alpha(pal.haze, 0.02f))
+        }
         if (isVoid) glitch(pal, x0, y0, x1, y1)
     }
 
@@ -474,51 +478,72 @@ internal class Backdrop(private val f: Frame) {
 
     // -------------------------------------------------------------------- hell
 
+    /**
+     * The view out of hell: a crimson sky over a sea of fire, two ranks of silhouetted spires
+     * and a distant citadel, ash falling and embers rising. The horizon is anchored to the
+     * window so every window gets the whole vista; the spires slide with parallax.
+     */
     private fun hell(pal: Palette, x0: Float, y0: Float, x1: Float, y1: Float) {
-        g.fillVerticalGradient(x0, y0, x1, y1, pal.skyTop, pal.skyBottom)
-        val p = 0.22f
-        val lvl = 6f
-        val l0 = floor((y0 - py(0f, p)) / lvl).toInt() - 1
-        val l1 = ceil((y1 - py(0f, p)) / lvl).toInt()
         val poly = f.poly
-        for (l in l0..l1) {
-            val ly = py(l * lvl, p)
-            // Bone spires.
-            for (j in 0 until 4) {
-                val sx = hash(j + l * 7, 121) * 11f - 0.3f
-                if (sx + 0.5f < x0 || sx - 0.5f > x1) continue
-                val sh = 2.5f + hash(j + l * 7, 122) * 2.5f
-                val base = ly + lvl
-                poly.tri(g, sx - 0.35f, base, sx + 0.35f, base, sx + 0.05f, base - sh, 0xFF2A0408.toInt())
-                for (r in 1..4) {
-                    val ry = base - sh * r / 5f
-                    val rw = 0.35f * (1f - r / 5f) + 0.25f
-                    g.line(sx - rw, ry + 0.12f, sx + rw, ry - 0.05f, 0.05f, 0xFF3A0A10.toInt())
-                }
+        val hz = y0 + (y1 - y0) * 0.66f
+        g.fillVerticalGradient(x0, y0, x1, hz, pal.skyTop, 0xFFD8300C.toInt())
+        // A vast glow on the horizon.
+        g.fillRect(x0, hz - 0.35f, x1, hz, 0x30FFB040)
+        g.fillRect(x0, hz - 0.15f, x1, hz, 0x40FFD070)
+        // Far rank: citadel and needles, slow parallax.
+        val off1 = f.camY * 0.03f
+        for (i in -1 until 9) {
+            val sx = i * 1.4f + (hash(i, 125) - 0.5f) * 0.6f - (off1 % 1.4f)
+            if (sx + 0.4f < x0 || sx - 0.4f > x1) continue
+            val h = 0.5f + hash(i, 126) * 0.9f
+            poly.tri(g, sx - 0.16f, hz, sx + 0.16f, hz, sx, hz - h, 0xFF4A0810.toInt())
+            if (i % 3 == 0) {
+                g.fillRect(sx - 0.3f, hz - h * 0.45f, sx + 0.3f, hz, 0xFF4A0810.toInt())
+                g.fillRect(sx - 0.05f, hz - h * 0.35f, sx + 0.05f, hz - h * 0.28f, 0xFFFFB040.toInt())
             }
-            // Wall of flames.
-            val fy = ly + lvl
-            poly.begin()
-            poly.add(x1 + 0.3f, fy + 0.2f)
-            poly.add(x0 - 0.3f, fy + 0.2f)
-            val n = 14
-            for (i in 0..n) {
-                val xx = x0 - 0.3f + (x1 - x0 + 0.6f) * i / n
-                val tip = if (i % 2 == 0) 0.9f + sin(f.t * 5f + i * 1.7f + l) * 0.3f + hash(i + l, 123) * 0.5f else 0.25f
-                poly.add(xx, fy - tip)
-            }
-            poly.fill(g, 0xB0E0300C.toInt())
-            poly.begin()
-            poly.add(x1 + 0.3f, fy + 0.2f)
-            poly.add(x0 - 0.3f, fy + 0.2f)
-            for (i in 0..n) {
-                val xx = x0 - 0.3f + (x1 - x0 + 0.6f) * (i + 0.5f) / n
-                val tip = if (i % 2 == 0) 0.5f + sin(f.t * 7f + i * 2.3f + l) * 0.2f else 0.12f
-                poly.add(xx, fy - tip)
-            }
-            poly.fill(g, 0xF0FFB020.toInt())
         }
+        // Near rank: bone spires, darker, faster.
+        val off2 = f.camY * 0.08f
+        for (i in -1 until 7) {
+            val sx = i * 1.9f + (hash(i, 127) - 0.5f) * 0.8f - (off2 % 1.9f)
+            if (sx + 0.5f < x0 || sx - 0.5f > x1) continue
+            val h = 0.9f + hash(i, 128) * 0.9f
+            poly.quad(g, sx - 0.22f, hz + 0.05f, sx + 0.22f, hz + 0.05f, sx + 0.06f, hz - h, sx - 0.02f, hz - h * 1.04f, 0xFF1A0206.toInt())
+            for (r in 1..3) {
+                val ry = hz - h * r / 4f
+                g.line(sx - 0.2f + r * 0.03f, ry, sx + 0.2f - r * 0.03f, ry - 0.06f, 0.035f, 0xFF1A0206.toInt())
+            }
+        }
+        // The sea of fire: layered, animated tongues along the horizon.
+        g.fillVerticalGradient(x0, hz, x1, y1, 0xFFFF8A20.toInt(), 0xFF6A0808.toInt())
+        for (layer in 0..1) {
+            poly.begin()
+            poly.add(x1 + 0.2f, y1)
+            poly.add(x0 - 0.2f, y1)
+            val n = 10
+            for (i in 0..n) {
+                val xx = x0 - 0.2f + (x1 - x0 + 0.4f) * i / n
+                val amp = if (layer == 0) 0.22f else 0.12f
+                val tip = if (i % 2 == 0) amp + sin(f.t * (4f + layer * 2f) + i * 1.9f + xx) * amp * 0.5f else amp * 0.2f
+                poly.add(xx, hz + layer * 0.12f - tip)
+            }
+            poly.fill(g, if (layer == 0) 0xC0FF5A10.toInt() else 0xE0FFC040.toInt())
+        }
+        for (k in 0 until 4) {
+            val ly = hz + 0.25f + k * 0.18f
+            val w = 0.3f + hash(k, 129) * 0.4f
+            val lx = x0 + fract(hash(k, 130) + f.t * 0.05f * (k + 1)) * (x1 - x0)
+            g.fillRect(lx - w, ly, lx + w, ly + 0.02f, 0x60FFE0A0)
+        }
+        // Ash falling, embers rising.
         embers(0xFFFFB040.toInt(), x0, y0, x1, y1, 30)
+        val h = y1 - y0
+        val n = kotlin.math.min(12, ((x1 - x0) * h * 2f).toInt() + 2)
+        for (i in 0 until n) {
+            val ax = x0 + fract(hash(i, 131) + sin(f.t * 0.4f + i) * 0.02f) * (x1 - x0)
+            val ay = y0 + fract(hash(i, 132) + f.t * 0.06f) * h
+            g.fillRect(ax, ay, ax + 0.025f, ay + 0.025f, 0x70301818)
+        }
     }
 
     // -------------------------------------------------------------------- void
