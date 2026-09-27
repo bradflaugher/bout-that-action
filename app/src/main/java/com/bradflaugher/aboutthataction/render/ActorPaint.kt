@@ -1,6 +1,8 @@
 package com.bradflaugher.aboutthataction.render
 
 import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -10,7 +12,10 @@ import kotlin.math.sqrt
  * pass back to front. Carries the per-actor tint (hit flash, silhouette, fade).
  *
  * One line weight ([out], a fixed pixel width) for every character, one key light (from the ceiling)
- * and one rim light (neon bounce from behind), so the whole cast sits together.
+ * and one rim light (neon bounce from behind), so the whole cast sits together. At full detail
+ * ([hi]) forms are painted like a cel illustration: tapered, sculpted limbs, a cool violet core
+ * shadow on the side away from the lamp ([shade]), a warm lit edge facing it ([light]) and
+ * shaded balls for heads and domes.
  */
 internal class ActorPaint(private val f: Frame) {
     val g get() = f.g
@@ -25,17 +30,27 @@ internal class ActorPaint(private val f: Frame) {
     var flatAmt = 0f
 
     /**
-     * This frame's outline weight in world units: a fixed pixel width (~2.9 px) so the ink
+     * This frame's outline weight in world units: a fixed pixel width (~2.4 px) so the ink
      * holds up however far the camera pulls back, clamped so it never turns into a cartoon.
      */
     var out = OUT
         private set
+
+    /**
+     * Full detail: form shading, tapered limbs, gloss. Off on distant floors (the renderer's
+     * LOD), where a character is a few dozen pixels under a veil and the cheap pass reads the same.
+     */
+    var hi = true
+
+    /** Worth spending draw calls on shading: full detail and not a flat silhouette. */
+    val shading: Boolean get() = hi && !ink && flatAmt < 0.9f
 
     fun reset() {
         alphaMul = 1f
         flatAmt = 0f
         noInk = false
         ink = false
+        hi = true
         out = (OUT_PX / f.s).coerceIn(OUT, OUT_MAX)
     }
 
@@ -98,16 +113,125 @@ internal class ActorPaint(private val f: Frame) {
     }
 
     /**
-     * A limb bone: one round-capped stroke at the mean of the root and end widths. At the
-     * zoomed-out camera a taper is sub-pixel, so it costs a draw call and reads as nothing.
+     * A limb bone. At full detail a tapered, sculpted segment: root width [w1], end width
+     * [w2], swelling to [bulge] (0 = none) a third of the way down (a calf, a forearm), with
+     * round joints, a cool core shadow on the side away from the key light and a thin lit edge
+     * on the side facing it. On distant floors, one round-capped stroke at the mean width.
      */
-    fun bone(x1: Float, y1: Float, x2: Float, y2: Float, w1: Float, w2: Float, color: Int, sep: Boolean = false) {
-        val w = (w1 + w2) * 0.5f
+    fun bone(x1: Float, y1: Float, x2: Float, y2: Float, w1: Float, w2: Float, color: Int, sep: Boolean = false, bulge: Float = 0f, lit: Boolean = true) {
+        if (!hi) {
+            val w = (w1 + w2) * 0.5f
+            if (ink || (sep && !noInk)) {
+                if (!noInk) g.line(x1, y1, x2, y2, w + (if (ink) out * 2f else out * 1.6f), inkC())
+                if (ink) return
+            }
+            g.line(x1, y1, x2, y2, w, c(color))
+            return
+        }
+        val dx = x2 - x1
+        val dy = y2 - y1
+        val len = sqrt(dx * dx + dy * dy)
+        if (len < 1e-4f) {
+            disc(x1, y1, max(w1, w2) * 0.5f, color)
+            return
+        }
+        val ux = dx / len
+        val uy = dy / len
+        // The side away from the light gets the shadow: flip the normal to face away.
+        var px = -uy
+        var py = ux
+        if (px * lightX + py * lightY > 0f) {
+            px = -px; py = -py
+        }
+        val wb = if (bulge > 0f) bulge else (w1 * 0.66f + w2 * 0.34f)
         if (ink || (sep && !noInk)) {
-            if (!noInk) g.line(x1, y1, x2, y2, w + (if (ink) out * 2f else out * 1.6f), inkC())
+            if (!noInk) limbOutline(x1, y1, x2, y2, ux, uy, px, py, w1, wb, w2, if (ink) out else out * 0.8f)
             if (ink) return
         }
-        g.line(x1, y1, x2, y2, w, c(color))
+        val col = c(color)
+        limbFill(x1, y1, x2, y2, ux, uy, px, py, w1, wb, w2, 0f, col)
+        if (flatAmt >= 0.9f) return
+        // Core shadow: the shadow-side 45% of the limb, in the shade tone.
+        val sh = c(shade(color))
+        val a = 0.5f
+        begin()
+            .add(x1 + px * w1 * a, y1 + py * w1 * a)
+            .add(x1 + dx * 0.33f + px * wb * a, y1 + dy * 0.33f + py * wb * a)
+            .add(x2 + px * w2 * a, y2 + py * w2 * a)
+            .add(x2 + px * w2 * 0.05f, y2 + py * w2 * 0.05f)
+            .add(x1 + dx * 0.33f + px * wb * 0.02f, y1 + dy * 0.33f + py * wb * 0.02f)
+            .add(x1 + px * w1 * 0.05f, y1 + py * w1 * 0.05f)
+        fillBuilt(sh)
+        if (lit) {
+            // A thin lit edge on the light side, where the ceiling lamp catches the cloth.
+            val li = 0.36f
+            g.line(
+                x1 + dx * 0.1f - px * w1 * li, y1 + dy * 0.1f - py * w1 * li,
+                x1 + dx * 0.7f - px * (wb * 0.6f + w2 * 0.4f) * li, y1 + dy * 0.7f - py * (wb * 0.6f + w2 * 0.4f) * li,
+                min(w1, w2) * 0.16f, c(Col.alpha(light(color), 0.8f)),
+            )
+        }
+    }
+
+    private val limbPts = FloatArray(12)
+
+    /** The tapered limb polygon grown by [grow] (sides only; the round joints cover the ends). */
+    private fun limbFill(x1: Float, y1: Float, x2: Float, y2: Float, ux: Float, uy: Float, px: Float, py: Float, w1: Float, wb: Float, w2: Float, grow: Float, color: Int) {
+        val dx = x2 - x1
+        val dy = y2 - y1
+        val a = w1 * 0.5f + grow
+        val b = wb * 0.5f + grow
+        val e = w2 * 0.5f + grow
+        val bx = x1 + dx * 0.33f
+        val by = y1 + dy * 0.33f
+        val q = limbPts
+        q[0] = x1 + px * a; q[1] = y1 + py * a
+        q[2] = bx + px * b; q[3] = by + py * b
+        q[4] = x2 + px * e; q[5] = y2 + py * e
+        q[6] = x2 - px * e; q[7] = y2 - py * e
+        q[8] = bx - px * b; q[9] = by - py * b
+        q[10] = x1 - px * a; q[11] = y1 - py * a
+        g.fillPolygon(q, color)
+        g.fillCircle(x1, y1, a, color)
+        g.fillCircle(x2, y2, e, color)
+    }
+
+    private fun limbOutline(x1: Float, y1: Float, x2: Float, y2: Float, ux: Float, uy: Float, px: Float, py: Float, w1: Float, wb: Float, w2: Float, d: Float) =
+        limbFill(x1, y1, x2, y2, ux, uy, px, py, w1, wb, w2, d, inkC())
+
+    /**
+     * A shaded ball (heads, joints, domes): the shade tone, then the base tone offset toward
+     * the key light, so a crescent of shadow wraps the far side. A soft gloss dot if [gloss].
+     */
+    fun ball(x: Float, y: Float, r: Float, color: Int, gloss: Float = 0f) {
+        if (!shading) {
+            disc(x, y, r, color)
+            return
+        }
+        g.fillCircle(x, y, r, c(shade(color)))
+        val k = 0.2f
+        g.fillCircle(x + lightX * r * k, y + lightY * r * k, r * (1f - k), c(color))
+        if (gloss > 0f) {
+            g.blend(Gfx.Blend.ADD)
+            g.glow(x + lightX * r * 0.4f, y + lightY * r * 0.5f, r * 0.6f, c(Col.alpha(0xFFFFFFFF.toInt(), gloss * (1f - flatAmt))))
+            g.blend(Gfx.Blend.NORMAL)
+        }
+    }
+
+    /** Key light direction (unit, toward the lamp: up and a little in front of the facing). */
+    var lightX = 0f
+        private set
+    var lightY = -1f
+        private set
+
+    fun lightFrom(dir: Int) {
+        lightX = 0.32f * dir
+        lightY = -0.95f
+    }
+
+    /** Fill-pass only polygon in [color]'s shade tone (a shadow plane), full detail only. */
+    fun shapeShade(color: Int) {
+        if (shading && np >= 6) fillBuilt(c(shade(color)))
     }
 
     /** Light edge along a bone, on the side facing ([lx], [ly]); fill pass only. */
@@ -253,9 +377,18 @@ internal class ActorPaint(private val f: Frame) {
         const val OUT = 0.036f
         const val OUT_MAX = 0.06f
         /** Target outline width in pixels. */
-        const val OUT_PX = 2.9f
+        const val OUT_PX = 2.4f
         const val RIM_W = 0.026f
         const val INK = 0xFF06060B.toInt()
+        /** Shadows go cool and violet, never grey: the neon-noir look. */
+        private const val SHADOW = 0xFF0A0620.toInt()
+        private const val LAMP = 0xFFFFF4E6.toInt()
+
+        /** The shadow tone of a cloth or skin colour. */
+        fun shade(color: Int): Int = Col.lerp(color, SHADOW or (color and 0xFF000000.toInt()), 0.5f)
+
+        /** The lamp-lit tone of a colour (a warm, soft highlight). */
+        fun light(color: Int): Int = Col.lerp(color, LAMP or (color and 0xFF000000.toInt()), 0.32f)
 
         fun rot(x: Float, y: Float, a: Float, out: FloatArray) {
             val c = cos(a)
