@@ -159,9 +159,9 @@ class MechanicsTest {
         run(w, 2f)
         assertEquals(hp, w.player.hp)
         assertEquals(EnemyState.PATROL, guard.state)
-        // Any drag steps back out.
+        // Any drag steps back out (straight into a takedown if he wandered close).
         run(w, 0.1f) { it.moveAxis = 1 }
-        assertEquals(PlayerState.NORMAL, w.player.state)
+        assertTrue(w.player.state == PlayerState.NORMAL || w.player.state == PlayerState.TAKEDOWN)
     }
 
     @Test
@@ -201,6 +201,7 @@ class MechanicsTest {
         val car = w.elevators[shaft.id]!!
         car.pos = start.toFloat()
         car.pause = 5f
+        car.openTime = 1f // doors have been open a while
         w.player.x = shaft.x
         assertEquals(ContextAction.ELEVATOR, w.contextAction())
         w.commands += Command.SWIPE_DOWN

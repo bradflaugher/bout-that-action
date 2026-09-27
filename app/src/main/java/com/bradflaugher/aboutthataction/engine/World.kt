@@ -96,8 +96,14 @@ class World(val config: RunConfig) {
         private set
     var dyingTime = 0f
         private set
+    /** Bullets slipped inside the grace window this run. */
+    var closeCalls = 0
+        private set
 
     private var hitStop = 0f
+
+    /** True while the simulation is frozen for impact (hit-stop). */
+    val hitStopping: Boolean get() = hitStop > 0f
     private var nextEnemyId = 1
     private var killsSinceGrenade = 0
     private var reflexTime = 0f
@@ -167,6 +173,7 @@ class World(val config: RunConfig) {
 
         if (phase == Phase.PLAYING) handleCommands()
         updatePlayer(dtP)
+        if (phase == Phase.PLAYING) flushBuffer(dt)
         updateElevators(dtW, dtP)
         updateEnemies(dtW)
         updateBullets(dtW)
@@ -292,73 +299,165 @@ class World(val config: RunConfig) {
     private fun handleCommands() {
         while (commands.isNotEmpty()) {
             val c = commands.removeFirst()
-            if (!player.interactive && player.state != PlayerState.ELEVATOR) continue
-            when (c) {
-                Command.TAP -> {
-                    if (player.hidden) unhide()
-                    if (player.state == PlayerState.ELEVATOR && elevators[player.elevatorShaft]?.doorsOpen != true) continue
-                    fire()
-                }
-                Command.DOUBLE_TAP -> {
-                    if (player.hidden) unhide()
-                    throwGrenade()
-                }
-                Command.SWIPE_UP -> {
-                    if (player.state == PlayerState.ELEVATOR) continue
-                    if (player.hidden) unhide()
-                    jump()
-                }
-                Command.SWIPE_DOWN -> swipeDown()
+            if (!execute(c)) {
+                // A moment too early: hold it and run it the instant it can.
+                player.bufferedCommand = c
+                player.bufferAge = 0f
             }
         }
     }
 
-    /** What a swipe down would do right now (null if nothing). */
-    fun contextAction(): ContextAction? {
-        if (player.state != PlayerState.NORMAL || !player.grounded) return null
-        val fs = floors[player.floor] ?: return null
-        elevatorHere()?.let { return ContextAction.ELEVATOR }
-        val door = doorHere(fs)
-        if (door >= 0) {
-            return if (fs.plan.doors[door].kind == DoorKind.INTEL && !fs.intelUsed[door]) ContextAction.INTEL else ContextAction.DOOR
-        }
-        return ContextAction.BOX
-    }
-
-    private fun elevatorHere(): Elevator? {
-        val f = player.floor
-        return elevators.values.firstOrNull {
-            abs(it.shaft.x - player.x) < 0.65f && it.doorsOpen && it.atFloor == f && f < it.shaft.bottom && f >= it.shaft.top
-        }
-    }
-
-    private fun doorHere(fs: FloorState): Int =
-        fs.plan.doors.indices.firstOrNull { abs(fs.plan.doors[it].x - player.x) < 0.55f } ?: -1
-
-    private fun swipeDown() {
+    /** Runs a buffered gesture as soon as it can, or forgets it after [BUFFER_TIME]. */
+    private fun flushBuffer(dt: Float) {
         val p = player
-        if (p.state == PlayerState.NORMAL && !p.grounded) {
-            // Ground pound: slam down (and stomp whatever is below).
-            p.vz = min(p.vz, -13f)
+        val c = p.bufferedCommand ?: return
+        p.bufferAge += dt
+        if (p.bufferAge > BUFFER_TIME) {
+            p.bufferedCommand = null
             return
         }
-        if (p.state != PlayerState.NORMAL) return
+        if (execute(c)) p.bufferedCommand = null
+    }
+
+    /**
+     * Carries out [c] now. Returns false if it can't happen *yet* but will in
+     * a moment (worth buffering); true if it ran or can never apply.
+     */
+    private fun execute(c: Command): Boolean {
+        val p = player
+        when (p.state) {
+            PlayerState.TAKEDOWN, PlayerState.STAIRS, PlayerState.INTRO -> return false
+            PlayerState.DEAD, PlayerState.INTEL -> return true
+            else -> Unit
+        }
+        when (c) {
+            Command.TAP -> {
+                if (p.state == PlayerState.ELEVATOR && elevators[p.elevatorShaft]?.doorsOpen != true) return false
+                if (p.hidden) unhide()
+                fire()
+            }
+            Command.DOUBLE_TAP -> {
+                // A double-tap never costs you a shot: with no grenade to throw
+                // (none left, one already in the air, or in an elevator) it fires.
+                if (p.state == PlayerState.ELEVATOR) return execute(Command.TAP)
+                if (p.hidden) unhide()
+                when {
+                    p.grenades <= 0 -> {
+                        events += GameEvent.SpecialEmpty
+                        fx.text("NO GRENADES", p.x, Geo.groundY(p.floor) - 2f, TextStyle.WARN, 0.7f)
+                        fire()
+                    }
+                    grenades.isNotEmpty() -> fire()
+                    else -> throwGrenade()
+                }
+            }
+            Command.SWIPE_UP -> {
+                if (p.state == PlayerState.ELEVATOR) return true
+                val maxJumps = 1 + stacks(Perk.DOUBLE_JUMP)
+                if (p.state == PlayerState.NORMAL && !p.grounded && p.jumpsUsed >= maxJumps) return false
+                if (p.hidden) unhide()
+                jump()
+            }
+            Command.SWIPE_DOWN -> return swipeDown()
+        }
+        return true
+    }
+
+    /**
+     * What a swipe down would do right now (null if nothing). In the box it's
+     * only non-null when there's something to slip into (swiping down in the
+     * open box otherwise just stands you up).
+     */
+    fun contextAction(): ContextAction? {
+        val p = player
+        if (p.state != PlayerState.NORMAL && p.state != PlayerState.BOX || !p.grounded) return null
+        val fs = floors[p.floor] ?: return null
+        val target = contextTarget(fs)
+        return when {
+            target is Elevator -> ContextAction.ELEVATOR
+            target is Int -> if (fs.plan.doors[target].kind == DoorKind.INTEL && !fs.intelUsed[target]) ContextAction.INTEL else ContextAction.DOOR
+            p.state == PlayerState.NORMAL -> ContextAction.BOX
+            else -> null
+        }
+    }
+
+    /**
+     * The door (its index) or elevator car ([Elevator]) a swipe down would use,
+     * or null. When both are in reach the nearer wins, with a nudge toward the
+     * one you're facing, so the choice is always the thing under you. A car
+     * only counts once its doors have been open for [ELEVATOR_REACT_TIME]: a
+     * lift that opens under your thumb mid-swipe never steals a box.
+     */
+    private fun contextTarget(fs: FloorState): Any? {
+        val p = player
+        val f = p.floor
+        var best: Any? = null
+        var bestScore = Float.MAX_VALUE
+        fun consider(x: Float, reach: Float, what: Any) {
+            val dx = x - p.x
+            if (abs(dx) >= reach) return
+            val score = abs(dx) - if (dx * p.facing > 0.05f) FACING_BIAS else 0f
+            if (score < bestScore) {
+                bestScore = score
+                best = what
+            }
+        }
+        for (car in elevators.values) {
+            if (car.doorsOpen && car.openTime >= ELEVATOR_REACT_TIME && car.atFloor == f && f < car.shaft.bottom && f >= car.shaft.top) {
+                consider(car.shaft.x, ELEVATOR_REACH, car)
+            }
+        }
+        for (i in fs.plan.doors.indices) consider(fs.plan.doors[i].x, DOOR_REACH, i)
+        return best
+    }
+
+    private fun swipeDown(): Boolean {
+        val p = player
+        if (p.state == PlayerState.NORMAL && !p.grounded) {
+            // About to land: that's an early hide, not a ground pound. Buffer it.
+            if (p.z < LATE_POUND_Z && p.vz < 0f) return false
+            // Ground pound: slam down (and stomp whatever is below).
+            p.vz = min(p.vz, -13f)
+            return true
+        }
+        when (p.state) {
+            PlayerState.BOX -> {
+                // Sneak up to a door in the box and swipe again to slip in;
+                // anywhere else the same swipe stands you back up.
+                val action = contextAction()
+                if (action != null) {
+                    unhide()
+                    useContext(action)
+                } else if (p.stateTime > TOGGLE_GUARD) {
+                    unhide()
+                }
+            }
+            PlayerState.DOOR -> if (p.stateTime > TOGGLE_GUARD) unhide()
+            PlayerState.NORMAL -> useContext(contextAction() ?: ContextAction.BOX)
+            else -> Unit
+        }
+        return true
+    }
+
+    private fun useContext(action: ContextAction) {
+        val p = player
         val fs = floors[p.floor] ?: return
-        when (contextAction()) {
+        when (action) {
             ContextAction.ELEVATOR -> {
-                val car = elevatorHere() ?: return
+                val car = contextTarget(fs) as? Elevator ?: return
                 p.state = PlayerState.ELEVATOR
                 p.stateTime = 0f
                 p.elevatorShaft = car.shaft.id
                 p.x = car.shaft.x
                 p.vx = 0f
+                p.holdAxis = moveAxis
                 car.carrying = true
                 car.dir = 1
                 car.pause = 0.35f
                 events += GameEvent.ElevatorDing
             }
             ContextAction.INTEL -> {
-                val d = doorHere(fs)
+                val d = contextTarget(fs) as? Int ?: return
                 fs.intelUsed[d] = true
                 fs.doorOpen[d] = 1f
                 p.state = PlayerState.INTEL
@@ -370,16 +469,17 @@ class World(val config: RunConfig) {
                 offerPerks()
             }
             ContextAction.DOOR -> {
-                val d = doorHere(fs)
+                val d = contextTarget(fs) as? Int ?: return
                 p.state = PlayerState.DOOR
                 p.stateTime = 0f
                 p.anchorX = fs.plan.doors[d].x
                 p.x = p.anchorX
                 p.vx = 0f
+                p.holdAxis = moveAxis
                 fs.doorOpen[d] = 1f
                 events += GameEvent.HideDoor
             }
-            ContextAction.BOX, null -> {
+            ContextAction.BOX -> {
                 p.state = PlayerState.BOX
                 p.stateTime = 0f
                 p.vx *= 0.3f
@@ -418,6 +518,7 @@ class World(val config: RunConfig) {
         p.invuln -= dt
         p.fireCooldown -= dt
         p.sinceShot += dt
+        p.sinceCloseCall += dt
         if (p.reloadTime > 0f) {
             p.reloadTime -= dt
             if (p.reloadTime <= 0f) {
@@ -450,9 +551,15 @@ class World(val config: RunConfig) {
             PlayerState.NORMAL, PlayerState.BOX -> movePlayer(dt)
             PlayerState.DOOR -> {
                 p.x = p.anchorX
-                if (moveAxis != 0) {
-                    unhide()
-                    p.facing = moveAxis
+                // The thumb that ran you in is still down: holding it keeps you
+                // hidden. Lift (re-arms) and drag, or reverse, to step out.
+                if (moveAxis != p.holdAxis) {
+                    if (moveAxis == 0) {
+                        p.holdAxis = 0
+                    } else {
+                        unhide()
+                        p.facing = moveAxis
+                    }
                 }
             }
             PlayerState.TAKEDOWN -> {
@@ -470,7 +577,8 @@ class World(val config: RunConfig) {
                 } else {
                     p.x = car.shaft.x
                     p.floorF = car.pos
-                    if (car.doorsOpen && moveAxis != 0 && p.stateTime > 0.3f) {
+                    if (moveAxis == 0) p.holdAxis = 0
+                    if (car.doorsOpen && moveAxis != 0 && moveAxis != p.holdAxis && p.stateTime > 0.3f) {
                         car.carrying = false
                         car.pause = 1f
                         p.floorF = car.pos.roundToInt().toFloat()
@@ -520,7 +628,10 @@ class World(val config: RunConfig) {
             else -> RUN_SPEED
         }
         val target = moveAxis * speed
-        val accel = if (p.grounded) 55f else 30f
+        // Turning around brakes and re-accelerates at double rate: a reversal
+        // reads as one snap, not a skid.
+        val reversing = target * p.vx < 0f
+        val accel = (if (p.grounded) RUN_ACCEL else AIR_ACCEL) * (if (reversing) TURN_BOOST else 1f)
         p.vx = if (abs(target - p.vx) < accel * dt) target else p.vx + sign(target - p.vx) * accel * dt
         if (moveAxis != 0) p.facing = moveAxis
         p.x += p.vx * dt
@@ -528,13 +639,13 @@ class World(val config: RunConfig) {
 
         // Airborne.
         if (!p.grounded) {
-            p.vz -= GRAVITY * dt
+            p.vz -= GRAVITY * jumpGravityScale(p.vz) * dt
             val oldZ = p.z
             p.z += p.vz * dt
             if (p.vz < 0f) checkStomp(oldZ)
             if (p.z <= 0f) {
                 p.z = 0f
-                val hard = p.vz < -11f
+                val hard = p.vz < -12.5f
                 p.vz = 0f
                 p.jumpsUsed = 0
                 events += GameEvent.Land
@@ -562,6 +673,17 @@ class World(val config: RunConfig) {
         checkTakedown()
     }
 
+    /**
+     * The jump arc: full gravity on the way up (so low shots are cleared as
+     * fast as ever), light gravity through the apex (hang time to aim at a
+     * ceiling light), heavier on the way down (a snappy landing).
+     */
+    private fun jumpGravityScale(vz: Float): Float = when {
+        vz > APEX_BAND -> 1f
+        vz >= -APEX_BAND -> APEX_GRAVITY
+        else -> FALL_GRAVITY
+    }
+
     private fun startStairs(side: Side) {
         val p = player
         if (p.state == PlayerState.BOX) unhide()
@@ -581,10 +703,14 @@ class World(val config: RunConfig) {
             if (e.floor != p.floor || !e.alive || e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
             if (e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET) continue
             val dx = e.x - p.x
-            if (abs(dx) > reach + e.halfWidth) continue
             val fromDir = if (dx > 0f) 1 else -1
+            // Magnetic: pushing toward a guard within a hair lunges into the choke.
+            val pushing = moveAxis == fromDir && p.grounded
+            val inReach = abs(dx) <= reach + e.halfWidth
+            if (!inReach && !(pushing && abs(dx) <= reach + e.halfWidth + TAKEDOWN_MAGNET)) continue
             if (e.state == EnemyState.WINDUP) continue // mid-slash: it wins
             if (!e.chokeable(fromDir)) {
+                if (!inReach) continue
                 // Armor blocks: you can't walk through a Heavy to get behind him.
                 p.x = e.x - fromDir * (reach + e.halfWidth)
                 if (p.vx * fromDir > 0f) p.vx = 0f
@@ -660,6 +786,9 @@ class World(val config: RunConfig) {
         else -> null
     }
 
+    /** The enemy auto-aim would shoot right now (the renderer aims the gun pose at it). */
+    fun aimTarget(): Enemy? = pickTarget()
+
     private fun pickTarget(range: Float = 11f): Enemy? {
         val f = playerTargetFloor() ?: return null
         var best: Enemy? = null
@@ -668,14 +797,28 @@ class World(val config: RunConfig) {
             if (e.floor != f || !e.alive) continue
             val dx = e.x - player.x
             if (abs(dx) > range) continue
-            // Prefer what's in front; turning around costs a little.
-            val score = abs(dx) + if (dx * player.facing < -0.2f) 3f else 0f
+            // Whoever is about to hurt you first, then what's in front, then the nearest.
+            val score = threatTier(e) * THREAT_TIER_COST + abs(dx) + if (dx * player.facing < -0.2f) BEHIND_COST else 0f
             if (score < bestScore) {
                 bestScore = score
                 best = e
             }
         }
         return best
+    }
+
+    /** 0 = about to hurt you (aiming at you, mid-slash, a melee charger close by), 1 = alert and facing you, 2 = anything else. */
+    private fun threatTier(e: Enemy): Int {
+        val dist = abs(e.x - player.x)
+        val towardYou = e.kind == EnemyKind.TURRET || e.kind == EnemyKind.DRONE || e.facing == (if (player.x >= e.x) 1 else -1)
+        val melee = e.kind == EnemyKind.NINJA || e.kind == EnemyKind.DEMON
+        return when {
+            e.state == EnemyState.WINDUP -> 0
+            e.state == EnemyState.AIM && towardYou -> 0
+            melee && e.state == EnemyState.ALERT && towardYou && dist < 3f -> 0
+            (e.state == EnemyState.ALERT || e.state == EnemyState.AIM) && towardYou -> 1
+            else -> 2
+        }
     }
 
     private fun autoFire() {
@@ -712,7 +855,15 @@ class World(val config: RunConfig) {
             val li = fs.plan.lights.indices
                 .filter { fs.lightAlive[it] && (fs.plan.lights[it] - p.x) * p.facing > -0.2f && abs(fs.plan.lights[it] - p.x) < 4.5f }
                 .minByOrNull { abs(fs.plan.lights[it] - p.x) }
-            if (li != null) {
+            // Only when that's what you mean: the light would land on someone, or
+            // there's nobody in front to shoot instead.
+            val wanted = li != null && run {
+                val lx = fs.plan.lights[li]
+                val crushes = enemies.any { it.floor == f && it.alive && it.kind != EnemyKind.TURRET && abs(it.x - lx) < LIGHT_CRUSH_INTENT }
+                val t = pickTarget()
+                crushes || t == null || (t.x - p.x) * p.facing <= -0.2f
+            }
+            if (li != null && wanted) {
                 val lx = fs.plan.lights[li]
                 val lz = Geo.FLOOR_H - 0.45f
                 val dx = lx - p.x
@@ -901,7 +1052,8 @@ class World(val config: RunConfig) {
         score += points
         val y = Geo.groundY(e.floor) - e.targetZ
         fx.text("+$points", e.x, y - 0.9f, TextStyle.SCORE)
-        if (combo >= 2) fx.text("${combo}x COMBO", e.x, y - 1.5f, TextStyle.COMBO, 0.9f)
+        // The HUD tracks the combo; the world only celebrates milestones.
+        if (combo >= 5 && combo % 5 == 0) fx.text("${combo}x COMBO", e.x, y - 1.5f, TextStyle.COMBO, 0.9f)
         fx.burst(ParticleKind.SHARD, e.x, y, if (method == KillMethod.TAKEDOWN) 8 else 16, 6f, 0.7f, 0.12f, upBias = 0.3f, dir = dir.toFloat())
         if (e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET) {
             fx.burst(ParticleKind.SMOKE, e.x, y, 6, 1.5f, 1f, 0.35f, upBias = 0.4f)
@@ -1176,6 +1328,14 @@ class World(val config: RunConfig) {
         val it = bullets.iterator()
         while (it.hasNext()) {
             val b = it.next()
+            if (b.graze >= 0f) {
+                // It has you; it hangs there for the grace window, then lands
+                // unless you got out of the way in time.
+                b.graze += dt
+                if (b.graze >= HIT_GRACE) resolveGraze(b)
+                if (b.dead) it.remove()
+                continue
+            }
             b.life += dt
             val step = abs(b.vx * dt)
             b.range -= step
@@ -1241,12 +1401,17 @@ class World(val config: RunConfig) {
                     else -> false
                 }
                 if (onFloor) {
-                    val h = if (p.state == PlayerState.BOX) Body.BOX_HEIGHT else Body.HEIGHT
-                    val zHit = b.z >= p.z - 0.05f && b.z <= p.z + h
+                    val zHit = bodyCovers(b.z)
                     val dx = p.x - b.x
                     if (zHit && abs(dx) < Body.HALF_W + 0.08f) {
-                        b.dead = true
-                        hurtPlayer(b.x)
+                        if (b.graze == Bullet.DODGED) {
+                            // Already slipped this one: it flies on through.
+                        } else if (p.invuln > 0f || phase != Phase.PLAYING) {
+                            b.dead = true
+                            hurtPlayer(b.x)
+                        } else {
+                            b.graze = 0f
+                        }
                     } else if (zHit && stacks(Perk.REFLEX) > 0 && p.reflexCooldown <= 0f && b.vx != 0f) {
                         val tHit = dx / b.vx
                         if (tHit > 0f && tHit < 0.28f) {
@@ -1259,6 +1424,36 @@ class World(val config: RunConfig) {
                 }
             }
             if (b.dead) it.remove()
+        }
+    }
+
+    /** Does the player's body, as it is right now, cover height [z] (above the player's floor)? */
+    private fun bodyCovers(z: Float): Boolean {
+        val p = player
+        val h = if (p.state == PlayerState.BOX) Body.BOX_HEIGHT else Body.HEIGHT
+        return z >= p.z - 0.05f && z <= p.z + h
+    }
+
+    /**
+     * End of a bullet's grace window: if you boxed under it, jumped over it,
+     * ducked into a door or started a takedown in time, it misses ("CLOSE!").
+     * Otherwise it hits exactly as it would have.
+     */
+    private fun resolveGraze(b: Bullet) {
+        val p = player
+        val stillThere = when (p.state) {
+            PlayerState.NORMAL, PlayerState.BOX -> p.floor == b.floor
+            PlayerState.ELEVATOR -> playerVisibleOn(b.floor)
+            else -> false
+        }
+        if (stillThere && bodyCovers(b.z)) {
+            b.dead = true
+            hurtPlayer(b.x)
+        } else {
+            b.graze = Bullet.DODGED
+            p.sinceCloseCall = 0f
+            closeCalls++
+            fx.text("CLOSE!", p.x, Geo.groundY(p.floorF) - p.z - 2.1f, TextStyle.WARN, 0.7f)
         }
     }
 
@@ -1404,6 +1599,7 @@ class World(val config: RunConfig) {
             val dt = if (car.carrying) dtP else dtW
             val s = car.shaft
             if (car.pause > 0f) {
+                car.openTime += dt
                 car.pause -= dt
                 if (car.pause <= 0f) {
                     if (car.carrying) {
@@ -1421,6 +1617,7 @@ class World(val config: RunConfig) {
                 }
                 continue
             }
+            car.openTime = 0f
             val from = car.pos
             car.pos += car.dir * ELEVATOR_SPEED * dt
             val crossed = if (car.dir > 0) floor(car.pos) > floor(from) || car.pos == floor(car.pos) else kotlin.math.ceil(car.pos) < kotlin.math.ceil(from)
@@ -1499,5 +1696,39 @@ class World(val config: RunConfig) {
         const val TACTICAL_RELOAD_DELAY = 1.4f
         const val LIGHT_FALL_TIME = 0.42f
         const val ELEVATOR_SPEED = 1.9f
+
+        // ---- Controls & feel (see docs/CONTROLS.md) ----
+        const val RUN_ACCEL = 70f
+        const val AIR_ACCEL = 30f
+        /** Acceleration multiplier while reversing: turnarounds snap. */
+        const val TURN_BOOST = 2.2f
+        /** |vz| below this is the apex of a jump... */
+        const val APEX_BAND = 2.2f
+        /** ...where gravity is lighter (hang time)... */
+        const val APEX_GRAVITY = 0.55f
+        /** ...and heavier once you're falling (snappy landings). */
+        const val FALL_GRAVITY = 1.3f
+        /** How long a gesture that came a moment too early waits to run. */
+        const val BUFFER_TIME = 0.15f
+        /** A bullet touching you hangs this long before it hits; hide/jump in time and it misses. */
+        const val HIT_GRACE = 0.066f
+        /** Swiping down while falling below this height is an early hide, not a ground pound. */
+        const val LATE_POUND_Z = 0.6f
+        /** Swipe down again to leave a box or doorway, but not in the same breath. */
+        const val TOGGLE_GUARD = 0.35f
+        /** Elevator doors must be open this long before a swipe down takes the car. */
+        const val ELEVATOR_REACT_TIME = 0.12f
+        const val ELEVATOR_REACH = 0.65f
+        const val DOOR_REACH = 0.55f
+        /** Context targets in front of you win ties by this much. */
+        const val FACING_BIAS = 0.1f
+        /** Extra takedown reach while pushing toward the guard. */
+        const val TAKEDOWN_MAGNET = 0.3f
+        /** Auto-aim: each threat tier is worth this much distance. */
+        const val THREAT_TIER_COST = 6f
+        /** Auto-aim: turning around costs this much distance. */
+        const val BEHIND_COST = 3f
+        /** Airborne taps go to a ceiling light when a guard stands within this of it. */
+        const val LIGHT_CRUSH_INTENT = 0.9f
     }
 }

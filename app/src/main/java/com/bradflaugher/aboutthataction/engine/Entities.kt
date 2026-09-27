@@ -69,6 +69,21 @@ class Player {
     /** Seconds since the last shot (for the muzzle flash / recoil pose). */
     var sinceShot = 9f
     var runTime = 0f
+    /**
+     * Input buffer: a gesture that arrived a moment too early (mid-takedown,
+     * on the stairs, just before landing) and will run as soon as it can, if
+     * that's within [World.BUFFER_TIME]. Null when nothing is waiting.
+     */
+    var bufferedCommand: Command? = null
+    /** Seconds [bufferedCommand] has been waiting. */
+    var bufferAge = 0f
+    /**
+     * The run direction held when stepping into a door or elevator. Holding it
+     * keeps you in; only a fresh drag (lift, or reverse) steps out.
+     */
+    var holdAxis = 0
+    /** Seconds since a bullet that had you was dodged in the grace window ("CLOSE!"). */
+    var sinceCloseCall = 9f
 
     val floor: Int get() = kotlin.math.floor(floorF + 0.001f).toInt()
     val grounded: Boolean get() = z <= 0f && vz == 0f
@@ -168,8 +183,18 @@ class Bullet(
     var dead = false
     var life = 0f
     val hitIds = HashSet<Int>(2)
+    /**
+     * Enemy bullets only: seconds since it touched the player (it hangs there
+     * for the [World.HIT_GRACE] window, then hits unless you got out of the
+     * way). -1 = hasn't touched; [DODGED] = you slipped it, it flies on.
+     */
+    var graze = -1f
     /** Enemies that already had their chance to duck this bullet. */
     val duckRolled = HashSet<Int>(2)
+
+    companion object {
+        const val DODGED = -2f
+    }
 }
 
 class Pickup(val kind: PickupKind, var x: Float, val floor: Int) {
@@ -190,6 +215,8 @@ class Elevator(val shaft: Shaft) {
     var dir = 1
     var pause = 1f
     var carrying = false
+    /** Seconds the doors have been open at the current stop (0 while moving). */
+    var openTime = 0f
     val atFloor: Int? get() = if (pause > 0f) Math.round(pos) else null
     val doorsOpen: Boolean get() = pause > 0f
 }

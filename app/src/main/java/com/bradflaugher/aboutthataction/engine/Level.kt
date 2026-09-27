@@ -23,6 +23,31 @@ object Geo {
     fun groundY(floor: Int) = groundY(floor.toFloat())
 }
 
+/**
+ * What floors are called on screen. Internally floor 0 is the roof and the
+ * index grows as you descend; players see a real building: you drop onto the
+ * roof of a 49-storey tower, count down to 1F, hit the street at B0 and keep
+ * going into the basements (the Metro starts at B0, Hell at B100).
+ */
+object FloorLabel {
+    /** Index of the first basement floor, B0. */
+    const val GROUND = 50
+
+    /** Full label: "ROOF", "42F", "B7". */
+    fun of(index: Int): String = when {
+        index <= 0 -> "ROOF"
+        index < GROUND -> "${GROUND - index}F"
+        else -> "B${index - GROUND}"
+    }
+
+    /** Compact label for tight spots like elevator indicators: "R", "42", "B7". */
+    fun short(index: Int): String = when {
+        index <= 0 -> "R"
+        index < GROUND -> "${GROUND - index}"
+        else -> "B${index - GROUND}"
+    }
+}
+
 enum class Side { LEFT, RIGHT }
 
 enum class DoorKind { NORMAL, INTEL }

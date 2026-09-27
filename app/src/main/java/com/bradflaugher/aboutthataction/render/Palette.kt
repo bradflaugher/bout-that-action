@@ -108,11 +108,21 @@ internal class Palette(
     val bgNear: Int,
     val laser: Int,
     val vent: Int,
+    /** Ceiling soffit / underside of the slab above. */
+    val ceil: Int = Col.mul(wallBottom, 0.55f),
+    /** Deepest shadow tone of the zone: recesses, reveals, ambient occlusion. */
+    val deep: Int = Col.mul(wallBottom, 0.4f),
+    /** Architectural trim highlight (top-lit bevels, rails, sills). */
+    val trim: Int = Col.lerp(panel, 0xFFFFFFFF.toInt(), 0.25f),
+    /** Atmosphere tint: dust, fog, shimmer. */
+    val haze: Int = lamp,
+    /** Emissive material colour: magma seams, hellfire, ore. */
+    val glow: Int = neon,
 ) {
     fun map(f: (Int) -> Int) = Palette(
         f(skyTop), f(skyBottom), f(wallTop), f(wallBottom), f(panel), f(neon), f(neon2), f(slab), f(slabEdge), f(lamp),
         f(outer), f(outerLit), f(door), f(doorFrame), f(enemyMain), f(enemyAccent), f(enemySkin), f(bgFar), f(bgMid),
-        f(bgNear), f(laser), f(vent),
+        f(bgNear), f(laser), f(vent), f(ceil), f(deep), f(trim), f(haze), f(glow),
     )
 
     companion object {
@@ -121,82 +131,98 @@ internal class Palette(
         private val voidCache = HashMap<Zone, Array<Palette?>>()
 
         init {
+            // Value structure per zone: walls sit mid-dark and desaturated so actors read on top,
+            // neon accents carry the hue, lamps are warm or cool against the walls on purpose.
             base[Zone.ROOFTOP] = Palette(
-                skyTop = 0xFF070417.toInt(), skyBottom = 0xFF4A1450.toInt(),
-                wallTop = 0xFF1B1236.toInt(), wallBottom = 0xFF100A22.toInt(), panel = 0xFF2A1D52.toInt(),
+                skyTop = 0xFF06031A.toInt(), skyBottom = 0xFF5A1658.toInt(),
+                wallTop = 0xFF231848.toInt(), wallBottom = 0xFF140C2A.toInt(), panel = 0xFF33245E.toInt(),
                 neon = 0xFFFF2E88.toInt(), neon2 = 0xFF25E8FF.toInt(),
                 slab = 0xFF151024.toInt(), slabEdge = 0xFFFF2E88.toInt(), lamp = 0xFFFFD9F2.toInt(),
                 outer = 0xFF0D0A1C.toInt(), outerLit = 0xFFFFB45A.toInt(),
                 door = 0xFF2B2150.toInt(), doorFrame = 0xFF4E3C8A.toInt(),
                 enemyMain = 0xFF14121C.toInt(), enemyAccent = 0xFFFF2E5C.toInt(), enemySkin = 0xFFE8B89A.toInt(),
-                bgFar = 0xFF2A1248.toInt(), bgMid = 0xFF1A0C33.toInt(), bgNear = 0xFF0B0619.toInt(),
+                bgFar = 0xFF36175A.toInt(), bgMid = 0xFF1F0E3C.toInt(), bgNear = 0xFF0B0619.toInt(),
                 laser = 0xFFFF2050.toInt(), vent = 0xFFE0F0FF.toInt(),
+                ceil = 0xFF120A26.toInt(), deep = 0xFF080414.toInt(), trim = 0xFF7A64C0.toInt(),
+                haze = 0xFFB888FF.toInt(), glow = 0xFFFF2E88.toInt(),
             )
             base[Zone.TOWER] = Palette(
-                skyTop = 0xFF0A0520.toInt(), skyBottom = 0xFF3C1048.toInt(),
-                wallTop = 0xFF241646.toInt(), wallBottom = 0xFF140C2C.toInt(), panel = 0xFF33215F.toInt(),
+                skyTop = 0xFF0A0520.toInt(), skyBottom = 0xFF4A1452.toInt(),
+                wallTop = 0xFF2A1C50.toInt(), wallBottom = 0xFF1A1036.toInt(), panel = 0xFF372462.toInt(),
                 neon = 0xFFFF3D9A.toInt(), neon2 = 0xFF2CF0FF.toInt(),
-                slab = 0xFF0E0A1C.toInt(), slabEdge = 0xFFFF3D9A.toInt(), lamp = 0xFFFFE0F4.toInt(),
-                outer = 0xFF0F0B22.toInt(), outerLit = 0xFF7DF3FF.toInt(),
-                door = 0xFF3A2A6A.toInt(), doorFrame = 0xFF6A52B8.toInt(),
+                slab = 0xFF100B20.toInt(), slabEdge = 0xFFFF3D9A.toInt(), lamp = 0xFFFFE4F2.toInt(),
+                outer = 0xFF110C26.toInt(), outerLit = 0xFF7DF3FF.toInt(),
+                door = 0xFF2C1F55.toInt(), doorFrame = 0xFF4A3A88.toInt(),
                 enemyMain = 0xFF121019.toInt(), enemyAccent = 0xFFFF2E5C.toInt(), enemySkin = 0xFFE8B89A.toInt(),
-                bgFar = 0xFF2C1450.toInt(), bgMid = 0xFF1C0D38.toInt(), bgNear = 0xFF0C0720.toInt(),
+                bgFar = 0xFF34185A.toInt(), bgMid = 0xFF200F40.toInt(), bgNear = 0xFF0C0720.toInt(),
                 laser = 0xFFFF2050.toInt(), vent = 0xFFE0F0FF.toInt(),
+                ceil = 0xFF130B28.toInt(), deep = 0xFF090516.toInt(), trim = 0xFF7C68C8.toInt(),
+                haze = 0xFFC49AFF.toInt(), glow = 0xFFFF3D9A.toInt(),
             )
             base[Zone.LABS] = Palette(
-                skyTop = 0xFF03100F.toInt(), skyBottom = 0xFF06201C.toInt(),
-                wallTop = 0xFF12272A.toInt(), wallBottom = 0xFF0A1618.toInt(), panel = 0xFF1B3A3E.toInt(),
+                skyTop = 0xFF03100F.toInt(), skyBottom = 0xFF082824.toInt(),
+                wallTop = 0xFF173232.toInt(), wallBottom = 0xFF0C1C1D.toInt(), panel = 0xFF214446.toInt(),
                 neon = 0xFF3CFF8E.toInt(), neon2 = 0xFF18C8FF.toInt(),
-                slab = 0xFF08110F.toInt(), slabEdge = 0xFF3CFF8E.toInt(), lamp = 0xFFD8FFF0.toInt(),
+                slab = 0xFF08110F.toInt(), slabEdge = 0xFF3CFF8E.toInt(), lamp = 0xFFDCFFF4.toInt(),
                 outer = 0xFF0A1414.toInt(), outerLit = 0xFF3CFF8E.toInt(),
-                door = 0xFF23403F.toInt(), doorFrame = 0xFF4E7C78.toInt(),
+                door = 0xFF1B3436.toInt(), doorFrame = 0xFF3C6664.toInt(),
                 enemyMain = 0xFFD5E0E0.toInt(), enemyAccent = 0xFF3CFF8E.toInt(), enemySkin = 0xFFD9B090.toInt(),
-                bgFar = 0xFF0C2724.toInt(), bgMid = 0xFF081A18.toInt(), bgNear = 0xFF040E0D.toInt(),
+                bgFar = 0xFF0E2E2A.toInt(), bgMid = 0xFF081C1A.toInt(), bgNear = 0xFF040E0D.toInt(),
                 laser = 0xFF3CFF6A.toInt(), vent = 0xFFB0FFD8.toInt(),
+                ceil = 0xFF081416.toInt(), deep = 0xFF040B0C.toInt(), trim = 0xFF7AB8B0.toInt(),
+                haze = 0xFF9CFFD8.toInt(), glow = 0xFF3CFF8E.toInt(),
             )
             base[Zone.METRO] = Palette(
-                skyTop = 0xFF0B0A0C.toInt(), skyBottom = 0xFF1C1712.toInt(),
-                wallTop = 0xFF2B2620.toInt(), wallBottom = 0xFF1A1612.toInt(), panel = 0xFF3A332A.toInt(),
+                skyTop = 0xFF0A0B0C.toInt(), skyBottom = 0xFF1C1914.toInt(),
+                wallTop = 0xFF2C302E.toInt(), wallBottom = 0xFF191C1C.toInt(), panel = 0xFF3A403E.toInt(),
                 neon = 0xFFFFB020.toInt(), neon2 = 0xFF2F8CFF.toInt(),
-                slab = 0xFF100E0C.toInt(), slabEdge = 0xFFFFB020.toInt(), lamp = 0xFFFFD08A.toInt(),
-                outer = 0xFF121010.toInt(), outerLit = 0xFFFFB020.toInt(),
-                door = 0xFF3B3A40.toInt(), doorFrame = 0xFF6B6A72.toInt(),
+                slab = 0xFF0F0F0E.toInt(), slabEdge = 0xFFFFB020.toInt(), lamp = 0xFFFFD08A.toInt(),
+                outer = 0xFF121212.toInt(), outerLit = 0xFFFFB020.toInt(),
+                door = 0xFF2A3034.toInt(), doorFrame = 0xFF545E66.toInt(),
                 enemyMain = 0xFF1C2A40.toInt(), enemyAccent = 0xFFFF7A1A.toInt(), enemySkin = 0xFFD8A888.toInt(),
-                bgFar = 0xFF221D18.toInt(), bgMid = 0xFF161310.toInt(), bgNear = 0xFF0B0A08.toInt(),
+                bgFar = 0xFF221E18.toInt(), bgMid = 0xFF161410.toInt(), bgNear = 0xFF0A0A08.toInt(),
                 laser = 0xFFFF3030.toInt(), vent = 0xFFE8E4DC.toInt(),
+                ceil = 0xFF101212.toInt(), deep = 0xFF080909.toInt(), trim = 0xFF8C9690.toInt(),
+                haze = 0xFFFFC070.toInt(), glow = 0xFFFFB020.toInt(),
             )
             base[Zone.MINES] = Palette(
-                skyTop = 0xFF120C08.toInt(), skyBottom = 0xFF26180E.toInt(),
-                wallTop = 0xFF33241A.toInt(), wallBottom = 0xFF1E140E.toInt(), panel = 0xFF4A3424.toInt(),
+                skyTop = 0xFF100B08.toInt(), skyBottom = 0xFF24170E.toInt(),
+                wallTop = 0xFF2A2019.toInt(), wallBottom = 0xFF110D0B.toInt(), panel = 0xFF43342A.toInt(),
                 neon = 0xFFFF9A2A.toInt(), neon2 = 0xFFFFE066.toInt(),
-                slab = 0xFF140D08.toInt(), slabEdge = 0xFFB07030.toInt(), lamp = 0xFFFFC77A.toInt(),
+                slab = 0xFF120C08.toInt(), slabEdge = 0xFFC8843A.toInt(), lamp = 0xFFFFC77A.toInt(),
                 outer = 0xFF160F0A.toInt(), outerLit = 0xFFFF9A2A.toInt(),
-                door = 0xFF4A3322.toInt(), doorFrame = 0xFF7A5634.toInt(),
+                door = 0xFF3A2A1E.toInt(), doorFrame = 0xFF6A4A2E.toInt(),
                 enemyMain = 0xFF34485C.toInt(), enemyAccent = 0xFFFFD21E.toInt(), enemySkin = 0xFFD0A080.toInt(),
-                bgFar = 0xFF3A2618.toInt(), bgMid = 0xFF2A1A10.toInt(), bgNear = 0xFF170E08.toInt(),
+                bgFar = 0xFF3A2818.toInt(), bgMid = 0xFF281A10.toInt(), bgNear = 0xFF140C07.toInt(),
                 laser = 0xFFFF4020.toInt(), vent = 0xFFE8D8C0.toInt(),
+                ceil = 0xFF0F0B09.toInt(), deep = 0xFF080608.toInt(), trim = 0xFFA07A54.toInt(),
+                haze = 0xFFFFB060.toInt(), glow = 0xFFFF9A2A.toInt(),
             )
             base[Zone.MAGMA] = Palette(
                 skyTop = 0xFF1A0503.toInt(), skyBottom = 0xFF4A0E04.toInt(),
-                wallTop = 0xFF2E120C.toInt(), wallBottom = 0xFF1A0806.toInt(), panel = 0xFF45190E.toInt(),
+                wallTop = 0xFF1E171A.toInt(), wallBottom = 0xFF0C0809.toInt(), panel = 0xFF3A2220.toInt(),
                 neon = 0xFFFF6A10.toInt(), neon2 = 0xFFFFD02A.toInt(),
-                slab = 0xFF120605.toInt(), slabEdge = 0xFFFF6A10.toInt(), lamp = 0xFFFFB060.toInt(),
-                outer = 0xFF160706.toInt(), outerLit = 0xFFFF6A10.toInt(),
-                door = 0xFF4A2A22.toInt(), doorFrame = 0xFF7E4A38.toInt(),
+                slab = 0xFF110807.toInt(), slabEdge = 0xFFFF6A10.toInt(), lamp = 0xFFFFB060.toInt(),
+                outer = 0xFF160807.toInt(), outerLit = 0xFFFF6A10.toInt(),
+                door = 0xFF2E201F.toInt(), doorFrame = 0xFF5A3C32.toInt(),
                 enemyMain = 0xFFB9B2AA.toInt(), enemyAccent = 0xFFFFC21A.toInt(), enemySkin = 0xFFD8A080.toInt(),
                 bgFar = 0xFF3A0E06.toInt(), bgMid = 0xFF260804.toInt(), bgNear = 0xFF120302.toInt(),
                 laser = 0xFFFFE040.toInt(), vent = 0xFFFF7A18.toInt(),
+                ceil = 0xFF0E0707.toInt(), deep = 0xFF070404.toInt(), trim = 0xFF9A7C7C.toInt(),
+                haze = 0xFFFF8A40.toInt(), glow = 0xFFFF5A10.toInt(),
             )
             base[Zone.HELL] = Palette(
                 skyTop = 0xFF1C0006.toInt(), skyBottom = 0xFF8A0A10.toInt(),
-                wallTop = 0xFF22060C.toInt(), wallBottom = 0xFF100206.toInt(), panel = 0xFF3A0810.toInt(),
+                wallTop = 0xFF280A10.toInt(), wallBottom = 0xFF100307.toInt(), panel = 0xFF45101A.toInt(),
                 neon = 0xFFFF2240.toInt(), neon2 = 0xFFFF9A1A.toInt(),
                 slab = 0xFF0C0104.toInt(), slabEdge = 0xFFFF2240.toInt(), lamp = 0xFFFFA070.toInt(),
                 outer = 0xFF18020A.toInt(), outerLit = 0xFFFF3A1A.toInt(),
-                door = 0xFF4A1018.toInt(), doorFrame = 0xFF8A2A30.toInt(),
+                door = 0xFF3A1016.toInt(), doorFrame = 0xFF6A2C26.toInt(),
                 enemyMain = 0xFF5E0A16.toInt(), enemyAccent = 0xFFFFB020.toInt(), enemySkin = 0xFFE0B0A0.toInt(),
                 bgFar = 0xFF5A0610.toInt(), bgMid = 0xFF30030A.toInt(), bgNear = 0xFF120004.toInt(),
                 laser = 0xFFFF3A1A.toInt(), vent = 0xFFFF5A10.toInt(),
+                ceil = 0xFF0E0206.toInt(), deep = 0xFF080103.toInt(), trim = 0xFFC8B498.toInt(),
+                haze = 0xFFFF6040.toInt(), glow = 0xFFFF3A1A.toInt(),
             )
             base[Zone.VOID] = Palette(
                 skyTop = 0xFF020206.toInt(), skyBottom = 0xFF10061E.toInt(),
@@ -208,27 +234,32 @@ internal class Palette(
                 enemyMain = 0xFF0C0C12.toInt(), enemyAccent = 0xFF2BFFE0.toInt(), enemySkin = 0xFFC0B0D0.toInt(),
                 bgFar = 0xFF1A0A30.toInt(), bgMid = 0xFF0E0620.toInt(), bgNear = 0xFF050210.toInt(),
                 laser = 0xFFFF2BD6.toInt(), vent = 0xFF2BFFE0.toInt(),
+                ceil = 0xFF04030A.toInt(), deep = 0xFF020106.toInt(), trim = 0xFF6A5AB0.toInt(),
+                haze = 0xFFC8A0FF.toInt(), glow = 0xFFFF2BD6.toInt(),
             )
         }
 
         fun of(zone: Zone): Palette = base.getValue(zone)
 
         /**
-         * The Void wears another zone's clothes, hue-cycling over time. Quantized and cached
-         * so the glitch costs no allocations after warm-up.
+         * The Void wears another zone's clothes, but every block of ten floors gets its own
+         * hue, which then drifts slowly over time. Walls sink toward the Void's own black so
+         * the neon carries the room. Quantized and cached: no allocations after warm-up.
          */
         fun void(zone: Zone, time: Float, floor: Int): Palette {
             val arr = voidCache.getOrPut(zone) { arrayOfNulls(VOID_STEPS) }
-            val step = (((time * 0.12f + floor * 0.173f) % 1f + 1f) % 1f * VOID_STEPS).toInt().coerceIn(0, VOID_STEPS - 1)
+            val block = hash(floor / 10, 77)
+            val step = (((block + time * 0.02f) % 1f + 1f) % 1f * VOID_STEPS).toInt().coerceIn(0, VOID_STEPS - 1)
             return arr[step] ?: run {
                 val deg = step * 360f / VOID_STEPS
                 val src = of(zone)
                 val voidP = of(Zone.VOID)
                 src.map { Col.hueShift(it, deg) }.let { p ->
                     Palette(
-                        p.skyTop, p.skyBottom, Col.lerp(p.wallTop, voidP.wallTop, 0.5f), Col.lerp(p.wallBottom, voidP.wallBottom, 0.5f),
+                        p.skyTop, p.skyBottom, Col.lerp(p.wallTop, voidP.wallTop, 0.8f), Col.lerp(p.wallBottom, voidP.wallBottom, 0.8f),
                         p.panel, p.neon, Col.hueShift(voidP.neon2, deg), p.slab, p.slabEdge, p.lamp, p.outer, p.outerLit, p.door,
                         p.doorFrame, p.enemyMain, p.enemyAccent, p.enemySkin, p.bgFar, p.bgMid, p.bgNear, p.laser, p.vent,
+                        voidP.ceil, voidP.deep, p.trim, p.haze, p.glow,
                     )
                 }.also { arr[step] = it }
             }
