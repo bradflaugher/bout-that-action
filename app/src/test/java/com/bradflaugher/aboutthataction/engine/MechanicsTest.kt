@@ -383,6 +383,34 @@ class MechanicsTest {
     }
 
     @Test
+    fun hazardsAnnounceEachActivationOnce() {
+        var seed = 1L
+        var floor = -1
+        while (floor < 0) {
+            floor = (25..49).firstOrNull { LevelGen.build(seed, it, Difficulty()).hazards.isNotEmpty() } ?: -1
+            if (floor < 0) seed++
+        }
+        val w = world(floor = floor, seed = seed)
+        w.player.state = PlayerState.DOOR // out of harm's way
+        val h = w.floor(floor)!!.plan.hazards.first()
+        var fires = 0
+        run(w, h.period * 3f) { fires += it.events.count { e -> e is GameEvent.HazardFire }; it.events.clear() }
+        assertTrue("fires $fires over 3 periods", fires in 2..4 * w.floor(floor)!!.plan.hazards.size)
+    }
+
+    @Test
+    fun screenShapeNeverChangesTheRun() {
+        fun play(aspect: Float): Triple<Long, Int, Int> {
+            val w = World(RunConfig(777L, Difficulty(startFloor = 60)))
+            w.viewAspect = aspect
+            val pilot = Autopilot(3L)
+            run(w, 45f) { pilot.act(it) }
+            return Triple(w.score, w.kills, w.deepest)
+        }
+        assertEquals(play(1.8f), play(2.4f))
+    }
+
+    @Test
     fun sameInputsReplayTheSameRun() {
         fun play(): Pair<Long, Int> {
             val w = World(RunConfig(4242L))

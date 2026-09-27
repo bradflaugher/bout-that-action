@@ -653,6 +653,8 @@ internal class Building(private val f: Frame) {
     /** Elevator cars drawn over the floors; the player rides inside, behind glass doors. */
     fun elevators(actors: Actors) {
         val w = f.w
+        // Forget door animation state for shafts the world has culled.
+        if (carOpen.size > w.elevators.size) carOpen.keys.retainAll(w.elevators.keys)
         for (car in w.elevators.values) {
             val s = car.shaft
             val yb = Geo.groundY(car.pos)

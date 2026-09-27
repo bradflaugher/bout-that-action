@@ -133,6 +133,14 @@ class AudioOutput(private val engine: SoundEngine) {
                 break
             }
         }
+        // The track died mid-session (route or device change): rebuild it
+        // off this thread rather than staying silent until the next resume.
+        if (dead && running && !paused) {
+            Thread({
+                Thread.sleep(300)
+                if (dead) start()
+            }, "ata-audio-restart").start()
+        }
     }
 
     private companion object {

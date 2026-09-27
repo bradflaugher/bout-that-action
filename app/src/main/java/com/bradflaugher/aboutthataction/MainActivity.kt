@@ -52,9 +52,9 @@ class MainActivity : ComponentActivity(), GameView.Host {
     private var runSeedLabel = ""
     private var runConfig: RunConfig? = null
 
-    // Music state, touched only on the game thread.
-    private var musicZone: Zone? = null
-    private var musicSlowMo = false
+    // Music state, driven from the game thread and reset on the main thread between runs.
+    @Volatile private var musicZone: Zone? = null
+    @Volatile private var musicSlowMo = false
     private var musicFrame = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -160,6 +160,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
         gameView.autopilot = Autopilot(seed)
         gameView.world = World(RunConfig(seed, Difficulty.Preset.CHILL.difficulty))
         musicZone = null
+        endSlowMo()
         if (music) sound.playTitle()
     }
 
@@ -239,6 +240,12 @@ class MainActivity : ComponentActivity(), GameView.Host {
         if (++musicFrame % 15 == 0) sound.setIntensity(world.intensity)
     }
 
+    /** A run can end mid bullet-time; don't let the menus play slowed down. */
+    private fun endSlowMo() {
+        musicSlowMo = false
+        sound.setSlowMo(false)
+    }
+
     override fun onDemoOver() {
         if (gameView.attract && screen != Screen.PLAYING) showAttract(music = false)
     }
@@ -265,6 +272,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
             newBestScore = newBestScore,
             newBestFloor = newBestFloor,
         )
+        endSlowMo()
         sound.gameOver()
         screen = Screen.GAME_OVER
     }

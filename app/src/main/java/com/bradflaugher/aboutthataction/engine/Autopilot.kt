@@ -16,11 +16,13 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
     private val judged = HashSet<Bullet>()
     private var tapCooldown = 0f
     private var dodgeCooldown = 0f
+    private var grenadeCooldown = 0f
 
     /** Decide this step's input. Call once before every [World.step] of [dt]. */
     fun act(w: World, dt: Float = 1f / 120f) {
         tapCooldown -= dt
         dodgeCooldown -= dt
+        grenadeCooldown -= dt
         if (judged.size > 64) {
             judged.retainAll(w.bullets.toSet())
             ignored.retainAll(judged)
@@ -67,7 +69,10 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
                 w.commands += Command.TAP
                 tapCooldown = 0.25f
             }
-            if (enemies.size >= 3 && p.grenades > 0) w.commands += Command.DOUBLE_TAP
+            if (enemies.size >= 3 && p.grenades > 0 && grenadeCooldown <= 0f && w.grenades.isEmpty()) {
+                w.commands += Command.DOUBLE_TAP
+                grenadeCooldown = 1.5f
+            }
             // Close enough to choke? Walk in.
             w.moveAxis = if (abs(nearest.x - p.x) < 1.5f && nearest.kind != EnemyKind.HEAVY) (if (nearest.x > p.x) 1 else -1) else 0
             return

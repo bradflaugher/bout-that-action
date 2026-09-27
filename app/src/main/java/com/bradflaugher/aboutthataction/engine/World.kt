@@ -207,14 +207,18 @@ class World(val config: RunConfig) {
 
     fun floor(index: Int): FloorState? = floors[index]
 
+    /**
+     * The simulated window follows the player, never the camera: which floors
+     * exist (and so every random roll) must not depend on the screen's shape.
+     * It is tall enough to fill the tallest phones.
+     */
     private fun ensureFloors() {
-        val top = max(0, floor(camY / Geo.FLOOR_H).toInt() - 1)
-        val bottom = floor((camY + viewH) / Geo.FLOOR_H).toInt() + 1
-        for (f in top..max(bottom, player.floor + 1)) {
+        val top = max(0, player.floor - FLOORS_ABOVE)
+        for (f in top..player.floor + FLOORS_BELOW) {
             if (f !in floors) buildFloor(f)
         }
         // Floors scrolled off the top never come back: we only go down.
-        val cull = min(top, player.floor - 2)
+        val cull = top
         while (floors.isNotEmpty() && floors.firstKey() < cull) {
             val gone = floors.pollFirstEntry().key
             enemies.removeAll { it.floor == gone }
@@ -229,9 +233,11 @@ class World(val config: RunConfig) {
         val plan = LevelGen.build(seed, f, difficulty)
         val state = FloorState(plan)
         floors[f] = state
+        // Each floor furnishes itself from its own stream, whenever it's built.
+        val rng = Rng.forKey(seed, 0xB1D5L, f.toLong())
         val arrivalX = if (plan.arrival == Side.LEFT) 0f else Geo.FLOOR_W
         for (s in plan.spawns) {
-            val e = spawnEnemy(s.kind, s.x, f, if (rng.chance(0.5f)) 1 else -1)
+            val e = spawnEnemy(s.kind, s.x, f, if (rng.chance(0.5f)) 1 else -1, rng)
             // Deeper down, some guards are already watching the stairs.
             if (f > 0 && rng.chance((plan.heat * 0.22f).coerceAtMost(0.7f))) e.facing = if (arrivalX > e.x) 1 else -1
         }
@@ -246,7 +252,7 @@ class World(val config: RunConfig) {
         }
     }
 
-    private fun spawnEnemy(kind: EnemyKind, x: Float, floor: Int, facing: Int): Enemy {
+    private fun spawnEnemy(kind: EnemyKind, x: Float, floor: Int, facing: Int, rng: Rng = this.rng): Enemy {
         val e = Enemy(nextEnemyId++, kind, x, floor, facing)
         val hp = Heat.enemyHp(kind, LevelGen.zoneAndHeat(seed, floor, difficulty).second)
         e.hp = hp
@@ -1291,6 +1297,8 @@ class World(val config: RunConfig) {
             for (h in fs.plan.hazards) {
                 val live = h.state(time) >= 1f
                 if (!live) continue
+                // Announce each activation once, on the off-to-live edge, where the player is.
+                if (h.state(time - dt) < 1f && f == player.floor) events += GameEvent.HazardFire(pan(h.x))
                 val width = if (h.kind == HazardKind.LASER) 0.22f else 0.42f
                 val height = if (h.kind == HazardKind.LASER) Geo.FLOOR_H else 0.95f
                 if (player.floor == f && playerVisibleOn(f) || player.state == PlayerState.BOX && player.floor == f) {
@@ -1301,7 +1309,7 @@ class World(val config: RunConfig) {
                         kill(e, KillMethod.HAZARD, if (e.x >= h.x) 1 else -1)
                     }
                 }
-                if (h.kind == HazardKind.VENT && rng.chance(dt * 30f)) {
+                if (h.kind == HazardKind.VENT && fx.chance(dt * 30f)) {
                     fx.burst(ParticleKind.EMBER, h.x, Geo.groundY(f) - 0.1f, 1, 3f, 0.5f, 0.12f, upBias = 1.2f)
                 }
             }
@@ -1485,6 +1493,8 @@ class World(val config: RunConfig) {
         const val TAKEDOWN_TIME = 0.36f
         const val STAIRS_TIME = 0.5f
         const val COMBO_WINDOW = 2.6f
+        const val FLOORS_ABOVE = 4
+        const val FLOORS_BELOW = 7
         const val RELOAD_TIME = 1.05f
         const val TACTICAL_RELOAD_DELAY = 1.4f
         const val LIGHT_FALL_TIME = 0.42f

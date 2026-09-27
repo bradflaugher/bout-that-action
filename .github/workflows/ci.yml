@@ -6,9 +6,6 @@ name: CI
 # smoke test on a real emulator lives in emulator-smoke.yml.
 on:
   push:
-    branches:
-      - main
-      - 'claude/**'
   pull_request:
   workflow_dispatch:
 

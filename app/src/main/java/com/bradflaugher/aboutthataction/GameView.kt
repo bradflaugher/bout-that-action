@@ -48,7 +48,12 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
     /** Attract mode: the world ignores touches, hides the HUD and plays itself. */
     @Volatile var attract = true
     @Volatile var autopilot: Autopilot? = null
+    /** While paused, touches are ignored and any held finger is forgotten. */
     @Volatile var paused = false
+        set(value) {
+            field = value
+            if (value) synchronized(inputLock) { input.cancelAll() }
+        }
     @Volatile var topInset = 0f
     @Volatile var bottomInset = 0f
     @Volatile var touchGuide = true
@@ -61,8 +66,8 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
     private val pendingPerk = AtomicInteger(-1)
     private val main = Handler(Looper.getMainLooper())
 
-    @Volatile private var running = false
-    private var thread: Thread? = null
+    /** The one live loop thread; a loop exits as soon as it's no longer this. */
+    @Volatile private var thread: Thread? = null
     private var accumulator = 0.0
     @Volatile private var reportedOver = false
     private val startNanos = System.nanoTime()
@@ -77,8 +82,7 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
     override fun surfaceDestroyed(holder: SurfaceHolder) = stopLoop()
 
     private fun startLoop() {
-        if (running) return
-        running = true
+        if (thread != null) return
         thread = Thread(::loop, "game-loop").also {
             it.priority = Thread.MAX_PRIORITY - 1
             it.start()
@@ -86,14 +90,15 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
     }
 
     private fun stopLoop() {
-        running = false
-        thread?.join(500)
+        val old = thread
         thread = null
+        old?.join(500)
     }
 
     private fun loop() {
         var last = System.nanoTime()
-        while (running) {
+        val me = Thread.currentThread()
+        while (thread === me) {
             val now = System.nanoTime()
             val frame = ((now - last) / 1e9).coerceAtMost(0.1)
             last = now

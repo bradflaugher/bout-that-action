@@ -55,6 +55,9 @@ class Fx(private val rng: Rng) {
         texts += FloatingText(text, x, y, style, life)
     }
 
+    /** Cosmetic randomness only: never feeds back into gameplay. */
+    fun chance(p: Float): Boolean = rng.chance(p)
+
     fun update(dt: Float) {
         val it = particles.iterator()
         while (it.hasNext()) {
