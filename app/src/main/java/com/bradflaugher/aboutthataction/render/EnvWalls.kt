@@ -29,7 +29,6 @@ internal class EnvWalls(private val f: Frame) {
         const val WIN_TOP = 0.5f
         const val WIN_BOTTOM = 0.95f
         const val WIN_HALF = 0.5f
-        private val STATION = Array(100) { "B-%02d".format(it) }
         private val STATION_X = floatArrayOf(3.8f, 6.2f)
         /** Seams that carry structure (timber posts, bone pilasters): both ends and the middle. */
         private val POSTS = floatArrayOf(SEAMS[0], SEAMS[3], SEAMS[6])
@@ -38,6 +37,9 @@ internal class EnvWalls(private val f: Frame) {
         private val ART_BOT = intArrayOf(0xFF2A1A5A.toInt(), 0xFF0E2238.toInt(), 0xFF3A0E1A.toInt(), 0xFF8A7A68.toInt())
         private val BOOKS = intArrayOf(0xFF6A2A3A.toInt(), 0xFF2A4A6A.toInt(), 0xFF8A6A3A.toInt(), 0xFF3A5A3A.toInt(), 0xFF5A3A6A.toInt(), 0xFFB0A080.toInt())
         private val TAGS = arrayOf("BEAST", "SKITTLES", "RUN IT", "YEAH", "#24")
+        private val TOWER_TINTS = intArrayOf(0, 0x1CFF3D9A, 0x1C2C8CFF, 0x162CF0C8, 0x18FFA040)
+        private val LAB_TINTS = intArrayOf(0, 0x14FFFFFF, 0x142C8CFF, 0x10A0FF40)
+        private val MURALS = arrayOf("BEAST MODE", "SKITTLES", "'BOUT THAT", "RUN IT BACK")
         private val ARRIVALS = arrayOf("NEXT  2 MIN", "DELAYED", "NO SERVICE", "EXPRESS  B-99")
     }
 
@@ -45,13 +47,45 @@ internal class EnvWalls(private val f: Frame) {
 
     /** The wall surface for [zone]; drawn inside the room clip, over the base gradient. */
     fun material(zone: Zone, pal: Palette, fi: Int, rt: Float, gy: Float) {
+        val mv = variant(fi)
+        // Department colour: each upper floor leans a little toward its own hue.
+        val tint = when (zone) {
+            Zone.TOWER, Zone.ROOFTOP -> TOWER_TINTS[(hash(fi, 713) * TOWER_TINTS.size).toInt()]
+            Zone.LABS -> LAB_TINTS[(hash(fi, 713) * LAB_TINTS.size).toInt()]
+            else -> 0
+        }
+        if (tint != 0) g.fillRect(0f, rt, W, gy, tint)
         when (zone) {
-            Zone.TOWER, Zone.ROOFTOP -> tower(pal, rt, gy)
-            Zone.LABS -> labs(pal, rt, gy)
-            Zone.METRO -> metro(pal, fi, rt, gy)
-            Zone.MINES -> mines(pal, fi, rt, gy)
-            Zone.MAGMA -> magma(pal, fi, rt, gy)
-            Zone.HELL -> hell(pal, fi, rt, gy)
+            Zone.TOWER, Zone.ROOFTOP -> when (mv) {
+                0 -> tower(pal, rt, gy)
+                1 -> marble(pal, fi, rt, gy)
+                else -> slats(pal, rt, gy)
+            }
+            Zone.LABS -> when (mv) {
+                0 -> labs(pal, rt, gy)
+                1 -> { labs(pal, rt, gy); cleanRoom(pal, rt, gy) }
+                else -> { labs(pal, rt, gy); quarantine(pal, rt, gy) }
+            }
+            Zone.METRO -> when (mv) {
+                0 -> metro(pal, fi, rt, gy)
+                1 -> brick(pal, fi, rt, gy)
+                else -> mural(pal, fi, rt, gy)
+            }
+            Zone.MINES -> {
+                if (mv == 2) coal(pal, fi, rt, gy)
+                mines(pal, fi, rt, gy)
+                if (mv == 1) crystals(pal, fi, rt, gy)
+            }
+            Zone.MAGMA -> when (mv) {
+                0 -> magma(pal, fi, rt, gy)
+                1 -> { foundry(pal, rt, gy); heatShimmer(pal, fi, rt, gy) }
+                else -> { obsidian(pal, fi, rt, gy); heatShimmer(pal, fi, rt, gy) }
+            }
+            Zone.HELL -> when (mv) {
+                0 -> hell(pal, fi, rt, gy)
+                1 -> flesh(pal, fi, rt, gy)
+                else -> { hell(pal, fi, rt, gy); ossuary(pal, rt, gy) }
+            }
             Zone.VOID -> voidWall(pal, rt, gy)
         }
     }
@@ -144,7 +178,7 @@ internal class EnvWalls(private val f: Frame) {
         g.fillRect(0f, by + 0.2f, W, by + 0.235f, Col.mul(pal.neon2, 0.3f))
         for (sx in STATION_X) {
             g.fillRect(sx - 0.44f, by - 0.03f, sx + 0.44f, by + 0.23f, 0xFF101214.toInt())
-            f.worldText(STATION[fi % 100], sx, by + 0.17f, 0.18f, 0xFFF2EEE4.toInt())
+            f.worldText(EnvLabels.short(fi), sx, by + 0.17f, 0.18f, 0xFFF2EEE4.toInt())
         }
     }
 
@@ -349,7 +383,7 @@ internal class EnvWalls(private val f: Frame) {
     fun voidGlitch(pal: Palette, fi: Int, rt: Float, gy: Float) {
         // Scanlines: the room is a broadcast that's losing signal.
         var y = rt
-        val scan = Col.alpha(pal.deep, 0.22f)
+        val scan = Col.alpha(pal.deep, 0.14f)
         while (y < gy) {
             g.fillRect(0f, y, W, y + 0.025f, scan)
             y += 0.1f
@@ -1256,5 +1290,248 @@ internal class EnvWalls(private val f: Frame) {
         g.line(x, gy - 1.3f, x, gy - 0.05f, 0.015f, 0xFF140606.toInt())
         for (k in 0 until 5) g.fillCircle(x - 0.18f, gy - 1.2f + k * 0.22f, 0.025f, 0xFF8A6A5A.toInt())
         g.fillRect(x - 0.3f, gy - 0.3f, x + 0.3f, gy, Col.alpha(0xFF6A000C.toInt(), 0.5f))
+    }
+
+    // ======================================================= material variants
+
+    /**
+     * Wall-material variants give each floor its own identity even when doors fill its slots:
+     * half the floors wear the zone's standard finish, the rest one of two alternates.
+     */
+    private fun variant(fi: Int): Int {
+        val h = hash(fi, 712)
+        return if (h < 0.5f) 0 else if (h < 0.75f) 1 else 2
+    }
+
+    /** Big veined stone slabs and a brass rail: the executive floors. */
+    private fun marble(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        g.fillRect(0f, rt, W, gy, Col.alpha(pal.trim, 0.13f))
+        for (k in 0..3) {
+            val x = SEAMS[k * 2]
+            g.fillRect(x - HAIR, rt, x + HAIR * 0.5f, gy, Col.alpha(pal.deep, 0.5f))
+        }
+        val vein = Col.alpha(0xFFFFFFFF.toInt(), 0.14f)
+        for (v in 0 until 6) {
+            var x = hash(v + fi * 7, 80) * W
+            var y = rt + 0.2f
+            for (s in 0 until 7) {
+                val nx = x + (hash(s + v * 9 + fi, 81) - 0.35f) * 0.7f
+                val ny = y + 0.45f
+                g.line(x, y, nx, ny, 0.012f, vein)
+                x = nx
+                y = ny
+            }
+        }
+        val ry = gy - 0.9f
+        g.fillRect(0f, ry - 0.03f, W, ry, 0xB0C8A060.toInt())
+        g.fillRect(0f, ry - 0.03f, W, ry - 0.022f, 0xC0FFE0A0.toInt())
+    }
+
+    /** Warm timber slats with a hidden LED cove: the design-studio floors. */
+    private fun slats(pal: Palette, rt: Float, gy: Float) {
+        g.fillRect(0f, rt, W, gy, 0x38A0602A)
+        var x = 0.06f
+        val dark = Col.alpha(pal.deep, 0.55f)
+        while (x < W) {
+            g.fillRect(x, rt + 0.3f, x + 0.03f, gy - 0.12f, dark)
+            x += 0.14f
+        }
+        g.fillRect(0f, rt + 0.26f, W, rt + 0.3f, 0x60FFC890)
+    }
+
+    /** Bright clean-room cladding with rounded panels and a status strip. */
+    private fun cleanRoom(pal: Palette, rt: Float, gy: Float) {
+        g.fillRect(0f, rt, W, gy, 0x10FFFFFF)
+        for (i in 0 until SEAMS.size - 1) {
+            val x0 = SEAMS[i] + 0.05f
+            val x1 = SEAMS[i + 1] - 0.05f
+            g.strokeRoundRect(x0, rt + 0.3f, x1, rt + 1.35f, 0.12f, HAIR, Col.alpha(pal.trim, 0.2f))
+            g.strokeRoundRect(x0, rt + 1.45f, x1, gy - 0.3f, 0.12f, HAIR, Col.alpha(pal.trim, 0.2f))
+        }
+        g.fillRect(0f, rt + 1.38f, W, rt + 1.42f, Col.alpha(pal.neon2, 0.35f))
+    }
+
+    /** A sealed floor: red strobe wash, hazard banding, stencilled warnings. */
+    private fun quarantine(pal: Palette, rt: Float, gy: Float) {
+        val pulse = 0.5f + 0.5f * sin(f.t * 4f)
+        g.fillRect(0f, rt, W, gy, Col.alpha(0xFFFF2020.toInt(), 0.04f + 0.05f * pulse))
+        g.save()
+        g.clipRect(0f, rt + 0.2f, W, rt + 0.32f)
+        g.fillRect(0f, rt + 0.2f, W, rt + 0.32f, 0xFF15150E.toInt())
+        var sx = -0.4f
+        while (sx < W) {
+            poly.quad(g, sx, rt + 0.32f, sx + 0.12f, rt + 0.32f, sx + 0.24f, rt + 0.2f, sx + 0.12f, rt + 0.2f, 0xFFC02020.toInt())
+            sx += 0.24f
+        }
+        g.restore()
+        for (k in 0..1) f.worldText("QUARANTINE", if (k == 0) 3.2f else 6.8f, rt + 0.62f, 0.18f, Col.alpha(0xFFFF4040.toInt(), 0.75f))
+    }
+
+    /** Old brick with the ghosts of torn posters. */
+    private fun brick(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        g.fillRect(0f, rt, W, gy, 0x18A04828)
+        val mortar = Col.alpha(pal.deep, 0.45f)
+        var y = rt + 0.18f
+        var row = 0
+        while (y < gy) {
+            g.fillRect(0f, y, W, y + 0.02f, mortar)
+            var x = if (row % 2 == 0) 0.2f else 0.4f
+            while (x < W) {
+                g.fillRect(x, y - 0.16f, x + 0.02f, y, mortar)
+                x += 0.4f
+            }
+            y += 0.18f
+            row++
+        }
+        for (k in 0 until 3) {
+            val px = hash(fi * 3 + k, 82) * (W - 1f)
+            val py = rt + 0.9f + hash(fi * 3 + k, 83) * 0.8f
+            val c = if (k % 2 == 0) 0x40E8D0A0 else 0x40C04830
+            poly.quad(g, px, py, px + 0.6f, py + 0.05f, px + 0.52f, py + 0.7f, px + 0.05f, py + 0.55f, c)
+        }
+    }
+
+    /** Board-formed concrete under a huge mural. */
+    private fun mural(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        var y = rt + 0.3f
+        while (y < gy) {
+            g.fillRect(0f, y, W, y + 0.01f, Col.alpha(pal.deep, 0.3f))
+            y += 0.3f
+        }
+        val tag = MURALS[fi % MURALS.size]
+        g.save()
+        g.translate(W / 2f, rt + 0.78f)
+        g.rotate(-3f)
+        g.scale(1f / f.s, 1f / f.s)
+        val sz = 0.5f * f.s
+        g.text(tag, 3f, 3f, sz, 0x60000000, Gfx.Font.TITLE, Gfx.Align.CENTER)
+        g.text(tag, 0f, 0f, sz, if (fi % 2 == 0) 0x70FF4A9A else 0x704AF0C0, Gfx.Font.TITLE, Gfx.Align.CENTER)
+        g.restore()
+        for (k in 0 until 6) {
+            val dx = 1.5f + hash(k + fi, 84) * 7f
+            g.fillRect(dx, rt + 0.8f, dx + 0.02f, rt + 0.95f + hash(k, 85) * 0.4f, if (fi % 2 == 0) 0x50FF4A9A else 0x504AF0C0)
+        }
+    }
+
+    /** Crystal cave: glowing clusters bursting from the rock. */
+    private fun crystals(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        g.blend(Gfx.Blend.ADD)
+        for (k in 0 until 6) {
+            val cx = hash(fi * 5 + k, 86) * W
+            val cy = rt + 0.4f + hash(fi * 5 + k, 87) * (gy - rt - 0.8f)
+            val c = if (k % 3 == 0) 0xFFFF5AD8.toInt() else if (k % 3 == 1) 0xFF5AD8FF.toInt() else 0xFF8AFFB0.toInt()
+            g.glow(cx, cy, 1.1f, Col.alpha(c, 0.45f))
+        }
+        g.blend(Gfx.Blend.NORMAL)
+        for (k in 0 until 6) {
+            val cx = hash(fi * 5 + k, 86) * W
+            val cy = rt + 0.4f + hash(fi * 5 + k, 87) * (gy - rt - 0.8f)
+            val c = if (k % 3 == 0) 0xFFFF5AD8.toInt() else if (k % 3 == 1) 0xFF5AD8FF.toInt() else 0xFF8AFFB0.toInt()
+            for (j in 0 until 4) {
+                val a = -1.2f + j * 0.8f + hash(j + k, 88) * 0.3f
+                val l = 0.3f + hash(j + k * 4 + fi, 89) * 0.3f
+                val tx = cx + sin(a) * l
+                val ty = cy - cos(a) * l
+                poly.tri(g, cx - 0.06f, cy, cx + 0.06f, cy, tx, ty, Col.alpha(c, 0.9f))
+                g.line(cx, cy, tx, ty, 0.01f, 0xC0FFFFFF.toInt())
+            }
+        }
+    }
+
+    /** Coal seams: glossy black bands through the rock. */
+    private fun coal(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        for (b in 0 until 3) {
+            val y = rt + 0.5f + b * 0.9f + hash(fi + b, 90) * 0.2f
+            poly.begin()
+            poly.add(-0.1f, y + 0.3f)
+            for (k in 0..8) poly.add(k * 1.25f, y + sin(k * 1.1f + b + fi) * 0.08f)
+            poly.add(W + 0.1f, y + 0.3f)
+            poly.fill(g, 0xB0050404.toInt())
+            g.line(0f, y + 0.02f, W, y + 0.04f, 0.012f, 0x40FFFFFF)
+        }
+    }
+
+    /** Foundry plating: riveted steel, hot at the floor. */
+    private fun foundry(pal: Palette, rt: Float, gy: Float) {
+        g.fillRect(0f, rt, W, gy, 0x14B0A0A0)
+        var y = rt + 0.8f
+        while (y < gy) {
+            g.fillRect(0f, y, W, y + 0.025f, Col.alpha(pal.deep, 0.7f))
+            var x = 0.3f
+            while (x < W) {
+                g.fillCircle(x, y - 0.06f, 0.022f, Col.alpha(pal.trim, 0.45f))
+                x += 0.6f
+            }
+            y += 0.8f
+        }
+        for (x in SEAMS) g.fillRect(x - HAIR, rt, x + HAIR, gy, Col.alpha(pal.deep, 0.7f))
+        g.fillRect(0f, gy - 0.5f, W, gy - 0.46f, Col.alpha(pal.glow, 0.7f))
+    }
+
+    /** Obsidian: black glass in sharp facets, veined with fire. */
+    private fun obsidian(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        for (k in 0 until 8) {
+            val x = k * 1.3f + hash(k + fi, 91) * 0.4f
+            poly.quad(g, x, rt, x + 1.2f, rt, x + 0.4f + hash(k, 92), gy, x - 0.6f, gy, if (k % 2 == 0) 0x40000000 else 0x0CFFFFFF)
+        }
+        for (v in 0 until 5) {
+            var x = hash(v + fi * 5, 93) * W
+            var y = gy
+            for (s in 0 until 5) {
+                val nx = x + (hash(s + v * 7 + fi, 94) - 0.5f) * 0.8f
+                val ny = y - 0.55f
+                g.line(x, y, nx, ny, 0.015f, Col.alpha(pal.glow, 0.8f))
+                x = nx
+                y = ny
+            }
+        }
+    }
+
+    /** Flesh: the walls are alive, veins pulsing. */
+    private fun flesh(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        g.fillRect(0f, rt, W, gy, 0x20801020)
+        val beat = 0.6f + 0.4f * sin(f.t * 5f) * sin(f.t * 5f)
+        for (v in 0 until 7) {
+            var x = hash(v + fi * 3, 95) * W
+            var y = rt + 0.15f
+            var w = 0.05f
+            for (s in 0 until 6) {
+                val nx = x + (hash(s + v * 11 + fi, 96) - 0.5f) * 0.9f
+                val ny = y + 0.5f
+                g.line(x, y, nx, ny, w, Col.alpha(0xFF6A0010.toInt(), 0.8f))
+                g.line(x, y, nx, ny, w * 0.35f, Col.alpha(0xFFFF3050.toInt(), 0.45f * beat))
+                if (s == 2) g.line(nx, ny, nx + 0.4f, ny + 0.3f, w * 0.6f, Col.alpha(0xFF6A0010.toInt(), 0.7f))
+                x = nx
+                y = ny
+                w *= 0.85f
+            }
+        }
+        for (k in 0 until 5) {
+            val px = hash(k + fi * 9, 97) * W
+            val py = rt + 0.5f + hash(k + fi * 9, 98) * (gy - rt - 1f)
+            g.fillCircle(px, py, 0.07f, 0x90802030.toInt())
+            g.fillCircle(px - 0.02f, py - 0.02f, 0.02f, 0x60FFFFFF)
+        }
+    }
+
+    /** Ossuary: skulls packed into niches above and below. */
+    private fun ossuary(pal: Palette, rt: Float, gy: Float) {
+        val bone = pal.trim
+        for (row in 0 until 2) {
+            val y = rt + 0.32f + row * 0.26f
+            var x = 0.18f + row * 0.13f
+            while (x < W) {
+                g.fillCircle(x, y, 0.1f, Col.alpha(bone, 0.4f))
+                g.fillCircle(x - 0.035f, y, 0.025f, Col.alpha(pal.deep, 0.8f))
+                g.fillCircle(x + 0.035f, y, 0.025f, Col.alpha(pal.deep, 0.8f))
+                x += 0.26f
+            }
+        }
+        var x = 0.2f
+        while (x < W) {
+            g.line(x - 0.1f, gy - 0.2f, x + 0.1f, gy - 0.16f, 0.04f, Col.alpha(bone, 0.35f))
+            g.line(x - 0.1f, gy - 0.28f, x + 0.12f, gy - 0.3f, 0.04f, Col.alpha(bone, 0.3f))
+            x += 0.28f
+        }
     }
 }

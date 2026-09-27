@@ -26,8 +26,6 @@ internal class Building(private val f: Frame) {
     private val poly get() = f.poly
     private val walls = EnvWalls(f)
     private val rooms = EnvRooms(f, walls)
-    private val roomLabels = arrayOfNulls<String>(512)
-    private val roomKeys = IntArray(512) { -1 }
     private val carOpen = HashMap<Int, FloatArray>()
     private val cutBuf = FloatArray(8)
 
@@ -100,12 +98,15 @@ internal class Building(private val f: Frame) {
             val lx = plan.lights[i]
             if (fs.lightAlive[i]) {
                 if (!lampOn(fi, i, zone)) continue
-                g.fillRectRadial(lx - 1.8f, rt + 0.3f, lx + 1.8f, gy, lx, rt + 0.45f, 3.0f, Col.alpha(lc, 0.12f + 0.1f * deepZone), Col.alpha(lc, 0f))
+                // Additive light: a broad wash on the wall, a pool where the cone lands.
+                g.blend(Gfx.Blend.ADD)
+                g.glow(lx, rt + 0.6f, 2.9f, Col.alpha(lc, 0.1f + 0.06f * deepZone))
                 g.save()
                 g.translate(lx, gy - 0.02f)
-                g.scale(1f, 0.15f)
-                g.fillRadialGradient(0f, 0f, 1.8f, Col.alpha(lc, 0.5f + 0.2f * deepZone), Col.alpha(lc, 0f))
+                g.scale(1f, 0.16f)
+                g.glow(0f, 0f, 1.9f, Col.alpha(lc, 0.35f + 0.15f * deepZone))
                 g.restore()
+                g.blend(Gfx.Blend.NORMAL)
             } else if (fs.lightFall[i] < 0f) {
                 brokenLamp(pal, lx, rt, gy, i)
             }
@@ -114,6 +115,13 @@ internal class Building(private val f: Frame) {
         // Deep zones: the room falls off into darkness toward its ends.
         if (deepZone > 0f) {
             g.fillRectRadial(0f, rt, W, gy, W / 2f, (rt + gy) / 2f, 5.6f, 0x00000000, Col.alpha(0xFF000000.toInt(), 0.5f * deepZone))
+        }
+        // Deeper floors: a dead fixture dangling from its wire between the working lamps.
+        if (deepZone > 0f && hash(fi, 714) < 0.45f) {
+            val dx = 2.2f + hash(fi, 715) * 5.6f
+            var clear = true
+            for (i in plan.lights.indices) if (abs(plan.lights[i] - dx) < 0.9f) clear = false
+            if (clear) danglingLamp(dx, rt, fi)
         }
         stairSign(plan.stairsDown, pal, rt, 1f)
         ceiling(pal, rt, sf)
@@ -124,6 +132,21 @@ internal class Building(private val f: Frame) {
         for (s in plan.shafts) shaftOnFloor(fs, pal, s.x, s.top, s.bottom, top, rt, gy)
         for (i in plan.doors.indices) door(fs, pal, zone, i, gy)
         for (h in plan.hazards) hazardBase(h.kind, pal, h.x, rt, gy, h.state(f.wt))
+    }
+
+    private fun danglingLamp(x: Float, rt: Float, fi: Int) {
+        val sway = sin(f.t * 0.8f + fi) * 6f + 18f
+        g.save()
+        g.translate(x, rt + 0.14f)
+        g.rotate(sway)
+        g.line(0f, 0f, 0f, 0.75f, 0.015f, 0xFF121016.toInt())
+        g.translate(0f, 0.8f)
+        g.rotate(-40f)
+        poly.quad(g, -0.08f, -0.08f, 0.08f, -0.08f, 0.2f, 0.07f, -0.2f, 0.07f, 0xFF201E26.toInt())
+        g.fillRect(-0.19f, 0.06f, 0.19f, 0.08f, 0xFF3A3A40.toInt())
+        g.restore()
+        // An occasional dying spark.
+        if (hash((f.t * 9f).toInt(), fi + 400) > 0.93f) f.glowDot(x + 0.3f, rt + 0.95f, 0.03f, 0xFFFFE080.toInt(), 1f)
     }
 
     /** 0 up in the tower, rising to 1 from the Mines down: how much the rooms rely on lamp pools. */
@@ -356,12 +379,12 @@ internal class Building(private val f: Frame) {
                 g.restore()
             }
             statusLamp(pal, d.x, y0, open)
-            when (dv) {
+            when (if (depth(zone) > 0.5f) 0 else dv) {
                 1 -> {
                     // Room-number plate beside the frame.
                     val px = x1 + cw + 0.2f
                     g.fillRect(px - 0.14f, y0 + 0.9f, px + 0.14f, y0 + 1.06f, Col.mul(frameC, 0.7f))
-                    f.worldText(roomLabel(fi, i), px, y0 + 1.02f, 0.1f, Col.alpha(pal.trim, 0.8f))
+                    f.worldText(EnvLabels.room(fi, i), px, y0 + 1.02f, 0.1f, Col.alpha(pal.trim, 0.8f))
                 }
                 2 -> g.fillRect(x0 - cw, y0 - cw - 0.03f, x1 + cw, y0 - cw - 0.01f, Col.alpha(pal.neon2, 0.35f))
                 else -> Unit
@@ -375,17 +398,6 @@ internal class Building(private val f: Frame) {
         g.fillRoundRect(x - 0.14f, y0 - 0.3f, x + 0.14f, y0 - 0.17f, 0.03f, pal.deep)
         g.fillRect(x - 0.1f, y0 - 0.26f, x + 0.1f, y0 - 0.21f, Col.fade(lc, if (open > 0.1f) 0.95f else 0.6f))
         if (open > 0.1f) g.fillRect(x - 0.2f, y0 - 0.33f, x + 0.2f, y0 - 0.14f, Col.fade(lc, 0.14f))
-    }
-
-    private fun roomLabel(fi: Int, i: Int): String {
-        // Direct-mapped string cache: no boxing, no allocation once a floor has been seen.
-        val key = fi * 8 + i
-        val slot = key and 511
-        if (roomKeys[slot] == key) return roomLabels[slot]!!
-        val s = (fi * 100 + 10 + i * 2).toString()
-        roomKeys[slot] = key
-        roomLabels[slot] = s
-        return s
     }
 
     /** Zone-specific leaf detail, drawn in door-local space (0..DOOR_W, 0..DOOR_H). */
@@ -434,8 +446,8 @@ internal class Building(private val f: Frame) {
                     }
                 }
                 for (k in 0 until 5) g.fillRect(0.25f, 0.4f + k * 0.1f, w - 0.25f, 0.44f + k * 0.1f, Col.alpha(pal.deep, 0.75f))
-                g.fillRect(0.3f, 1.1f, w - 0.3f, 1.26f, 0xFFD8D4C8.toInt())
-                g.fillRect(0.36f, 1.16f, w - 0.36f, 1.2f, 0xFF30343A.toInt())
+                g.fillRect(0.3f, 1.1f, w - 0.3f, 1.26f, Col.lerp(leaf, 0xFFD8D4C8.toInt(), 0.35f))
+                g.fillRect(0.36f, 1.16f, w - 0.36f, 1.2f, Col.mul(leaf, 0.6f))
                 g.fillRect(0.08f, h - 0.36f, w - 0.08f, h - 0.16f, Col.lerp(leaf, pal.trim, 0.12f))
             }
             Zone.MINES -> {
@@ -549,22 +561,17 @@ internal class Building(private val f: Frame) {
         val car = f.w.elevators[topFloor]
         val here = car != null && car.doorsOpen && car.atFloor == fi
         val iy = fy - 0.36f
-        g.fillRoundRect(sx - 0.32f, iy - 0.15f, sx + 0.32f, iy + 0.15f, 0.05f, 0xFF08070C.toInt())
-        g.strokeRoundRect(sx - 0.32f, iy - 0.15f, sx + 0.32f, iy + 0.15f, 0.05f, HAIR, 0xFF3A3846.toInt())
+        // Plate sized for four characters ("B149") plus the direction arrow.
+        g.fillRoundRect(sx - 0.42f, iy - 0.15f, sx + 0.42f, iy + 0.15f, 0.05f, 0xFF08070C.toInt())
+        g.strokeRoundRect(sx - 0.42f, iy - 0.15f, sx + 0.42f, iy + 0.15f, 0.05f, HAIR, 0xFF3A3846.toInt())
         if (car != null) {
             val num = car.pos.roundToInt()
             val c = if (here) pal.neon2 else Col.fade(pal.neon, 0.85f)
-            f.worldText(if (num == 0) "R" else floorLabel(num), sx + 0.07f, iy + 0.075f, 0.19f, c)
+            f.worldText(EnvLabels.short(num), sx + 0.08f, iy + 0.07f, 0.17f, c)
             val dir = if (car.pos < fi - 0.05f) 1f else if (car.pos > fi + 0.05f) -1f else 0f
-            if (dir != 0f) Glyphs.arrow(g, sx - 0.19f, iy, 0.07f, 0f, dir, 0.025f, c) else g.fillCircle(sx - 0.19f, iy, 0.04f, c)
-            if (here) g.fillRoundRect(sx - 0.38f, iy - 0.21f, sx + 0.38f, iy + 0.21f, 0.08f, Col.alpha(pal.neon2, 0.15f))
+            if (dir != 0f) Glyphs.arrow(g, sx - 0.3f, iy, 0.07f, 0f, dir, 0.025f, c) else g.fillCircle(sx - 0.3f, iy, 0.04f, c)
+            if (here) g.fillRoundRect(sx - 0.48f, iy - 0.21f, sx + 0.48f, iy + 0.21f, 0.08f, Col.alpha(pal.neon2, 0.15f))
         }
-    }
-
-    private val labels = arrayOfNulls<String>(512)
-    private fun floorLabel(n: Int): String {
-        if (n < 0 || n >= labels.size) return n.toString()
-        return labels[n] ?: n.toString().also { labels[n] = it }
     }
 
     /** Elevator cars drawn over the floors; the player rides inside, behind glass doors. */
@@ -1108,10 +1115,12 @@ internal class Building(private val f: Frame) {
         if (drop == 0f) g.line(lx, rt + 0.14f, lx, cy - 0.1f, 0.018f, 0xFF15151C.toInt())
         if (alive) {
             val y0 = cy + 0.08f
+            val coneBoost = 1f + 0.7f * depth(zone)
+            g.blend(Gfx.Blend.ADD)
             for (k in 0 until 5) {
                 val bw = CONE_W[k]
                 val tw = top * (0.4f + 0.15f * (4 - k))
-                poly.quad(g, lx - tw, y0, lx + tw, y0, lx + bw, gy, lx - bw, gy, Col.alpha(c, CONE_A[k]))
+                poly.quad(g, lx - tw, y0, lx + tw, y0, lx + bw, gy, lx - bw, gy, Col.alpha(c, CONE_A[k] * coneBoost))
             }
             // Dust motes drifting through the beam.
             for (k in 0 until 4) {
@@ -1120,6 +1129,7 @@ internal class Building(private val f: Frame) {
                 val mx = lx + (hash(k + (lx * 7f).toInt(), 233) - 0.5f) * 1.6f * ph + sin(f.t * 0.7f + k) * 0.08f
                 g.fillCircle(mx, my, 0.014f, Col.alpha(c, 0.45f * (1f - ph)))
             }
+            g.blend(Gfx.Blend.NORMAL)
         }
         val lit = if (alive) c else 0xFF3A3A40.toInt()
         val dark = 0xFF1C1A24.toInt()
@@ -1203,8 +1213,9 @@ internal class Building(private val f: Frame) {
         }
         g.restore()
         if (alive) {
-            g.fillCircle(lx, cy + 0.08f, 0.24f, Col.alpha(c, 0.08f))
-            g.fillCircle(lx, cy + 0.08f, 0.12f, Col.alpha(c, 0.2f))
+            g.blend(Gfx.Blend.ADD)
+            g.glow(lx, cy + 0.08f, 0.55f, Col.alpha(c, 0.45f))
+            g.blend(Gfx.Blend.NORMAL)
         }
     }
 

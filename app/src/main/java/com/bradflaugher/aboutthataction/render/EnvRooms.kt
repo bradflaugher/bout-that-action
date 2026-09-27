@@ -44,7 +44,13 @@ internal class EnvRooms(private val f: Frame, private val walls: EnvWalls) {
     fun specialSpan(fs: FloorState): Int {
         val plan = fs.plan
         if (plan.isVoid || plan.index == 0) return -1
-        if (hash(plan.index, 702) > SPECIAL_CHANCE) return -1
+        val chance = when (plan.zone) {
+            Zone.MAGMA -> 0.2f
+            Zone.LABS -> 0.26f
+            Zone.MINES -> 0.4f
+            else -> SPECIAL_CHANCE
+        }
+        if (hash(plan.index, 702) > chance) return -1
         var bestS = -1
         var bestE = -1
         var s = -1
@@ -52,7 +58,7 @@ internal class EnvRooms(private val f: Frame, private val walls: EnvWalls) {
             val ok = i < free.size && free[i]
             if (ok && s < 0) s = i
             if (!ok && s >= 0) {
-                if (i - 1 - s > bestE - bestS) {
+                if (bestS < 0 || i - 1 - s > bestE - bestS) {
                     bestS = s
                     bestE = i - 1
                 }
@@ -73,7 +79,12 @@ internal class EnvRooms(private val f: Frame, private val walls: EnvWalls) {
         val x1 = Geo.SLOTS[span and 0xFF] + 0.55f
         when (zone) {
             Zone.TOWER, Zone.ROOFTOP, Zone.VOID -> boardroom(pal, fi, x0, x1, rt, gy, backdrop)
-            Zone.LABS -> containment(pal, fi, x0, x1, rt, gy)
+            Zone.LABS -> {
+                g.save()
+                g.clipRect(x0, rt, x1, gy)
+                containment(pal, fi, x0, x1, rt, gy)
+                g.restore()
+            }
             Zone.METRO -> platform(pal, fi, x0, x1, rt, gy, backdrop)
             Zone.MINES -> collapse(pal, fi, x0, x1, rt, gy)
             Zone.MAGMA -> lavaFall(pal, fi, x0, x1, rt, gy)
@@ -138,6 +149,11 @@ internal class EnvRooms(private val f: Frame, private val walls: EnvWalls) {
         val bob = sin(f.t * 0.6f + fi) * 0.05f
         val sc = 0xB0031410.toInt()
         val sy = (t0 + t1) / 2f + bob
+        val k = ((x1 - x0) / 2.3f).coerceIn(0.5f, 1f)
+        g.save()
+        g.translate(cx, sy)
+        g.scale(k, k)
+        g.translate(-cx, -sy)
         g.fillCircle(cx - 0.25f, sy - 0.35f, 0.36f, sc)
         g.fillRoundRect(cx - 0.55f, sy - 0.2f, cx + 0.45f, sy + 0.55f, 0.35f, sc)
         g.line(cx + 0.35f, sy + 0.3f, cx + 0.9f, sy + 0.7f, 0.12f, sc)
@@ -146,6 +162,7 @@ internal class EnvRooms(private val f: Frame, private val walls: EnvWalls) {
         val beat = if (fract(f.t * 0.9f) < 0.12f) 0.9f else 0.35f
         g.fillCircle(cx - 0.32f, sy - 0.4f, 0.04f, Col.alpha(pal.neon2, beat))
         g.fillCircle(cx - 0.18f, sy - 0.38f, 0.04f, Col.alpha(pal.neon2, beat))
+        g.restore()
         for (b in 0 until 7) {
             val by = t1 - 0.1f - fract(f.t * 0.35f + b * 0.143f) * (t1 - t0 - 0.2f)
             g.fillCircle(x0 + 0.2f + hash(b + fi, 91) * (x1 - x0 - 0.4f), by, 0.025f, Col.alpha(0xFFFFFFFF.toInt(), 0.5f))
@@ -184,22 +201,26 @@ internal class EnvRooms(private val f: Frame, private val walls: EnvWalls) {
 
     /** Ankle-deep water over the floor, with reflections of the lamps. Drawn after actors. */
     fun water(pal: Palette, fs: FloorState, gy: Float) {
-        val top = gy - 0.13f
-        g.fillRect(0f, top, W, gy, 0x5A0E2A3A)
-        g.fillRect(0f, top, W, top + 0.012f, 0x80A8D8F0.toInt())
+        val top = gy - 0.16f
+        g.fillVerticalGradient(0f, top, W, gy, 0x70204A5A, 0xA00A1C28.toInt())
+        g.fillRect(0f, top, W, top + 0.014f, 0xA0B8E8FF.toInt())
+        // Lamps reflected as broken, rippling streaks.
+        g.blend(Gfx.Blend.ADD)
         val lights = fs.plan.lights
         for (i in lights.indices) {
             if (!fs.lightAlive[i]) continue
             val lx = lights[i]
-            for (k in 0 until 3) {
-                val w = 0.6f - k * 0.15f + sin(f.t * 3f + k + lx) * 0.05f
-                g.fillRect(lx - w, top + 0.03f + k * 0.03f, lx + w, top + 0.045f + k * 0.03f, Col.alpha(pal.lamp, 0.35f - k * 0.08f))
+            for (k in 0 until 4) {
+                val w = 0.7f - k * 0.15f + sin(f.t * 3f + k * 1.3f + lx) * 0.06f
+                val ox = sin(f.t * 2.1f + k + lx) * 0.04f
+                g.fillRect(lx - w + ox, top + 0.025f + k * 0.032f, lx + w + ox, top + 0.04f + k * 0.032f, Col.alpha(pal.lamp, 0.4f - k * 0.08f))
             }
         }
+        g.blend(Gfx.Blend.NORMAL)
         for (k in 0 until 6) {
             val ph = fract(f.t * 0.8f + hash(k + fs.plan.index, 96))
             val x = hash(k * 3 + fs.plan.index + (f.t * 0.8f + hash(k + fs.plan.index, 96)).toInt() * 7, 97) * W
-            g.line(x - 0.05f - ph * 0.25f, top + 0.006f, x + 0.05f + ph * 0.25f, top + 0.006f, 0.01f, Col.alpha(0xFFE0F4FF.toInt(), 0.5f * (1f - ph)))
+            g.line(x - 0.05f - ph * 0.3f, top + 0.007f, x + 0.05f + ph * 0.3f, top + 0.007f, 0.012f, Col.alpha(0xFFE0F4FF.toInt(), 0.6f * (1f - ph)))
         }
     }
 
@@ -272,18 +293,21 @@ internal class EnvRooms(private val f: Frame, private val walls: EnvWalls) {
         }
         g.fillRect(x0, gy - 0.22f, x0 + 0.1f, gy, 0xFF2A1A18.toInt())
         g.fillRect(x1 - 0.1f, gy - 0.22f, x1, gy, 0xFF2A1A18.toInt())
-        // The fall itself: layered ribbons with bright streaks sliding down.
-        val fw = 0.35f
+        // A rock alcove holds the fall, so it reads as scenery behind the action, not a hazard.
+        val fw = 0.24f
         val top = rt + 0.2f
         val bot = gy - 0.16f
-        g.fillRect(cx - fw * 2f, top, cx + fw * 2f, bot, 0x22FF5A00)
-        g.fillRect(cx - fw, top, cx + fw, bot, 0xFFFF5A00.toInt())
-        g.fillRect(cx - fw * 0.55f, top, cx + fw * 0.55f, bot, 0xFFFF9A20.toInt())
-        g.fillRect(cx - fw * 0.2f, top, cx + fw * 0.2f, bot, 0xFFFFD060.toInt())
-        for (s in 0 until 7) {
-            val sy = top + fract(f.t * 0.9f + s / 7f) * (bot - top)
-            val sx = cx + (hash(s, 109) - 0.5f) * fw
-            g.fillRect(sx - 0.05f, sy, sx + 0.05f, sy + 0.3f, 0xFFFFF0B0.toInt())
+        g.fillRoundRect(cx - 0.55f, rt + 0.14f, cx + 0.55f, gy - 0.18f, 0.3f, 0xFF0A0506.toInt())
+        g.strokeRoundRect(cx - 0.55f, rt + 0.14f, cx + 0.55f, gy - 0.18f, 0.3f, 0.04f, Col.alpha(pal.trim, 0.25f))
+        // The fall itself: layered ribbons with thin bright streaks sliding down.
+        g.fillRect(cx - fw * 1.8f, top, cx + fw * 1.8f, bot, 0x30FF5A00)
+        g.fillRect(cx - fw, top, cx + fw, bot, 0xFFD84A00.toInt())
+        g.fillRect(cx - fw * 0.55f, top, cx + fw * 0.55f, bot, 0xFFFF8A18.toInt())
+        g.fillRect(cx - fw * 0.18f, top, cx + fw * 0.18f, bot, 0xFFFFC050.toInt())
+        for (s in 0 until 12) {
+            val sy = top + fract(f.t * 0.9f + s / 12f) * (bot - top)
+            val sx = cx + (hash(s, 109) - 0.5f) * fw * 1.6f
+            g.fillRect(sx - 0.012f, sy, sx + 0.012f, sy + 0.35f, 0xB0FFE8A0.toInt())
         }
         // Fissure it pours from, and the splash.
         poly.quad(g, cx - 0.6f, rt + 0.14f, cx + 0.6f, rt + 0.14f, cx + fw, top + 0.1f, cx - fw, top + 0.1f, 0xFF140807.toInt())
