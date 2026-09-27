@@ -40,15 +40,17 @@ internal class Actors(private val f: Frame) {
     private var watchT = 0f
 
     companion object {
-        const val SUIT = 0xFF222A44.toInt()
-        const val SUIT_LIT = 0xFF3C4A72.toInt()
-        const val SUIT_DARK = 0xFF151A2C.toInt()
+        const val SUIT = 0xFF2A3454.toInt()
+        const val SUIT_LIT = 0xFF53669C.toInt()
+        const val SUIT_DARK = 0xFF1A2038.toInt()
         const val ARMOR = 0xFF0F121C.toInt()
         const val VISOR = 0xFF3CF4FF.toInt()
-        const val RIM = 0xFF6CF0FF.toInt()
-        const val SCARF = 0xFFFF3B2F.toInt()
-        const val SCARF_LIT = 0xFFFF9A7A.toInt()
-        const val SCARF_DARK = 0xFFA8121E.toInt()
+        const val RIM = 0xFF7CF4FF.toInt()
+        const val SCARF = 0xFFFF2E3E.toInt()
+        const val SCARF_LIT = 0xFFFFB0A0.toInt()
+        const val SCARF_DARK = 0xFFB0102A.toInt()
+        /** The agent reads a touch larger than the guards: the hero scale. */
+        const val HS = 1.06f
     }
 
     // ================================================================= player
@@ -94,7 +96,19 @@ internal class Actors(private val f: Frame) {
         // Backlight halo: the player is always the easiest thing to find.
         if (pl.state != PlayerState.DOOR && pl.state != PlayerState.DEAD) {
             val cy = if (pl.state == PlayerState.BOX) foot - 0.4f else foot - 0.8f
-            g.fillRadialGradient(pl.x, cy, 1.25f, Col.alpha(VISOR, 0.16f * p.alphaMul), Col.alpha(VISOR, 0f))
+            val a = p.alphaMul
+            g.blend(Gfx.Blend.ADD)
+            g.glow(pl.x, cy, 1.4f, Col.alpha(VISOR, 0.26f * a))
+            // Cyan pool on the floor under the agent.
+            val fz = (1f - pl.z / 2.5f).coerceIn(0f, 1f)
+            if (fz > 0f) {
+                g.save()
+                g.translate(pl.x, gy - 0.02f)
+                g.scale(1f, 0.2f)
+                g.glow(0f, 0f, 0.95f, Col.alpha(VISOR, 0.6f * a * fz))
+                g.restore()
+            }
+            g.blend(Gfx.Blend.NORMAL)
         }
 
         when (pl.state) {
@@ -214,7 +228,7 @@ internal class Actors(private val f: Frame) {
     private fun poseHero(x: Float, foot: Float, dir: Int) {
         val pl = f.w.player
         val state = pl.state
-        k.setup(dir, foot - 0.045f, 1f)
+        k.setup(dir, foot - 0.045f * HS, HS)
         val speed = abs(pl.vx)
         val airborne = state == PlayerState.INTRO || (state == PlayerState.NORMAL && pl.z > 0.001f)
         val breathe = sin(f.t * 2.4f)
@@ -223,10 +237,12 @@ internal class Actors(private val f: Frame) {
         flash = false
         recoil = 0f
         magInHand = false
-        val shooting = pl.sinceShot < 0.3f && !pl.reloading &&
+        val shooting = pl.sinceShot < 0.42f && !pl.reloading &&
             (state == PlayerState.NORMAL || state == PlayerState.ELEVATOR)
         var lowAim = false
         var aimUp = 0f
+        // Easing the gun back down after the last shot instead of snapping to low ready.
+        val lower = if (shooting) Rig.smooth((pl.sinceShot - 0.3f) / 0.12f) else 0f
         if (shooting) {
             val t = aimTarget()
             if (t != null && (t.x - x) * dir > 0f) {
@@ -251,7 +267,7 @@ internal class Actors(private val f: Frame) {
             state == PlayerState.INTRO && f.w.difficulty.startFloor == 0 -> {
                 // Rappelling: both hands up the rope, legs together.
                 val h = foot - 0.045f
-                k.hip(x, h - 0.7f)
+                k.hip(x, h - 0.7f * HS)
                 k.ik(k.legF, x + 0.08f * dir, h - 0.02f, true)
                 k.ik(k.legB, x - 0.02f * dir, h + 0.0f, true)
                 k.legF.pitch = 0.5f; k.legB.pitch = 0.6f
@@ -304,8 +320,8 @@ internal class Actors(private val f: Frame) {
                 // Idle: weight settled, slow breath; landing squash on top.
                 val land = if (landT < 0.22f) (1f - landT / 0.22f) else 0f
                 val squash = land * land * (0.1f + 0.08f * landHard)
-                val wide = shooting && !lowAim
-                k.stand(x, 0.035f + breathe * 0.006f + squash, if (wide) 0.17f else 0.1f, if (wide) -0.2f else -0.13f)
+                val wide = if (shooting && !lowAim) 1f - lower else 0f
+                k.stand(x, 0.035f + breathe * 0.006f + squash, Rig.mix(0.1f, 0.17f, wide), Rig.mix(-0.13f, -0.2f, wide))
                 lean = 0.05f + breathe * 0.01f + squash * 1.2f
                 k.spine(lean, 0f)
                 k.armFK(k.armB, -0.12f - breathe * 0.02f, 0.3f)
@@ -362,10 +378,16 @@ internal class Actors(private val f: Frame) {
                     2 -> k.ik(k.armB, gunX + 0.02f * dir, gunY - 0.02f, false)
                     else -> k.ik(k.armB, gunX + 0.015f * dir, gunY + 0.035f, false)
                 }
-                if (!lowAim) {
-                    k.spine(k.lean - recoil * 0.06f, 0.06f)
-                    k.ik(k.armF, gunX, gunY, false)
+                if (!lowAim) k.spine(k.lean - recoil * 0.06f, 0.06f)
+                if (lower > 0f && !airborne) {
+                    val sbx = k.armB.ex
+                    val sby = k.armB.ey
+                    gunX = Rig.mix(gunX, k.hipX + 0.2f * dir, lower)
+                    gunY = Rig.mix(gunY, k.hipY + 0.02f, lower)
+                    gunUp = Rig.mix(gunUp, -0.85f, lower)
+                    k.ik(k.armB, Rig.mix(sbx, k.armB.ax + 0.015f * dir, lower), Rig.mix(sby, k.armB.ay + 0.5f * HS, lower), false)
                 }
+                k.ik(k.armF, gunX, gunY, false)
             }
             airborne || state == PlayerState.STAIRS -> {
                 gunX = k.armF.ex; gunY = k.armF.ey
@@ -374,7 +396,7 @@ internal class Actors(private val f: Frame) {
             speed > 0.6f || pl.invuln > 1.0f -> {
                 gunX = k.armF.ex; gunY = k.armF.ey
                 val fa = atan2(-(k.armF.ey - k.armF.jy), (k.armF.ex - k.armF.jx) * dir)
-                gunUp = (fa + 0.35f).coerceIn(-1.3f, 0.6f)
+                gunUp = (fa + 0.35f).coerceIn(-1.0f, 0.2f)
             }
             else -> {
                 // Low ready: muzzle down and forward.
@@ -384,14 +406,23 @@ internal class Actors(private val f: Frame) {
                 k.ik(k.armF, gunX, gunY, false)
             }
         }
-        if (headX != k.headX || nod != 0f) k.spine(k.lean, nod + if (shooting) 0.06f else 0f)
+        // Final head nod; keep both hands where the pose put them.
+        val fx = k.armF.ex
+        val fy = k.armF.ey
+        val bx = k.armB.ex
+        val by = k.armB.ey
+        k.spine(k.lean, nod + if (shooting && lower < 1f) 0.06f else 0f)
+        if (headX != k.headX || nod != 0f || shooting) {
+            k.ik(k.armF, fx, fy, false)
+            k.ik(k.armB, bx, by, false)
+        }
     }
 
     /** Low kneel for shooting at a ducking guard (barrel at the low lane). */
     private fun kneel(x: Float, foot: Float) {
         val d = k.dir
         val gnd = foot - 0.045f
-        k.hip(x, gnd - 0.4f)
+        k.hip(x, gnd - 0.4f * HS)
         k.ik(k.legF, x + 0.24f * d, gnd, true)
         k.legB.jx = x - 0.08f * d; k.legB.jy = gnd - 0.02f
         k.legB.ex = x - 0.43f * d; k.legB.ey = gnd - 0.09f
@@ -402,8 +433,8 @@ internal class Actors(private val f: Frame) {
 
     private fun airPose(x: Float, foot: Float, vz: Float) {
         val s = (vz / 8f).coerceIn(-1f, 1f)
-        val h = foot - 0.045f
-        k.hip(x, h - 0.71f)
+        val h = foot - 0.045f * HS
+        k.hip(x, h - 0.71f * HS)
         // Keys: rising, apex (tuck), falling (reaching for the floor).
         val tF: Float; val kF: Float; val tB: Float; val kB: Float
         val aF: Float; val eF: Float; val aB: Float; val eB: Float; val ln: Float
@@ -474,7 +505,7 @@ internal class Actors(private val f: Frame) {
             body.arm(k.armF, look, far = false, hand = true)
             shoulderPad(dir)
         }
-        if (flash && !ghost) body.muzzleFlash(gunUp, if (gunKind == 1) 0.3f else if (gunKind == 2) 0.22f else 0.18f, (f.t * 30f).toInt())
+        if (flash && !ghost) body.muzzleFlash(gunUp, if (gunKind == 1) 0.2f else if (gunKind == 2) 0.17f else 0.15f, (f.t * 30f).toInt())
     }
 
     private fun shoulderPad(dir: Int) {
@@ -501,6 +532,14 @@ internal class Actors(private val f: Frame) {
         p.detail(body.ptX(0.95f, k.chestD * 0.2f), body.ptY(0.95f, k.chestD * 0.2f), body.ptX(0.12f, -k.waistD * 0.35f), body.ptY(0.12f, -k.waistD * 0.35f), 0.032f, 0xFF10131E.toInt())
         // Chest plate seam.
         p.detail(body.ptX(0.72f, k.chestD * 0.5f), body.ptY(0.72f, k.chestD * 0.5f), body.ptX(0.55f, -k.chestD * 0.05f), body.ptY(0.55f, -k.chestD * 0.05f), 0.016f, SUIT_DARK)
+        // Emissive cyan light strips down the near shin and forearm: the agent glows.
+        val lf = k.legF
+        val af = k.armF
+        g.blend(Gfx.Blend.ADD)
+        val strip = p.c(Col.alpha(VISOR, 0.9f))
+        g.line(Rig.mix(lf.jx, lf.ex, 0.2f) + 0.02f * dir, Rig.mix(lf.jy, lf.ey, 0.2f), Rig.mix(lf.jx, lf.ex, 0.7f) + 0.02f * dir, Rig.mix(lf.jy, lf.ey, 0.7f), 0.02f, strip)
+        g.line(Rig.mix(af.jx, af.ex, 0.25f), Rig.mix(af.jy, af.ey, 0.25f) - 0.01f, Rig.mix(af.jx, af.ex, 0.7f), Rig.mix(af.jy, af.ey, 0.7f) - 0.01f, 0.018f, strip)
+        g.blend(Gfx.Blend.NORMAL)
         // Knee pad on the near leg.
         p.dot(k.legF.jx + 0.01f * dir, k.legF.jy, 0.05f, ARMOR)
         p.dot(k.legF.jx + 0.018f * dir, k.legF.jy - 0.015f, 0.018f, SUIT_LIT)
@@ -533,7 +572,13 @@ internal class Actors(private val f: Frame) {
             .add(hx - r * 0.05f * dir, hy + r * 0.26f)
             .shapeDetail(VISOR)
         p.detail(hx + r * 0.2f * dir, hy - r * 0.18f, hx + r * 0.85f * dir, hy - r * 0.16f, 0.018f, 0xFFFFFFFF.toInt())
-        if (!ghost) g.fillCircle(hx + r * 0.75f * dir, hy, r * 0.9f, p.c(Col.alpha(VISOR, 0.18f)))
+        if (!ghost) {
+            val a = p.alphaMul * (1f - p.flatAmt) * (if (f.w.player.state == PlayerState.DEAD) 0.3f else 1f)
+            g.blend(Gfx.Blend.ADD)
+            g.glow(hx + r * 0.7f * dir, hy - r * 0.02f, r * 1.9f, Col.alpha(VISOR, 0.6f * a))
+            g.glow(hx - r * 1.7f * dir, hy - r * 1.38f, r * 0.75f, Col.alpha(VISOR, 0.85f * a))
+            g.blend(Gfx.Blend.NORMAL)
+        }
     }
 
     private fun scarfKnot(dir: Int) {
@@ -587,6 +632,13 @@ internal class Actors(private val f: Frame) {
             for (i in 0 until len - 1) {
                 p.detail(scarfX[i], scarfY[i] - 0.025f, scarfX[i + 1], scarfY[i + 1] - 0.025f, 0.02f, SCARF_LIT)
             }
+            // A faint bloom so the scarf carries as a colour accent at phone scale.
+            if (!p.noInk) {
+                g.blend(Gfx.Blend.ADD)
+                val bc = p.c(Col.alpha(SCARF, 0.2f))
+                for (i in 0 until len step 2) g.line(scarfX[i], scarfY[i], scarfX[min(len, i + 2)], scarfY[min(len, i + 2)], 0.2f, bc)
+                g.blend(Gfx.Blend.NORMAL)
+            }
         }
     }
 
@@ -594,7 +646,7 @@ internal class Actors(private val f: Frame) {
 
     private fun doorHide(x: Float, foot: Float, dir: Int) {
         // Flattened into the doorway: a near-black silhouette, visor glint and a whisper of rim.
-        k.setup(dir, foot - 0.045f, 1f)
+        k.setup(dir, foot - 0.045f * HS, HS)
         val breathe = sin(f.t * 2f) * 0.005f
         k.stand(x, 0.02f + breathe, 0.06f, -0.06f)
         k.spine(-0.04f, 0.05f)
@@ -633,7 +685,7 @@ internal class Actors(private val f: Frame) {
         p.flat = 0xFFFF2030.toInt()
         p.flatAmt = max(0f, 0.5f - t * 0.8f)
         heroLook(ghost = false)
-        cast.ragdoll(x, gy, pl.z, dir, fall, t, 0.55f, CastDeath.KNOCK, look, heroRagdollHead)
+        cast.ragdoll(x, gy, pl.z, dir, HS, fall, t, 0.55f, CastDeath.KNOCK, look, heroRagdollHead)
         p.flatAmt = 0f
     }
 
