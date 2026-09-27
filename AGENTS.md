@@ -26,14 +26,22 @@ the JVM.
 
 - `engine/` — the simulation.
   - `World.kt` — the game: player, enemies, bullets, grenades, pickups,
-    elevators, lights, hazards, perks, scoring, camera. `step(dt)` on a fixed
-    120 Hz timestep; one-shot `GameEvent`s for audio/haptics.
-  - `Level.kt` — `Geo` (world units), `LevelGen`: every floor is rebuilt from
-    `(seed, floor)` alone, so the building is endless and never stored.
-    Stairs zigzag; elevator shafts cycle through three columns so they never
-    collide.
+    elevators, passages, lights, hazards, perks, the GUNS HOT / SILENT mode,
+    scoring, camera. `step(dt)` on a fixed 120 Hz timestep; one-shot
+    `GameEvent`s for audio/haptics. Everything that lives on a floor also
+    has a hallway (`hall`); `viewHall(floor)` says which one is on screen.
+  - `Level.kt` — `Geo` (world units: a 14 u hallway, 8 door/shaft slots),
+    `LevelGen`: every floor is rebuilt from `(seed, floor)` alone, so the
+    building is endless and never stored. A floor is 2–4 hallways
+    (`HallPlan`) joined by paired passage doors. There are no stairs: every
+    floor has a ride down (odd floors always start a local shaft, and the
+    one above an empty even floor runs two floors), rides arrive in hallway
+    A and leave from the others, local shafts cycle through three columns and
+    expresses through two, so shafts never collide.
   - `Difficulty.kt` — the player-tunable heat curve and presets; `Heat` maps
     heat to every enemy stat.
+  - `Autopilot.kt` — the bot (balance tests and the title-screen demo): it
+    routes through passages to a ride down, calls cars, and plays both modes.
   - `Zone.kt` — the descent: Rooftop → Neon Tower → Black Labs → Deep Metro →
     Iron Mines → Magma Core → Hell (150–199) → the Void (200+, random zones).
   - `Entities.kt`, `Perk.kt`, `Fx.kt`, `Events.kt`, `Rng.kt` (SplitMix64).
@@ -65,10 +73,19 @@ the JVM.
   BRUTAL < STRAIGHT_TO_HELL.
 - Determinism: a run is a pure function of `RunConfig` and the input
   sequence. Never use wall-clock time or unseeded randomness in `engine/`.
-- The game is portrait-only and the floor exactly fills the screen width.
+- The game is portrait-only and the floor exactly fills the screen width:
+  the whole hallway is always visible, never scrolled. The HUD, the context
+  chip and touch thresholds are sized to the screen (px/dp), not the world.
+- Every floor must have a ride down reachable from every hallway
+  (`LevelGenTest.everyFloorHasAReachableRideDown`), and doors are never
+  closer than `Geo.MIN_DOOR_GAP`.
+- Tap and swipe ↓ never compete: taps use passages, INTEL and elevators;
+  swipe ↓ only hides. See `docs/CONTROLS.md`.
 - Screenshots in `docs/screenshots/` come from `./gradlew :app:screenshots`,
   which renders real scenes through the real renderer. Regenerate them when
-  the look changes.
+  the look changes. `-Pata.scene=<name>` renders one scene,
+  `-Pata.shots=<dir>` writes elsewhere and `-Pata.full=true` keeps full
+  1080x2400 resolution, for iterating on the look.
 
 ## Invariants
 

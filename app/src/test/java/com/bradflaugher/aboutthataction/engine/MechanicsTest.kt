@@ -192,7 +192,9 @@ class MechanicsTest {
         w.player.x = 1f
         w.player.facing = 1
         // A heavy far down the hallway soaks the magazine.
-        val e = enemy(w, EnemyKind.HEAVY, 7.5f, facing = 1)
+        val e = enemy(w, EnemyKind.HEAVY, 7.5f, facing = -1)
+        e.state = EnemyState.ALERT
+        e.fireCooldown = 99f
         e.hp = 99
         run(w, 2.2f) { it.player.hp = it.player.maxHp }
         assertTrue(w.events.contains(GameEvent.Reload))

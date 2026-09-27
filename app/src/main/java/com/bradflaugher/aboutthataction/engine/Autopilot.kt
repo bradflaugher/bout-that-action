@@ -113,7 +113,14 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         if (!w.silent) {
             // GUNS HOT: hold still while the auto-fire works on anything in range; choke what's
             // close. After a few seconds of holding, push on anyway (the gun fires on the move).
-            val nearest = enemies.minByOrNull { abs(it.x - p.x) }
+            // The gun only fires at guards who've noticed you: hold for those, and treat the
+            // rest like SILENT does (sneak up, box up if one is coming your way).
+            val alert = enemies.filter {
+                it.state == EnemyState.ALERT || it.state == EnemyState.AIM || it.state == EnemyState.WINDUP ||
+                    it.kind == EnemyKind.TURRET || it.kind == EnemyKind.DRONE
+            }
+            val nearest = alert.minByOrNull { abs(it.x - p.x) }
+            if (nearest == null && sneak(w, enemies, dir)) return
             if (nearest != null && abs(nearest.x - p.x) < World.AUTO_FIRE_RANGE && holdTime < 4f) {
                 holdTime += dt
                 val d = abs(nearest.x - p.x)

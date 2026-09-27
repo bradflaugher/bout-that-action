@@ -1030,6 +1030,9 @@ class World(val config: RunConfig) {
         if (silent || p.fireCooldown > 0f || p.carBox) return
         val target = pickTarget(if (p.weapon == PickupKind.MINIGUN) 11f else AUTO_FIRE_RANGE) ?: return
         if (target.state == EnemyState.EMERGING && target.stateTime < 0.25f) return
+        // Threats only: a guard who hasn't noticed you (and isn't in your face) is yours to
+        // choose: sneak past, walk in for the takedown, or wait for him to turn.
+        if (threatTier(target) > 1 && abs(target.x - p.x) > AUTO_FIRE_POINT_BLANK && !(target.kind == EnemyKind.TURRET || target.kind == EnemyKind.DRONE)) return
         fire(target)
     }
 
@@ -1977,6 +1980,8 @@ class World(val config: RunConfig) {
         const val PASSAGE_TIME = 0.42f
         /** GUNS HOT fires at threats within this range. */
         const val AUTO_FIRE_RANGE = 7.5f
+        /** GUNS HOT also fires at an unaware guard this close (he's about to bump into you). */
+        const val AUTO_FIRE_POINT_BLANK = 2.5f
         /** How far guards see down a lit hallway (darkness cuts it). */
         const val SIGHT_RANGE = 7.5f
         /** ...and in SILENT, where nothing gives you away but being seen. */

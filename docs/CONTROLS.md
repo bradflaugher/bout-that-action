@@ -3,8 +3,8 @@
 Why every gesture and feel rule is the way it is, so tuning stays principled.
 Gesture thresholds live in `input/GestureInput.kt` (companion constants, in dp
 and ms). Feel constants live in `engine/World.kt` (the "Controls & feel" block
-in the companion). Every rule has a test in `GestureInputTest` or
-`ControlsTest`.
+in the companion). Every rule has a test in `GestureInputTest`,
+`ControlsTest` or `MechanicsTest`.
 
 Two principles run through everything:
 
@@ -12,11 +12,32 @@ Two principles run through everything:
    something useful, even if it arrived a little early or the thing it
    meant isn't available.
 2. **Never invent an input.** A resting, settling or repositioning thumb
-   must never jump, hide, shoot or throw a grenade.
+   must never jump, hide, walk through a door or throw a grenade.
 
 When the two conflict, remember which is worse for the gesture in
 question. A missed jump is a lost life. A phantom grenade wastes a
-resource and alerts the floor.
+resource and alerts the floor. A phantom passage drops you into a hallway
+you didn't choose.
+
+## The scheme
+
+Every verb has exactly one gesture, and no gesture means two things:
+
+| Gesture | Verb |
+|---|---|
+| Drag | Run |
+| Swipe ↑ | Jump (stomp from above) |
+| Swipe ↓ | Hide: a doorway in reach, else the box; in a lift, the box in the car |
+| Tap | Interact: a passage, a live INTEL door, an elevator (ride it if it's open, call it if not) |
+| Double-tap | Grenade |
+| Walk into a guard | Takedown |
+| Jump + tap | Suppressed shot at a ceiling light |
+| Mode button | GUNS HOT ⇄ SILENT |
+
+The gun is not a gesture any more. In **GUNS HOT** it fires itself (see
+"Auto-fire" below); in **SILENT** it never fires. That frees the tap, the
+most reliable gesture on glass, for the thing every floor now asks of you:
+choosing a door.
 
 ## Gesture classification (`GestureInput`)
 
@@ -27,22 +48,19 @@ or drag sideways into a run.
 
 **One boundary everywhere is 45°.** A stroke steeper than 45° from
 horizontal is vertical (a flick). A shallower stroke is horizontal (a run).
-The old code used different angles in different places (40° to start a
-flick, 32° mid-run), so a thumb's diagonal could mean different things
-depending on what it had just done.
 
 | Gesture | Threshold | Why |
 |---|---|---|
 | Run start | 10 dp sideways (`SLOP_DP`) | About 1.6 mm. That's enough to reject tap jitter and still feel instant. |
 | Run reverse | 12 dp back from the furthest point (`REVERSE_DP`) | Lets you turn around with no centre point to cross. Suppressed during a vertical stroke, so a flick that drifts backwards never flips the run. |
 | Flick, fresh finger | 22 dp vertical (`FLICK_DP`), inside 150 ms (`FLICK_WINDOW_MS`) | The distance is forgiving for short thumb flicks. The time window is a speed gate (≥ ~150 dp/s), so a slow slide or a thumb settling never jumps. A slow vertical slide becomes a resting HELD finger instead. |
-| Flick, held finger | 26 dp inside 150 ms (`FLICK_MID_RUN_DP`); direction judged on the last 50 ms (`RECENT_MS`) | A running thumb wobbles more, so it needs a little more distance. Direction comes from the recent stroke only, so an L-shaped run-then-flick counts: the run travel just before the flick doesn't tilt the flick sideways. A slightly diagonal flick mid-run registers up to 45°. |
+| Flick, held finger | 26 dp inside 150 ms (`FLICK_MID_RUN_DP`); direction judged on the last 50 ms (`RECENT_MS`) | A running thumb wobbles more, so it needs a little more distance. Direction comes from the recent stroke only, so an L-shaped run-then-flick counts. |
 | Fast flick seen only at lift | 60% of `FLICK_DP` in < 220 ms | Flicks so fast the digitiser gives almost no move events. |
 | Flick cooldown / rebound | 260 ms same finger; 600 ms opposite direction ignored | The thumb springing back after a jump is not a hide. A deliberate opposite flick after 0.6 s works. |
-| Flick then drag | 14 dp sideways from rest (`RESTART_DP`) | Jump, then run with the same thumb without lifting. The extra 4 dp over the run slop absorbs flick follow-through. |
-| Tap | ≤ 10 dp, < 300 ms (`TAP_MS`) | Fires on release with zero added delay. 300 ms covers hurried presses. Longer holds are resting thumbs. |
-| Sloppy tap | A finger that became a run but lifted within 150 ms, having travelled ≤ 16 dp | A hard, rolling thumb press slides past the run slop. It was a shot, not a step. Deliberate nudges last longer than 150 ms, or travel further. |
-| Double-tap (grenade) | Second press within 170 ms of the first lift (`DOUBLE_TAP_GAP_MS`), within 48 dp | Deliberate double-taps have a 60–150 ms gap. Firing at the gun's own rate (0.27 s cooldown) leaves a gap of about 200 ms or more, so it stays shots. Only the **second** tap of a burst is a grenade: mashing gives one grenade, not one per pair. Two thumbs alternating are shots (too far apart). A flick between taps breaks the burst. |
+| Flick then drag | 14 dp sideways from rest (`RESTART_DP`) | Jump, then run with the same thumb without lifting. |
+| Tap | ≤ 10 dp, < 300 ms (`TAP_MS`) | Recognised on release with zero added delay. Longer holds are resting thumbs. |
+| Sloppy tap | A finger that became a run but lifted within 150 ms, having travelled ≤ 16 dp | A hard, rolling thumb press slides past the run slop. It was a tap, not a step. |
+| Double-tap (grenade) | Second press within 170 ms of the first lift (`DOUBLE_TAP_GAP_MS`), within 48 dp | Deliberate double-taps have a 60–150 ms gap. Only the **second** tap of a burst is a grenade: mashing gives one grenade, not one per pair. Two thumbs alternating are two taps (too far apart). A flick between taps breaks the burst. |
 
 **Fingers leaving.** `ACTION_CANCEL` means the system took the gesture. The
 run stops (`releaseAll`), but flicks and taps that were already recognised
@@ -51,115 +69,136 @@ so it's forgotten with no tap (`cancel`).
 
 **Edges.** We don't ignore touches near the screen edges. The floor fills
 the screen width, and portrait thumbs often rest at the bezel, so an edge
-dead zone would kill real taps and run drags. The system back swipe is the
-real hazard: a run drag that starts at the edge would pause the game. So
-`GameView` excludes the bottom 200 dp of both side edges (Android's per-edge
-maximum), 32 dp wide, from the back gesture. The upper edges still go back,
-and back pauses the game.
+dead zone would kill real taps and run drags. `GameView` excludes the bottom
+200 dp of both side edges, 32 dp wide, from the system back gesture instead.
+
+**Buttons.** Pause and the mode toggle are hit-tested in `GameView` before
+gesture input sees the touch, in screen pixels (the HUD is sized to the
+screen, not the world). Their generous hit circles overlap a little; the
+nearer centre wins, so neither steals the other's taps.
 
 ## Engine feel (`World`)
 
 **Input buffer (`BUFFER_TIME` = 0.15 s).** A gesture that can't run yet is
 held for 0.15 s and runs the moment it can. That covers a jump swiped just
-before landing, anything during a takedown or on the stairs, and a shot in
-a closed elevator. The newest failed gesture replaces an older one.
-Commands that can run immediately never touch the buffer, so a tap while a
-jump is buffered still fires at once. `Player.bufferedCommand` and
+before landing, and anything during a takedown or a passage. The newest
+failed gesture replaces an older one. `Player.bufferedCommand` and
 `Player.bufferAge` expose the buffer to the HUD.
 
 **Hit grace (`HIT_GRACE` = 66 ms).** Touch-to-photon latency on phones is
-roughly 50–100 ms: what you see is behind the simulation. When an enemy
-bullet touches you, it hangs there for 66 ms (8 ticks). If you've boxed
-under it, jumped over it, slipped into a door or started a takedown by
-then, it misses, and you get "CLOSE!" (`World.closeCalls`,
-`Player.sinceCloseCall`). Otherwise it hits exactly as before. The window
-only forgives display latency, not slow reactions, and melee, hazards and
-falling lights get no grace because each has its own long telegraph. In
-the bot test (12 runs × 6 min per preset), hits taken went 68→59 on
-CHILL, 87→53 on AGENT, 43→40 on BRUTAL and 37→36 on STRAIGHT_TO_HELL. The
-difficulty ordering held.
+roughly 50–100 ms. When an enemy bullet touches you, it hangs there for
+66 ms. If you've boxed under it, jumped over it, slipped into a door or
+started a takedown by then, it misses, and you get "CLOSE!". The window only
+forgives display latency, not slow reactions.
 
 **Run.** Ground acceleration is 70 u/s² (`RUN_ACCEL`), so you reach full
-speed (4.4 u/s) in 63 ms, and stopping takes the same. Reversing
-accelerates at 2.2× (`TURN_BOOST`), so a full turnaround takes about 90 ms,
-down from 160 ms. It reads as one snap, not a skid. Air control is 30 u/s².
+speed (4.4 u/s) in 63 ms. Reversing accelerates at 2.2× (`TURN_BOOST`), so
+a full turnaround takes about 90 ms: one snap, not a skid. The hallway is
+14 u wide, about three seconds end to end.
 
-**Jump arc.** Launch speed and rising gravity are unchanged, so low shots
-are cleared exactly as fast as before (you're above the low lane in about
-40 ms). Through the apex (|vz| < 2.2) gravity is 0.55×, which gives hang
-time for "jump + tap" on a ceiling light. Falling gravity is 1.3×, for a
-snappy landing. Airtime went from 0.69 s to about 0.79 s and the peak from
-1.80 to 1.87 u, so the jump spends about 0.1 s longer above vent height.
-The hard-landing threshold moved to −12.5 u/s, so normal jumps don't shake
-the camera and ground pounds still do.
+**Jump arc.** Full gravity on the way up (you clear the low lane in about
+40 ms), 0.55× through the apex for hang time (aim at a light, line up a
+stomp), 1.3× falling for a snappy landing. Airtime is about 0.79 s, peak
+1.87 u: enough to land on a Heavy's head (1.7 u).
 
 **Swipe down in mid-air.** High up, it's a ground pound (a stomp). Below
 0.6 u while falling (`LATE_POUND_Z`), a pound is pointless, so the swipe is
 treated as an early hide: it's buffered and runs on landing.
 
-**Swipe down in context.** Priority is simply the thing under you. The
-nearest door or elevator in reach wins, with a 0.1 u nudge toward what
-you're facing. Door reach (0.55) and shaft reach (0.65) can't both cover
-one spot, because slots are 1.2 u apart. The real "elevator instead of
-box" trap was a car opening under your thumb mid-swipe. Now a car only
-counts once its doors have been open for 0.12 s (`ELEVATOR_REACT_TIME`),
-which is about human reaction time. The HUD hint uses the same rule, so
-the hint never lies.
+**Tap and swipe never compete.** Tap targets are passages, live INTEL
+doors and elevator landings with a ride down; swipe-down targets are hiding
+doorways (and a cleared INTEL door). A passage is never a hiding place and a
+doorway is never a tap target, and generation keeps doors at least 3 u apart
+(`Geo.MIN_DOOR_GAP`) and clear of shaft columns, so there's only ever one
+thing in reach (`TAP_REACH` 0.8 u, `DOOR_REACH` 0.6 u, `ELEVATOR_REACH`
+0.8 u). With nothing in reach, a tap does nothing (never eat an input into
+something you didn't mean; the HUD chip shows when a tap will do something).
 
-**Box and door toggles.** Swipe down in the box: if there's a door or
-elevator here, you slip into it (box-sneak up to a door, then swipe);
-otherwise you stand up. Swipe down in a doorway steps out. Both need 0.35
-s in the hiding place first (`TOGGLE_GUARD`), so a panicky double flick
-never undoes a hide.
+**The double-tap window on doors (`TAP_CONFIRM` = 0.28 s).** The first tap
+of a grenade double-tap is still a tap, and next to a passage it would walk
+you through the door before the grenade. So a tap that has a door or lift to
+use waits 0.28 s for a second tap, but only when a double-tap would actually
+throw (you have a grenade and none is in the air). With no grenade to throw,
+the tap acts at once. Doors aren't twitch targets; a quarter-second is
+invisible there and saves the grenade.
+
+**Elevators.** A car only counts as boardable once its doors have been open
+for 0.12 s (`ELEVATOR_REACT_TIME`): a car opening under your thumb is called,
+not boarded. Tapping a landing whose car is elsewhere calls it: the car heads
+straight for you and holds its doors 3 s (`CALL_HOLD`). The ride only ever
+goes down, straight to the bottom of the shaft; an express opens once on the
+way (`EXPRESS_STOP_TIME` 1.5 s) and you can step off there. At the bottom
+you step out on your own after 0.55 s (`AUTO_EXIT_TIME`), into hallway A.
+Swipe down in the car to box up: guards at the doors see an empty lift.
+
+**Passages (`PASSAGE_TIME` = 0.42 s).** You step into the door, the hallway
+swaps at the halfway mark, and you step out of the matching door on the far
+side (its plate names the hallway you came from). The renderer slides the
+old hallway out and the new one in, with a green seam, in 0.26 s. You're
+untouchable mid-passage, and the far hallway's first ambush waits a few
+seconds (`Heat.firstAmbushDelay`), so a door never drops you into a firing
+squad.
+
+**Box and door toggles.** Swipe down in the box: if there's a doorway here,
+you slip into it; otherwise you stand up. Swipe down in a doorway steps out.
+Both need 0.35 s in the hiding place first (`TOGGLE_GUARD`), so a panicky
+double flick never undoes a hide.
 
 **Door and elevator exits aren't sticky, and they aren't slippery
-either.** You usually flick into a door while your other thumb is still
-holding the run. Before, that held run popped you straight back out (and
-out of an elevator before it left). Now the direction held on entry
-(`Player.holdAxis`) keeps you in. Lifting that thumb re-arms the exit;
-then a fresh drag, or reversing the held drag, steps you out.
+either.** The direction held on entry (`Player.holdAxis`) keeps you in.
+Lifting that thumb re-arms the exit; then a fresh drag, or reversing the
+held drag, steps you out.
 
 **Takedown magnet (`TAKEDOWN_MAGNET` = 0.3 u).** While you push toward a
-chokeable guard, takedown reach grows by 0.3 u and the choke snaps you
-into place. Standing still, reach is unchanged. Heavies still bounce off
-from the front at normal reach.
+chokeable guard, takedown reach grows by 0.3 u and the choke snaps you into
+place. Heavies still bounce off from the front.
 
-**Auto-aim intent.** The target score is `tier × 6 + distance + 3 if
-behind you`. Tier 0 is about to hurt you: aiming at you, mid-slash, or a
-melee charger within 3 u. Tier 1 is alert and facing you. Tier 2 is
-everyone else. So the guard with his gun up behind you beats the idle one
-in front of you, and among equal threats what's in front and near wins.
-Ducking targets are shot low, as before.
+**Auto-fire (GUNS HOT).** Whenever the gun is ready, it fires at the top
+threat within 7.5 u (`AUTO_FIRE_RANGE`, 11 u with the minigun), on the move
+and in the air. The target score is `tier × 6 + distance + 3 if behind you`.
+Tier 0 is about to hurt you: aiming at you, mid-slash, or a melee charger
+within 3 u. Tier 1 is alert and facing you. Tier 2 is everyone else. So the
+guard with his gun up behind you beats the idle one in front of you. It only
+fires at **threats**: a guard who hasn't noticed you is left alone unless he's
+within 2.5 u (`AUTO_FIRE_POINT_BLANK`), so even GUNS HOT keeps the choice of
+sneaking past or walking in for the takedown (drones and turrets are always
+fair game). Guards stepping out of a door get a quarter-second before the gun
+turns on them. Hidden (box, doorway, boxed in the car) the gun holds.
 
-**Jump + tap on a light.** An airborne tap goes to the ceiling light ahead
-only when that's clearly meant: the light would land on someone (a guard
-within 0.9 u of it), or there's nobody in front to shoot. Before, every
-airborne tap near a light went into the ceiling, even when you jumped a
-low shot to return fire.
+**SILENT.** The gun never fires. Guards only notice what they see, see a
+little less far (6.5 u instead of 7.5, `SILENT_SIGHT_RANGE`) and take 35%
+longer to react (`SILENT_REACTION`). Every kill that isn't a shot or a blast
+(takedown, stomp, light, hazard) scores double. It's the riskier, richer way
+down.
 
-**Double-tap never costs a shot.** With no grenade to throw (none left,
-one already in the air, or in an elevator), a double-tap fires. It still
-flashes "NO GRENADES" when you're out.
+**Jump + tap on a light.** An airborne tap is a suppressed shot at the
+nearest live light ahead, when that's what you mean: the light would land on
+someone (a guard within 0.9 u of it), or there's nobody in front to shoot
+instead (always true in SILENT). It costs no ammo and alerts nobody, in
+either mode.
 
-**Stairs.** These are unchanged on purpose. They trigger when you're
-grounded, within 0.6 u of the stairwell wall, and still pushing toward it.
-Knockback or momentum alone never takes them, and you arrive on the
-opposite side (stairs zigzag), so they can't chain.
+**Double-tap with nothing to throw.** With no grenades it says so ("NO
+GRENADES") and does nothing else; with one already in the air, the second is
+ignored. It never falls back to a door.
 
 ## Considered and rejected
 
 - **Swipe up in an elevator to ride up.** The game is an endless descent
-  and cars only carry you down. An "up" gesture that does nothing
-  meaningful is worse than one that's ignored.
-- **Coyote time for jumps.** There are no ledges; floors are flat and the
-  stairs are automatic.
-- **A dead zone at the screen edges.** See "Edges" above; system gesture
-  exclusion solves the real problem without killing edge touches.
+  and cars only carry you down.
+- **Tap to shoot, with a separate interact gesture.** Every floor now asks
+  you to pick a door; the tap is the most reliable gesture on glass, so it
+  goes to doors. Aiming was already automatic; firing is now too (or off).
+- **Swipe down on passages.** Swipe down is always "hide". Mixing "hide" and
+  "leave" on one gesture made the old swipe-down trap (a lift opening under
+  your thumb) the rule instead of the exception.
+- **Stairs.** Walking off the end of a floor made every floor a straight
+  line. Elevators you have to reach, wait for or call make every floor a
+  choice.
+- **Horizontal scrolling.** The whole hallway is always on screen: every
+  guard, door and lift you'll deal with is visible before you commit.
+- **Coyote time for jumps.** There are no ledges.
+- **A dead zone at the screen edges.** See "Edges" above.
 - **Palm rejection by contact size.** `touchMajor` varies too much across
-  devices. The platform's own palm rejection (`FLAG_CANCELED`) is honoured
-  instead.
-- **Delaying taps to disambiguate double-taps.** Any delay on the primary
-  fire button feels worse than an occasional grenade. The gap and burst
-  rules and the grenade-in-flight fallback make that rare.
+  devices. The platform's own palm rejection (`FLAG_CANCELED`) is honoured.
 - **Variable jump height.** A flick has no "hold" to measure, and a
   velocity-scaled jump would make low-shot dodges inconsistent.

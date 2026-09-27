@@ -246,14 +246,31 @@ class ControlsTest {
     }
 
     @Test
-    fun autoAimStillPrefersWhatsInFrontOverANearerIdleGuardBehind() {
+    fun autoAimStillPrefersWhatsInFrontOverANearerGuardBehind() {
         val w = world(silent = false)
         w.player.x = 5f
         w.player.facing = 1
-        enemy(w, EnemyKind.AGENT, 7.5f, facing = 1)
-        enemy(w, EnemyKind.AGENT, 4f, facing = -1)
+        // Both have spotted you: the one in front wins over the nearer one behind.
+        for ((x, facing) in listOf(7.5f to -1, 4f to 1)) enemy(w, EnemyKind.AGENT, x, facing).state = EnemyState.ALERT
         w.step(dt)
         assertTrue(w.bullets.single { it.byPlayer }.vx > 0f)
+    }
+
+    @Test
+    fun gunsHotLeavesAGuardWhoHasntSeenYouToYou() {
+        val w = world(silent = false)
+        w.player.x = 2f
+        w.player.facing = 1
+        // Back turned, a few steps ahead: no shot (sneak up, or wait for him to turn)...
+        val e = enemy(w, EnemyKind.AGENT, 6f, facing = 1)
+        e.patrolA = 6f
+        e.patrolB = 6f
+        run(w, 1f)
+        assertTrue(w.events.none { it is GameEvent.Shot && it.byPlayer })
+        // ...until he's right on top of you.
+        e.x = 2f + World.AUTO_FIRE_POINT_BLANK - 0.3f
+        w.step(dt)
+        assertTrue(w.events.any { it is GameEvent.Shot && it.byPlayer })
     }
 
     @Test
