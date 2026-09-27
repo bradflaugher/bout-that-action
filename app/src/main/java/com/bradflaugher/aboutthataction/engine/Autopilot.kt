@@ -116,7 +116,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
             val near = enemies.filter { !it.asleep && abs(it.x - p.x) in 1.5f..6f }
             val unchokeable = w.silent && near.any { it.kind == EnemyKind.TURRET || (it.kind == EnemyKind.HEAVY && it.state != EnemyState.PATROL) }
             if (near.size >= 2 || unchokeable) {
-                w.commands += Command.DOUBLE_TAP
+                w.commands += Command.GRENADE
                 grenadeCooldown = 1.5f
                 tapCooldown = 0.4f
             }
@@ -162,7 +162,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         if (abs(goal - p.x) < World.TAP_REACH - 0.15f) {
             w.moveAxis = 0
             val action = w.tapAction()
-            if (action != null && tapCooldown <= 0f && p.tapTimer <= 0f) {
+            if (action != null && tapCooldown <= 0f) {
                 // A car on its way: don't re-call it, just wait.
                 if (action != ContextAction.CALL || !called(w)) {
                     w.commands += Command.TAP

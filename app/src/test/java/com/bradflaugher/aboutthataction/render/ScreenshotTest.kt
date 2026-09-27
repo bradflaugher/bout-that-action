@@ -124,6 +124,19 @@ class ScreenshotTest {
         assertTrue(r.isModeButton(c[0], c[1], w, h, 80f))
         assertTrue(!r.isPauseButton(c[0], c[1], w, h, 80f))
         assertTrue(!r.isModeButton(100f, 1200f, w, h, 80f))
+        assertTrue(!r.isGrenadeButton(c[0], c[1], w, h, 80f))
+        // The grenade button sits right under the mode button, and the two never overlap.
+        Hud.grenadeCenter(w, 80f, c)
+        assertTrue(r.isGrenadeButton(c[0], c[1], w, h, 80f))
+        assertTrue(!r.isModeButton(c[0], c[1], w, h, 80f))
+        assertTrue(!r.isPauseButton(c[0], c[1], w, h, 80f))
+        assertTrue(!r.isGrenadeButton(100f, 1200f, w, h, 80f))
+        // Halfway between mode and grenade, each side goes to its nearer button.
+        val m = FloatArray(3)
+        Hud.modeCenter(w, 80f, m)
+        val mid = (m[1] + c[1]) / 2f
+        assertTrue(r.isModeButton(c[0], mid - 2f, w, h, 80f))
+        assertTrue(r.isGrenadeButton(c[0], mid + 2f, w, h, 80f))
     }
 
     // ------------------------------------------------------------ rendering

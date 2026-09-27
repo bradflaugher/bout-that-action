@@ -1163,7 +1163,7 @@ internal class Building(private val f: Frame) {
         "SWIPE ↑" to "JUMP",
         "SWIPE ↓" to "HIDE",
         "TAP" to "DOORS & ELEVATORS",
-        "2×TAP" to "GRENADE",
+        "GREEN BUTTON" to "GRENADE",
     )
 
     /** The tutorial, as a rooftop billboard: the gestures, the takedown ticker and the mode button. */

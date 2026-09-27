@@ -339,7 +339,6 @@ class MechanicsTest {
     @Test
     fun tappingAPassageTakesYouToAnotherHallway() {
         val w = world()
-        w.player.grenades = 0 // no double-tap to wait out
         val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
         w.player.x = door.x + 0.3f
         assertEquals(ContextAction.PASSAGE, w.tapAction())
@@ -376,18 +375,13 @@ class MechanicsTest {
     }
 
     @Test
-    fun aDoubleTapByAPassageThrowsAGrenadeInsteadOfLeaving() {
+    fun theGrenadeButtonByAPassageThrowsWithoutLeaving() {
         val w = world()
         w.player.grenades = 2
         val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
         w.player.x = door.x
         val hall = w.player.hall
-        // Someone to throw it at, across the hallway.
-        val far = if (door.x < Geo.FLOOR_W / 2f) Geo.FLOOR_W - 1f else 1f
-        enemy(w, EnemyKind.AGENT, far, facing = if (far > door.x) 1 else -1).hp = 99
-        w.commands += Command.TAP
-        run(w, 0.12f)
-        w.commands += Command.DOUBLE_TAP
+        w.commands += Command.GRENADE
         run(w, 0.5f)
         assertEquals(hall, w.player.hall)
         assertEquals(1, w.player.grenades)
@@ -395,34 +389,23 @@ class MechanicsTest {
     }
 
     @Test
-    fun withNobodyAroundADoorTapIsInstantAndMashingItNeverWastesAGrenade() {
+    fun aDoorTapIsInstantEvenWithAGuardAwakeAndNeverThrowsAGrenade() {
         val w = world()
         w.player.grenades = 2
         val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
         w.player.x = door.x
-        // Nobody awake to throw at: no double-tap wait, the door opens this very step.
+        val far = if (door.x < Geo.FLOOR_W / 2f) Geo.FLOOR_W - 1f else 1f
+        enemy(w, EnemyKind.AGENT, far, facing = if (far > door.x) 1 else -1).hp = 99
         w.commands += Command.TAP
         w.step(dt)
         assertEquals(PlayerState.PASSAGE, w.player.state)
-        // The impatient second tap is dropped, not a grenade, and doesn't bounce you back.
-        w.commands += Command.DOUBLE_TAP
+        // A second, impatient tap is dropped: it doesn't bounce you back.
+        w.commands += Command.TAP
         run(w, 0.8f)
         assertEquals(door.to, w.player.hall)
         assertEquals(2, w.player.grenades)
         assertTrue(w.grenades.isEmpty())
         assertEquals(1, w.events.count { it == GameEvent.Passage })
-    }
-
-    @Test
-    fun aDoubleTapAtADoorWithNobodyAroundIsTheTap() {
-        val w = world()
-        w.player.grenades = 2
-        val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
-        w.player.x = door.x
-        w.commands += Command.DOUBLE_TAP
-        run(w, 0.8f)
-        assertEquals(door.to, w.player.hall)
-        assertEquals(2, w.player.grenades)
     }
 
     @Test
@@ -768,12 +751,12 @@ class MechanicsTest {
             w.player.facing = 1
             w.player.fireCooldown = 99f
             val crowd = listOf(5.5f, 6f, 6.6f).map { enemy(w, EnemyKind.AGENT, it) }
-            w.commands += Command.DOUBLE_TAP
+            w.commands += Command.GRENADE
             run(w, 1.8f) { it.player.fireCooldown = 99f }
             assertTrue(crowd.none { it.alive })
             assertEquals(0, w.player.grenades)
             assertTrue(w.events.any { it is GameEvent.Explosion })
-            w.commands += Command.DOUBLE_TAP
+            w.commands += Command.GRENADE
             run(w, 0.1f)
             assertTrue(w.events.contains(GameEvent.SpecialEmpty))
         }

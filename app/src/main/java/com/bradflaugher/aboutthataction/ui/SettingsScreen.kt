@@ -193,7 +193,7 @@ fun HowToPlay() {
     val rows = listOf(
         "DRAG ← →" to "Run. Hold to keep going; nudge back to turn. Lift to stop.",
         "TAP" to "Use what you're next to: a green passage door, a gold STASH door, an elevator (tap a landing to call the car).",
-        "DOUBLE-TAP" to "Throw a grenade.",
+        "GRENADE" to "The lime button under the mode button throws one. It shows how many you have.",
         "SWIPE ↑" to "Jump. Clears low shots. Land on heads to stomp.",
         "SWIPE ↓" to "Hide in a doorway or pop the cardboard box. Swipe ↓ again to stand up.",
         "WALK INTO" to "An enemy to choke him out instantly. Heavies only from behind. Nappers from anywhere.",

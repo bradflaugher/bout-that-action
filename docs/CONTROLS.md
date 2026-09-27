@@ -29,7 +29,7 @@ Every verb has exactly one gesture, and no gesture means two things:
 | Swipe ↑ | Jump (stomp from above) |
 | Swipe ↓ | Hide: a doorway in reach, else the box; in a lift, the box in the car |
 | Tap | Interact: a passage, a live STASH door, an elevator (ride it if it's open, call it if not) |
-| Double-tap | Grenade |
+| Grenade button | Grenade |
 | Walk into a guard | Takedown |
 | Jump + tap | Swat out the ceiling lamp overhead |
 | Mode button | GUNS HOT ⇄ SILENT |
@@ -60,7 +60,6 @@ horizontal is vertical (a flick). A shallower stroke is horizontal (a run).
 | Flick then drag | 14 dp sideways from rest (`RESTART_DP`) | Jump, then run with the same thumb without lifting. |
 | Tap | ≤ 10 dp, < 300 ms (`TAP_MS`) | Recognised on release with zero added delay. Longer holds are resting thumbs. |
 | Sloppy tap | A finger that became a run but lifted within 150 ms, having travelled ≤ 16 dp | A hard, rolling thumb press slides past the run slop. It was a tap, not a step. |
-| Double-tap (grenade) | Second press within 170 ms of the first lift (`DOUBLE_TAP_GAP_MS`), within 48 dp | Deliberate double-taps have a 60–150 ms gap. Only the **second** tap of a burst is a grenade: mashing gives one grenade, not one per pair. Two thumbs alternating are two taps (too far apart). A flick between taps breaks the burst. |
 
 **Fingers leaving.** `ACTION_CANCEL` means the system took the gesture. The
 run stops (`releaseAll`), but flicks and taps that were already recognised
@@ -114,16 +113,12 @@ thing in reach (`TAP_REACH` 0.8 u, `DOOR_REACH` 0.6 u, `ELEVATOR_REACH`
 0.8 u). With nothing in reach, a tap does nothing (never eat an input into
 something you didn't mean; the HUD chip shows when a tap will do something).
 
-**The double-tap window on doors (`TAP_CONFIRM` = 0.28 s).** The first tap
-of a grenade double-tap is still a tap, and next to a passage it would walk
-you through the door before the grenade. So a tap that has a door or lift to
-use waits 0.28 s for a second tap, but only when a double-tap would actually
-throw at someone: you have a grenade, none is in the air, and somebody awake
-is in the hallway. Otherwise the tap acts at once, which is most door taps
-(you usually leave a hallway once it's quiet). With nobody around, a
-double-tap at a door is impatience, not a grenade: it's the tap. Taps that
-land while you're already mid-passage are dropped, so mashing a door never
-bounces you back through it.
+**Every tap is just a tap.** Grenades used to be a double-tap, which meant
+a quick second tap at a door threw one by accident (and the first tap of a
+real double-tap had to wait 0.28 s so it wouldn't walk you through the door).
+Now grenades have their own HUD button, so taps act the instant you lift, at
+any rhythm. Taps that land while you're already mid-passage are dropped, so
+mashing a door never bounces you back through it.
 
 **Elevators.** A car only counts as boardable once its doors have been open
 for 0.12 s (`ELEVATOR_REACT_TIME`): a car opening under your thumb is called,
@@ -206,9 +201,16 @@ walk-through.
 Tap, swipe up, or lift and drag to step out when it's clear. (GUNS HOT arrives
 in the open, with the 0.8 s arrival grace.)
 
-**Double-tap with nothing to throw.** With no grenades it says so ("NO
-GRENADES") and does nothing else; with one already in the air, the second is
-ignored. It never falls back to a door.
+**The HUD buttons.** Pause, the mode button and the grenade button (lime,
+with your grenade count on it) stack down the top-right corner, all the same
+size. A touch that goes down on one never reaches the gesture classifier, so
+it can't also run or tap a door. Their hit circles are generous (pause 1.8×,
+the others 1.6× their radius) and where two overlap the nearer centre wins
+(`Hud.buttonAt`).
+
+**The grenade button with nothing to throw.** With no grenades it says so
+("NO GRENADES") and does nothing else; with one already in the air the press
+is ignored (the button greys out for both). It never falls back to a door.
 
 ## Considered and rejected
 

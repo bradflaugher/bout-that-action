@@ -27,12 +27,13 @@ class GestureInputTest {
     }
 
     @Test
-    fun secondQuickTapThrowsGrenade() {
+    fun aQuickDoubleTapIsJustTwoTaps() {
+        // Grenades have their own HUD button: no tap rhythm ever throws one.
         g.down(0, 500f, 1500f, 0)
         g.up(0, 500f, 1500f, 80)
         g.down(0, 510f, 1490f, 200)
         g.up(0, 510f, 1490f, 260)
-        assertEquals(listOf(Command.TAP, Command.DOUBLE_TAP), commands())
+        assertEquals(listOf(Command.TAP, Command.TAP), commands())
     }
 
     @Test
@@ -42,17 +43,6 @@ class GestureInputTest {
         g.down(0, 500f, 1500f, 600)
         g.up(0, 500f, 1500f, 660)
         assertEquals(listOf(Command.TAP, Command.TAP), commands())
-    }
-
-    @Test
-    fun tripleTapIsGrenadeThenShot() {
-        var t = 0L
-        repeat(3) {
-            g.down(0, 500f, 1500f, t)
-            g.up(0, 500f, 1500f, t + 60)
-            t += 150
-        }
-        assertEquals(listOf(Command.TAP, Command.DOUBLE_TAP, Command.TAP), commands())
     }
 
     @Test
@@ -266,7 +256,7 @@ class GestureInputTest {
     }
 
     @Test
-    fun firingAtTheGunsRateIsNeverAGrenade() {
+    fun tapsAtAnyRateAreTaps() {
         var t = 0L
         repeat(6) {
             g.down(0, 500f, 1500f, t)
@@ -277,18 +267,18 @@ class GestureInputTest {
     }
 
     @Test
-    fun mashingThrowsAtMostOneGrenade() {
+    fun mashingIsAllTaps() {
         var t = 0L
         repeat(8) {
             g.down(0, 500f, 1500f, t)
             g.up(0, 500f, 1500f, t + 60)
             t += 150
         }
-        assertEquals(listOf(Command.TAP, Command.DOUBLE_TAP) + List(6) { Command.TAP }, commands())
+        assertEquals(List(8) { Command.TAP }, commands())
     }
 
     @Test
-    fun alternatingThumbsAreShotsNotGrenades() {
+    fun alternatingThumbsAreTaps() {
         var t = 0L
         repeat(4) { i ->
             val x = if (i % 2 == 0) 200f else 900f
@@ -359,7 +349,7 @@ class GestureInputTest {
     }
 
     @Test
-    fun chordedTapsAreTwoShotsNotAGrenade() {
+    fun chordedTapsAreTwoTaps() {
         g.down(0, 500f, 1500f, 0)
         g.down(1, 520f, 1510f, 30)
         g.up(0, 500f, 1500f, 80)

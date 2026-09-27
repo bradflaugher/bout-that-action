@@ -12,7 +12,7 @@ import kotlin.random.Random
 
 /**
  * Drops into a run and plays it with real injected touches — drags, taps,
- * double-taps and flicks — for twenty seconds. The game must keep running.
+ * quick double taps and flicks — for twenty seconds. The game must keep running.
  */
 @RunWith(AndroidJUnit4::class)
 class GameplaySmokeTest {

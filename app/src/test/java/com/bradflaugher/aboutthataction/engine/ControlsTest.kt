@@ -332,33 +332,47 @@ class ControlsTest {
         assertTrue(w.bullets.none { it.byPlayer })
     }
 
-    // ------------------------------------------------------------ double-tap
+    // ------------------------------------------------------------ grenade button
 
     @Test
-    fun doubleTapWithNoGrenadesSaysSo() {
+    fun grenadeButtonWithNoGrenadesSaysSo() {
         val w = world()
         w.player.x = 2f
         w.player.grenades = 0
         enemy(w, EnemyKind.AGENT, 8f)
-        w.commands += Command.DOUBLE_TAP
+        w.commands += Command.GRENADE
         w.step(dt)
         assertTrue(w.events.contains(GameEvent.SpecialEmpty))
         assertTrue(w.events.none { it is GameEvent.Shot && it.byPlayer })
     }
 
     @Test
-    fun doubleTapWhileAGrenadeIsInTheAirWaits() {
+    fun grenadeButtonWhileAGrenadeIsInTheAirWaits() {
         val w = world()
         w.player.x = 2f
         w.player.grenades = 2
         enemy(w, EnemyKind.AGENT, 8f)
-        w.commands += Command.DOUBLE_TAP
+        w.commands += Command.GRENADE
         w.step(dt)
         run(w, 0.3f)
-        w.commands += Command.DOUBLE_TAP
+        w.commands += Command.GRENADE
         w.step(dt)
         assertEquals(1, w.player.grenades)
         assertEquals(1, w.grenades.size)
+    }
+
+    @Test
+    fun mashingTapNeverThrowsAGrenade() {
+        val w = world()
+        w.player.x = 2f
+        w.player.grenades = 2
+        enemy(w, EnemyKind.AGENT, 8f)
+        repeat(6) {
+            w.commands += Command.TAP
+            run(w, 0.06f)
+        }
+        assertEquals(2, w.player.grenades)
+        assertTrue(w.grenades.isEmpty())
     }
 
     // ------------------------------------------------------------ context

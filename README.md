@@ -31,7 +31,7 @@ is read on its own, so one thumb can run while the other taps.
 | **Swipe ↓** | Hide: press into a nearby **doorway**, otherwise pop the **cardboard box**. In an elevator, box up in the car. Swipe ↓ again to stand up. In a doorway, a tap or a swipe ↑ also steps you out. |
 | **Swipe ↑** | Jump. Clears low shots; land on heads to stomp. Works mid-run. |
 | **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind; a napping guard from anywhere. Works in GUNS HOT too: the gun never shoots a guard with his back to you. |
-| **Double-tap** | Throw a grenade, in either mode. Fast tapping never throws by accident, and mashing a door with nobody around is just the tap. |
+| **Grenade button** (under the mode button) | Throw a grenade, in either mode. The lime button shows how many you carry and greys out when you're empty. Taps never throw one, so hammering a door is always just the door. |
 | **Jump + tap** | Under a ceiling lamp: swat it out by hand. The hallway gets darker, the fixture drops on anyone right under it (never on you), and the crash of glass brings nearby guards over to look: lure them in, then grab them from the shadows. Works in both modes. |
 | **Mode button** (under pause) | **GUNS HOT**: you auto-fire at threats in range. **SILENT**: you never fire; guards only notice what they see, and quiet kills pay double. Your choice sticks between runs. |
 
@@ -222,7 +222,7 @@ Kotlin behind small interfaces, so it's tested on the JVM:
 - `LevelGenTest`: determinism, a reachable ride down from every hallway on
   24,000 floors, rides arriving in hallway A, passage pairs, door spacing,
   shaft consistency, zone order, the heat curve.
-- `GestureInputTest`: taps, double-taps, flicks mid-run, instant reversal,
+- `GestureInputTest`: taps (never grenades), flicks mid-run, instant reversal,
   two-thumb play.
 - `BotPlaythroughTest`: an autopilot plays full runs on every preset in both
   modes and prints a balance report (floors, seconds and encounters per
