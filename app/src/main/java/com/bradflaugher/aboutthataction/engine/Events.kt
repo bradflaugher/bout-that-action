@@ -19,7 +19,12 @@ sealed interface GameEvent {
     data object DoorOpen : GameEvent
     data object ElevatorDing : GameEvent
     data object ElevatorMove : GameEvent
-    data object Stairs : GameEvent
+    /** Through a passage door into another hallway (a whoosh). */
+    data object Passage : GameEvent
+    /** Tapped a landing to call its car. */
+    data object ElevatorCalled : GameEvent
+    /** The GUNS HOT / SILENT toggle flipped; [silent] is the new mode. */
+    data class ModeToggled(val silent: Boolean) : GameEvent
     data class PlayerHurt(val hpLeft: Int) : GameEvent
     data object ShieldBlock : GameEvent
     data object PlayerDied : GameEvent

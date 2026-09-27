@@ -54,11 +54,17 @@ internal class Effects(private val f: Frame) {
         g.blend(Gfx.Blend.ADD)
         for (i in f.first..f.last) {
             if (i == 0) continue
-            val fs = w.floors[i] ?: continue
-            val plan = fs.plan
             val rt = i * Geo.FLOOR_H + 0.35f
             val gy = Geo.groundY(i)
             if (!f.visibleY(rt - 1f, gy + 1f)) continue
+            f.views(i) { fs -> bloomHall(fs, i, rt, gy) }
+        }
+        g.blend(Gfx.Blend.NORMAL)
+    }
+
+    private fun bloomHall(fs: com.bradflaugher.aboutthataction.engine.HallState, i: Int, rt: Float, gy: Float) {
+        run {
+            val plan = fs.plan
             val lamp = f.palette(fs).lamp
             for (k in plan.lights.indices) {
                 if (!fs.lightAlive[k]) continue
@@ -74,7 +80,6 @@ internal class Effects(private val f: Frame) {
                 g.glow(door.x, gy - 1.15f, 1.35f, Col.alpha(0xFFFF1E3C.toInt(), 0.1f * pulse))
             }
         }
-        g.blend(Gfx.Blend.NORMAL)
     }
 
     /** The frame an enemy drops: a white-hot flash over the body and a spray of sparks away from the hit. */
@@ -83,6 +88,7 @@ internal class Effects(private val f: Frame) {
         for (i in list.indices) {
             val e = list[i]
             if (e.state != com.bradflaugher.aboutthataction.engine.EnemyState.DEAD || e.stateTime > KILL_TIME) continue
+            if (!f.shows(e.floor, e.hall)) continue
             val gy = Geo.groundY(e.floor)
             if (!f.visibleY(gy - 2f, gy)) continue
             val h = e.height
@@ -128,6 +134,7 @@ internal class Effects(private val f: Frame) {
         val list = f.w.bullets
         for (i in list.indices) {
             val b = list[i]
+            if (!f.shows(b.floor, b.hall)) continue
             val gy = Geo.groundY(b.floor)
             val y = gy - b.z
             if (y < top || y > bottom) continue

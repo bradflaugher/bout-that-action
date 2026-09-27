@@ -66,6 +66,10 @@ internal class Hud(private val f: Frame) {
         const val MAX_HEAT = 4.5f
         private const val MAX_HEARTS = 16
         private const val PAUSE_R = 4.6f
+        /** Mode button centre sits this many units under the pause button's. */
+        private const val MODE_GAP = 12.5f
+        private const val HOT = 0xFFFF6A3A.toInt()
+        private const val QUIET = 0xFF9C8CFF.toInt()
         private const val MARGIN = 4f
         private const val TOP = 2.5f
 
@@ -93,7 +97,29 @@ internal class Hud(private val f: Frame) {
             val r = c[2] * 1.8f
             val dx = x - c[0]
             val dy = y - c[1]
-            return dx * dx + dy * dy <= r * r
+            return dx * dx + dy * dy <= r * r && !closerToMode(x, y, width, topInset)
+        }
+
+        /** The GUNS HOT / SILENT button: the same size as pause, right under it. */
+        fun modeCenter(width: Float, topInset: Float, out: FloatArray) {
+            pauseCenter(width, topInset, out)
+            out[1] += MODE_GAP * unit(width)
+        }
+
+        fun isModeButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean {
+            val c = FloatArray(3)
+            modeCenter(width, topInset, c)
+            val r = c[2] * 1.6f
+            val dx = x - c[0]
+            val dy = y - c[1]
+            return dx * dx + dy * dy <= r * r && closerToMode(x, y, width, topInset)
+        }
+
+        /** Where the pause and mode buttons' generous hit circles overlap, the nearer centre wins. */
+        private fun closerToMode(x: Float, y: Float, width: Float, topInset: Float): Boolean {
+            val p = FloatArray(3)
+            pauseCenter(width, topInset, p)
+            return y > p[1] + MODE_GAP * unit(width) / 2f && kotlin.math.abs(x - p[0]) < p[2] * 3f
         }
 
         /** Card i's rect (left, top, right, bottom) in pixels. */
@@ -205,12 +231,121 @@ internal class Hud(private val f: Frame) {
         }
         gearRow(left, top + 23f * u, u)
         pauseButton(u)
+        modeButton(u)
         scoreBlock(top, u)
-        if (w.combo >= 2) comboBlock(W - MARGIN * u, top + 16f * u, u) else lastCombo = -1
+        if (w.combo >= 2) comboBlock(W - MARGIN * u - PAUSE_R * 2f * u - 2.4f * u, top + 16f * u, u) else lastCombo = -1
 
         val bottom = H - f.bottomInset - MARGIN * u
-        ammoDial(left, bottom, u)
+        if (!w.silent) ammoDial(left, bottom, u)
         timers(W / 2f, bottom, u)
+        hallMap(W - MARGIN * u, bottom, u)
+    }
+
+    // ------------------------------------------------------------ mode button
+
+    private val modeBuf = FloatArray(3)
+    private var lastSilent: Boolean? = null
+    private var modeAt = -9f
+
+    /**
+     * GUNS HOT / SILENT, right under pause: a crosshair (hot orange) or a struck-through one
+     * (quiet violet), with the mode named under it and a ring that pops when it flips.
+     */
+    private fun modeButton(u: Float) {
+        val silent = f.w.silent
+        if (lastSilent != null && lastSilent != silent) modeAt = f.t
+        lastSilent = silent
+        val c = modeBuf
+        modeCenter(g.width, f.topInset, c)
+        val cx = c[0]
+        val cy = c[1]
+        val r = c[2]
+        val col = if (silent) QUIET else HOT
+        val age = since(modeAt)
+        val pop = if (age in 0f..0.3f) 1f + 0.18f * HudType.decay(age / 0.3f) else 1f
+        g.fillCircle(cx, cy + 0.3f * u, r, 0x55000000)
+        g.fillCircle(cx, cy, r * pop, 0x8C0C0A14.toInt())
+        g.strokeCircle(cx, cy, (r - 0.12f * u) * pop, 0.3f * u, Col.alpha(col, 0.85f))
+        if (age in 0f..0.5f) g.strokeCircle(cx, cy, r * (1f + age * 1.6f), 0.35f * u, Col.alpha(col, 0.7f * (1f - age / 0.5f)))
+        // Crosshair.
+        val k = r * 0.5f
+        val sw = 0.36f * u
+        val ic = if (silent) Col.alpha(col, 0.75f) else INK
+        g.strokeCircle(cx, cy, k * 0.72f, sw, ic)
+        g.line(cx - k, cy, cx - k * 0.4f, cy, sw, ic)
+        g.line(cx + k * 0.4f, cy, cx + k, cy, sw, ic)
+        g.line(cx, cy - k, cx, cy - k * 0.4f, sw, ic)
+        g.line(cx, cy + k * 0.4f, cx, cy + k, sw, ic)
+        if (silent) {
+            g.line(cx - k * 0.85f, cy + k * 0.85f, cx + k * 0.85f, cy - k * 0.85f, sw * 1.6f, 0xFF0C0A14.toInt())
+            g.line(cx - k * 0.85f, cy + k * 0.85f, cx + k * 0.85f, cy - k * 0.85f, sw, col)
+        } else {
+            g.fillCircle(cx, cy, sw * 0.9f, col)
+        }
+        HudType.tracked(g, if (silent) "SILENT" else "GUNS HOT", cx, cy + r + 2.6f * u, 2.1f * u, col, Gfx.Font.HUD, Gfx.Align.CENTER, 0.3f * u)
+    }
+
+    // --------------------------------------------------------------- hall map
+
+    /**
+     * This floor's hallways as a row of plates, right-aligned at ([right], [bottom]): where you
+     * are (bright ring), where you've been (filled), the passages you've seen (links over the
+     * row) and which hallways have a ride down (a cyan lift under the plate).
+     */
+    private fun hallMap(right: Float, bottom: Float, u: Float) {
+        val w = f.w
+        val p = w.player
+        val fs = w.floors[p.floor] ?: return
+        val n = fs.plan.hallCount
+        if (n < 2) return
+        val pw = 4.6f * u
+        val gap = 1.9f * u
+        val total = n * pw + (n - 1) * gap
+        val x0 = right - total
+        val by = bottom - 3.6f * u
+        val ty = by - pw
+        val here = if (p.state == PlayerState.PASSAGE) p.passageTo else p.hall
+        fun cx(h: Int) = x0 + h * (pw + gap) + pw / 2f
+        // Links: adjacent hallways join straight across, others arc over the row.
+        val drawn = HashSet<Int>()
+        for (h in 0 until n) {
+            if (!fs.halls[h].visited) continue
+            for (to in fs.plan.neighbours(h)) {
+                val key = minOf(h, to) * 8 + maxOf(h, to)
+                if (!drawn.add(key)) continue
+                val a = cx(minOf(h, to))
+                val b = cx(maxOf(h, to))
+                val lc = Col.alpha(Building.PASSAGE, 0.7f)
+                if (kotlin.math.abs(h - to) == 1) {
+                    g.line(a + pw / 2f, ty + pw / 2f, b - pw / 2f, ty + pw / 2f, 0.35f * u, lc)
+                } else {
+                    val hy = ty - 1.2f * u - 0.6f * u * kotlin.math.abs(h - to)
+                    g.line(a, ty, a, hy, 0.3f * u, lc)
+                    g.line(a, hy, b, hy, 0.3f * u, lc)
+                    g.line(b, hy, b, ty, 0.3f * u, lc)
+                }
+            }
+        }
+        for (h in 0 until n) {
+            val l = x0 + h * (pw + gap)
+            val visited = fs.halls[h].visited
+            val cur = h == here
+            val lift = fs.plan.halls[h].downLandings.isNotEmpty()
+            g.fillRoundRect(l, ty + 0.3f * u, l + pw, by + 0.3f * u, 0.9f * u, 0x66000000)
+            g.fillRoundRect(l, ty, l + pw, by, 0.9f * u, if (visited) 0xE0202838.toInt() else 0xB00C0A14.toInt())
+            if (cur) {
+                g.blend(Gfx.Blend.ADD)
+                g.glow(l + pw / 2f, ty + pw / 2f, pw, Col.alpha(0xFFFFFFFF.toInt(), 0.18f))
+                g.blend(Gfx.Blend.NORMAL)
+            }
+            g.strokeRoundRect(l, ty, l + pw, by, 0.9f * u, if (cur) 0.45f * u else 0.22f * u, if (cur) INK else if (visited) 0x80FFFFFF.toInt() else FAINT)
+            HudType.tracked(g, com.bradflaugher.aboutthataction.engine.Geo.hallName(h), l + pw / 2f, by - pw / 2f + 1.05f * u, 2.9f * u, if (cur) INK else if (visited) DIM else FAINT, Gfx.Font.TITLE, Gfx.Align.CENTER, 0f)
+            if (lift) {
+                val c = Building.LIFT_CYAN
+                HudIcons.elevator(g, l + pw / 2f, by + 2.1f * u, 2.6f * u, c)
+            }
+        }
+        HudType.tracked(g, "HALLS", right, ty - (if (n >= 3) 3.4f else 1.4f) * u, 1.8f * u, FAINT, Gfx.Font.HUD, Gfx.Align.RIGHT, 0.3f * u)
     }
 
     /** Notices value changes so they can animate (pops, lost hearts, ticking numbers). */
@@ -987,7 +1122,7 @@ internal class Hud(private val f: Frame) {
         var action = w.contextAction()
         if (action == ContextAction.BOX) {
             // Only suggest the box when someone is actually coming for you.
-            val threat = w.enemies.any { it.floor == p.floor && it.alive && (it.state == EnemyState.ALERT || it.state == EnemyState.AIM) }
+            val threat = w.enemies.any { it.floor == p.floor && it.hall == p.hall && it.alive && (it.state == EnemyState.ALERT || it.state == EnemyState.AIM) }
             if (!threat) action = null
         }
         if (action != hintAction) {
@@ -999,7 +1134,7 @@ internal class Hud(private val f: Frame) {
         val cx = p.x
         val head = gy - p.z - (if (p.state == PlayerState.BOX) 1.55f else 2.25f)
         // Keep the chip off doors, shafts and their signs: it sits beside the nearest one.
-        val avoid = nearestFixture(p.x, p.floor)
+        val avoid = nearestFixture(p.x)
 
         // Hidden in a door or riding a lift with the thumb that took you in still held.
         val stepOut = p.holdAxis != 0 && (p.state == PlayerState.DOOR || p.state == PlayerState.ELEVATOR)
@@ -1010,29 +1145,39 @@ internal class Hud(private val f: Frame) {
         if (stepOut && action == null) {
             // Wait a beat so a quick in-and-out never flashes it.
             val k = HudType.clamp01((since(stepOutAt) - 0.45f) / 0.25f)
-            if (k > 0f) chip(cx, head + bob, avoid, "LIFT TO STEP OUT", 0xFFB8C0D8.toInt(), -1, k, false)
+            if (k > 0f) chip(cx, head + bob, avoid, "LIFT TO STEP OUT", 0xFFB8C0D8.toInt(), -1, k, 0)
             return
         }
         if (action == null) return
         val appear = HudType.clamp01(since(hintAt) / 0.22f)
         val color = when (action) {
             ContextAction.INTEL -> 0xFFFF2E4E.toInt()
-            ContextAction.ELEVATOR -> 0xFF3CF4FF.toInt()
+            ContextAction.ELEVATOR, ContextAction.CALL -> Building.LIFT_CYAN
+            ContextAction.PASSAGE -> Building.PASSAGE
             ContextAction.DOOR -> 0xFFE8E0FF.toInt()
             ContextAction.BOX -> 0xFFE0A866.toInt()
         }
         val label = when (action) {
             ContextAction.INTEL -> "INTEL"
-            ContextAction.ELEVATOR -> "RIDE"
+            ContextAction.ELEVATOR -> "RIDE DOWN"
+            ContextAction.CALL -> if (carCalled()) "COMING" else "CALL"
+            ContextAction.PASSAGE -> "TO " + com.bradflaugher.aboutthataction.engine.Geo.hallName(w.tapDoor()?.to ?: 0)
             ContextAction.DOOR -> "HIDE"
             ContextAction.BOX -> "BOX"
         }
-        chip(cx, head + bob + (1f - appear) * 0.15f, avoid, label, color, action.ordinal, appear, true)
+        chip(cx, head + bob + (1f - appear) * 0.15f, avoid, label, color, action.ordinal, appear, if (action.tap) 2 else 1)
     }
 
-    /** X of the door or shaft nearest [x] on [floor] within reach, or NaN. */
-    private fun nearestFixture(x: Float, floor: Int): Float {
-        val plan = f.w.floors[floor]?.plan ?: return Float.NaN
+    /** Has the player already called the car at the landing in reach? */
+    private fun carCalled(): Boolean {
+        val w = f.w
+        val hs = w.playerHall() ?: return false
+        return hs.plan.downLandings.any { kotlin.math.abs(it.x - w.player.x) < 1f && w.elevators[it.id]?.called == w.player.floor }
+    }
+
+    /** X of the door or shaft nearest [x] in the player's hallway within reach, or NaN. */
+    private fun nearestFixture(x: Float): Float {
+        val plan = f.w.playerHall()?.plan ?: return Float.NaN
         var best = Float.NaN
         var bd = 1.35f
         for (d in plan.doors) {
@@ -1047,13 +1192,15 @@ internal class Hud(private val f: Frame) {
     }
 
     /**
-     * The hint chip: [icon] = a [ContextAction] ordinal or -1 for none; [swipe] adds the
-     * animated swipe-down chevron. Drawn in pixels around the chip centre for crisp type.
+     * The hint chip: [icon] = a [ContextAction] ordinal or -1 for none; [gesture] 1 adds the
+     * animated swipe-down chevron, 2 a pulsing tap ring. Drawn in pixels around the chip centre
+     * for crisp type, at a fixed screen size however far the world is zoomed out.
      */
-    private fun chip(px0: Float, cy0: Float, avoid: Float, label: String, color: Int, icon: Int, appear: Float, swipe: Boolean) {
+    private fun chip(px0: Float, cy0: Float, avoid: Float, label: String, color: Int, icon: Int, appear: Float, gesture: Int) {
+        val swipe = gesture != 0
         val e = HudType.outBack(appear, 2.2f)
         val s = f.s
-        val px = 0.13f * s // the chip's own grid unit, in px
+        val px = 0.0116f * g.width // the chip's own grid unit, in px (screen-relative, like the HUD)
         val ts = (if (swipe) 1.9f else 1.5f) * px
         val track = 0.25f * px
         val lw = HudType.trackedWidth(g, label, ts, Gfx.Font.HUD, track)
@@ -1110,7 +1257,8 @@ internal class Hud(private val f: Frame) {
             val ix = x + iconS / 2f
             when (ContextAction.entries[icon]) {
                 ContextAction.INTEL -> HudIcons.dataCore(g, ix, 0f, iconS, color)
-                ContextAction.ELEVATOR -> HudIcons.elevator(g, ix, 0f, iconS, color)
+                ContextAction.ELEVATOR, ContextAction.CALL -> HudIcons.elevator(g, ix, 0f, iconS, color)
+                ContextAction.PASSAGE -> Glyphs.arrow(g, ix, 0f, iconS * 0.32f, if ((f.w.tapDoor()?.to ?: 0) > f.w.player.hall) 1f else -1f, 0f, iconS * 0.1f, color)
                 ContextAction.DOOR -> HudIcons.door(g, ix, 0f, iconS, color)
                 ContextAction.BOX -> HudIcons.box(g, ix, 0f, iconS, color, 0xFF7A5030.toInt())
             }
@@ -1118,7 +1266,14 @@ internal class Hud(private val f: Frame) {
         }
         HudType.tracked(g, label, x, ts * 0.36f, ts, if (swipe) INK else Col.alpha(INK, 0.8f), Gfx.Font.HUD, Gfx.Align.LEFT, track)
         x += lw + 1.2f * px
-        if (swipe) {
+        if (gesture == 2) {
+            // Divider then a tap: a dot with a ring that pulses out from it.
+            g.fillRect(x - 0.55f * px, t + 0.8f * px, x - 0.45f * px, b - 0.8f * px, 0x40FFFFFF)
+            val beat = fract(f.t * 1.3f)
+            val chx = x + 0.9f * px
+            g.fillCircle(chx, 0f, 0.32f * px, color)
+            g.strokeCircle(chx, 0f, (0.4f + beat * 0.7f) * px, 0.16f * px, Col.alpha(color, 0.8f * (1f - beat)))
+        } else if (swipe) {
             // Divider then an animated swipe-down chevron.
             g.fillRect(x - 0.55f * px, t + 0.8f * px, x - 0.45f * px, b - 0.8f * px, 0x40FFFFFF)
             val sweep = fract(f.t * 1.4f)

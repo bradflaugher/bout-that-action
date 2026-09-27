@@ -30,7 +30,9 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         GameEvent.HideBox -> 1.8f
         GameEvent.Unhide -> 2.4f
         GameEvent.DoorOpen -> 1.2f
-        GameEvent.Stairs -> 2f
+        GameEvent.Passage -> 1.6f
+        GameEvent.ElevatorCalled -> 1.5f
+        is GameEvent.ModeToggled -> 2f
         GameEvent.ShieldBlock -> 1.7f
         is GameEvent.Pickup -> if (e.kind == PickupKind.MEDKIT || e.kind == PickupKind.SHIELD) 1.4f else 1.9f
         is GameEvent.PerkChosen -> 2.8f
@@ -60,7 +62,9 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
             GameEvent.DoorOpen -> doorOpen()
             GameEvent.ElevatorDing -> elevatorDing()
             GameEvent.ElevatorMove -> elevatorMove()
-            GameEvent.Stairs -> stairs()
+            GameEvent.Passage -> passage()
+            GameEvent.ElevatorCalled -> elevatorCall()
+            is GameEvent.ModeToggled -> if (e.silent) muffle() else cock()
             is GameEvent.PlayerHurt -> playerHurt(e.hpLeft)
             GameEvent.ShieldBlock -> shieldBlock()
             GameEvent.PlayerDied -> playerDied()
@@ -347,18 +351,50 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         }
     }
 
-    private fun stairs() {
-        for (k in 0 until 4) {
-            val side = if (k % 2 == 0) -0.15f else 0.15f
-            voice {
-                level1 = 0f; noise = 1f; filter = FilterMode.LOW; cut0 = 900f * j(0.15f); cut1 = 500f; cutTime = 0.04f
-                decay = 0.05f; gain = 0.22f * j(0.15f); pan = side; delay = k * 0.13f * j(0.05f)
-            }
-            voice {
-                wave = Wave.SINE; f0 = 125f * j(0.08f); f1 = 70f; sweep = 0.04f; decay = 0.045f; gain = 0.18f; pan = side
-                delay = k * 0.13f
-            }
+    /** Through a passage door: a door latch, then a fast airy whoosh sweeping across the stereo field. */
+    private fun passage() {
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.HIGH; cut0 = 3800f; cut1 = 3800f; decay = 0.012f; gain = 0.25f
         }
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.BAND; cut0 = 350f * j(0.1f); cut1 = 3200f; cutTime = 0.2f; q = 1.4f
+            attack = 0.05f; hold = 0.06f; decay = 0.2f; gain = 0.34f; pan = -0.5f; reverb = 0.12f; delay = 0.03f
+        }
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.BAND; cut0 = 3000f; cut1 = 600f; cutTime = 0.22f; q = 1.2f
+            attack = 0.04f; decay = 0.22f; gain = 0.22f; pan = 0.5f; reverb = 0.15f; delay = 0.2f
+        }
+        voice { wave = Wave.SINE; f0 = 90f * j(); f1 = 55f; sweep = 0.2f; attack = 0.03f; decay = 0.2f; gain = 0.16f; delay = 0.18f }
+    }
+
+    /** The call button: a short, bright two-blip beep. */
+    private fun elevatorCall() {
+        for (k in 0 until 2) voice {
+            wave = Wave.SQUARE; pw = 0.3f; f0 = 1760f; f1 = 1760f; filter = FilterMode.LOW; cut0 = 4000f; cut1 = 4000f
+            attack = 0.002f; hold = 0.03f; decay = 0.04f; gain = 0.08f; reverb = 0.1f; delay = k * 0.09f
+        }
+    }
+
+    /** GUNS HOT: the slide racks back and snaps home. */
+    private fun cock() {
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.BAND; cut0 = 2600f * j(0.08f); cut1 = 1500f; cutTime = 0.05f; q = 2.2f
+            attack = 0.001f; decay = 0.05f; gain = 0.32f
+        }
+        voice { wave = Wave.SINE; f0 = 420f; f1 = 180f; sweep = 0.04f; decay = 0.05f; gain = 0.22f }
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.HIGH; cut0 = 4200f; cut1 = 4200f; decay = 0.018f; gain = 0.38f; delay = 0.11f
+        }
+        voice { wave = Wave.SINE; f0 = 260f * j(); f1 = 90f; sweep = 0.05f; decay = 0.07f; drive = 0.4f; gain = 0.32f; delay = 0.11f }
+    }
+
+    /** SILENT: a soft, muffled thump, like a hand closing over the muzzle. */
+    private fun muffle() {
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.LOW; cut0 = 700f; cut1 = 250f; cutTime = 0.15f
+            attack = 0.02f; decay = 0.18f; gain = 0.28f; reverb = 0.08f
+        }
+        voice { wave = Wave.SINE; f0 = 180f; f1 = 110f; sweep = 0.12f; attack = 0.01f; decay = 0.16f; gain = 0.2f }
     }
 
     // ---- Player state --------------------------------------------------------------------

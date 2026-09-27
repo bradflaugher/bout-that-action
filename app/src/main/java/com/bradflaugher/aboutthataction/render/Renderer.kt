@@ -2,6 +2,8 @@ package com.bradflaugher.aboutthataction.render
 
 import com.bradflaugher.aboutthataction.engine.FloorState
 import com.bradflaugher.aboutthataction.engine.Geo
+import com.bradflaugher.aboutthataction.engine.HallPlan
+import com.bradflaugher.aboutthataction.engine.HallState
 import com.bradflaugher.aboutthataction.engine.Phase
 import com.bradflaugher.aboutthataction.engine.PlayerState
 import com.bradflaugher.aboutthataction.engine.World
@@ -57,28 +59,23 @@ class Renderer {
         // Sky and skyline above the roof.
         if (f.camY < Geo.groundY(0) + 1f) backdrop.sky(world.floors[0] != null)
 
-        // Rooms, back to front: walls, windows onto the backdrop, furniture, doors, shafts, stairs.
+        // Rooms, back to front: walls, windows onto the backdrop, furniture, doors, shafts. Each
+        // floor shows one hallway (the player's own, else the main one); a passage slides it.
         for (i in first..last) {
-            val fs = world.floors[i] ?: continue
-            if (i == 0) building.roof(fs) else building.room(fs, backdrop)
+            if (i == 0) world.floors[0]?.let { building.roof(it.hall(0)) } else f.views(i) { building.room(it, backdrop) }
         }
         for (i in first..last) {
             val fs = world.floors[i] ?: continue
-            building.slab(fs)
+            building.slab(fs.hall(0))
         }
         building.outerWalls()
         building.elevators(actors)
+        for (i in first..last) f.views(i) { building.sealedShafts(it) }
 
         // Actors per floor, then darkness on top of the rooms, then the lights that survive it.
-        for (i in first..last) {
-            val fs = world.floors[i] ?: continue
-            actors.floorActors(i, fs)
-        }
+        for (i in first..last) f.views(i) { actors.floorActors(i, it) }
         actors.player()
-        for (i in first..last) {
-            val fs = world.floors[i] ?: continue
-            building.darkness(fs)
-        }
+        for (i in first..last) f.views(i) { building.darkness(it) }
         val pf = world.player.floorF
         for (i in first..last) {
             if (i == 0 || world.floors[i] == null) continue
@@ -86,10 +83,9 @@ class Renderer {
             val top = i * Geo.FLOOR_H + 0.35f
             g.fillRect(-0.6f, top, Geo.FLOOR_W + 0.6f, (i + 1) * Geo.FLOOR_H + 0.35f, 0x33000000)
         }
-        for (i in first..last) {
-            val fs = world.floors[i] ?: continue
-            actors.darkEyes(i, fs)
-            building.lightsAndHazards(fs)
+        for (i in first..last) f.views(i) {
+            actors.darkEyes(i, it)
+            building.lightsAndHazards(it)
         }
         actors.playerOverlay()
         effects.bloom()
@@ -102,8 +98,8 @@ class Renderer {
         if (showHud) {
             if (world.phase != Phase.PERK_CHOICE) hud.banner()
             hud.draw()
-            if (world.phase == Phase.PERK_CHOICE) hud.perkOverlay()
         }
+        if (showHud && world.phase == Phase.PERK_CHOICE) hud.perkOverlay()
     }
 
     /** During Phase.PERK_CHOICE: index of the perk card at pixel (x, y), or -1. */
@@ -113,7 +109,14 @@ class Renderer {
     /** True if (x, y) hits the HUD pause button. */
     fun isPauseButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean =
         Hud.isPauseButton(x, y, width, height, topInset)
+
+    /** True if (x, y) hits the HUD's GUNS HOT / SILENT toggle beside the pause button. */
+    fun isModeButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean =
+        Hud.isModeButton(x, y, width, height, topInset)
 }
+
+/** A per-hallway seed for looks: hallway A keeps the floor's own, the others get their own. */
+internal val HallPlan.look: Int get() = if (hall == 0) index else index * 31 + hall * 977 + 5000
 
 /** Per-frame shared state for the renderer parts. */
 internal class Frame {
@@ -142,6 +145,77 @@ internal class Frame {
     val reserved = FloatArray(4)
     var hasReserved = false
 
+    // The hallway slide: when the player's floor swaps hallways, both slide across for a moment.
+    private var viewFloor = Int.MIN_VALUE
+    private var viewHall = 0
+    var slideFloor = Int.MIN_VALUE
+        private set
+    var slideFrom = 0
+        private set
+    var slideTo = 0
+        private set
+    private var slideAt = -9f
+    /** 0..1 progress of the running slide (1 = none). */
+    var slideU = 1f
+        private set
+    /** Horizontal offset of the hallway being drawn right now (non-zero only mid-slide). */
+    var viewDx = 0f
+
+    private fun trackSlide() {
+        val pf = w.player.floor
+        val vh = w.viewHall(pf)
+        if (pf == viewFloor && vh != viewHall && dt > 0f) {
+            slideFloor = pf
+            slideFrom = viewHall
+            slideTo = vh
+            slideAt = t
+        }
+        if (pf != viewFloor) slideFloor = Int.MIN_VALUE
+        viewFloor = pf
+        viewHall = vh
+        slideU = if (slideFloor == Int.MIN_VALUE) 1f else ((t - slideAt) / SLIDE_TIME).coerceIn(0f, 1f)
+        if (slideU >= 1f) slideFloor = Int.MIN_VALUE
+    }
+
+    /** Starts a slide by hand (screenshots): floor [fi] from hallway [from] to [to], [u] of the way. */
+    fun forceSlide(fi: Int, from: Int, to: Int, u: Float) {
+        slideFloor = fi
+        slideFrom = from
+        slideTo = to
+        slideAt = t - u * SLIDE_TIME
+        slideU = u
+    }
+
+    /**
+     * Draw floor [fi]'s visible hallway with [draw]. Mid-slide the old hallway whooshes out and
+     * the new one in (clipped to the floor), each drawn at its own offset ([viewDx]).
+     */
+    inline fun views(fi: Int, draw: (HallState) -> Unit) {
+        val fs = w.floors[fi] ?: return
+        if (fi != slideFloor || slideU >= 1f) {
+            draw(fs.hall(w.viewHall(fi)))
+            return
+        }
+        val e = slideEase(slideU)
+        val dir = if (slideTo > slideFrom) 1f else -1f
+        val span = Geo.FLOOR_W + 0.6f
+        for (k in 0..1) {
+            val hall = if (k == 0) slideFrom else slideTo
+            val dx = if (k == 0) -dir * span * e else dir * span * (1f - e)
+            if (kotlin.math.abs(dx) >= span) continue
+            g.save()
+            g.clipRect(0f, fi * Geo.FLOOR_H, Geo.FLOOR_W, (fi + 1) * Geo.FLOOR_H + 0.36f)
+            g.translate(dx, 0f)
+            viewDx = dx
+            draw(fs.hall(hall))
+            viewDx = 0f
+            g.restore()
+        }
+    }
+
+    /** Fast out, soft landing: reads as a whoosh. */
+    fun slideEase(u: Float): Float = 1f - (1f - u) * (1f - u) * (1f - u)
+
     fun setup(g: Gfx, w: World, t: Float, topInset: Float, bottomInset: Float) {
         this.g = g
         g.blend(Gfx.Blend.NORMAL)
@@ -156,20 +230,23 @@ internal class Frame {
         s = g.width / Geo.VIEW_W
         camY = w.camY
         viewH = g.height / s
+        trackSlide()
         val k = w.shake * w.shake * 0.42f + w.shake * 0.08f
         shakeX = (sin(t * 91f) + sin(t * 57f + 1.3f) * 0.6f) * k * s * 0.5f
         shakeY = (sin(t * 83f + 2.1f) + sin(t * 47f) * 0.6f) * k * s * 0.5f
     }
 
-    fun palette(fs: FloorState?): Palette {
-        if (fs == null) return Palette.of(w.zone)
-        val plan = fs.plan
+    fun palette(hs: HallState?): Palette {
+        if (hs == null) return Palette.of(w.zone)
+        val plan = hs.plan
         return when {
             plan.index == 0 -> Palette.of(Zone.ROOFTOP)
             plan.isVoid -> Palette.void(plan.zone, t, plan.index)
             else -> Palette.of(plan.zone)
         }
     }
+
+    fun palette(fs: FloorState?): Palette = palette(fs?.hall(0))
 
     /** Draws [text] at world (x, y) with a pixel-space font size (crisp on every backend). */
     fun worldText(text: String, x: Float, y: Float, sizeWorld: Float, color: Int, font: Gfx.Font = Gfx.Font.HUD, align: Gfx.Align = Gfx.Align.CENTER) {
@@ -199,7 +276,20 @@ internal class Frame {
     val playerDrawFloor: Int get() = w.player.floor
     val inPerk: Boolean get() = w.phase == Phase.PERK_CHOICE
     val dying: Boolean get() = w.phase == Phase.DYING || w.phase == Phase.OVER
-    fun playerHiddenInDoor(x: Float) = w.player.state == PlayerState.DOOR && kotlin.math.abs(w.player.anchorX - x) < 0.05f
+
+    /** Is hallway [hall] of floor [floor] on screen (the new hallway, mid-slide)? */
+    fun shows(floor: Int, hall: Int) = w.viewHall(floor) == hall
+
+    /** Is the player in hallway [hs]? */
+    fun playerIn(hs: HallState) = w.player.floor == hs.plan.index && w.player.hall == hs.plan.hall
+
+    fun playerHiddenInDoor(x: Float) =
+        (w.player.state == PlayerState.DOOR || w.player.state == PlayerState.PASSAGE) && kotlin.math.abs(w.player.anchorX - x) < 0.05f
 
     fun clamp01(v: Float) = min(1f, max(0f, v))
+
+    companion object {
+        /** Seconds a hallway slide takes. */
+        const val SLIDE_TIME = 0.26f
+    }
 }

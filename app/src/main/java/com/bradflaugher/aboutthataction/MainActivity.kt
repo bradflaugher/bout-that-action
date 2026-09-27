@@ -172,7 +172,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
             SeedMode.CUSTOM -> s.seedText.ifBlank { seed.toString() }.uppercase()
             SeedMode.RANDOM -> seed.toString()
         }
-        startRun(RunConfig(seed, s.difficulty, s.autoFire))
+        startRun(RunConfig(seed, s.difficulty, silent = s.silent))
     }
 
     private fun startRun(config: RunConfig) {
@@ -180,7 +180,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
         runSeed = config.seed
         if (runSeedLabel.isEmpty()) runSeedLabel = config.seed.toString()
         musicZone = null
-        gameView.world = World(config.copy(autoFire = settings.autoFire))
+        gameView.world = World(config.copy(silent = settings.silent))
         gameView.attract = false
         gameView.paused = false
         screen = Screen.PLAYING
@@ -225,6 +225,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
         if (gameView.attract) return
         sound.trigger(event)
         haptics.onEvent(event)
+        // The GUNS HOT / SILENT choice sticks between runs.
+        if (event is GameEvent.ModeToggled) runOnUiThread { if (settings.silent != event.silent) updateSettings(settings.copy(silent = event.silent)) }
     }
 
     override fun onFrame(world: World) {

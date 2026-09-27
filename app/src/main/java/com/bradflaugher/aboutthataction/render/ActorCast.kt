@@ -4,7 +4,7 @@ import com.bradflaugher.aboutthataction.engine.Body
 import com.bradflaugher.aboutthataction.engine.Enemy
 import com.bradflaugher.aboutthataction.engine.EnemyKind
 import com.bradflaugher.aboutthataction.engine.EnemyState
-import com.bradflaugher.aboutthataction.engine.FloorState
+import com.bradflaugher.aboutthataction.engine.HallState
 import com.bradflaugher.aboutthataction.engine.Geo
 import com.bradflaugher.aboutthataction.engine.Heat
 import com.bradflaugher.aboutthataction.engine.KillMethod
@@ -50,7 +50,7 @@ internal class ActorCast(
 
     // ================================================================ entry
 
-    fun enemy(e: Enemy, idx: Int, gy: Float, fs: FloorState) {
+    fun enemy(e: Enemy, idx: Int, gy: Float, fs: HallState) {
         ensureEyes(idx)
         eyeOk[idx] = false
         p.reset()
@@ -130,7 +130,7 @@ internal class ActorCast(
         eyeOk = eyeOk.copyOf(n)
     }
 
-    private fun zoneOf(fs: FloorState) = if (fs.plan.index == 0) Zone.TOWER else fs.plan.zone
+    private fun zoneOf(fs: HallState) = if (fs.plan.index == 0) Zone.TOWER else fs.plan.zone
 
     private fun scaleOf(kind: EnemyKind) = when (kind) {
         EnemyKind.HEAVY -> 1.14f
@@ -146,7 +146,7 @@ internal class ActorCast(
         else -> 1f
     }
 
-    private fun enemyBody(e: Enemy, x: Float, gy: Float, dir: Int, zone: Zone, pal: Palette, fs: FloorState) {
+    private fun enemyBody(e: Enemy, x: Float, gy: Float, dir: Int, zone: Zone, pal: Palette, fs: HallState) {
         when (e.kind) {
             EnemyKind.DRONE -> drone(e, x, gy, dir, pal)
             EnemyKind.TURRET -> turret(e, x, gy, pal)
@@ -398,7 +398,7 @@ internal class ActorCast(
     /** Called by the player's grapple so the victim sits between the agent's body and choking arm. */
     fun chokedVictim(e: Enemy, gy: Float, heroNeckX: Float, heroNeckY: Float, t: Float) {
         p.reset()
-        val fs = f.w.floors[e.floor] ?: return
+        val fs = f.w.hall(e.floor, e.hall) ?: return
         val dir = if (e.facing >= 0) 1 else -1
         val grab = Rig.easeOut(min(1f, t / 0.08f))
         val x = e.x - 0.1f * grab * dir
@@ -1175,7 +1175,7 @@ internal class ActorCast(
         val dead = e.state == EnemyState.DEAD
         val pl = f.w.player
         var ang = if (e.facing >= 0) 0f else 180f
-        if (!dead && pl.floor == e.floor) {
+        if (!dead && pl.floor == e.floor && pl.hall == e.hall) {
             val dx = pl.x - x
             val dy = (Geo.groundY(pl.floorF) - pl.z - 0.9f) - y
             ang = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
@@ -1214,7 +1214,7 @@ internal class ActorCast(
     // =========================================================== telegraphs
 
     /** The single most important read in the game: where and when the shot comes. */
-    private fun aimTelegraph(e: Enemy, gy: Float, dir: Int, fs: FloorState) {
+    private fun aimTelegraph(e: Enemy, gy: Float, dir: Int, fs: HallState) {
         val aimT = Heat.aimTime(fs.plan.heat)
         val t = (e.stateTime / aimT).coerceIn(0f, 1f)
         val laser = 0xFFFF1E3C.toInt()
@@ -1378,7 +1378,7 @@ internal class ActorCast(
     }
 
     /** In the dark, alive enemies are silhouettes with glowing eyes. */
-    fun darkEyes(fi: Int, fs: FloorState) {
+    fun darkEyes(fi: Int, fs: HallState) {
         val d = fs.darkness
         if (d < 0.3f) return
         val gy = Geo.groundY(fi)
@@ -1386,7 +1386,7 @@ internal class ActorCast(
         val list = f.w.enemies
         for (i in list.indices) {
             val e = list[i]
-            if (e.floor != fi || !e.alive) continue
+            if (e.floor != fi || e.hall != fs.plan.hall || !e.alive) continue
             val dir = if (e.facing >= 0) 1 else -1
             val alarmed = e.state == EnemyState.ALERT || e.state == EnemyState.AIM || e.state == EnemyState.WINDUP
             val col = if (alarmed) 0xFFFF2A3A.toInt() else 0xFFFFE8A0.toInt()

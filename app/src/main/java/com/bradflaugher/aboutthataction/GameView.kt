@@ -9,6 +9,7 @@ import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import com.bradflaugher.aboutthataction.engine.Autopilot
+import com.bradflaugher.aboutthataction.engine.Command
 import com.bradflaugher.aboutthataction.engine.GameEvent
 import com.bradflaugher.aboutthataction.engine.Phase
 import com.bradflaugher.aboutthataction.engine.World
@@ -65,6 +66,7 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
     private val input = GestureInput(density)
     private val inputLock = Any()
     private val pendingPerk = AtomicInteger(-1)
+    private val pendingToggle = java.util.concurrent.atomic.AtomicBoolean(false)
     private val main = Handler(Looper.getMainLooper())
 
     /** The one live loop thread; a loop exits as soon as it's no longer this. */
@@ -127,6 +129,7 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
                 w.viewAspect = if (width > 0) height.toFloat() / width else 2.1f
                 val perk = pendingPerk.getAndSet(-1)
                 if (perk >= 0) w.choosePerk(perk)
+                if (pendingToggle.getAndSet(false) && !attract) w.commands += Command.TOGGLE_MODE
                 synchronized(inputLock) {
                     if (attract) {
                         w.moveAxis = 0
@@ -210,6 +213,10 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
                 val y = event.getY(idx)
                 if (renderer.isPauseButton(x, y, width.toFloat(), height.toFloat(), topInset)) {
                     host.onPauseRequested()
+                    return true
+                }
+                if (w.phase == Phase.PLAYING && renderer.isModeButton(x, y, width.toFloat(), height.toFloat(), topInset)) {
+                    pendingToggle.set(true)
                     return true
                 }
                 if (w.phase == Phase.PERK_CHOICE) {

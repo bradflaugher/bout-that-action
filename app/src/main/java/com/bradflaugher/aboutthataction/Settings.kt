@@ -15,7 +15,10 @@ data class Settings(
     val custom: Difficulty = Difficulty(),
     val seedMode: SeedMode = SeedMode.RANDOM,
     val seedText: String = "",
+    /** Legacy toggle from before the GUNS HOT / SILENT mode; the engine no longer reads it. */
     val autoFire: Boolean = false,
+    /** SILENT (never fire) instead of GUNS HOT (auto-fire). Flipped by the HUD button, kept between runs. */
+    val silent: Boolean = false,
     val haptics: Boolean = true,
     val touchGuide: Boolean = true,
     val musicVolume: Float = 0.8f,
@@ -56,6 +59,7 @@ class Prefs(context: Context) {
             seedMode = SeedMode.entries.firstOrNull { it.name == sp.getString("seed_mode", null) } ?: d.seedMode,
             seedText = sp.getString("seed_text", d.seedText) ?: "",
             autoFire = sp.getBoolean("auto_fire", d.autoFire),
+            silent = sp.getBoolean("silent", d.silent),
             haptics = sp.getBoolean("haptics", d.haptics),
             touchGuide = sp.getBoolean("touch_guide", d.touchGuide),
             musicVolume = sp.getFloat("music", d.musicVolume),
@@ -74,6 +78,7 @@ class Prefs(context: Context) {
             .putString("seed_mode", s.seedMode.name)
             .putString("seed_text", s.seedText)
             .putBoolean("auto_fire", s.autoFire)
+            .putBoolean("silent", s.silent)
             .putBoolean("haptics", s.haptics)
             .putBoolean("touch_guide", s.touchGuide)
             .putFloat("music", s.musicVolume)

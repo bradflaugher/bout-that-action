@@ -120,7 +120,7 @@ class SoundEngineTest {
         val heavy = listOf(
             GameEvent.Explosion(true, 0f), GameEvent.PerkOffered, GameEvent.ElevatorMove, GameEvent.PlayerDied,
             GameEvent.ZoneEntered(Zone.HELL), GameEvent.Shot(false, true, 0.3f), GameEvent.HazardFire(0.2f),
-            GameEvent.LightCrash, GameEvent.Stairs,
+            GameEvent.LightCrash, GameEvent.Passage,
         )
         var k = 0
         val keepBusy: (Int) -> Unit = { if (e.activeSfxVoices < 20) repeat(3) { e.trigger(heavy[k++ % heavy.size]) } }

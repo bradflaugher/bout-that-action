@@ -23,7 +23,8 @@ enum class PlayerState {
     /** Choking someone out. */
     TAKEDOWN,
     ELEVATOR,
-    STAIRS,
+    /** Slipping through a passage door into another hallway (a quick slide on screen). */
+    PASSAGE,
     /** Inside an INTEL room choosing a perk. */
     INTEL,
     DEAD,
@@ -33,6 +34,8 @@ class Player {
     var x = 2f
     /** Continuous floor coordinate: an integer when standing on a floor. */
     var floorF = 0f
+    /** The hallway of the current floor the player is in (0 = A, the main one). */
+    var hall = 0
     /** Height above the floor (jumps). */
     var z = 0f
     var vx = 0f
@@ -44,7 +47,6 @@ class Player {
     var maxHp = 3
     var invuln = 0f
     var fireCooldown = 0f
-    var bufferedShot = false
     var magSize = 6
     var ammo = 6
     /** Seconds left on a reload; 0 when the gun is ready. */
@@ -63,15 +65,21 @@ class Player {
     /** Door or shaft the player is using, by x. */
     var anchorX = 0f
     var elevatorShaft = -1
-    var stairsFrom = 0f
-    var stairsSide = Side.RIGHT
+    /** Mid-passage: the hallway and door on the far side. */
+    var passageTo = 0
+    var passageDoor = 0
+    /**
+     * A tap waiting out the double-tap window before it opens a door (so the first tap of a
+     * grenade double-tap never walks you through one). Seconds left, or 0.
+     */
+    var tapTimer = 0f
     var takedownTarget = -1
     /** Seconds since the last shot (for the muzzle flash / recoil pose). */
     var sinceShot = 9f
     var runTime = 0f
     /**
      * Input buffer: a gesture that arrived a moment too early (mid-takedown,
-     * on the stairs, just before landing) and will run as soon as it can, if
+     * mid-passage, just before landing) and will run as soon as it can, if
      * that's within [World.BUFFER_TIME]. Null when nothing is waiting.
      */
     var bufferedCommand: Command? = null
@@ -115,6 +123,8 @@ class Enemy(
     var x: Float,
     val floor: Int,
     var facing: Int,
+    /** The hallway of [floor] this enemy is in. */
+    val hall: Int = 0,
 ) {
     var hp = kind.hp
     var maxHp = kind.hp
@@ -137,6 +147,9 @@ class Enemy(
     var deathVz = 0f
     var killedBy = KillMethod.SHOT
     var walkPhase = 0f
+    /** Patrol beat: walks between these, pausing to look at each end. Equal = stands guard. */
+    var patrolA = x
+    var patrolB = x
 
     val alive: Boolean get() = state != EnemyState.DEAD && state != EnemyState.CHOKED
     val ducking: Boolean get() = state == EnemyState.AIM && aimLow && kind != EnemyKind.DRONE && kind != EnemyKind.TURRET
@@ -179,6 +192,8 @@ class Bullet(
     /** Player bullets aimed at a ceiling light. */
     val targetLight: Int = -1,
     var range: Float = 30f,
+    /** The hallway of [floor] it flies through. */
+    val hall: Int = 0,
 ) {
     var dead = false
     var life = 0f
@@ -197,14 +212,14 @@ class Bullet(
     }
 }
 
-class Pickup(val kind: PickupKind, var x: Float, val floor: Int) {
+class Pickup(val kind: PickupKind, var x: Float, val floor: Int, val hall: Int = 0) {
     var life = 14f
     var age = 0f
     var z = 0.6f
     var vz = 3f
 }
 
-class Grenade(var x: Float, var z: Float, val floor: Int, var vx: Float, var vz: Float) {
+class Grenade(var x: Float, var z: Float, val floor: Int, var vx: Float, var vz: Float, val hall: Int = 0) {
     var fuse = 0.9f
     var dead = false
 }
@@ -217,19 +232,30 @@ class Elevator(val shaft: Shaft) {
     var carrying = false
     /** Seconds the doors have been open at the current stop (0 while moving). */
     var openTime = 0f
+    /** A floor someone called the car to (it goes straight there), or -1. */
+    var called = -1
     val atFloor: Int? get() = if (pause > 0f) Math.round(pos) else null
     val doorsOpen: Boolean get() = pause > 0f
 }
 
-/** Per-floor runtime state layered over its immutable [FloorPlan]. */
-class FloorState(val plan: FloorPlan) {
+/** Per-hallway runtime state layered over its immutable [HallPlan]. */
+class HallState(val plan: HallPlan) {
     val intelUsed = BooleanArray(plan.doors.size)
     /** 0 = closed, rising to 1 when a door swings open. */
     val doorOpen = FloatArray(plan.doors.size)
     val lightAlive = BooleanArray(plan.lights.size) { true }
     /** A light falling from the ceiling: time since it was shot, or -1. */
     val lightFall = FloatArray(plan.lights.size) { -1f }
+    /** Seconds until the next door ambush (counts only while the player is here). */
     var spawnTimer = 3f
     var visited = false
     val darkness: Float get() = if (plan.lights.isEmpty()) 0f else lightAlive.count { !it }.toFloat() / plan.lights.size
+}
+
+/** Per-floor runtime state: one [HallState] per hallway. */
+class FloorState(val plan: FloorPlan) {
+    val halls: List<HallState> = plan.halls.map { HallState(it) }
+    var visited = false
+
+    fun hall(i: Int): HallState = halls[i.coerceIn(0, halls.size - 1)]
 }

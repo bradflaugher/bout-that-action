@@ -25,7 +25,7 @@ internal object AudioTestUtil {
         for (k in EnemyKind.entries) for (m in KillMethod.entries) add(GameEvent.EnemyKilled(k, m, (k.ordinal + m.ordinal) % 6, -0.5f))
         add(GameEvent.Takedown); add(GameEvent.Jump); add(GameEvent.Land); add(GameEvent.HideBox); add(GameEvent.HideDoor)
         add(GameEvent.Unhide); add(GameEvent.DoorOpen); add(GameEvent.ElevatorDing); add(GameEvent.ElevatorMove)
-        add(GameEvent.Stairs); add(GameEvent.PlayerHurt(3)); add(GameEvent.PlayerHurt(1)); add(GameEvent.ShieldBlock)
+        add(GameEvent.Passage); add(GameEvent.ElevatorCalled); add(GameEvent.ModeToggled(true)); add(GameEvent.ModeToggled(false)); add(GameEvent.PlayerHurt(3)); add(GameEvent.PlayerHurt(1)); add(GameEvent.ShieldBlock)
         add(GameEvent.PlayerDied)
         for (k in PickupKind.entries) add(GameEvent.Pickup(k))
         add(GameEvent.PerkOffered)

@@ -4,7 +4,7 @@ import com.bradflaugher.aboutthataction.engine.Body
 import com.bradflaugher.aboutthataction.engine.Enemy
 import com.bradflaugher.aboutthataction.engine.EnemyKind
 import com.bradflaugher.aboutthataction.engine.EnemyState
-import com.bradflaugher.aboutthataction.engine.FloorState
+import com.bradflaugher.aboutthataction.engine.HallState
 import com.bradflaugher.aboutthataction.engine.Geo
 import com.bradflaugher.aboutthataction.engine.PickupKind
 import com.bradflaugher.aboutthataction.engine.PlayerState
@@ -59,6 +59,8 @@ internal class Actors(private val f: Frame) {
         val pl = f.w.player
         if (pl.state == PlayerState.ELEVATOR && !force) return
         if (pl.state == PlayerState.INTEL) return
+        // Through a passage: into the doorway, then gone until the far door (the hallway slides).
+        if (pl.state == PlayerState.PASSAGE && pl.stateTime >= com.bradflaugher.aboutthataction.engine.World.PASSAGE_TIME * 0.5f) return
         val gy = Geo.groundY(pl.floorF)
         if (f.w.floors[0] != null) helicopter()
         if (pl.state == PlayerState.INTRO && f.w.difficulty.startFloor > 0) hatch(pl.x, pl.floorF)
@@ -89,12 +91,13 @@ internal class Actors(private val f: Frame) {
             }
         }
 
-        if (pl.state != PlayerState.DOOR && pl.state != PlayerState.ELEVATOR) {
+        val inDoor = pl.state == PlayerState.DOOR || pl.state == PlayerState.PASSAGE
+        if (!inDoor && pl.state != PlayerState.ELEVATOR) {
             val hw = if (pl.state == PlayerState.BOX) 0.62f else 0.4f
             p.contactShadow(pl.x, gy, hw, pl.z)
         }
         // Backlight halo: the player is always the easiest thing to find.
-        if (pl.state != PlayerState.DOOR && pl.state != PlayerState.DEAD) {
+        if (!inDoor && pl.state != PlayerState.DEAD) {
             val cy = if (pl.state == PlayerState.BOX) foot - 0.4f else foot - 0.8f
             val a = p.alphaMul
             g.blend(Gfx.Blend.ADD)
@@ -113,7 +116,7 @@ internal class Actors(private val f: Frame) {
 
         when (pl.state) {
             PlayerState.BOX -> box(pl.x, gy, dir, pl.vx, pl.stateTime)
-            PlayerState.DOOR -> doorHide(pl.x, foot, dir)
+            PlayerState.DOOR, PlayerState.PASSAGE -> doorHide(pl.x, foot, dir)
             PlayerState.DEAD -> deadHero(pl.x, gy, dir)
             else -> {
                 // Slow-mo afterimages: flat, unoutlined echoes.
@@ -240,7 +243,7 @@ internal class Actors(private val f: Frame) {
         var lean: Float
         var nod = 0f
         when {
-            state == PlayerState.STAIRS -> {
+            state == PlayerState.PASSAGE -> {
                 val u = pl.stateTime * 2.4f
                 k.locomote(x, u, 0.35f)
                 lean = 0.12f
@@ -317,7 +320,7 @@ internal class Actors(private val f: Frame) {
 
         val headX = k.headX
         when {
-            pl.reloading && state != PlayerState.STAIRS -> {
+            pl.reloading && state != PlayerState.PASSAGE -> {
                 val t = 1f - pl.reloadTime / max(0.01f, pl.reloadTotal)
                 gunX = k.neckX + 0.24f * dir
                 gunY = k.neckY + 0.32f
@@ -372,7 +375,7 @@ internal class Actors(private val f: Frame) {
                 }
                 k.ik(k.armF, gunX, gunY, false)
             }
-            airborne || state == PlayerState.STAIRS -> {
+            airborne || state == PlayerState.PASSAGE -> {
                 gunX = k.armF.ex; gunY = k.armF.ey
                 gunUp = if (airborne) 0.3f else -0.5f
             }
@@ -689,7 +692,7 @@ internal class Actors(private val f: Frame) {
         val list = f.w.enemies
         for (i in list.indices) {
             val e = list[i]
-            if (e.floor != pl.floor || !e.alive) continue
+            if (e.floor != pl.floor || e.hall != pl.hall || !e.alive) continue
             val dx = pl.x - e.x
             if (abs(dx) < 4f && (dx > 0) == (e.facing > 0) && e.state != EnemyState.PATROL) {
                 watched = true
@@ -830,7 +833,7 @@ internal class Actors(private val f: Frame) {
     /** After the darkness overlay: shield bubble, armor ring, reload arc. */
     fun playerOverlay() {
         val pl = f.w.player
-        if (pl.state == PlayerState.INTEL || pl.state == PlayerState.DEAD) return
+        if (pl.state == PlayerState.INTEL || pl.state == PlayerState.DEAD || pl.state == PlayerState.PASSAGE) return
         val gy = Geo.groundY(pl.floorF)
         val foot = gy - pl.z
         val boxed = pl.state == PlayerState.BOX
@@ -893,26 +896,27 @@ internal class Actors(private val f: Frame) {
 
     // ================================================================ enemies
 
-    fun floorActors(fi: Int, fs: FloorState) {
+    fun floorActors(fi: Int, fs: HallState) {
         val gy = Geo.groundY(fi)
         if (!f.visibleY(gy - Geo.FLOOR_H, gy + 0.5f)) return
         val w = f.w
-        for (pk in w.pickups) if (pk.floor == fi) pickup(pk.kind, pk.x, gy, pk.z, pk.age, pk.life)
+        val hall = fs.plan.hall
+        for (pk in w.pickups) if (pk.floor == fi && pk.hall == hall) pickup(pk.kind, pk.x, gy, pk.z, pk.age, pk.life)
         val pl = w.player
         val grappling = pl.state == PlayerState.TAKEDOWN
         val list = w.enemies
         for (i in list.indices) {
             val e = list[i]
-            if (e.floor != fi) continue
+            if (e.floor != fi || e.hall != hall) continue
             // The victim of a takedown is drawn inside the player's grapple.
             if (grappling && e.state == EnemyState.CHOKED && e.id == pl.takedownTarget) continue
             cast.enemy(e, i, gy, fs)
         }
-        for (gr in w.grenades) if (gr.floor == fi) grenade(gr.x, gy - gr.z, gr.fuse)
+        for (gr in w.grenades) if (gr.floor == fi && gr.hall == hall) grenade(gr.x, gy - gr.z, gr.fuse)
     }
 
     /** In the dark, alive enemies are silhouettes with glowing eyes. */
-    fun darkEyes(fi: Int, fs: FloorState) = cast.darkEyes(fi, fs)
+    fun darkEyes(fi: Int, fs: HallState) = cast.darkEyes(fi, fs)
 
     // ============================================================= helicopter
 
