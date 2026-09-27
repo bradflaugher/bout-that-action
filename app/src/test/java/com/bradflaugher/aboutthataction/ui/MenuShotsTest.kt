@@ -68,6 +68,8 @@ class MenuShotsTest {
     private val run = RunSummary(
         floor = 58, zone = Zone.METRO, score = 142_880, kills = 71, takedowns = 19, seconds = 734f,
         seedLabel = "48213377", newBestScore = false, newBestFloor = false,
+        title = "CARDBOARD ENTHUSIAST", deathLine = "Steamed like a dumpling", quip = "I'm just 'bout that action, boss.",
+        highlights = listOf("BEST COMBO" to "7x", "GHOST FLOORS" to "9", "BOX'D" to "12", "NIGHT NIGHTS" to "3", "CLOSE CALLS" to "14"),
     )
 
     @Test
