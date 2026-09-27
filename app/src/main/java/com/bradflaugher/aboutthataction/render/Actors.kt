@@ -88,7 +88,10 @@ internal class Actors(private val f: Frame) {
             }
         }
 
-        val hidden = pl.state == PlayerState.DOOR
+        // SILENT: once through a passage you stay in the far doorway's shadow (you arrive
+        // hidden), rather than walking out lit and then vanishing into it.
+        val hiddenArrival = pl.state == PlayerState.PASSAGE && f.w.silent && pl.stateTime >= World.PASSAGE_TIME * 0.5f
+        val hidden = pl.state == PlayerState.DOOR || hiddenArrival
         // Stepping through a passage: into the dark doorway, then out of the far one.
         val passing = if (pl.state == PlayerState.PASSAGE) {
             val half = World.PASSAGE_TIME * 0.5f
@@ -112,7 +115,7 @@ internal class Actors(private val f: Frame) {
         when (pl.state) {
             PlayerState.BOX -> box(pl.x, gy, dir, pl.vx, pl.stateTime)
             PlayerState.DOOR -> doorHide(pl.x, foot, dir)
-            PlayerState.PASSAGE -> {
+            PlayerState.PASSAGE -> if (hiddenArrival) doorHide(pl.x, foot, dir) else {
                 // Walking into the doorway's dark (a touch smaller: deeper in), then out.
                 poseHero(pl.x, foot, dir)
                 p.flat = 0xFF04050A.toInt()

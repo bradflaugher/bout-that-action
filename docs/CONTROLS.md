@@ -199,7 +199,10 @@ The crash of glass brings every guard within 7 u (`LIGHT_LURE_RADIUS`) over to
 look, sleepers included ("HUH?", a SEARCH at the lamp, not an alert): a lure.
 
 **Arriving in SILENT.** Through a passage or out of a car you arrive tucked
-into the doorway's shadow, hidden, so a guard facing the door sees nothing.
+into the doorway's shadow, hidden, so a guard facing the door sees nothing:
+from a car the instant it stops at the bottom (right in its doorway, never
+standing lit in the open car), from a passage straight out of the dark of the
+walk-through.
 Tap, swipe up, or lift and drag to step out when it's clear. (GUNS HOT arrives
 in the open, with the 0.8 s arrival grace.)
 
