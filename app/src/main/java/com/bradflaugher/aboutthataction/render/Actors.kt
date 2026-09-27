@@ -743,18 +743,30 @@ internal class Actors(private val f: Frame) {
     private fun box(x: Float, gy: Float, dir: Int, vx: Float, t: Float) {
         val pl = f.w.player
         val moving = abs(vx) > 0.2f
-        // Being watched?
+        // Being watched? A guard who's onto you is an alarm; one creeping over to check the
+        // box that moved ("HUH?") is a slow, sweaty freeze that gets worse as he closes in.
         var watched = false
+        var nervous = 0f
+        var lookDir = dir
         val list = f.w.enemies
         for (i in list.indices) {
             val e = list[i]
-            if (e.floor != pl.floor || e.hall != pl.hall || !e.alive) continue
+            if (e.floor != pl.floor || e.hall != pl.hall || !e.alive || e.asleep) continue
             val dx = pl.x - e.x
-            if (abs(dx) < 4f && (dx > 0) == (e.facing > 0) && e.state != EnemyState.PATROL) {
+            val facingBox = (dx > 0) == (e.facing > 0)
+            if (!facingBox) continue
+            if (e.state == EnemyState.SEARCH) {
+                if (abs(dx) < 6f) {
+                    val n = 1f - abs(dx) / 6f
+                    if (n > nervous) { nervous = n; lookDir = if (dx > 0) -1 else 1 }
+                }
+            } else if (abs(dx) < 4f && e.state != EnemyState.PATROL) {
                 watched = true
+                lookDir = if (dx > 0) -1 else 1
                 break
             }
         }
+        if (watched) nervous = 0f
         if (watched) watchT += if (f.dt > 0f) f.dt else 0.4f else watchT = 0f
 
         val ph = f.t * 13f
@@ -762,10 +774,10 @@ internal class Actors(private val f: Frame) {
         val tilt = if (moving) sin(ph) * 3.2f else 0f
         val jolt = if (watched) Rig.backOut(min(1f, watchT / 0.16f)) else 0f
         val hop = if (watched && watchT < 0.3f) sin(watchT / 0.3f * PI.toFloat()) * 0.14f else 0f
-        val shake = if (watched) sin(f.t * 70f) * 0.012f else 0f
+        val shake = if (watched) sin(f.t * 70f) * 0.012f else sin(f.t * 55f) * 0.016f * nervous * nervous
         // Idle peek: every few seconds the box lifts and eyes glint underneath.
         val cyc = fract(f.t * 0.19f + 0.3f)
-        val peek = if (!moving && !watched && cyc > 0.78f && cyc < 0.94f) sin((cyc - 0.78f) / 0.16f * PI.toFloat()) * 0.13f else 0f
+        val peek = if (!moving && !watched && nervous == 0f && cyc > 0.78f && cyc < 0.94f) sin((cyc - 0.78f) / 0.16f * PI.toFloat()) * 0.13f else 0f
         val h = Body.BOX_HEIGHT
         val w = 0.96f
         val hw = w / 2f
@@ -819,9 +831,17 @@ internal class Actors(private val f: Frame) {
         val hx = 0.24f * dir
         val sy = -h + 0.22f
         g.fillRoundRect(hx - 0.15f, sy - 0.065f, hx + 0.15f, sy + 0.065f, 0.065f, p.c(0xFF140A04.toInt()))
-        val blink = !watched && fract(f.t * 0.37f) > 0.95f
-        val look = dir * 0.03f
-        if (watched) {
+        val blink = !watched && nervous == 0f && fract(f.t * 0.37f) > 0.95f
+        val look = if (watched || nervous > 0f) lookDir * 0.035f else dir * 0.03f
+        if (nervous > 0f) {
+            // Wide eyes locked on the guard, pupils shrinking as he gets closer.
+            val r = 0.042f
+            g.fillCircle(hx - 0.058f + look * 0.4f, sy, r, p.c(0xFFFFFFFF.toInt()))
+            g.fillCircle(hx + 0.058f + look * 0.4f, sy, r, p.c(0xFFFFFFFF.toInt()))
+            val pr = r * (0.55f - 0.25f * nervous)
+            g.fillCircle(hx - 0.058f + look, sy, pr, p.c(0xFF101018.toInt()))
+            g.fillCircle(hx + 0.058f + look, sy, pr, p.c(0xFF101018.toInt()))
+        } else if (watched) {
             val r = 0.042f * (0.8f + 0.4f * jolt)
             g.fillCircle(hx - 0.058f + look, sy, r, p.c(0xFFFFFFFF.toInt()))
             g.fillCircle(hx + 0.058f + look, sy, r, p.c(0xFFFFFFFF.toInt()))
@@ -847,6 +867,19 @@ internal class Actors(private val f: Frame) {
             val dy = -h - 0.1f + sw * sw * 0.4f
             drop(x + dx, gy + dy, 0.06f, Col.alpha(0xFFBFEFFF.toInt(), 1f - sw))
             drop(x + dx * 0.6f + dir * 0.9f, gy + dy - 0.1f, 0.05f, Col.alpha(0xFFBFEFFF.toInt(), 1f - fract(sw + 0.5f)))
+        } else if (nervous > 0.05f) {
+            // One fat bead of sweat rolling down the cardboard, then another.
+            val sw = fract(f.t * (0.8f + nervous))
+            val sx = x - lookDir * 0.3f
+            drop(sx, gy - h - 0.05f + sw * 0.45f, 0.05f + 0.03f * nervous, Col.alpha(0xFFBFEFFF.toInt(), min(1f, nervous * 2f) * (1f - sw * 0.6f)))
+            if (nervous > 0.5f) {
+                // Stress marks over the lid.
+                val a = (nervous - 0.5f) * 2f
+                for (k in -1..1) {
+                    val bx = x + k * 0.14f
+                    g.line(bx - 0.03f * k, gy - h - 0.16f, bx - 0.07f * k, gy - h - 0.32f, 0.035f, Col.alpha(0xFFFFE8C0.toInt(), a))
+                }
+            }
         }
     }
 
@@ -944,7 +977,8 @@ internal class Actors(private val f: Frame) {
         if (!f.visibleY(gy - Geo.FLOOR_H, gy + 0.5f)) return
         val w = f.w
         val hall = fs.plan.hall
-        for (pk in w.pickups) if (pk.floor == fi && pk.hall == hall) pickup(pk.kind, pk.x, gy, pk.z, pk.age, pk.life)
+        val payday = w.floors[fi]?.plan?.event == com.bradflaugher.aboutthataction.engine.FloorEvent.PAYDAY
+        for (pk in w.pickups) if (pk.floor == fi && pk.hall == hall) pickup(pk.kind, pk.x, gy, pk.z, pk.age, pk.life, payday && pk.life > 60f)
         val pl = w.player
         val grappling = pl.state == PlayerState.TAKEDOWN
         val list = w.enemies
@@ -1029,7 +1063,8 @@ internal class Actors(private val f: Frame) {
 
     // ================================================================= loot
 
-    private fun pickup(kind: PickupKind, x: Float, gy: Float, z: Float, age: Float, life: Float) {
+    private fun pickup(kind: PickupKind, x: Float, gy: Float, z: Float, age: Float, life: Float, jackpot: Boolean = false) {
+        if (jackpot) jackpotUnder(kind, x, gy)
         val y = gy - z - 0.15f
         if (life < 3f && (f.t * 8f).toInt() % 2 == 0) return
         val bob = sin(age * 4f) * 0.06f
@@ -1052,6 +1087,64 @@ internal class Actors(private val f: Frame) {
         g.line(x - 0.14f, cy - 0.17f, x + 0.1f, cy - 0.17f, 0.02f, Col.alpha(0xFFFFFFFF.toInt(), 0.25f))
         pickupIcon(kind, x, cy, col)
         g.fillRect(x - 0.015f, cy - 0.9f, x + 0.015f, cy - 0.28f, Col.alpha(col, 0.35f))
+        if (jackpot) jackpotOver(x, cy)
+    }
+
+    /**
+     * PAYDAY loot: a heap of bills and coins on the floor under each pickup, lit gold, so the
+     * hallway reads as a jackpot before you've read a single icon.
+     */
+    private fun jackpotUnder(kind: PickupKind, x: Float, gy: Float) {
+        val gold = 0xFFFFC83A.toInt()
+        g.blend(Gfx.Blend.ADD)
+        val pulse = 0.85f + 0.15f * sin(f.t * 3f + x)
+        g.glow(x, gy - 0.5f, 1.2f, Col.alpha(gold, 0.26f * pulse))
+        g.save()
+        g.translate(x, gy - 0.02f)
+        g.scale(1f, 0.18f)
+        g.glow(0f, 0f, 1.1f, Col.alpha(gold, 0.6f * pulse))
+        g.restore()
+        g.blend(Gfx.Blend.NORMAL)
+        // Bill stacks (cash) or a spill of coins (the bonus).
+        val seed = (x * 13f).toInt()
+        if (kind == PickupKind.CASH) {
+            for (i in 0 until 3) {
+                val bx = x + (i - 1) * 0.2f + (hash(seed, i) - 0.5f) * 0.06f
+                val h = 0.1f + 0.05f * ((i + 1) % 3)
+                g.fillRect(bx - 0.11f - ActorPaint.OUT, gy - h - ActorPaint.OUT, bx + 0.11f + ActorPaint.OUT, gy, ActorPaint.INK)
+                g.fillRect(bx - 0.11f, gy - h, bx + 0.11f, gy, 0xFF2E9A58.toInt())
+                g.fillRect(bx - 0.11f, gy - h, bx + 0.11f, gy - h + 0.025f, 0xFF7CF0A8.toInt())
+                g.fillRect(bx - 0.025f, gy - h, bx + 0.025f, gy, 0xFFE8D8A0.toInt())
+            }
+        } else {
+            for (i in 0 until 5) {
+                val cx = x + (i - 2) * 0.13f
+                val cy = gy - 0.04f - (if (i % 2 == 0) 0f else 0.06f)
+                g.fillCircle(cx, cy, 0.07f + ActorPaint.OUT * 0.7f, ActorPaint.INK)
+                g.fillCircle(cx, cy, 0.07f, 0xFFE8A824.toInt())
+                g.fillCircle(cx - 0.02f, cy - 0.02f, 0.03f, 0xFFFFE890.toInt())
+            }
+        }
+    }
+
+    /** Cash glints: four-point sparkles popping around the loot, and a lazy "$" floating up. */
+    private fun jackpotOver(x: Float, cy: Float) {
+        val seed = (x * 7f).toInt()
+        g.blend(Gfx.Blend.ADD)
+        for (i in 0 until 3) {
+            val ph = fract(f.t * 0.9f + i / 3f + hash(seed, i + 40))
+            val s = sin(ph * PI.toFloat()) * 0.16f
+            if (s < 0.02f) continue
+            val sx = x + (hash(seed + (f.t * 0.9f + i / 3f).toInt(), i) - 0.5f) * 0.8f
+            val sy = cy - 0.1f + (hash(seed + i, 9) - 0.5f) * 0.7f
+            g.glow(sx, sy, s * 2.2f, Col.alpha(0xFFFFE070.toInt(), 0.3f))
+            poly.begin().add(sx, sy - s).add(sx + s * 0.2f, sy - s * 0.2f).add(sx + s, sy).add(sx + s * 0.2f, sy + s * 0.2f)
+                .add(sx, sy + s).add(sx - s * 0.2f, sy + s * 0.2f).add(sx - s, sy).add(sx - s * 0.2f, sy - s * 0.2f).fill(g, 0xFFFFFAE0.toInt())
+        }
+        g.blend(Gfx.Blend.NORMAL)
+        val ph = fract(f.t * 0.45f + hash(seed, 3))
+        val a = min(1f, ph / 0.15f) * (1f - ph)
+        f.worldText("$", x + 0.3f + sin(ph * 6f) * 0.08f, cy - 0.35f - ph * 0.9f, 0.26f, Col.alpha(0xFFFFD24A.toInt(), a), Gfx.Font.TITLE)
     }
 
     fun pickupIcon(kind: PickupKind, x: Float, y: Float, col: Int, s: Float = 1f) {

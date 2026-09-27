@@ -98,6 +98,16 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
     <td align="center" width="33%"><img src="docs/screenshots/intel.png" alt="Perk choice"><p><em><b>INTEL</b>: pick one of three</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/darkness.png" alt="Lights shot out"><p><em><b>Lights out.</b> They can't see you either</em></p></td>
   </tr>
+  <tr>
+    <td align="center" width="33%"><img src="docs/screenshots/naptime.png" alt="NAP TIME: guards dozing at their posts"><p><em><b>Nap time.</b> Zzz. Tiptoe</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/boxd.png" alt="A guard double-takes at the box"><p><em><b>HUH?</b> The box moved</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/kick.png" alt="A Heavy kicks the box off"><p><em><b>HEY!</b> Heavies aren't fooled</em></p></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><img src="docs/screenshots/ghost.png" alt="GHOST: leaving a floor unseen, with smooth jazz"><p><em><b>GHOST.</b> Nobody saw a thing</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/blackout.png" alt="BLACKOUT: emergency lights only"><p><em><b>Blackout.</b> Follow the red lights</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/payday.png" alt="PAYDAY: loot lying around"><p><em><b>Payday.</b> Somebody's bonus</em></p></td>
+  </tr>
 </table>
 
 ## The descent

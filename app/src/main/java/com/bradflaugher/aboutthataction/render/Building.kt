@@ -113,7 +113,7 @@ internal class Building(private val f: Frame) {
                 g.glow(0f, 0f, 1.9f, Col.alpha(lc, 0.35f + 0.15f * deepZone))
                 g.restore()
                 g.blend(Gfx.Blend.NORMAL)
-            } else if (fs.lightFall[i] < 0f) {
+            } else if (fs.lightFall[i] < 0f && !blackout(fi)) {
                 brokenLamp(pal, lx, rt, gy, i)
             }
         }
@@ -1263,6 +1263,92 @@ internal class Building(private val f: Frame) {
 
     // ------------------------------------------------------ lamps & darkness
 
+    private fun blackout(fi: Int) = f.w.floors[fi]?.plan?.event == com.bradflaugher.aboutthataction.engine.FloorEvent.BLACKOUT
+
+    /**
+     * BLACKOUT: the emergency circuit is all that's left. A red LED strip chasing along the
+     * floor toward the rides down, green EXIT boxes by every lift, and a red beacon sweeping
+     * the ceiling.
+     */
+    private fun emergency(fs: HallState, rt: Float, gy: Float) {
+        val plan = fs.plan
+        val red = 0xFFFF2A36.toInt()
+        // Which way is out: toward the nearest ride down, else toward the nearest passage.
+        // (Indexed loops over the plan's own lists: no per-frame allocation.)
+        var target = -1f
+        var rides = 0
+        for (i in plan.landings.indices) {
+            val s = plan.landings[i]
+            if (plan.index >= s.bottom) continue
+            rides++
+            if (target < 0f || abs(s.x - W / 2f) < abs(target - W / 2f)) target = s.x
+        }
+        if (target < 0f) for (i in plan.doors.indices) {
+            val d = plan.doors[i]
+            if (d.kind == DoorKind.PASSAGE && (target < 0f || abs(d.x - W / 2f) < abs(target - W / 2f))) target = d.x
+        }
+        g.blend(Gfx.Blend.ADD)
+        // The beacon: a slow red sweep across the ceiling and down the walls.
+        val bx = W / 2f + sin(f.t * 1.3f) * W * 0.42f
+        g.glow(bx, rt + 0.5f, 2.8f, Col.alpha(red, 0.2f))
+        g.save()
+        g.translate(bx, gy - 0.02f)
+        g.scale(1f, 0.14f)
+        g.glow(0f, 0f, 1.8f, Col.alpha(red, 0.3f))
+        g.restore()
+        var x = 0.25f
+        while (x < W) {
+            val toward = if (target < 0f) 1f else if (x < target) 1f else -1f
+            val wave = sin(x * 2.2f - toward * f.t * 7f)
+            val k = 0.25f + 0.75f * max(0f, wave) * max(0f, wave) * max(0f, wave)
+            g.glow(x, gy - 0.06f, 0.28f, Col.alpha(red, 0.5f * k))
+            x += 0.36f
+        }
+        g.blend(Gfx.Blend.NORMAL)
+        x = 0.25f
+        while (x < W) {
+            val toward = if (target < 0f) 1f else if (x < target) 1f else -1f
+            val wave = sin(x * 2.2f - toward * f.t * 7f)
+            val k = 0.3f + 0.7f * max(0f, wave)
+            g.fillRoundRect(x - 0.07f, gy - 0.09f, x + 0.07f, gy - 0.035f, 0.02f, Col.lerp(0xFF701420.toInt(), 0xFFFFD0D0.toInt(), k))
+            x += 0.36f
+        }
+        // Beacon fixture.
+        g.fillRect(W / 2f - 0.14f, rt + 0.02f, W / 2f + 0.14f, rt + 0.1f, 0xFF1A1A20.toInt())
+        f.glowDot(W / 2f, rt + 0.14f, 0.06f, red, 0.7f + 0.3f * sin(f.t * 8f))
+        // EXIT boxes beside each ride down.
+        for (i in plan.landings.indices) {
+            val s = plan.landings[i]
+            if (plan.index >= s.bottom) continue
+            val side = if (s.x < W / 2f) 1f else -1f
+            exitSign(s.x + side * 0.95f, gy - 2.5f)
+        }
+        // No ride down in this hallway: the way out is through a passage.
+        if (rides == 0) for (i in plan.doors.indices) {
+            val d = plan.doors[i]
+            if (d.kind != DoorKind.PASSAGE) continue
+            val side = if (d.x < W / 2f) 1f else -1f
+            exitSign(d.x + side * 0.95f, gy - 2.5f)
+        }
+    }
+
+    private fun exitSign(x: Float, y: Float) {
+        val green = 0xFF3CFF7A.toInt()
+        g.blend(Gfx.Blend.ADD)
+        g.glow(x, y, 0.75f, Col.alpha(green, 0.35f))
+        g.blend(Gfx.Blend.NORMAL)
+        g.fillRect(x - 0.4f, y - 0.14f, x + 0.4f, y + 0.14f, 0xFF06140A.toInt())
+        g.strokeRect(x - 0.4f, y - 0.14f, x + 0.4f, y + 0.14f, 0.025f, green)
+        f.worldText("EXIT", x + 0.1f, y + 0.065f, 0.18f, green, Gfx.Font.TITLE)
+        // A tiny running figure.
+        val rx = x - 0.28f
+        g.fillCircle(rx + 0.02f, y - 0.07f, 0.025f, green)
+        g.line(rx, y - 0.04f, rx - 0.02f, y + 0.03f, 0.025f, green)
+        g.line(rx - 0.02f, y + 0.03f, rx + 0.03f, y + 0.09f, 0.022f, green)
+        g.line(rx - 0.02f, y + 0.03f, rx - 0.06f, y + 0.09f, 0.022f, green)
+        g.line(rx, y - 0.02f, rx + 0.05f, y + 0.01f, 0.02f, green)
+    }
+
     private fun brokenLamp(pal: Palette, lx: Float, rt: Float, gy: Float, i: Int) {
         // Snapped cable, sparking now and then; wreck and glass on the floor.
         g.line(lx, rt + 0.1f, lx + 0.05f, rt + 0.38f, 0.022f, 0xFF1A1A1A.toInt())
@@ -1332,8 +1418,12 @@ internal class Building(private val f: Frame) {
                 val y = (gy - 0.25f - rt - 0.45f) * t * t
                 g.line(lx, rt + 0.05f, lx, rt + 0.2f, 0.025f, 0xFF1A1A1A.toInt())
                 lamp(pal, lc, plan.zone, style, lx, rt, gy, y, false, t * 50f)
+            } else if (blackout(fi)) {
+                // Power cut, not shot out: the fixtures hang there, dead.
+                lamp(pal, lc, plan.zone, style, lx, rt, gy, 0f, false, far = far)
             }
         }
+        if (blackout(fi)) emergency(fs, rt, gy)
         for (h in plan.hazards) hazardLive(h.kind, pal, h.x, rt, gy, h.state(f.wt), plan.zone)
     }
 

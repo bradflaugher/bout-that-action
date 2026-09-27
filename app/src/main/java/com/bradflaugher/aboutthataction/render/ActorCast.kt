@@ -37,6 +37,10 @@ internal class ActorCast(
     private companion object {
         /** Drones are drawn a size up so they read at the zoomed-out camera. */
         const val DRONE_S = 1.15f
+        /** The wake-up leap lasts this long. */
+        const val WAKE_TIME = 0.5f
+        /** The "HUH?" head-snap lasts this long; then he creeps in. */
+        const val DOUBLE_TAKE = 0.45f
     }
 
     /** Where each enemy's eyes were drawn this frame (by list index), for the darkness pass. */
@@ -98,13 +102,18 @@ internal class ActorCast(
         if (e.state == EnemyState.AIM) aimTelegraph(e, gy, dir, fs)
         if (e.state == EnemyState.WINDUP) windupTelegraph(e, gy, dir)
         enemyBody(e, e.x + recoilX, gy, dir, zone, pal, fs)
+        val napping = e.asleep && humanoid && e.alive
+        val zx = k.headX
+        val zy = k.headY
+        val zr = k.headR
         if (e.alive && humanoid && e.state != EnemyState.DEAD) {
             eyeX[idx] = eyeWX
             eyeY[idx] = eyeWY
             eyeOk[idx] = true
         }
         p.reset()
-        if (e.alive) {
+        if (napping) f.moments.zzz(e, zx, zy, dir, zr, 1f - f.recede(e.floor) * 0.6f)
+        if (e.alive && !napping) {
             statusMarks(e, gy)
             if (e.maxHp > 1 && e.hp < e.maxHp) hpPips(e, e.x, gy - e.z - e.height - 0.22f)
         }
@@ -219,6 +228,20 @@ internal class ActorCast(
         val demon = e.kind == EnemyKind.DEMON
         val heavy = e.kind == EnemyKind.HEAVY
         val hunch = if (demon) 0.55f else 0f
+        if (e.asleep && e.state != EnemyState.CHOKED && e.state != EnemyState.DEAD) {
+            sleepPose(e, x, dir)
+            return
+        }
+        val woke = f.moments.wokeAge(e)
+        if (woke >= 0f && woke < WAKE_TIME) {
+            wakePose(e, x, dir, woke)
+            return
+        }
+        val kick = f.moments.kickAge(e)
+        if (kick >= 0f) {
+            kickPose(e, x, dir, kick)
+            return
+        }
         when (e.state) {
             EnemyState.AIM -> aimPose(e, x, foot, dir)
             EnemyState.WINDUP -> windupPose(e, x, dir)
@@ -277,7 +300,126 @@ internal class ActorCast(
                     }
                     else -> holdLow(-0.95f)
                 }
+                if (e.state == EnemyState.SEARCH && boxWatch(e)) doubleTake(e, dir)
             }
+        }
+    }
+
+    /** Is [e] a guard coming over to check out the player's box (the MGS double-take)? */
+    private fun boxWatch(e: Enemy): Boolean {
+        val pl = f.w.player
+        if (pl.state != com.bradflaugher.aboutthataction.engine.PlayerState.BOX) return false
+        if (pl.floor != e.floor || pl.hall != e.hall) return false
+        val dx = pl.x - e.x
+        return abs(dx) < 7f && (dx > 0f) == (e.facing > 0)
+    }
+
+    /**
+     * "HUH?": the head snaps to the box and back and he rocks onto his heels; then he creeps
+     * in, craning his neck at it, gun forgotten at his side.
+     */
+    private fun doubleTake(e: Enemy, dir: Int) {
+        val t = e.stateTime
+        if (t < DOUBLE_TAKE) {
+            val q = t / DOUBLE_TAKE
+            val snap = sin(q * PI.toFloat() * 3f) * (1f - q)
+            k.shiftAll(-dir * 0.06f * sin(q * PI.toFloat()), -0.05f * sin(q * PI.toFloat()))
+            k.spine(k.lean - 0.2f * (1f - q), 0.5f * snap - 0.15f)
+        } else {
+            val bob = sin(f.t * 5f + e.id) * 0.04f
+            k.spine(0.32f + bob, 0.28f)
+        }
+        // The spine moved: hang the arms back on it.
+        when (e.kind) {
+            EnemyKind.HEAVY -> holdCannon(0f)
+            EnemyKind.AGENT -> {
+                k.armFK(k.armB, -0.15f, 0.3f)
+                holdLow(-1.2f)
+            }
+            else -> {
+                k.armFK(k.armF, 0.15f, 0.4f)
+                k.armFK(k.armB, -0.15f, 0.3f)
+            }
+        }
+    }
+
+    /**
+     * Dozing at his post: sat on the floor, one knee up with an arm draped over it, chin
+     * sinking to his chest and jerking back up. The gun (or blade) rests in his lap.
+     */
+    private fun sleepPose(e: Enemy, x: Float, dir: Int) {
+        val hs = k.hs
+        val br = sin(f.t * 1.7f + e.id)
+        val cyc = fract(f.t * 0.21f + e.id * 0.37f)
+        // The nod: the head sinks slowly, then snaps back up with a start.
+        val sink = if (cyc < 0.88f) Rig.smooth(cyc / 0.88f) else 1f - Rig.easeOut((cyc - 0.88f) / 0.12f)
+        val hx = x - 0.1f * dir * hs
+        k.hip(hx, k.ground - 0.15f * hs)
+        k.ik(k.legF, hx + 0.36f * dir * hs, k.ground, true)
+        k.ik(k.legB, hx + 0.64f * dir * hs, k.ground, true)
+        k.legF.pitch = -0.1f
+        k.legB.pitch = -0.6f
+        val slump = if (e.kind == EnemyKind.DEMON) 0.55f else 0.3f
+        k.spine(slump + br * 0.03f + 0.1f * sink, 0.25f + 0.6f * sink)
+        k.ik(k.armF, k.legF.jx + 0.06f * dir * hs, k.legF.jy + 0.06f * hs, false)
+        k.ik(k.armB, hx + 0.24f * dir * hs, k.hipY - 0.05f * hs, false)
+        gunX = k.armF.ex
+        gunY = k.armF.ey
+        gunUp = -1.35f
+        if (e.kind == EnemyKind.HEAVY) {
+            // The cannon across his lap, both hands on it.
+            gunX = hx + 0.08f * dir * hs
+            gunY = k.hipY - 0.1f * hs
+            gunUp = 0.1f
+            k.ik(k.armF, gunX, gunY, false)
+            k.ik(k.armB, gunX + 0.24f * dir, gunY - 0.04f, false)
+        }
+        bladeA = -0.1f
+    }
+
+    /**
+     * Rudely awoken: he leaps off the floor, limbs everywhere, and lands facing you with his
+     * hair (hat, hood) standing on end.
+     */
+    private fun wakePose(e: Enemy, x: Float, dir: Int, a: Float) {
+        val q = (a / WAKE_TIME).coerceIn(0f, 1f)
+        val hop = sin(q * PI.toFloat()) * 0.42f
+        val flail = sin(f.t * 38f + e.id)
+        k.stand(x, 0.02f * k.hs, 0.16f, -0.18f)
+        k.ik(k.legF, x + (0.18f + 0.1f * flail) * dir * k.hs, k.ground - 0.12f * (1f - q), true)
+        k.ik(k.legB, x - (0.2f - 0.08f * flail) * dir * k.hs, k.ground - 0.18f * (1f - q), true)
+        k.spine(-0.3f * (1f - q), -0.35f * (1f - q))
+        k.armFK(k.armF, 2.5f + 0.35f * flail, 0.5f)
+        k.armFK(k.armB, 2.2f - 0.35f * flail, 0.6f)
+        k.shiftAll(0f, -hop)
+        gunX = k.armF.ex
+        gunY = k.armF.ey
+        gunUp = 1.2f + flail * 0.4f
+        bladeA = 1.4f
+    }
+
+    /** The box kick: plant, front boot high and out, arms thrown back for balance. */
+    private fun kickPose(e: Enemy, x: Float, dir: Int, a: Float) {
+        val hs = k.hs
+        val q = a / Moments.KICK_POSE
+        val ext = if (q < 0.35f) Rig.easeOut(q / 0.35f) else 1f - Rig.smooth((q - 0.35f) / 0.65f)
+        k.stand(x, 0.05f * hs, 0.1f, -0.16f)
+        k.ik(k.legB, x - 0.16f * dir * hs, k.ground, true)
+        val fx = x + (0.2f + 0.45f * ext) * dir * hs
+        val fy = k.ground - (0.05f + 0.42f * ext) * hs
+        k.ik(k.legF, fx, fy, true)
+        k.legF.pitch = -0.6f * ext
+        k.spine(-0.28f * ext, 0.1f)
+        k.armFK(k.armF, -0.9f * ext + 0.1f, 0.4f)
+        k.armFK(k.armB, 0.9f * ext, 0.5f)
+        if (e.kind == EnemyKind.HEAVY) {
+            gunX = k.hipX - 0.05f * dir
+            gunY = k.hipY - 0.2f * hs
+            gunUp = 0.9f * ext
+            k.ik(k.armF, gunX, gunY, false)
+            k.ik(k.armB, gunX + 0.22f * dir, gunY - 0.12f, false)
+        } else {
+            bladeA = -2.2f
         }
     }
 
@@ -1290,14 +1432,15 @@ internal class ActorCast(
     private fun statusMarks(e: Enemy, gy: Float) {
         val top = gy - e.z - e.height - 0.42f
         when (e.state) {
-            EnemyState.ALERT -> if (e.stateTime < 0.9f) {
+            // (Woken nappers and the box-kicker say it with a popup instead.)
+            EnemyState.ALERT -> if (e.stateTime < 0.9f && f.moments.wokeAge(e) < 0f && !(e.id == f.moments.kickId && f.t - f.moments.kickAt < 0.9f)) {
                 val pop = Rig.backOut(e.stateTime / 0.16f)
                 val rise = (1f - pop) * 0.15f
                 val fade = if (e.stateTime > 0.75f) 1f - (e.stateTime - 0.75f) / 0.15f else 1f
                 bubble(e.x, top + rise, pop, Col.alpha(0xFFFFD21E.toInt(), fade), fade)
                 if (pop > 0.05f) exclaimGlyph(e.x, top + rise - 0.07f * pop, 0.39f * pop, Col.alpha(0xFF1A0A00.toInt(), fade))
             }
-            EnemyState.SEARCH -> {
+            EnemyState.SEARCH -> if (!(e.stateTime < 0.8f && boxWatch(e))) {
                 val sway = sin(f.t * 4f + e.id) * 0.06f
                 val pop = Rig.backOut(e.stateTime / 0.2f)
                 bubble(e.x + sway, top, pop, 0xE8E8ECFF.toInt(), 1f)
@@ -1373,6 +1516,11 @@ internal class ActorCast(
             val e = list[i]
             if (e.floor != fi || e.hall != fs.plan.hall || !e.alive) continue
             val dir = if (e.facing >= 0) 1 else -1
+            // Eyes shut: a napping guard is a dark lump with his Zs.
+            if (e.asleep) {
+                if (i < eyeOk.size && eyeOk[i]) f.moments.zzz(e, eyeX[i], eyeY[i], dir, 0.125f, d * 0.8f)
+                continue
+            }
             val alarmed = e.state == EnemyState.ALERT || e.state == EnemyState.AIM || e.state == EnemyState.WINDUP
             val col = if (alarmed) 0xFFFF2A3A.toInt() else 0xFFFFE8A0.toInt()
             when (e.kind) {

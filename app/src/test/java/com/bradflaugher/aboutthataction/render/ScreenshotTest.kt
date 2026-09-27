@@ -9,6 +9,7 @@ import com.bradflaugher.aboutthataction.engine.Elevator
 import com.bradflaugher.aboutthataction.engine.Enemy
 import com.bradflaugher.aboutthataction.engine.EnemyKind
 import com.bradflaugher.aboutthataction.engine.EnemyState
+import com.bradflaugher.aboutthataction.engine.FloorEvent
 import com.bradflaugher.aboutthataction.engine.FloorPlan
 import com.bradflaugher.aboutthataction.engine.FloorState
 import com.bradflaugher.aboutthataction.engine.Geo
@@ -64,6 +65,15 @@ class ScreenshotTest {
         Scene("void", 9.6f, ::void),
         Scene("darkness", 10.1f, ::darkness),
         Scene("dying", 11.0f, ::dying),
+        Scene("coach", 1.9f, ::coach),
+        Scene("naptime", 3.4f, ::naptime),
+        Scene("boxd", 3.6f, ::boxd),
+        Scene("ambush", 3.8f, ::ambush),
+        Scene("kick", 4.1f, ::kick),
+        Scene("blackout", 10.4f, ::blackout),
+        Scene("payday", 6.2f, ::payday),
+        Scene("ghost", 7.6f, ::ghost),
+        Scene("bonk", 5.7f, ::bonk),
     )
 
     @Test
@@ -236,6 +246,26 @@ class ScreenshotTest {
         fs.visited = old.visited
         for (i in fs.halls.indices) fs.halls[i].visited = old.halls[i].visited
         floors[f] = fs
+    }
+
+    /** Makes floor [f] a special floor (the engine rolls these from the seed; scenes pick one). */
+    private fun World.setEvent(f: Int, ev: FloorEvent) {
+        val old = floors[f]!!
+        val p = old.plan
+        val fs = FloorState(FloorPlan(p.index, p.zone, p.isVoid, p.heat, p.halls, p.shafts, ev))
+        fs.visited = old.visited
+        fs.announced = true
+        for (i in fs.halls.indices) fs.halls[i].visited = old.halls[i].visited
+        if (ev == FloorEvent.BLACKOUT) for (hs in fs.halls) hs.lightAlive.fill(false)
+        floors[f] = fs
+    }
+
+    /** A popup [age] seconds into its [life]. */
+    private fun World.popup(text: String, x: Float, y: Float, style: TextStyle, life: Float, age: Float) {
+        fx.text(text, x, y, style, life)
+        val ft = fx.texts.last()
+        ft.life = life - age
+        ft.y -= age * 0.9f
     }
 
     /** Hazards at the given x (doors moved out of the way); [fracs] = phase of each. */
@@ -612,6 +642,201 @@ class ScreenshotTest {
         w.fx.burst(ParticleKind.GLASS, X(5.0f), Geo.groundY(f) - 0.2f, 22, 6f, 0.9f, 0.1f, upBias = 0.4f)
         w.fx.update(0.08f)
         w.fx.text("LIGHTS OUT", X(4.2f), Geo.groundY(f) - 2.5f, TextStyle.WARN)
+        w.visit(0)
+        w.ambient(EnemyKind.AGENT)
+        return w
+    }
+
+    /** First run, on the roof: the dozing guard, and the coach telling you what to do about him. */
+    private fun coach(): World {
+        val w = newWorld(7)
+        var t = 0f
+        while (w.player.state != PlayerState.NORMAL && t < 6f) { w.step(1f / 60f); w.events.clear(); t += 1f / 60f }
+        w.run(0.6f) { it.player.x = X(4.2f); it.player.vx = 0f; it.moveAxis = 0 }
+        var guard = 0f
+        while (w.coachTip == null && guard < 3f) { w.player.x = X(4.6f); w.step(1f / 60f); w.events.clear(); guard += 1f / 60f }
+        w.run(0.5f) { it.player.x = X(4.6f); it.player.facing = 1 }
+        return w
+    }
+
+    /** NAP TIME: two guards dozing at their posts, a third just rudely woken, the stinger up. */
+    private fun naptime(): World {
+        val w = newWorld(seedWithHalls(23, calmSeed(23, 1200), 2), 23, silent = true)
+        w.run(1.6f)
+        w.settle(X(2.4f), 2.0f)
+        val f = w.player.floor
+        w.setEvent(f, FloorEvent.NAP_TIME)
+        val p = w.player
+        p.x = X(2.4f)
+        p.facing = 1
+        p.vx = 1.6f
+        w.moveAxis = 1
+        w.enemy(EnemyKind.AGENT, X(4.6f), 1, EnemyState.PATROL, 2f).apply { asleep = true; vx = 0f }
+        w.enemy(EnemyKind.HEAVY, X(7.3f), -1, EnemyState.PATROL, 2f).apply { asleep = true; vx = 0f }
+        val woke = w.enemy(EnemyKind.AGENT, X(9.4f), -1, EnemyState.ALERT, 0.18f)
+        woke.vx = 0f
+        val gy = Geo.groundY(f)
+        w.popup("?!", woke.x, gy - woke.height - 0.8f, TextStyle.WARN, 0.7f, 0.18f)
+        w.popup(FloorEvent.NAP_TIME.title, p.x, gy - 2.7f, TextStyle.BIG, 1.8f, 0.7f)
+        w.visit(0)
+        w.ambient(EnemyKind.AGENT, EnemyKind.AGENT)
+        return w
+    }
+
+    /** The double-take: the box moved, a guard went "HUH?" and he's creeping over for a look. */
+    private fun boxd(): World {
+        val w = newWorld(calmSeed(16, 1300), 16, silent = true)
+        w.run(1.6f)
+        w.settle(X(4.8f), 2.2f)
+        val f = w.player.floor
+        val p = w.player
+        p.state = PlayerState.BOX
+        p.stateTime = 1.4f
+        p.x = X(4.8f)
+        p.facing = 1
+        val gy = Geo.groundY(f)
+        val g1 = w.enemy(EnemyKind.AGENT, X(7.1f), -1, EnemyState.SEARCH, 0.9f)
+        g1.vx = -0.8f
+        g1.lastSeenX = p.x
+        val g2 = w.enemy(EnemyKind.AGENT, X(9.2f), -1, EnemyState.SEARCH, 0.2f)
+        g2.vx = 0f
+        g2.lastSeenX = p.x
+        w.popup("HUH?", g2.x, gy - g2.height - 1.0f, TextStyle.WARN, 0.8f, 0.2f)
+        w.visit(0)
+        w.ambient(EnemyKind.AGENT)
+        return w
+    }
+
+    /** BOX'D!: he walked right up to the box, and into your arms. */
+    private fun ambush(): World {
+        val w = newWorld(calmSeed(16, 1300), 16, silent = true)
+        w.run(1.6f)
+        w.settle(X(4.4f), 2.2f)
+        val p = w.player
+        p.state = PlayerState.BOX
+        p.stateTime = 1.4f
+        p.x = X(4.4f)
+        p.facing = 1
+        val e = w.enemy(EnemyKind.AGENT, p.x + 1.3f, -1, EnemyState.SEARCH, 1.5f)
+        e.lastSeenX = p.x
+        e.timer = 5f
+        var t = 0f
+        while (p.state != PlayerState.TAKEDOWN && t < 4f) { w.step(1f / 60f); w.events.clear(); t += 1f / 60f }
+        w.run(0.22f)
+        w.visit(0)
+        w.ambient(EnemyKind.AGENT)
+        return w
+    }
+
+    /** A Heavy isn't fooled by cardboard: he boots the box clean off you. */
+    private fun kick(): World {
+        val w = newWorld(calmSeed(27, 1400), 27)
+        w.run(1.6f)
+        w.settle(X(4.4f), 2.2f)
+        val p = w.player
+        p.state = PlayerState.BOX
+        p.stateTime = 1.4f
+        p.x = X(4.4f)
+        p.facing = 1
+        val e = w.enemy(EnemyKind.HEAVY, p.x + 1.4f, -1, EnemyState.SEARCH, 1.5f)
+        e.lastSeenX = p.x
+        e.timer = 5f
+        var t = 0f
+        while (p.state == PlayerState.BOX && t < 4f) { w.step(1f / 60f); w.events.clear(); t += 1f / 60f }
+        w.run(0.2f) { it.player.invuln = 1f; it.player.fireCooldown = 1f; it.bullets.clear() }
+        w.visit(0)
+        w.ambient(EnemyKind.AGENT, EnemyKind.HEAVY)
+        return w
+    }
+
+    /** BLACKOUT: power's out; emergency strips, EXIT boxes and the guards' eyes are all you get. */
+    private fun blackout(): World {
+        val w = newWorld(calmSeed(31, 1500), 31, silent = true)
+        w.run(1.6f)
+        w.settle(X(3.4f), 2.2f)
+        val f = w.player.floor
+        w.setEvent(f, FloorEvent.BLACKOUT)
+        val p = w.player
+        p.x = X(3.4f)
+        p.facing = 1
+        w.enemy(EnemyKind.AGENT, X(6.8f), -1, EnemyState.PATROL, 0.6f).vx = -0.7f
+        w.enemy(EnemyKind.AGENT, X(9.6f), 1, EnemyState.SEARCH, 0.8f).vx = 0f
+        w.popup(FloorEvent.BLACKOUT.title, p.x, Geo.groundY(f) - 2.7f, TextStyle.BIG, 1.8f, 1.0f)
+        w.visit(0)
+        w.ambient(EnemyKind.AGENT)
+        return w
+    }
+
+    /** PAYDAY: somebody's bonus, lying around the hallway. */
+    private fun payday(): World {
+        val w = newWorld(calmSeed(44, 1600), 44)
+        w.run(1.6f)
+        w.settle(X(1.6f), 2.2f)
+        val f = w.player.floor
+        w.setEvent(f, FloorEvent.PAYDAY)
+        val p = w.player
+        p.x = X(1.6f)
+        p.facing = 1
+        p.vx = 3f
+        w.moveAxis = 1
+        val xs = floatArrayOf(3.2f, 5.8f, 8.4f, 11f)
+        val kinds = arrayOf(PickupKind.CASH, PickupKind.CASH, PickupKind.SHIELD, PickupKind.CASH)
+        for (i in xs.indices) {
+            w.pickups += com.bradflaugher.aboutthataction.engine.Pickup(kinds[i], xs[i], f, p.hall).also {
+                it.life = World.PAYDAY_LIFE; it.z = 0.35f; it.vz = 0f; it.age = i * 0.7f
+            }
+        }
+        w.popup(FloorEvent.PAYDAY.title, p.x, Geo.groundY(f) - 2.7f, TextStyle.BIG, 1.8f, 0.8f)
+        w.visit(0)
+        w.ambient(EnemyKind.AGENT)
+        return w
+    }
+
+    /** GHOST: nobody saw a thing. Onto the ride down, with smooth jazz. */
+    private fun ghost(): World {
+        val f = 13
+        val w = newWorld(calmSeed(f, 1700), f, silent = true)
+        w.run(2.6f)
+        val plan = w.floors[f]!!.plan
+        val h = plan.halls.indices.first { plan.halls[it].downLandings.isNotEmpty() }
+        val s = plan.halls[h].downLandings.first()
+        w.player.hall = h
+        w.visit(0, h)
+        w.settle(s.x, 1.2f)
+        val car = w.elevators[s.id]!!
+        car.pos = f.toFloat()
+        car.pause = 1f
+        car.openTime = 1f
+        val p = w.player
+        p.x = s.x
+        p.grenades = 0
+        w.floors[f]!!.spotted = false
+        w.commands += Command.TAP
+        w.step(1f / 60f)
+        w.events.clear()
+        check(p.state == PlayerState.ELEVATOR) { "didn't board (${p.state})" }
+        if (w.fx.texts.none { it.text == "SMOOTH JAZZ" }) w.popup("SMOOTH JAZZ", s.x, Geo.groundY(f) - 2.9f, TextStyle.PICKUP, 1.6f, 0f)
+        w.run(0.3f)
+        return w
+    }
+
+    /** BONK!: a stomp from above, and the agent bouncing off for the next one. */
+    private fun bonk(): World {
+        val w = newWorld(calmSeed(21, 1800), 21)
+        w.run(1.6f)
+        w.settle(X(3.0f), 2.2f)
+        val p = w.player
+        val e = w.enemy(EnemyKind.AGENT, X(5.2f), -1, EnemyState.ALERT, 0.3f)
+        e.vx = 0f
+        p.x = e.x - 0.05f
+        p.z = 1.9f
+        p.vz = -3f
+        p.facing = 1
+        p.fireCooldown = 1f
+        var t = 0f
+        while (e.state != EnemyState.DEAD && t < 2f) { w.step(1f / 60f); w.events.clear(); p.fireCooldown = 1f; t += 1f / 60f }
+        w.run(0.07f) { it.player.fireCooldown = 1f }
+        w.enemy(EnemyKind.AGENT, X(8.6f), -1, EnemyState.ALERT, 0.1f).vx = 0f
         w.visit(0)
         w.ambient(EnemyKind.AGENT)
         return w

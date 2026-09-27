@@ -19,6 +19,8 @@ import kotlin.math.sin
  */
 class Renderer {
     private val f = Frame()
+    private val moments = Moments(f).also { f.moments = it }
+    private val hudMoments = HudMoments(f)
     private val building = Building(f)
     private val backdrop = Backdrop(f)
     private val actors = Actors(f)
@@ -42,6 +44,7 @@ class Renderer {
     fun render(g: Gfx, world: World, time: Float, topInset: Float, bottomInset: Float, showHud: Boolean = true) {
         world.viewAspect = g.height / g.width
         f.setup(g, world, time, topInset, bottomInset)
+        moments.scan()
 
         // Base fill in the current zone's darkest tone, in case anything leaves a gap.
         g.fillRect(0f, 0f, g.width, g.height, f.palette(world.floors[world.player.floor]).skyTop)
@@ -95,13 +98,18 @@ class Renderer {
         actors.playerOverlay()
         effects.bloom()
         effects.world()
+        moments.world()
         if (showHud && world.phase == Phase.PLAYING) hud.contextHint()
         g.restore()
 
         effects.screen()
         if (showHud) effects.texts() // attract mode: no popups under the menus
+        if (showHud && world.phase == Phase.PLAYING) hudMoments.coachTip()
         if (showHud) {
-            if (world.phase != Phase.PERK_CHOICE) hud.banner()
+            if (world.phase != Phase.PERK_CHOICE) {
+                hud.banner()
+                hudMoments.floorEvent()
+            }
             hud.draw()
         }
         if (showHud && world.phase == Phase.PERK_CHOICE) hud.perkOverlay()
@@ -127,6 +135,7 @@ internal val HallPlan.look: Int get() = if (hall == 0) index else index * 31 + h
 internal class Frame {
     lateinit var g: Gfx
     lateinit var w: World
+    lateinit var moments: Moments
     val poly = Poly()
 
     /** Real seconds, for idle animation. */

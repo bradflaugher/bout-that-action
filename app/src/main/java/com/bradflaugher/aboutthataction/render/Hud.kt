@@ -128,7 +128,7 @@ internal class Hud(private val f: Frame) {
             val areaTop = topInset + max(height * 0.24f, 44f * u)
             val areaBottom = height - bottomInset - 14f * u
             val gap = 4f * u
-            val ch = min((areaBottom - areaTop - 2f * gap) / 3f, 32f * u)
+            val ch = min((areaBottom - areaTop - 2f * gap) / 3f, 36f * u)
             val total = ch * 3f + gap * 2f
             val start = areaTop + (areaBottom - areaTop - total) / 2f
             out[0] = 6f * u
@@ -1031,9 +1031,15 @@ internal class Hud(private val f: Frame) {
         val titleW = g.textWidth(perk.title, ts, Gfx.Font.TITLE)
         val titleMax = r - tx - tagW - 5f * u
         if (titleW > titleMax) ts *= titleMax / titleW
-        val titleY = t + h * 0.34f + ts * 0.3f
+        val titleY = t + min(h * 0.26f, 7.4f * u) + ts * 0.3f
         g.text(perk.title, tx, titleY, ts, Col.alpha(WHITE, a), Gfx.Font.TITLE)
-        wrapText(perk.blurb, tx, titleY + 4.6f * u, 3.2f * u, maxW, Col.alpha(0xFFCFC8E0.toInt(), a))
+        val lastY = wrapText(perk.blurb, tx, titleY + 4.6f * u, 3.2f * u, maxW, Col.alpha(0xFFCFC8E0.toInt(), a))
+        // The joke, under the blurb: a quieter line in the perk's colour, with a little tick mark.
+        val fy = lastY + 4.7f * u
+        if (fy < b - 5.4f * u) {
+            g.fillRect(tx, fy - 2.1f * u, tx + 0.35f * u, fy + 0.2f * u, Col.alpha(pc, 0.7f * a))
+            wrapText(perk.flavor, tx + 1.4f * u, fy, 2.75f * u, maxW - 1.4f * u, Col.alpha(Col.lerp(pc, WHITE, 0.35f), 0.85f * a), 1)
+        }
 
         // Level: pips, the next one breathing, and NEW / LV label.
         val sy = b - 3.4f * u
@@ -1070,10 +1076,17 @@ internal class Hud(private val f: Frame) {
         g.line(chx + 0.6f * u, my, chx - 0.8f * u, my + 1.6f * u, 0.45f * u, Col.alpha(pc, 0.8f * a))
     }
 
-    private fun wrapText(text: String, x: Float, y: Float, size: Float, maxW: Float, color: Int) {
+    /** Draws [text] wrapped to at most [maxLines] lines; returns the last baseline drawn. */
+    private fun wrapText(text: String, x: Float, y: Float, size: Float, maxW: Float, color: Int, maxLines: Int = 2): Float {
         if (g.textWidth(text, size) <= maxW) {
             g.text(text, x, y, size, color)
-            return
+            return y
+        }
+        if (maxLines <= 1) {
+            // One line only: shrink to fit rather than wrap.
+            val k = maxW / g.textWidth(text, size)
+            g.text(text, x, y, size * max(0.72f, k), color)
+            return y
         }
         // Greedy two-line wrap.
         val words = text.split(' ')
@@ -1086,12 +1099,13 @@ internal class Hud(private val f: Frame) {
                 g.text(line, x, yy, size, color)
                 yy += size * 1.3f
                 line = wd
-                if (++lines >= 2) return
+                if (++lines >= maxLines) return yy - size * 1.3f
             } else {
                 line = cand
             }
         }
         if (line.isNotEmpty()) g.text(line, x, yy, size, color)
+        return yy
     }
 
     private fun hexagon(cx: Float, cy: Float, r: Float, color: Int) {
@@ -1122,6 +1136,8 @@ internal class Hud(private val f: Frame) {
      */
     fun contextHint() {
         val w = f.w
+        // The box just got kicked off you: let that moment land before suggesting anything.
+        if (f.t - f.moments.kickAt < 0.9f) return
         val p = w.player
         var action = w.contextAction()
         if (action == ContextAction.BOX) {

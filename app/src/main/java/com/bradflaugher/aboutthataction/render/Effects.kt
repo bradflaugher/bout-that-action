@@ -26,6 +26,7 @@ import kotlin.math.sin
 internal class Effects(private val f: Frame) {
     private val g get() = f.g
     private val poly get() = f.poly
+    private val art = PopupArt(f)
 
     /** Optional film grain over everything (a settings toggle). */
     var grain = false
@@ -409,8 +410,15 @@ internal class Effects(private val f: Frame) {
         for (k in n - 1 downTo 0) {
             val slot = order[k]
             val ft = slotRef[slot] ?: continue
-            val sz = sizeOf(ft) * s * popScale(ft)
-            val tw = Glyphs.width(g, ft.text, sz, Gfx.Font.TITLE)
+            val kind = art.kind(ft)
+            if (kind == PopupArt.HIDE) continue
+            val ks = art.size(kind)
+            val sz = (if (ks > 0f) ks else sizeOf(ft)) * s * popScale(ft)
+            val tw = Glyphs.width(g, ft.text, sz, Gfx.Font.TITLE) * art.widthK(kind)
+            // The box it occupies, relative to the baseline: up to [above], down to [below].
+            val hh = art.halfH(kind) * sz
+            val above = sz * 0.36f + hh
+            val below = max(0f, hh - sz * 0.36f)
             val cx = worldToX(ft.x).coerceIn(tw / 2f + 0.03f * W, W - tw / 2f - 0.03f * W)
             val base = worldToY(ft.y) + riseOffset(ft) * s
             var y = base
@@ -424,8 +432,8 @@ internal class Effects(private val f: Frame) {
                     val t = placed[j * 4 + 1]
                     val r = placed[j * 4 + 2]
                     val b = placed[j * 4 + 3]
-                    if (cx + tw / 2f > l && cx - tw / 2f < r && y + pad > t && y - sz * 0.8f - pad < b) {
-                        y = t - pad
+                    if (cx + tw / 2f > l && cx - tw / 2f < r && y + below + pad > t && y - above - pad < b) {
+                        y = t - pad - below
                         moved = true
                     }
                 }
@@ -434,11 +442,11 @@ internal class Effects(private val f: Frame) {
             slotOff[slot] += (target - slotOff[slot]) * min(1f, if (f.dt == 0f) 1f else f.dt * 16f)
             val fy = base + slotOff[slot]
             placed[placedN * 4] = cx - tw / 2f
-            placed[placedN * 4 + 1] = fy - sz * 0.8f
+            placed[placedN * 4 + 1] = fy - above
             placed[placedN * 4 + 2] = cx + tw / 2f
-            placed[placedN * 4 + 3] = fy
+            placed[placedN * 4 + 3] = fy + below
             placedN++
-            drawText(ft, cx, fy, sz)
+            if (kind == PopupArt.NORMAL) drawText(ft, cx, fy, sz) else art.draw(kind, ft, cx, fy, sz, textAlpha(ft))
         }
     }
 
@@ -490,8 +498,10 @@ internal class Effects(private val f: Frame) {
     /** Extra ease-out lift on top of the engine's linear rise, in world units. */
     private fun riseOffset(ft: FloatingText) = -HudType.outCubic(age(ft) / 0.6f) * 0.22f
 
+    private fun textAlpha(ft: FloatingText) = if (ft.t > 0.72f) max(0f, (1f - ft.t) / 0.28f) else 1f
+
     private fun drawText(ft: FloatingText, x: Float, y: Float, sz: Float) {
-        val a = (if (ft.t > 0.72f) max(0f, (1f - ft.t) / 0.28f) else 1f)
+        val a = textAlpha(ft)
         if (a <= 0f) return
         val base = styleColor(ft.style)
         val color = if (ft.style == TextStyle.COMBO) Col.lerp(Col.lerp(0xFFFFFFFF.toInt(), base, 0.8f), base, age(ft) / 0.1f) else base
