@@ -60,6 +60,9 @@ installed_and_stable() {
 }
 
 sleep 30
+# Pre-dismiss Android's one-time "Viewing full screen" prompt so it doesn't cover the
+# screenshots (players see it once, on their first launch).
+adb shell settings put secure immersive_mode_confirmations confirmed || true
 if install "$APK" && install "$TEST_APK" && installed_and_stable; then
   # Bounded: a hung test must not eat the job timeout (and the artifact upload).
   timeout 420 adb shell am instrument -w -r "$APP_ID.test/androidx.test.runner.AndroidJUnitRunner" | tee smoke/instrument.txt

@@ -12,10 +12,9 @@ class LaunchSmokeTest {
     @Test
     fun titleScreenLaunchesAndStaysUp() {
         val activity = Launch.main()
-        SystemClock.sleep(4000)
-        assertTrue("still resumed after 4 s", Launch.resumed() === activity)
-        val demo = Launch.onMain { activity.currentWorld }
-        assertTrue("the attract-mode demo should be running", demo != null && demo.time > 1f)
+        SystemClock.sleep(2000)
+        Launch.assertAlive(activity, "title + demo", 6000)
+        assertTrue("still resumed", Launch.resumed() === activity)
         Launch.onMain { activity.finish() }
     }
 }

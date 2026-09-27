@@ -23,7 +23,11 @@ concurrency:
 jobs:
   smoke:
     name: Emulator smoke test
-    runs-on: ubuntu-latest
+    # Not ubuntu-latest (24.04): there, emulator 37.1's gfxstream advertises
+    # ANDROID_EMU_read_color_buffer_dma, the API 37 image's gralloc mapper asserts
+    # it is absent, and SurfaceFlinger aborts (RegionSampling) every ~30 s,
+    # boot-looping the framework. The same emulator is clean on 26.04.
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
 
     env:
@@ -84,6 +88,8 @@ jobs:
           ram-size: 4096M
           disk-size: 6G
           emulator-boot-timeout: 900
+          # SwiftShader, the software GPU for headless runners: about 2.4 fps for the
+          # game here, 2.4x swangle_indirect. The smoke tests check for progress, not speed.
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
           disable-animations: true
           disable-spellchecker: true

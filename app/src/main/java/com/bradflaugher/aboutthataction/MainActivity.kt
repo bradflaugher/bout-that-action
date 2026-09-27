@@ -74,10 +74,6 @@ class MainActivity : ComponentActivity(), GameView.Host {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         window.setDecorFitsSystemWindows(false)
-        window.insetsController?.apply {
-            hide(WindowInsets.Type.systemBars())
-            systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
 
         prefs = Prefs(this)
         settings = prefs.loadSettings()
@@ -141,6 +137,12 @@ class MainActivity : ComponentActivity(), GameView.Host {
                 }
             }
         }
+        // After setContent: API 37's PhoneWindow.getInsetsController() dereferences the decor
+        // view without a null check, so asking for it before the decor exists crashes.
+        window.insetsController?.apply {
+            hide(WindowInsets.Type.systemBars())
+            systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -157,10 +159,12 @@ class MainActivity : ComponentActivity(), GameView.Host {
     override fun onResume() {
         super.onResume()
         audio.start()
+        gameView.onHostResume()
     }
 
     override fun onPause() {
         if (screen == Screen.PLAYING) pause()
+        gameView.onHostPause()
         audio.pause()
         super.onPause()
     }
@@ -172,6 +176,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
 
     /** The world on screen, for instrumented tests. */
     val currentWorld: World? get() = gameView.world
+    val framesDrawn: Long get() = gameView.framesDrawn
     val isPlaying: Boolean get() = screen == Screen.PLAYING
 
     // ------------------------------------------------------------- flow

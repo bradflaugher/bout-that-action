@@ -47,6 +47,10 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
             accumulator = 0.0
         }
 
+    /** Frames posted to the screen so far, for instrumented tests. */
+    @Volatile var framesDrawn = 0L
+        private set
+
     /** Attract mode: the world ignores touches, hides the HUD and plays itself. */
     @Volatile var attract = true
     @Volatile var autopilot: Autopilot? = null
@@ -99,7 +103,26 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
         )
     }
 
-    override fun surfaceCreated(holder: SurfaceHolder) = startLoop()
+    /**
+     * The loop runs only while the activity is resumed AND the surface exists. Stopping on
+     * pause matters: an activity on its way out can have its surface disconnected before
+     * surfaceDestroyed arrives on the main thread, and drawing into it then crashes hwui.
+     */
+    private var hostResumed = false
+
+    fun onHostResume() {
+        hostResumed = true
+        if (holder.surface.isValid) startLoop()
+    }
+
+    fun onHostPause() {
+        hostResumed = false
+        stopLoop()
+    }
+
+    override fun surfaceCreated(holder: SurfaceHolder) {
+        if (hostResumed) startLoop()
+    }
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
     override fun surfaceDestroyed(holder: SurfaceHolder) = stopLoop()
 
@@ -111,10 +134,16 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
         }
     }
 
+    /**
+     * Waits for the in-flight frame to finish, however long it takes: once onPause or
+     * surfaceDestroyed returns the surface may be gone, and a frame still drawing into it
+     * crashes hwui's RenderThread. (A slow frame outlasted the old 500 ms cap on the emulator's software
+     * GPU.) The loop never waits on the main thread, so this cannot deadlock.
+     */
     private fun stopLoop() {
         val old = thread
         thread = null
-        old?.join(500)
+        old?.join()
     }
 
     private fun loop() {
@@ -185,6 +214,7 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
             }
         } finally {
             holder.unlockCanvasAndPost(canvas)
+            framesDrawn++
         }
     }
 
