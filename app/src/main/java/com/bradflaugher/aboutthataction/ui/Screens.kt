@@ -1,48 +1,54 @@
 package com.bradflaugher.aboutthataction.ui
 
-import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bradflaugher.aboutthataction.Records
 import com.bradflaugher.aboutthataction.SeedMode
 import com.bradflaugher.aboutthataction.Settings
 import com.bradflaugher.aboutthataction.engine.Difficulty
+import com.bradflaugher.aboutthataction.engine.FloorLabel
 import com.bradflaugher.aboutthataction.engine.Zone
 import java.util.Locale
-import kotlin.math.roundToInt
 
 /** A finished run, for the game-over screen. */
 data class RunSummary(
@@ -57,24 +63,69 @@ data class RunSummary(
     val newBestFloor: Boolean,
 )
 
-private val scrim = Brush.verticalGradient(
-    0f to Color(0xCC07060F), 0.35f to Color(0x3307060F), 0.6f to Color(0x3307060F), 1f to Color(0xEE07060F),
-)
+internal fun grouped(n: Long): String = String.format(Locale.US, "%,d", n)
 
+internal fun presetLabel(p: Difficulty.Preset?): String = when (p) {
+    null -> "CUSTOM"
+    Difficulty.Preset.STRAIGHT_TO_HELL -> "HELL"
+    else -> p.label
+}
+
+/** One line of display text that shrinks to fit its width instead of wrapping. */
 @Composable
-private fun Logo() {
-    val t = rememberInfiniteTransition(label = "logo")
-    val glow by t.animateFloat(0.75f, 1f, infiniteRepeatable(tween(1400), RepeatMode.Reverse), label = "glow")
-    val glitch by t.animateFloat(0f, 1f, infiniteRepeatable(tween(3100)), label = "glitch")
-    val jitter = if (glitch > 0.94f) ((glitch * 1000).roundToInt() % 7 - 3).toFloat() else 0f
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        NeonText("'BOUT THAT", size = 30.sp, color = Neon.cyan.copy(alpha = glow), title = true, letterSpacing = 6.sp,
-            modifier = Modifier.graphicsLayer { translationX = jitter * 3f })
-        NeonText("ACTION", size = 62.sp, color = Neon.magenta.copy(alpha = glow), title = true, letterSpacing = 4.sp,
-            modifier = Modifier.graphicsLayer { translationX = -jitter * 4f })
-        NeonText("▼  an endless descent  ▼", size = 14.sp, color = Neon.lava, letterSpacing = 3.sp)
+fun FitText(
+    text: String,
+    maxSize: TextUnit,
+    color: Color,
+    modifier: Modifier = Modifier,
+    title: Boolean = true,
+    letterSpacing: TextUnit = 2.sp,
+    glow: Float = 0.6f,
+) {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+        // (fits with a little air, so edge-to-edge titles still breathe)
+        val avail = with(density) { maxWidth.toPx() }
+        val size = remember(text, avail, maxSize) {
+            val probe = measurer.measure(
+                text,
+                TextStyle(fontFamily = if (title) Neon.title else Neon.mono, fontSize = maxSize, letterSpacing = letterSpacing),
+                softWrap = false,
+            )
+            if (probe.size.width <= avail) maxSize else maxSize * (avail / probe.size.width) * 0.94f
+        }
+        NeonText(text, size = size, color = color, title = title, letterSpacing = letterSpacing, glow = glow,
+            align = TextAlign.Center, maxLines = 1)
     }
 }
+
+// ------------------------------------------------------------------ backdrops
+
+/** Darkens top and bottom for legibility and leaves the middle for the live demo. */
+private fun Modifier.titleScrim(): Modifier = drawBehind {
+    drawRect(Brush.verticalGradient(0f to Neon.night.copy(alpha = 0.92f), 0.34f to Neon.night.copy(alpha = 0.35f), 0.46f to Color.Transparent))
+    drawRect(Brush.verticalGradient(0.52f to Color.Transparent, 0.66f to Neon.night.copy(alpha = 0.7f), 0.8f to Neon.night.copy(alpha = 0.9f), 1f to Neon.night))
+    drawRect(
+        Brush.radialGradient(
+            listOf(Color.Transparent, Neon.night.copy(alpha = 0.55f)),
+            center = Offset(size.width / 2, size.height * 0.5f), radius = size.maxDimension * 0.7f,
+        ),
+    )
+}
+
+/** A dim veil over a frozen game. */
+internal fun Modifier.veil(tint: Color = Neon.night, alpha: Float = 0.78f): Modifier = drawBehind {
+    drawRect(tint.copy(alpha = alpha))
+    drawRect(
+        Brush.radialGradient(
+            listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f)),
+            center = center, radius = size.maxDimension * 0.65f,
+        ),
+    )
+}
+
+// ------------------------------------------------------------------ title
 
 @Composable
 fun TitleScreen(
@@ -85,38 +136,130 @@ fun TitleScreen(
     onSettings: () -> Unit,
     onPreset: (Difficulty.Preset) -> Unit,
 ) {
-    Box(Modifier.fillMaxSize().background(scrim).padding(insets).padding(20.dp)) {
-        Column(Modifier.align(Alignment.TopCenter).padding(top = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Logo()
+    Box(Modifier.fillMaxSize().titleScrim().padding(insets).padding(horizontal = Space.l)) {
+        Column(
+            Modifier.align(Alignment.TopCenter).fillMaxWidth().widthIn(max = 480.dp).padding(top = Space.l),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            NeonLogo()
+            Tagline(Modifier.reveal(700).padding(top = Space.xs))
             if (records.runs > 0) {
-                Spacer(Modifier.height(14.dp))
-                NeonText("DEEPEST B${records.bestFloor}  ·  BEST ${"%,d".format(records.bestScore)}", size = 14.sp, color = Neon.gold)
+                Row(
+                    Modifier.reveal(850).padding(top = Space.m),
+                    horizontalArrangement = Arrangement.spacedBy(Space.xs),
+                ) {
+                    RecordChip("DEEPEST", FloorLabel.of(records.bestFloor))
+                    RecordChip("BEST", grouped(records.bestScore))
+                }
             }
         }
+
         Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().widthIn(max = 480.dp).padding(bottom = Space.l),
+            verticalArrangement = Arrangement.spacedBy(Space.s),
         ) {
+            Row(Modifier.fillMaxWidth().reveal(250), verticalAlignment = Alignment.CenterVertically) {
+                LiveDot(Neon.blood)
+                Kicker("LIVE FEED", Neon.blood.copy(alpha = 0.9f), Modifier.padding(start = Space.xs))
+                Spacer(Modifier.weight(1f))
+                Kicker((settings.preset?.blurb ?: "Your own curve").uppercase(Locale.US), Neon.dim, align = TextAlign.End)
+            }
             Segmented(
                 Difficulty.Preset.entries.toList(),
                 settings.preset,
-                label = { if (it == Difficulty.Preset.STRAIGHT_TO_HELL) "HELL" else it.label },
+                label = ::presetLabel,
                 color = Neon.magenta,
+                modifier = Modifier.reveal(300),
                 onSelect = onPreset,
             )
-            NeonText(
-                (settings.preset?.blurb ?: "Custom difficulty curve") + "  ·  seed " + when (settings.seedMode) {
-                    SeedMode.RANDOM -> "random"
-                    SeedMode.DAILY -> "daily"
-                    SeedMode.CUSTOM -> settings.seedText.ifBlank { "random" }
-                },
-                size = 13.sp, color = Neon.dim, align = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+            NeonButton(
+                "DROP IN", Neon.magenta, Modifier.fillMaxWidth().reveal(380).padding(top = Space.xxs),
+                style = ButtonStyle.PRIMARY, height = 72.dp, textSize = 26.sp,
+                trailing = { DropChevrons() },
+                onClick = onPlay,
             )
-            NeonButton("DROP IN", Neon.magenta, Modifier.fillMaxWidth(), filled = true, height = 72.dp, onClick = onPlay)
-            NeonButton("SETTINGS", Neon.cyan, Modifier.fillMaxWidth(), onClick = onSettings)
+            Row(Modifier.fillMaxWidth().reveal(460), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                NeonButton("SETTINGS", Neon.cyan, Modifier.weight(1f), height = 52.dp, onClick = onSettings)
+                SeedChip(settings, Modifier.weight(1f), onSettings)
+            }
         }
     }
 }
+
+@Composable
+private fun Tagline(modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f).height(1.dp).drawBehind { drawRect(Brush.horizontalGradient(listOf(Color.Transparent, Neon.lava))) })
+        NeonText("AN ENDLESS DESCENT", size = Type.small, color = Neon.lava, letterSpacing = 4.sp,
+            modifier = Modifier.padding(horizontal = Space.s), glow = 0.7f)
+        Box(Modifier.weight(1f).height(1.dp).drawBehind { drawRect(Brush.horizontalGradient(listOf(Neon.lava, Color.Transparent))) })
+    }
+}
+
+@Composable
+private fun RecordChip(label: String, value: String) {
+    Row(
+        Modifier
+            .drawBehind {
+                val o = Shapes.chip.createOutline(size, layoutDirection, this)
+                drawOutline(o, Neon.ink.copy(alpha = 0.75f))
+                drawOutline(o, Neon.gold.copy(alpha = 0.45f), style = Stroke(1.dp.toPx()))
+            }
+            .padding(horizontal = Space.s, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Kicker(label, Neon.gold.copy(alpha = 0.7f))
+        NeonText(value, size = Type.body, color = Neon.gold, modifier = Modifier.padding(start = Space.xs), glow = 0.6f)
+    }
+}
+
+/** Three chevrons cascading downward: this button takes you down. */
+@Composable
+private fun RowScope.DropChevrons() {
+    val t = rememberInfiniteTransition(label = "chev")
+    val phase by t.animateFloat(0f, 1f, infiniteRepeatable(tween(900, easing = LinearEasing)), label = "phase")
+    Box(
+        Modifier.padding(start = Space.s).size(22.dp, 30.dp).drawBehind {
+            val w = size.width
+            val step = size.height / 3.4f
+            for (i in 0 until 3) {
+                val k = (phase * 3 - i).let { ((it % 3) + 3) % 3 } // 0..3
+                val a = (1f - k / 3f).coerceIn(0.15f, 1f)
+                val y = step * i + step * 0.6f
+                val sw = 2.5.dp.toPx()
+                val c = Color.White.copy(alpha = a)
+                drawLine(c, Offset(w * 0.1f, y), Offset(w * 0.5f, y + step * 0.6f), sw)
+                drawLine(c, Offset(w * 0.5f, y + step * 0.6f), Offset(w * 0.9f, y), sw)
+            }
+        },
+    )
+}
+
+@Composable
+private fun SeedChip(settings: Settings, modifier: Modifier, onClick: () -> Unit) {
+    val value = when (settings.seedMode) {
+        SeedMode.RANDOM -> "RANDOM"
+        SeedMode.DAILY -> "DAILY"
+        SeedMode.CUSTOM -> settings.seedText.ifBlank { "RANDOM" }.uppercase(Locale.US)
+    }
+    Column(
+        modifier
+            .height(52.dp)
+            .drawBehind {
+                val o = Shapes.button.createOutline(size, layoutDirection, this)
+                drawOutline(o, Neon.ink.copy(alpha = 0.6f))
+                drawOutline(o, Neon.line, style = Stroke(1.dp.toPx()))
+            }
+            .clickable(remember { MutableInteractionSource() }, null, role = Role.Button, onClick = onClick)
+            .padding(horizontal = Space.m),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Kicker("SEED", Neon.dim)
+        NeonText(value, size = Type.body, color = Neon.soft, maxLines = 1, glow = 0f)
+    }
+}
+
+// ------------------------------------------------------------------ pause
 
 @Composable
 fun PauseScreen(
@@ -128,13 +271,30 @@ fun PauseScreen(
     onQuit: () -> Unit,
     onSettings: (Settings) -> Unit,
 ) {
-    Box(Modifier.fillMaxSize().background(Color(0xB307060F)).padding(insets).padding(20.dp), contentAlignment = Alignment.Center) {
-        Panel(Modifier.fillMaxWidth()) {
-            NeonText("PAUSED", size = 36.sp, color = Neon.cyan, title = true, align = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            NeonText("seed $seedLabel", size = 13.sp, color = Neon.dim, align = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            NeonButton("RESUME", Neon.magenta, Modifier.fillMaxWidth(), filled = true, onClick = onResume)
+    Box(
+        Modifier.fillMaxSize().veil().scanlines(0.06f).padding(insets).padding(horizontal = Space.m),
+        contentAlignment = Alignment.Center,
+    ) {
+        Panel(
+            Modifier.fillMaxWidth().widthIn(max = 440.dp).verticalScroll(rememberScrollState()),
+            accent = Neon.cyan,
+            padding = Space.l,
+            spacing = Space.s,
+        ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Kicker("MISSION ON HOLD", Neon.cyan.copy(alpha = 0.8f))
+                    NeonText("PAUSED", size = Type.display, color = Color.White, title = true, letterSpacing = 3.sp, glow = 0.4f)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Kicker("SEED", Neon.dim, align = TextAlign.End)
+                    NeonText(seedLabel, size = Type.small, color = Neon.soft, maxLines = 1, glow = 0f)
+                }
+            }
+            NeonButton("RESUME", Neon.magenta, Modifier.fillMaxWidth().padding(top = Space.xs), style = ButtonStyle.PRIMARY, height = 64.dp,
+                onClick = onResume)
             AudioAndControls(settings, onSettings)
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.padding(top = Space.xs), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
                 NeonButton("RESTART", Neon.cyan, Modifier.weight(1f), onClick = onRestart)
                 NeonButton("QUIT", Neon.lava, Modifier.weight(1f), onClick = onQuit)
             }
@@ -142,164 +302,14 @@ fun PauseScreen(
     }
 }
 
+/** Volumes and toggles, shared by pause and settings. */
 @Composable
-private fun AudioAndControls(s: Settings, onChange: (Settings) -> Unit) {
-    fun pct(v: Float) = "${(v * 100).roundToInt()}%"
-    fun step(v: Float, d: Float) = ((v + d) * 10).roundToInt().coerceIn(0, 10) / 10f
-    Stepper("Music", pct(s.musicVolume), onMinus = { onChange(s.copy(musicVolume = step(s.musicVolume, -0.1f))) },
-        onPlus = { onChange(s.copy(musicVolume = step(s.musicVolume, 0.1f))) })
-    Stepper("Sound FX", pct(s.sfxVolume), onMinus = { onChange(s.copy(sfxVolume = step(s.sfxVolume, -0.1f))) },
-        onPlus = { onChange(s.copy(sfxVolume = step(s.sfxVolume, 0.1f))) })
-    Toggle("Auto-fire", "Shoot anything in sight; taps still work", s.autoFire) { onChange(s.copy(autoFire = it)) }
-    Toggle("Haptics", null, s.haptics) { onChange(s.copy(haptics = it)) }
-    Toggle("Thumb guide", "Show a ring under your running thumb", s.touchGuide) { onChange(s.copy(touchGuide = it)) }
-}
-
-@Composable
-fun GameOverScreen(run: RunSummary, insets: PaddingValues, onRetry: () -> Unit, onNewRun: () -> Unit, onTitle: () -> Unit) {
-    Box(Modifier.fillMaxSize().background(Color(0xC0100308)).padding(insets).padding(20.dp), contentAlignment = Alignment.Center) {
-        Panel(Modifier.fillMaxWidth(), accent = Neon.lava) {
-            NeonText("MISSION FAILED", size = 32.sp, color = Neon.lava, title = true, align = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            NeonText("B${run.floor}", size = 72.sp, color = Neon.text, title = true, align = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            NeonText(run.zone.title, size = 18.sp, color = Neon.magenta, align = TextAlign.Center, modifier = Modifier.fillMaxWidth(), letterSpacing = 4.sp)
-            if (run.newBestFloor || run.newBestScore) {
-                NeonText(if (run.newBestFloor) "★ NEW DEEPEST ★" else "★ NEW HIGH SCORE ★", size = 16.sp, color = Neon.gold,
-                    align = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            }
-            Stat("SCORE", "%,d".format(run.score))
-            Stat("KILLS", run.kills.toString())
-            Stat("TAKEDOWNS", run.takedowns.toString())
-            Stat("TIME", String.format(Locale.US, "%d:%02d", run.seconds.toInt() / 60, run.seconds.toInt() % 60))
-            Stat("SEED", run.seedLabel)
-            NeonButton("RETRY SEED", Neon.magenta, Modifier.fillMaxWidth(), filled = true, onClick = onRetry)
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                NeonButton("NEW RUN", Neon.cyan, Modifier.weight(1f), onClick = onNewRun)
-                NeonButton("TITLE", Neon.dim, Modifier.weight(1f), onClick = onTitle)
-            }
-        }
-    }
-}
-
-@Composable
-private fun Stat(label: String, value: String) {
-    Row(Modifier.fillMaxWidth()) {
-        NeonText(label, size = 15.sp, color = Neon.dim, modifier = Modifier.weight(1f), letterSpacing = 2.sp)
-        NeonText(value, size = 17.sp, color = Neon.text)
-    }
-}
-
-@Composable
-fun SettingsScreen(settings: Settings, insets: PaddingValues, onChange: (Settings) -> Unit, onBack: () -> Unit) {
-    val s = settings
-    Box(Modifier.fillMaxSize().background(Color(0xE607060F)).padding(insets)) {
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            NeonText("SETTINGS", size = 34.sp, color = Neon.cyan, title = true)
-
-            SectionLabel("DIFFICULTY")
-            Segmented(
-                Difficulty.Preset.entries.toList<Difficulty.Preset?>() + null,
-                s.preset,
-                label = { if (it == null) "CUSTOM" else if (it == Difficulty.Preset.STRAIGHT_TO_HELL) "HELL" else it.label },
-                color = Neon.magenta,
-            ) { onChange(s.copy(preset = it, custom = it?.difficulty ?: s.custom)) }
-            NeonText(s.preset?.blurb ?: "Shape your own curve:", size = 13.sp, color = Neon.dim)
-            if (s.preset == null) {
-                val c = s.custom
-                fun set(d: Difficulty) = onChange(s.copy(custom = d))
-                Stepper("Starting heat", "%.1f".format(c.start), Neon.magenta,
-                    { set(c.copy(start = (c.start - 0.1f).coerceAtLeast(0f))) }, { set(c.copy(start = (c.start + 0.1f).coerceAtMost(5f))) })
-                Stepper("Ramp", "×%.1f".format(c.ramp), Neon.magenta,
-                    { set(c.copy(ramp = (c.ramp - 0.1f).coerceAtLeast(0f))) }, { set(c.copy(ramp = (c.ramp + 0.1f).coerceAtMost(4f))) })
-                Stepper("Heat cap", "%.1f".format(c.cap), Neon.magenta,
-                    { set(c.copy(cap = (c.cap - 0.5f).coerceAtLeast(0.5f))) }, { set(c.copy(cap = (c.cap + 0.5f).coerceAtMost(8f))) })
-                Stepper("Hearts", "♥ ${c.hearts}", Neon.magenta,
-                    { set(c.copy(hearts = (c.hearts - 1).coerceAtLeast(1))) }, { set(c.copy(hearts = (c.hearts + 1).coerceAtMost(9))) })
-                val zones = Zone.entries.filter { it != Zone.ROOFTOP }
-                val zi = zones.indexOfLast { c.startFloor >= it.startFloor }
-                Stepper("Start at", if (c.startFloor == 0) "ROOF" else zones[zi].title.substringBefore(' '), Neon.magenta,
-                    { set(c.copy(startFloor = if (zi <= 0) 0 else zones[zi - 1].startFloor)) },
-                    { set(c.copy(startFloor = zones[(zi + 1).coerceAtMost(zones.lastIndex)].startFloor)) })
-                HeatCurve(c)
-            }
-
-            SectionLabel("SEED")
-            Segmented(SeedMode.entries.toList(), s.seedMode, label = { it.label }) { onChange(s.copy(seedMode = it)) }
-            if (s.seedMode == SeedMode.CUSTOM) {
-                BasicTextField(
-                    value = s.seedText,
-                    onValueChange = { onChange(s.copy(seedText = it.take(24))) },
-                    singleLine = true,
-                    textStyle = TextStyle(color = Neon.text, fontSize = 20.sp, fontFamily = Neon.mono),
-                    cursorBrush = SolidColor(Neon.cyan),
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Done),
-                    modifier = Modifier.fillMaxWidth().border(1.5.dp, Neon.cyan, RoundedCornerShape(10.dp)).padding(14.dp),
-                    decorationBox = { inner ->
-                        if (s.seedText.isEmpty()) NeonText("type any word or number", size = 18.sp, color = Neon.dim)
-                        inner()
-                    },
-                )
-            }
-            NeonText(
-                when (s.seedMode) {
-                    SeedMode.RANDOM -> "A fresh building every run."
-                    SeedMode.DAILY -> "Everyone gets the same building today (UTC)."
-                    SeedMode.CUSTOM -> "Same seed + same difficulty = same building. Share it."
-                },
-                size = 13.sp, color = Neon.dim,
-            )
-
-            SectionLabel("AUDIO & CONTROLS")
-            AudioAndControls(s, onChange)
-
-            SectionLabel("HOW TO PLAY")
-            HowToPlay()
-            Spacer(Modifier.height(4.dp))
-            NeonButton("BACK", Neon.cyan, Modifier.fillMaxWidth(), onClick = onBack)
-            Spacer(Modifier.height(12.dp))
-        }
-    }
-}
-
-/** A little bar chart of heat by zone for a custom curve. */
-@Composable
-private fun HeatCurve(d: Difficulty) {
-    val zones = Zone.entries.filter { it != Zone.ROOFTOP && it != Zone.VOID }
-    Row(Modifier.fillMaxWidth().height(70.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.Bottom) {
-        for (z in zones) {
-            val heat = d.heat(z.startFloor + 5, z)
-            val frac = (heat / 7f).coerceIn(0.04f, 1f)
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    Modifier.fillMaxWidth().height((50 * frac).dp)
-                        .background(Brush.verticalGradient(listOf(Neon.lava, Neon.magenta)), RoundedCornerShape(4.dp)),
-                )
-                NeonText(z.title.take(4), size = 9.sp, color = Neon.dim)
-            }
-        }
-    }
-}
-
-@Composable
-fun HowToPlay() {
-    val rows = listOf(
-        "DRAG ← →" to "Run. Hold to keep going; nudge back to turn. Lift to stop.",
-        "TAP" to "Shoot. Auto-aims at the nearest threat, high or low.",
-        "DOUBLE-TAP" to "Throw a grenade.",
-        "SWIPE ↑" to "Jump. Clears low shots. Land on heads to stomp.",
-        "SWIPE ↓" to "Hide: doorway, cardboard box, or ride an open elevator down. At a red INTEL door: pick a perk.",
-        "WALK INTO" to "An enemy to choke him out instantly. Heavies only from behind.",
-        "JUMP + TAP" to "Shoot out a ceiling light: it crushes whoever is below and darkens the floor.",
-        "STAIRS" to "Run off the open end of a floor to go down. Keep going. Forever.",
-    )
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        for ((k, v) in rows) {
-            Row {
-                NeonText(k, size = 13.sp, color = Neon.cyan, modifier = Modifier.weight(0.34f))
-                NeonText(v, size = 13.sp, color = Neon.text, modifier = Modifier.weight(0.66f))
-            }
-        }
-    }
+internal fun AudioAndControls(s: Settings, onChange: (Settings) -> Unit, audioIndex: String = "//", controlsIndex: String = "//") {
+    SectionHeader(audioIndex, "AUDIO", Neon.cyan)
+    LevelMeter("MUSIC", s.musicVolume) { onChange(s.copy(musicVolume = it)) }
+    LevelMeter("SOUND FX", s.sfxVolume) { onChange(s.copy(sfxVolume = it)) }
+    SectionHeader(controlsIndex, "CONTROLS", Neon.cyan)
+    Toggle("Auto-fire", "Shoots anything in sight", s.autoFire) { onChange(s.copy(autoFire = it)) }
+    Toggle("Haptics", "Feel hits and pickups", s.haptics) { onChange(s.copy(haptics = it)) }
+    Toggle("Thumb guide", "Ring under your running thumb", s.touchGuide) { onChange(s.copy(touchGuide = it)) }
 }
