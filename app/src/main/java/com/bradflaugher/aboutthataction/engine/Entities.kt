@@ -25,8 +25,8 @@ enum class PlayerState {
     ELEVATOR,
     /** Slipping through a passage door into another hallway (a quick slide on screen). */
     PASSAGE,
-    /** Inside an INTEL room choosing a perk. */
-    INTEL,
+    /** Inside an STASH room choosing a perk. */
+    STASH,
     DEAD,
 }
 
@@ -252,7 +252,7 @@ class Elevator(val shaft: Shaft) {
 
 /** Per-hallway runtime state layered over its immutable [HallPlan]. */
 class HallState(val plan: HallPlan) {
-    val intelUsed = BooleanArray(plan.doors.size)
+    val stashUsed = BooleanArray(plan.doors.size)
     /** 0 = closed, rising to 1 when a door swings open. */
     val doorOpen = FloatArray(plan.doors.size)
     val lightAlive = BooleanArray(plan.lights.size) { true }

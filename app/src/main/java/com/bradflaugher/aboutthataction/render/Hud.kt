@@ -166,6 +166,8 @@ internal class Hud(private val f: Frame) {
             Perk.SHOCKWAVE -> "SW"
         }
 
+        /** The STASH's warm gold (its door, tap hint and perk screen). */
+        const val STASH_GOLD = 0xFFFFB02E.toInt()
         /** Offense red, defense cyan, stealth violet, utility gold. */
         fun perkColor(p: Perk): Int = when (p) {
             Perk.RAPID_FIRE, Perk.HOLLOW_POINT, Perk.PIERCE, Perk.RICOCHET, Perk.SPLIT_SHOT -> 0xFFFF4A5E.toInt()
@@ -927,21 +929,21 @@ internal class Hud(private val f: Frame) {
         if (perkSeenAt.isNaN() || f.t < perkSeenAt) perkSeenAt = if (f.dt == 0f) f.t - 10f else f.t
         val age = f.t - perkSeenAt
         val fade = HudType.clamp01(age / 0.22f)
-        val red = 0xFFFF1E3C.toInt()
+        val gold = STASH_GOLD
 
-        // Backdrop: near-black with a red core glow and slow data rain.
+        // Backdrop: near-black with a warm gold core glow and slow falling glints.
         g.fillRect(0f, 0f, W, H, Col.alpha(0xFF06030A.toInt(), 0.93f * fade))
         g.blend(Gfx.Blend.ADD)
         g.save()
         g.translate(W / 2f, H * 0.18f + f.topInset)
         g.scale(1.4f, 0.8f)
-        g.glow(0f, 0f, W * 0.55f, Col.alpha(red, 0.14f * fade))
+        g.glow(0f, 0f, W * 0.55f, Col.alpha(gold, 0.14f * fade))
         g.restore()
         for (i in 0 until 18) {
             val x = hash(i, 501) * W
             val y = fract(hash(i, 502) + f.t * (0.05f + hash(i, 503) * 0.1f)) * H * 1.2f - H * 0.1f
             val len = (6f + hash(i, 504) * 10f) * u
-            g.fillVerticalGradient(x, y - len, x + 0.25f * u, y, 0x00FF1E3C, Col.alpha(red, 0.22f * fade))
+            g.fillVerticalGradient(x, y - len, x + 0.25f * u, y, 0x00FFB02E, Col.alpha(gold, 0.22f * fade))
         }
         g.blend(Gfx.Blend.NORMAL)
 
@@ -950,16 +952,16 @@ internal class Hud(private val f: Frame) {
         val titleY = f.topInset + max(H * 0.1f, 16f * u)
         val coreY = titleY - 1f * u
         g.blend(Gfx.Blend.ADD)
-        g.glow(W / 2f, coreY, 9f * u, Col.alpha(red, 0.55f * ha))
+        g.glow(W / 2f, coreY, 9f * u, Col.alpha(gold, 0.55f * ha))
         g.blend(Gfx.Blend.NORMAL)
         g.save()
         g.translate(W / 2f, coreY)
-        g.rotate(f.t * 40f)
-        HudIcons.dataCore(g, 0f, 0f, 7f * u * ha, red)
+        g.rotate(sin(f.t * 1.6f) * 8f)
+        HudIcons.stash(g, 0f, 0f, 7f * u * ha, gold)
         g.restore()
-        g.strokeCircle(W / 2f, coreY, 5.6f * u, 0.2f * u, Col.alpha(red, 0.45f * ha))
-        HudType.tracked(g, "INTEL ACQUIRED", W / 2f, titleY + 11f * u + (1f - ha) * 2f * u, 6.4f * u, Col.alpha(WHITE, ha), Gfx.Font.TITLE, Gfx.Align.CENTER, 0.5f * u)
-        HudType.tracked(g, "CHOOSE ONE UPGRADE", W / 2f, titleY + 16.5f * u, 2.6f * u, Col.alpha(0xFFFF6A7E.toInt(), ha), Gfx.Font.HUD, Gfx.Align.CENTER, 0.6f * u)
+        g.strokeCircle(W / 2f, coreY, 5.6f * u, 0.2f * u, Col.alpha(gold, 0.45f * ha))
+        HudType.tracked(g, "STASH OPENED", W / 2f, titleY + 11f * u + (1f - ha) * 2f * u, 6.4f * u, Col.alpha(WHITE, ha), Gfx.Font.TITLE, Gfx.Align.CENTER, 0.5f * u)
+        HudType.tracked(g, "CHOOSE ONE UPGRADE", W / 2f, titleY + 16.5f * u, 2.6f * u, Col.alpha(0xFFFFD28A.toInt(), ha), Gfx.Font.HUD, Gfx.Align.CENTER, 0.6f * u)
 
         for (i in w.perkOffer.indices) perkCard(i, w.perkOffer[i], age, u)
 
@@ -1171,14 +1173,14 @@ internal class Hud(private val f: Frame) {
         if (action == null) return
         val appear = HudType.clamp01(since(hintAt) / 0.22f)
         val color = when (action) {
-            ContextAction.INTEL -> 0xFFFF2E4E.toInt()
+            ContextAction.STASH -> STASH_GOLD
             ContextAction.ELEVATOR, ContextAction.CALL -> Building.LIFT_CYAN
             ContextAction.PASSAGE -> Building.PASSAGE
             ContextAction.DOOR -> 0xFFE8E0FF.toInt()
             ContextAction.BOX -> 0xFFE0A866.toInt()
         }
         val label = when (action) {
-            ContextAction.INTEL -> "INTEL"
+            ContextAction.STASH -> "STASH"
             ContextAction.ELEVATOR -> "RIDE DOWN"
             ContextAction.CALL -> if (carCalled()) "COMING" else "CALL"
             ContextAction.PASSAGE -> "TO " + com.bradflaugher.aboutthataction.engine.Geo.hallName(w.tapDoor()?.to ?: 0)
@@ -1276,7 +1278,7 @@ internal class Hud(private val f: Frame) {
         if (icon >= 0) {
             val ix = x + iconS / 2f
             when (ContextAction.entries[icon]) {
-                ContextAction.INTEL -> HudIcons.dataCore(g, ix, 0f, iconS, color)
+                ContextAction.STASH -> HudIcons.stash(g, ix, 0f, iconS, color)
                 ContextAction.ELEVATOR, ContextAction.CALL -> HudIcons.elevator(g, ix, 0f, iconS, color)
                 ContextAction.PASSAGE -> Glyphs.arrow(g, ix, 0f, iconS * 0.32f, if ((f.w.tapDoor()?.to ?: 0) > f.w.player.hall) 1f else -1f, 0f, iconS * 0.1f, color)
                 ContextAction.DOOR -> HudIcons.door(g, ix, 0f, iconS, color)

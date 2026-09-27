@@ -144,11 +144,11 @@ class LevelGenTest {
     }
 
     @Test
-    fun intelIsCommonButNotEverywhere() {
+    fun stashesAreCommonButNotEverywhere() {
         val floors = (1..400).map { LevelGen.build(3L, it, d) }
-        val intel = floors.count { p -> p.halls.any { h -> h.doors.any { it.kind == DoorKind.INTEL } } }
-        assertTrue("intel on $intel/400", intel in 100..220)
-        assertTrue(floors[0].halls.any { h -> h.doors.any { it.kind == DoorKind.INTEL } })
+        val stash = floors.count { p -> p.halls.any { h -> h.doors.any { it.kind == DoorKind.STASH } } }
+        assertTrue("stash on $stash/400", stash in 100..220)
+        assertTrue(floors[0].halls.any { h -> h.doors.any { it.kind == DoorKind.STASH } })
     }
 
     @Test

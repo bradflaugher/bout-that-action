@@ -57,7 +57,7 @@ internal class Actors(private val f: Frame) {
     fun player(force: Boolean = false) {
         val pl = f.w.player
         if (pl.state == PlayerState.ELEVATOR && !force) return
-        if (pl.state == PlayerState.INTEL) return
+        if (pl.state == PlayerState.STASH) return
         val gy = Geo.groundY(pl.floorF)
         if (f.w.floors[0] != null) helicopter()
         if (pl.state == PlayerState.INTRO && f.w.difficulty.startFloor > 0) hatch(pl.x, pl.floorF)
@@ -882,7 +882,7 @@ internal class Actors(private val f: Frame) {
     /** After the darkness overlay: shield bubble, armor ring, reload arc. */
     fun playerOverlay() {
         val pl = f.w.player
-        if (pl.state == PlayerState.INTEL || pl.state == PlayerState.DEAD || pl.state == PlayerState.PASSAGE) return
+        if (pl.state == PlayerState.STASH || pl.state == PlayerState.DEAD || pl.state == PlayerState.PASSAGE) return
         val gy = Geo.groundY(pl.floorF)
         val foot = gy - pl.z
         val boxed = pl.state == PlayerState.BOX

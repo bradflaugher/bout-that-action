@@ -14,7 +14,7 @@ import kotlin.math.abs
  *    Flicks fire the moment they're recognised, even in the middle of a run
  *    drag, without waiting for the finger to lift. A finger that flicked can
  *    keep going: drag it sideways to run, or flick again.
- *  - **Tap**: interact (a passage, an INTEL door, an elevator), on touch-up with
+ *  - **Tap**: interact (a passage, an STASH door, an elevator), on touch-up with
  *    no added delay. The gun is automatic (or off, in SILENT), so taps never shoot
  *    guards; in mid-air a tap is a suppressed shot at a ceiling light.
  *    **Double-tap**: the second tap throws a grenade.

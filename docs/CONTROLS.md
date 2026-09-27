@@ -28,7 +28,7 @@ Every verb has exactly one gesture, and no gesture means two things:
 | Drag | Run |
 | Swipe ↑ | Jump (stomp from above) |
 | Swipe ↓ | Hide: a doorway in reach, else the box; in a lift, the box in the car |
-| Tap | Interact: a passage, a live INTEL door, an elevator (ride it if it's open, call it if not) |
+| Tap | Interact: a passage, a live STASH door, an elevator (ride it if it's open, call it if not) |
 | Double-tap | Grenade |
 | Walk into a guard | Takedown |
 | Jump + tap | Swat out the ceiling lamp overhead |
@@ -105,9 +105,9 @@ stomp), 1.3× falling for a snappy landing. Airtime is about 0.79 s, peak
 0.6 u while falling (`LATE_POUND_Z`), a pound is pointless, so the swipe is
 treated as an early hide: it's buffered and runs on landing.
 
-**Tap and swipe never compete.** Tap targets are passages, live INTEL
+**Tap and swipe never compete.** Tap targets are passages, live STASH
 doors and elevator landings with a ride down; swipe-down targets are hiding
-doorways (and a cleared INTEL door). A passage is never a hiding place and a
+doorways (and an emptied STASH door). A passage is never a hiding place and a
 doorway is never a tap target, and generation keeps doors at least 3 u apart
 (`Geo.MIN_DOOR_GAP`) and clear of shaft columns, so there's only ever one
 thing in reach (`TAP_REACH` 0.8 u, `DOOR_REACH` 0.6 u, `ELEVATOR_REACH`

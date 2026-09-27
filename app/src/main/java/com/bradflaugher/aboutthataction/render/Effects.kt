@@ -48,7 +48,7 @@ internal class Effects(private val f: Frame) {
     }
 
     /**
-     * Light that lives in the building: a soft bloom on every live lamp and unused INTEL door
+     * Light that lives in the building: a soft bloom on every live lamp and unused STASH door
      * in view. A handful of cached glow sprites per floor, drawn additively over the scene.
      */
     fun bloom() {
@@ -77,9 +77,9 @@ internal class Effects(private val f: Frame) {
             }
             for (d in plan.doors.indices) {
                 val door = plan.doors[d]
-                if (door.kind != com.bradflaugher.aboutthataction.engine.DoorKind.INTEL || fs.intelUsed[d]) continue
+                if (door.kind != com.bradflaugher.aboutthataction.engine.DoorKind.STASH || fs.stashUsed[d]) continue
                 val pulse = 0.8f + 0.2f * sin(f.t * 3f + d)
-                g.glow(door.x, gy - 1.15f, 1.35f, Col.alpha(0xFFFF1E3C.toInt(), 0.1f * pulse))
+                g.glow(door.x, gy - 1.15f, 1.35f, Col.alpha(0xFFFFB02E.toInt(), 0.1f * pulse))
             }
         }
     }

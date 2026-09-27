@@ -43,7 +43,7 @@ class RunStats {
     var grenadesThrown = 0
     var rides = 0
     var expressRides = 0
-    var intel = 0
+    var stashes = 0
     /** Special floors (blackouts, nap time, payday) walked onto. */
     var floorEvents = 0
     var hurts = 0

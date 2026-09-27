@@ -30,10 +30,10 @@ enum class Command { TAP, DOUBLE_TAP, SWIPE_UP, SWIPE_DOWN, TOGGLE_MODE }
 
 /**
  * What a gesture would do right now; the HUD shows it over the player. The first four are
- * taps (ride, call a car, go through a passage, enter INTEL), the last two are swipe-down hides.
+ * taps (ride, call a car, go through a passage, enter STASH), the last two are swipe-down hides.
  */
 enum class ContextAction(val tap: Boolean) {
-    ELEVATOR(true), CALL(true), PASSAGE(true), INTEL(true), DOOR(false), BOX(false)
+    ELEVATOR(true), CALL(true), PASSAGE(true), STASH(true), DOOR(false), BOX(false)
 }
 
 enum class Flash { NONE, HURT, WHITE, GOLD }
@@ -479,7 +479,7 @@ class World(val config: RunConfig) {
         if (p.state == PlayerState.PASSAGE && (c == Command.TAP || c == Command.DOUBLE_TAP)) return true
         when (p.state) {
             PlayerState.TAKEDOWN, PlayerState.PASSAGE, PlayerState.INTRO -> return false
-            PlayerState.DEAD, PlayerState.INTEL -> return true
+            PlayerState.DEAD, PlayerState.STASH -> return true
             else -> Unit
         }
         // A swipe is a newer, deliberate intent: it cancels a door tap still waiting out
@@ -595,13 +595,13 @@ class World(val config: RunConfig) {
     /** What a gesture would do right now (null if nothing): the tap target first, else the hide. */
     fun contextAction(): ContextAction? = tapAction() ?: hideAction()
 
-    /** What a tap would do right now: ride, call a car, take a passage or enter INTEL. */
+    /** What a tap would do right now: ride, call a car, take a passage or enter STASH. */
     fun tapAction(): ContextAction? {
         val p = player
         if (p.state != PlayerState.NORMAL && p.state != PlayerState.BOX || !p.grounded) return null
         return when (val t = tapTarget()) {
             is Elevator -> if (canBoard(t)) ContextAction.ELEVATOR else ContextAction.CALL
-            is Int -> if (playerHall()?.plan?.doors?.get(t)?.kind == DoorKind.PASSAGE) ContextAction.PASSAGE else ContextAction.INTEL
+            is Int -> if (playerHall()?.plan?.doors?.get(t)?.kind == DoorKind.PASSAGE) ContextAction.PASSAGE else ContextAction.STASH
             else -> null
         }
     }
@@ -620,11 +620,11 @@ class World(val config: RunConfig) {
         }
     }
 
-    /** The door a tap would use (a passage or a live INTEL door), if the tap target is a door. */
+    /** The door a tap would use (a passage or a live STASH door), if the tap target is a door. */
     fun tapDoor(): Door? = (tapTarget() as? Int)?.let { playerHall()?.plan?.doors?.get(it) }
 
     /**
-     * What a tap would use: a passage or live INTEL door (its index) or an elevator landing
+     * What a tap would use: a passage or live STASH door (its index) or an elevator landing
      * with a ride down ([Elevator]), whichever is nearest within reach, with a nudge toward
      * what you're facing.
      */
@@ -649,7 +649,7 @@ class World(val config: RunConfig) {
         val doors = hs.plan.doors
         for (i in doors.indices) {
             val d = doors[i]
-            if (d.kind == DoorKind.PASSAGE || d.kind == DoorKind.INTEL && !hs.intelUsed[i]) consider(d.x, TAP_REACH, i)
+            if (d.kind == DoorKind.PASSAGE || d.kind == DoorKind.STASH && !hs.stashUsed[i]) consider(d.x, TAP_REACH, i)
         }
         return best
     }
@@ -669,7 +669,7 @@ class World(val config: RunConfig) {
         val doors = hs.plan.doors
         for (i in doors.indices) {
             val d = doors[i]
-            val hideable = d.kind == DoorKind.NORMAL || d.kind == DoorKind.INTEL && hs.intelUsed[i]
+            val hideable = d.kind == DoorKind.NORMAL || d.kind == DoorKind.STASH && hs.stashUsed[i]
             if (!hideable) continue
             val dx = abs(d.x - p.x)
             if (dx < bd) {
@@ -680,7 +680,7 @@ class World(val config: RunConfig) {
         return best
     }
 
-    /** Tap: ride an open car, call a closed one, go through a passage, or enter INTEL. */
+    /** Tap: ride an open car, call a closed one, go through a passage, or enter STASH. */
     private fun interact() {
         val p = player
         val hs = playerHall() ?: return
@@ -692,7 +692,7 @@ class World(val config: RunConfig) {
             is Int -> {
                 if (p.hidden) unhide()
                 val d = hs.plan.doors[t]
-                if (d.kind == DoorKind.PASSAGE) startPassage(hs, t) else enterIntel(hs, t)
+                if (d.kind == DoorKind.PASSAGE) startPassage(hs, t) else enterStash(hs, t)
             }
         }
     }
@@ -778,17 +778,17 @@ class World(val config: RunConfig) {
         events += GameEvent.Passage
     }
 
-    private fun enterIntel(hs: HallState, d: Int) {
+    private fun enterStash(hs: HallState, d: Int) {
         val p = player
-        hs.intelUsed[d] = true
+        hs.stashUsed[d] = true
         hs.doorOpen[d] = 1f
-        p.state = PlayerState.INTEL
+        p.state = PlayerState.STASH
         p.anchorX = hs.plan.doors[d].x
         p.x = p.anchorX
         p.vx = 0f
         score += 500
-        stats.intel++
-        fx.text("INTEL +500", p.x, Geo.groundY(p.floor) - 2.2f, TextStyle.PICKUP)
+        stats.stashes++
+        fx.text("STASH +500", p.x, Geo.groundY(p.floor) - 2.2f, TextStyle.PICKUP)
         offerPerks()
     }
 
@@ -983,7 +983,7 @@ class World(val config: RunConfig) {
                     }
                 }
             }
-            PlayerState.INTEL -> Unit
+            PlayerState.STASH -> Unit
             PlayerState.DEAD -> {
                 p.vz -= GRAVITY * 0.6f * dt
                 p.z = max(0f, p.z + p.vz * dt)
@@ -1608,7 +1608,7 @@ class World(val config: RunConfig) {
     private fun hurtPlayer(sourceX: Float, cause: HurtCause, by: EnemyKind? = null, ambush: Boolean = false, hazard: HazardKind? = null) {
         val p = player
         if (p.invuln > 0f || p.state == PlayerState.DEAD || phase != Phase.PLAYING) return
-        if (p.state == PlayerState.DOOR || p.state == PlayerState.INTEL || p.state == PlayerState.PASSAGE || p.state == PlayerState.TAKEDOWN) return
+        if (p.state == PlayerState.DOOR || p.state == PlayerState.STASH || p.state == PlayerState.PASSAGE || p.state == PlayerState.TAKEDOWN) return
         val hurt = Hurt(cause, by, p.floor, zone, hallTime, ambush, hazard)
         val y = Geo.groundY(p.floorF) - p.z - 0.9f
         spotted(p.floor)

@@ -27,7 +27,7 @@ is read on its own, so one thumb can run while the other taps.
 | Gesture | Does |
 |---|---|
 | **Drag ← →** and hold | Run. Nudge back a little to turn around instantly. Lift to stop. A held run won't pull you out of a doorway or elevator: lift and drag again to step out. |
-| **Tap** | Interact with what you're standing at: go through a green **passage** door into another hallway, enter a red **INTEL** door, ride an open **elevator** down, or call a closed one. With nothing in reach, a tap does nothing. |
+| **Tap** | Interact with what you're standing at: go through a green **passage** door into another hallway, enter a gold **STASH** door, ride an open **elevator** down, or call a closed one. With nothing in reach, a tap does nothing. |
 | **Swipe ↓** | Hide: press into a nearby **doorway**, otherwise pop the **cardboard box**. In an elevator, box up in the car. Swipe ↓ again to stand up. In a doorway, a tap or a swipe ↑ also steps you out. |
 | **Swipe ↑** | Jump. Clears low shots; land on heads to stomp. Works mid-run. |
 | **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind; a napping guard from anywhere. Works in GUNS HOT too: the gun never shoots a guard with his back to you. |
@@ -77,7 +77,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   at their posts: tiptoe up for a NIGHT NIGHT), or **PAYDAY** (somebody left
   the loot lying around). Some rides come with smooth jazz. The first guard
   of every run is napping on the roof.
-- **Roguelike runs.** Every red INTEL door offers three perks, and they
+- **Roguelike runs.** Every gold STASH door offers three perks, and they
   stack: Rapid Fire, Pierce, Ricochet, Split Shot, CQC Master, Ghost Box,
   Double Jump, Demolition, Reflex (auto bullet-time), Kevlar, Shockwave
   stomps and more. Enemies drop shotguns, miniguns, shields, bullet time,
@@ -95,7 +95,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   </tr>
   <tr>
     <td align="center" width="33%"><img src="docs/screenshots/box.png" alt="Hiding in the cardboard box"><p><em><b>The box.</b> "?"</em></p></td>
-    <td align="center" width="33%"><img src="docs/screenshots/intel.png" alt="Perk choice"><p><em><b>INTEL</b>: pick one of three</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/stash.png" alt="Perk choice"><p><em><b>STASH</b>: pick one of three</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/darkness.png" alt="Lights shot out"><p><em><b>Lights out.</b> They can't see you either</em></p></td>
   </tr>
   <tr>
@@ -213,7 +213,7 @@ Kotlin behind small interfaces, so it's tested on the JVM:
   GUNS HOT auto-fire, SILENT, the mode toggle and its bonus, box vs high
   shots, jumping low shots, doorways, patrol beats, passages, taps that do
   nothing, elevators that only go down, expresses, calling a car, boxing up
-  in the car, intel, swatting lamps, stomps, grenades, combos, no
+  in the car, stashes, swatting lamps, stomps, grenades, combos, no
   stairs, death, replays).
 - `ControlsTest`: input buffering, the hit-grace window, the jump arc,
   turnarounds, auto-aim intent, tap and swipe context, door and car exits.
