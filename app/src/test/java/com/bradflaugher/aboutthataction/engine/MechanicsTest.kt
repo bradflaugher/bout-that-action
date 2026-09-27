@@ -158,7 +158,7 @@ class MechanicsTest {
         quiet.player.x = 3f
         enemy(quiet, EnemyKind.AGENT, 4.5f, facing = 1)
         run(quiet, 1.2f) { it.moveAxis = 1 }
-        assertEquals((100L + 50L) * 3 / 2, quiet.score)
+        assertEquals((100L + 50L) * 2, quiet.score)
         assertEquals(1, quiet.silentKills)
 
         val loud = world(silent = false)
@@ -492,6 +492,33 @@ class MechanicsTest {
         assertEquals(shaft.stop, openedAt)
         assertEquals(shaft.bottom, w.player.floor)
         assertEquals(0, w.player.hall)
+    }
+
+    @Test
+    fun boxingUpInTheCarHidesYouFromWhoeverIsAtTheDoors() {
+        for (boxed in listOf(false, true)) {
+            val (w, shaft) = atLanding()
+            val car = w.elevators[shaft.id]!!
+            car.pos = shaft.top.toFloat()
+            car.pause = 5f
+            car.openTime = 1f
+            w.commands += Command.TAP
+            run(w, 0.05f)
+            assertEquals(PlayerState.ELEVATOR, w.player.state)
+            car.pause = 5f // hold the doors open
+            if (boxed) {
+                w.commands += Command.SWIPE_DOWN
+                run(w, 0.05f)
+                assertTrue(w.player.carBox)
+                assertTrue(w.events.contains(GameEvent.HideBox))
+            }
+            val side = if (shaft.x < Geo.FLOOR_W / 2f) 1 else -1
+            val guard = enemy(w, EnemyKind.AGENT, shaft.x + side * 3f, facing = -side)
+            guard.patrolA = guard.x
+            guard.patrolB = guard.x
+            run(w, 0.3f) { car.pause = 5f }
+            if (boxed) assertEquals(EnemyState.PATROL, guard.state) else assertTrue(guard.state != EnemyState.PATROL)
+        }
     }
 
     @Test

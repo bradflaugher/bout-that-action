@@ -73,6 +73,8 @@ class Player {
      * grenade double-tap never walks you through one). Seconds left, or 0.
      */
     var tapTimer = 0f
+    /** Riding with the cardboard box pulled over you: nobody at the doors can see you. */
+    var carBox = false
     var takedownTarget = -1
     /** Seconds since the last shot (for the muzzle flash / recoil pose). */
     var sinceShot = 9f

@@ -580,6 +580,7 @@ class World(val config: RunConfig) {
         p.x = car.shaft.x
         p.vx = 0f
         p.holdAxis = moveAxis
+        p.carBox = false
         car.carrying = true
         car.called = -1
         car.dir = 1
@@ -636,6 +637,11 @@ class World(val config: RunConfig) {
             return true
         }
         when (p.state) {
+            PlayerState.ELEVATOR -> {
+                // Box up in the car: whoever's waiting when the doors open sees an empty lift.
+                p.carBox = !p.carBox
+                events += if (p.carBox) GameEvent.HideBox else GameEvent.Unhide
+            }
             PlayerState.BOX -> {
                 // Sneak up to a doorway in the box and swipe again to slip in;
                 // anywhere else the same swipe stands you back up.
@@ -817,6 +823,7 @@ class World(val config: RunConfig) {
         val p = player
         car.carrying = false
         car.pause = 1f
+        p.carBox = false
         p.floorF = car.pos.roundToInt().toFloat()
         val f = p.floor
         p.hall = floors[f]?.plan?.landingHall(car.shaft)?.coerceAtLeast(0) ?: 0
@@ -1020,7 +1027,7 @@ class World(val config: RunConfig) {
     /** GUNS HOT: fire at the top threat in range the moment the gun is ready. SILENT never fires. */
     private fun autoFire() {
         val p = player
-        if (silent || p.fireCooldown > 0f) return
+        if (silent || p.fireCooldown > 0f || p.carBox) return
         val target = pickTarget(if (p.weapon == PickupKind.MINIGUN) 11f else AUTO_FIRE_RANGE) ?: return
         if (target.state == EnemyState.EMERGING && target.stateTime < 0.25f) return
         fire(target)
@@ -1207,7 +1214,9 @@ class World(val config: RunConfig) {
     private fun alert(e: Enemy) {
         e.state = EnemyState.ALERT
         e.stateTime = 0f
-        e.timer = Heat.reaction(floors[e.floor]?.plan?.heat ?: 0f) * rng.range(0.8f, 1.2f)
+        // SILENT: no gunfire to home in on, so it takes them a beat longer to get a bead on you.
+        val quiet = if (silent) SILENT_REACTION else 1f
+        e.timer = Heat.reaction(floors[e.floor]?.plan?.heat ?: 0f) * quiet * rng.range(0.8f, 1.2f)
         e.facing = if (player.x >= e.x) 1 else -1
     }
 
@@ -1249,10 +1258,10 @@ class World(val config: RunConfig) {
             else -> 0
         }
         var points = (e.kind.score + bonus) * mult
-        // SILENT pays: every kill without a gunshot is worth half again.
+        // SILENT pays: every kill without a gunshot is worth double.
         val quiet = silent && method != KillMethod.SHOT && method != KillMethod.EXPLOSION
         if (quiet) {
-            points += points / 2
+            points *= 2
             silentKills++
         }
         score += points
@@ -1341,7 +1350,7 @@ class World(val config: RunConfig) {
     /** Can guards in hallway [hall] of [floor] see the player at all right now? */
     private fun playerVisibleOn(floor: Int, hall: Int): Boolean = when (player.state) {
         PlayerState.NORMAL, PlayerState.TAKEDOWN -> player.floor == floor && player.hall == hall
-        PlayerState.ELEVATOR -> elevators[player.elevatorShaft]?.let {
+        PlayerState.ELEVATOR -> !player.carBox && elevators[player.elevatorShaft]?.let {
             it.doorsOpen && it.atFloor == floor && floors[floor]?.plan?.landingHall(it.shaft) == hall
         } == true
         else -> false
@@ -1372,7 +1381,8 @@ class World(val config: RunConfig) {
             val visible = playerVisibleOn(e.floor, e.hall)
             val dx = player.x - e.x
             val dist = abs(dx)
-            val range = SIGHT_RANGE - 4.3f * hs.darkness
+            // SILENT: you're a shadow; guards need you a little closer to pick you out.
+            val range = (if (silent) SILENT_SIGHT_RANGE else SIGHT_RANGE) - 4.3f * hs.darkness
             val omni = e.kind == EnemyKind.TURRET || e.kind == EnemyKind.DRONE
             val boxedNearby = player.state == PlayerState.BOX && here(e) && dist < 1.8f &&
                 (e.state == EnemyState.ALERT || e.state == EnemyState.AIM)
@@ -1951,7 +1961,7 @@ class World(val config: RunConfig) {
         const val FLOORS_ABOVE = 5
         const val FLOORS_BELOW = 7
         /** The player's floor sits this far down the screen. */
-        const val CAMERA_ANCHOR = 0.42f
+        const val CAMERA_ANCHOR = 0.4f
         const val RELOAD_TIME = 1.05f
         const val TACTICAL_RELOAD_DELAY = 1.4f
         const val LIGHT_FALL_TIME = 0.42f
@@ -1969,12 +1979,16 @@ class World(val config: RunConfig) {
         const val AUTO_FIRE_RANGE = 7.5f
         /** How far guards see down a lit hallway (darkness cuts it). */
         const val SIGHT_RANGE = 7.5f
+        /** ...and in SILENT, where nothing gives you away but being seen. */
+        const val SILENT_SIGHT_RANGE = 6.5f
         /** Patrol walking pace, as a fraction of the heat's enemy speed. */
         const val PATROL_SPEED = 0.45f
         /** A patrolling guard stops and looks this long at each end of the beat. */
         const val PATROL_LOOK = 1.6f
         /** A guard standing watch turns round this often. */
         const val GUARD_TURN = 3.2f
+        /** SILENT: guards take this much longer to react when they spot you. */
+        const val SILENT_REACTION = 1.35f
         /** One grenade earned back per this many kills. */
         const val GRENADE_EVERY = 8
 

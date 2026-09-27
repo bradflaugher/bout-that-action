@@ -74,14 +74,23 @@ class Renderer {
 
         // Actors per floor, then darkness on top of the rooms, then the lights that survive it.
         for (i in first..last) f.views(i) { actors.floorActors(i, it) }
+        // Mid-slide the player rides in with the new hallway, stepping out of its door.
+        val pdx = f.playerSlideDx()
+        g.save()
+        g.translate(pdx, 0f)
         actors.player()
+        g.restore()
         for (i in first..last) f.views(i) { building.darkness(it) }
         val pf = world.player.floorF
+        // Focus: the zoomed-out tower shows many floors, so the further a floor is from the
+        // player's, the further it recedes. The stage stays at full strength.
         for (i in first..last) {
             if (i == 0 || world.floors[i] == null) continue
-            if (i.toFloat() > pf - 1f && i.toFloat() < pf + 1f) continue
+            val d = kotlin.math.abs(i - pf)
+            if (d < 1f) continue
+            val a = (0.2f + 0.09f * (d - 1f)).coerceAtMost(0.46f)
             val top = i * Geo.FLOOR_H + 0.35f
-            g.fillRect(-0.6f, top, Geo.FLOOR_W + 0.6f, (i + 1) * Geo.FLOOR_H + 0.35f, 0x33000000)
+            g.fillRect(-0.6f, top, Geo.FLOOR_W + 0.6f, (i + 1) * Geo.FLOOR_H + 0.35f, Col.alpha(0xFF000000.toInt(), a))
         }
         for (i in first..last) f.views(i) {
             actors.darkEyes(i, it)
@@ -211,6 +220,43 @@ internal class Frame {
             viewDx = 0f
             g.restore()
         }
+        slideStreak(fi, dir, dir * span * (1f - e), e)
+    }
+
+    /**
+     * The whoosh: a bright seam where the incoming hallway's edge leads, trailing speed lines
+     * across the floor, in the passages' wayfinding green. Fades as the slide lands.
+     */
+    fun slideStreak(fi: Int, dir: Float, dxTo: Float, e: Float) {
+        val seam = if (dir > 0f) dxTo else dxTo + Geo.FLOOR_W
+        if (seam <= 0f || seam >= Geo.FLOOR_W) return
+        val top = fi * Geo.FLOOR_H + 0.35f
+        val gy = (fi + 1) * Geo.FLOOR_H
+        val a = (1f - e) * 0.9f + 0.1f
+        g.save()
+        g.clipRect(0f, top, Geo.FLOOR_W, gy)
+        g.blend(Gfx.Blend.ADD)
+        for (k in 0 until 5) {
+            val w0 = 0.05f + k * 0.16f
+            val x0 = if (dir > 0f) seam else seam - w0
+            g.fillRect(x0, top, x0 + w0, gy, Col.alpha(Building.PASSAGE, 0.1f * a))
+        }
+        g.fillRect(seam - 0.02f, top, seam + 0.02f, gy, Col.alpha(0xFFE8FFF4.toInt(), 0.8f * a))
+        for (k in 0 until 7) {
+            val y = top + 0.3f + (gy - top - 0.6f) * ((k * 0.618f) % 1f)
+            val len = (1.2f + (k % 3) * 0.9f) * (0.4f + a)
+            val x1 = seam + dir * len
+            g.line(seam, y, x1, y, 0.025f, Col.alpha(Building.PASSAGE, 0.35f * a))
+        }
+        g.blend(Gfx.Blend.NORMAL)
+        g.restore()
+    }
+
+    /** Offset of the hallway the player is in, while their floor is mid-slide (else 0). */
+    fun playerSlideDx(): Float {
+        if (slideFloor != w.player.floor || slideU >= 1f || w.player.hall != slideTo) return 0f
+        val dir = if (slideTo > slideFrom) 1f else -1f
+        return dir * (Geo.FLOOR_W + 0.6f) * (1f - slideEase(slideU))
     }
 
     /** Fast out, soft landing: reads as a whoosh. */

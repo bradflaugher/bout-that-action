@@ -22,6 +22,7 @@ class BotPlaythroughTest {
         var silentKills = 0
         var kills = 0
         var perks = 0
+        var score = 0L
         val depths = ArrayList<Int>()
     }
 
@@ -55,12 +56,13 @@ class BotPlaythroughTest {
         t.silentKills += w.silentKills
         t.kills += w.kills
         t.perks += w.perks.values.sum()
+        t.score += w.score
     }
 
     @Test
     fun aDecentPlayerDescends() {
         val report = StringBuilder()
-        report.append("preset/mode            floors avg  max   s/floor  enc/floor  pass/floor  kills  quiet  perks  shots  hits  deaths/12\n")
+        report.append("preset/mode            floors avg  max   s/floor  enc/floor  pass/floor  kills  quiet  perks  shots  hits  deaths/12  score/run\n")
         var chillAverage = 0.0
         val depthByPreset = HashMap<String, Double>()
         for (preset in Difficulty.Preset.entries) {
@@ -72,9 +74,9 @@ class BotPlaythroughTest {
                 depthByPreset[preset.name + silent] = avg
                 val per = t.floors.coerceAtLeast(1).toDouble()
                 report.append(
-                    "%-22s %8.1f %4d %9.1f %10.2f %11.2f %6d %6d %6d %6d %5d %9d%n".format(
+                    "%-22s %8.1f %4d %9.1f %10.2f %11.2f %6d %6d %6d %6d %5d %9d %10d%n".format(
                         preset.name + if (silent) " SILENT" else " HOT", avg, t.depths.max(), t.seconds / per,
-                        t.encounters / per, t.passages / per, t.kills, t.silentKills, t.perks, t.enemyShots, t.hits, t.deaths,
+                        t.encounters / per, t.passages / per, t.kills, t.silentKills, t.perks, t.enemyShots, t.hits, t.deaths, t.score / 12,
                     ),
                 )
             }

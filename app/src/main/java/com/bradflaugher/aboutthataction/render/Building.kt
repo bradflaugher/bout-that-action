@@ -682,7 +682,7 @@ internal class Building(private val f: Frame) {
             if (plan.opens(s)) continue
             val x0 = s.x - Geo.SHAFT_W / 2f
             val x1 = s.x + Geo.SHAFT_W / 2f
-            g.fillRect(x0, rt + 0.3f, x1, gy, 0x9A0A0C14.toInt())
+            g.fillRect(x0, rt + 0.3f, x1, gy, 0xB40A0C14.toInt())
             // Glass glints and service grille bars.
             poly.quad(g, x0 + 0.1f, gy - 0.4f, x0 + 0.26f, gy - 0.4f, x1 - 0.1f, rt + 0.7f, x1 - 0.26f, rt + 0.7f, 0x10FFFFFF)
             var y = rt + 0.55f
@@ -691,9 +691,10 @@ internal class Building(private val f: Frame) {
                 y += 0.36f
             }
             g.fillRect(x0, rt + 0.3f, x1, rt + 0.32f, Col.alpha(hs.let { f.palette(it) }.trim, 0.3f))
-            // Tag: the lift glyph and the hallway it opens into here.
+            // Tag: the lift glyph and the hallway it opens into here (only near the stage: it's
+            // wayfinding for the floor you're on, not noise for the whole tower).
             val h = floorPlan.landingHall(s)
-            if (h < 0) continue
+            if (h < 0 || stage(fi) < 0.5f) continue
             val ride = fi < s.bottom
             val c = if (ride) LIFT_CYAN else 0xFF8A94A8.toInt()
             val ty = rt + 1.0f
@@ -1089,9 +1090,12 @@ internal class Building(private val f: Frame) {
         g.strokeCircle(mx, my, 0.2f, 0.03f, 0xFFFF6A3A.toInt())
         g.fillCircle(mx, my, 0.07f, 0xFFFF6A3A.toInt())
         worldRich("TOP BUTTON:", mx + 0.34f, my + 0.1f, 0.24f, 0xFFD8D0EC.toInt(), Gfx.Align.LEFT)
-        f.worldText("GUNS HOT", actX - 1.55f, my + 0.1f, 0.24f, 0xFFFF6A3A.toInt(), Gfx.Font.TITLE, Gfx.Align.RIGHT)
-        f.worldText("/", actX - 1.4f, my + 0.1f, 0.24f, 0x80FFFFFF.toInt(), Gfx.Font.TITLE, Gfx.Align.CENTER)
-        f.worldText("SILENT", actX, my + 0.1f, 0.24f, 0xFF9C8CFF.toInt(), Gfx.Font.TITLE, Gfx.Align.RIGHT)
+        val ms = 0.24f
+        val silentW = g.textWidth("SILENT", ms * f.s, Gfx.Font.TITLE) / f.s
+        val slashX = actX - silentW - 0.2f
+        f.worldText("SILENT", actX, my + 0.1f, ms, 0xFF9C8CFF.toInt(), Gfx.Font.TITLE, Gfx.Align.RIGHT)
+        f.worldText("/", slashX, my + 0.1f, ms, 0x80FFFFFF.toInt(), Gfx.Font.TITLE, Gfx.Align.CENTER)
+        f.worldText("GUNS HOT", slashX - 0.2f, my + 0.1f, ms, 0xFFFF6A3A.toInt(), Gfx.Font.TITLE, Gfx.Align.RIGHT)
         // LED ticker bar under the board.
         val ty0 = y1 + 0.2f
         g.fillRoundRect(x0 + 0.1f, ty0, x1 - 0.1f, ty0 + 0.42f, 0.06f, 0xFF120308.toInt())
@@ -1144,10 +1148,10 @@ internal class Building(private val f: Frame) {
         g.fillRect(sx1 + 0.07f, fy, sx1 + 0.1f, gy, STEEL_LO)
         // Lit LIFT sign over the portal.
         val ly = fy - 0.38f
-        g.fillRoundRect(sx - 0.5f, ly - 0.2f, sx + 0.5f, ly + 0.2f, 0.06f, 0xF0060810.toInt())
-        g.strokeRoundRect(sx - 0.5f, ly - 0.2f, sx + 0.5f, ly + 0.2f, 0.06f, 0.025f, LIFT_CYAN)
-        HudIcons.elevator(g, sx - 0.3f, ly, 0.28f, LIFT_CYAN)
-        f.worldText("LIFT", sx + 0.1f, ly + 0.09f, 0.22f, LIFT_CYAN, Gfx.Font.TITLE)
+        g.fillRoundRect(sx - 0.56f, ly - 0.2f, sx + 0.56f, ly + 0.2f, 0.06f, 0xF0060810.toInt())
+        g.strokeRoundRect(sx - 0.56f, ly - 0.2f, sx + 0.56f, ly + 0.2f, 0.06f, 0.025f, LIFT_CYAN)
+        HudIcons.elevator(g, sx - 0.36f, ly, 0.26f, LIFT_CYAN)
+        f.worldText("LIFT", sx + 0.12f, ly + 0.08f, 0.2f, LIFT_CYAN, Gfx.Font.TITLE)
         g.blend(Gfx.Blend.ADD)
         g.glow(sx, ly, 1.1f, Col.alpha(LIFT_CYAN, 0.12f))
         g.blend(Gfx.Blend.NORMAL)

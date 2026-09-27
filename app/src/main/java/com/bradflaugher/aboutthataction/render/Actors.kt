@@ -59,8 +59,6 @@ internal class Actors(private val f: Frame) {
         val pl = f.w.player
         if (pl.state == PlayerState.ELEVATOR && !force) return
         if (pl.state == PlayerState.INTEL) return
-        // Through a passage: into the doorway, then gone until the far door (the hallway slides).
-        if (pl.state == PlayerState.PASSAGE && pl.stateTime >= com.bradflaugher.aboutthataction.engine.World.PASSAGE_TIME * 0.5f) return
         val gy = Geo.groundY(pl.floorF)
         if (f.w.floors[0] != null) helicopter()
         if (pl.state == PlayerState.INTRO && f.w.difficulty.startFloor > 0) hatch(pl.x, pl.floorF)
@@ -114,6 +112,12 @@ internal class Actors(private val f: Frame) {
             g.blend(Gfx.Blend.NORMAL)
         }
 
+        if (pl.state == PlayerState.ELEVATOR && pl.carBox) {
+            // Boxed up in the lift.
+            box(pl.x, gy, dir, 0f, pl.stateTime)
+            p.reset()
+            return
+        }
         when (pl.state) {
             PlayerState.BOX -> box(pl.x, gy, dir, pl.vx, pl.stateTime)
             PlayerState.DOOR, PlayerState.PASSAGE -> doorHide(pl.x, foot, dir)

@@ -18,7 +18,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
     private var tapCooldown = 0f
     private var dodgeCooldown = 0f
     private var grenadeCooldown = 0f
-    private var waitTime = 0f
+    private var holdTime = 0f
 
     /** Decide this step's input. Call once before every [World.step] of [dt]. */
     fun act(w: World, dt: Float = 1f / 120f) {
@@ -37,12 +37,31 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         when (p.state) {
             PlayerState.ELEVATOR -> {
                 w.moveAxis = 0
+                // SILENT: box up in the car whenever the doors open on someone.
+                val car = w.elevators[p.elevatorShaft]
+                val at = car?.atFloor
+                if (w.silent && car != null && car.doorsOpen && at != null && !p.carBox && tapCooldown <= 0f) {
+                    val hall = w.floor(at)?.plan?.landingHall(car.shaft) ?: -1
+                    if (w.enemies.any { it.floor == at && it.hall == hall && it.alive && abs(it.x - p.x) < 8f }) {
+                        w.commands += Command.SWIPE_DOWN
+                        tapCooldown = 0.4f
+                    }
+                }
                 return
             }
             PlayerState.BOX -> {
                 w.moveAxis = 0
-                // Stand up once nobody is shooting or looking this way.
-                if (p.stateTime > 0.5f && safe(w) && tapCooldown <= 0f) {
+                // A low shot coming at the box: jump it (that pops you out).
+                val low = w.bullets.firstOrNull {
+                    !it.byPlayer && it.floor == p.floor && it.hall == p.hall && it.z < 0.7f && (p.x - it.x) * it.vx > 0f && abs(p.x - it.x) < 1.4f
+                }
+                if (low != null && dodgeCooldown <= 0f) {
+                    w.commands += Command.SWIPE_UP
+                    dodgeCooldown = 0.5f
+                    return
+                }
+                // Stand up once nobody is shooting or looking this way (or give up waiting).
+                if (p.stateTime > 0.5f && (safe(w) || p.stateTime > 6f) && tapCooldown <= 0f) {
                     w.commands += Command.SWIPE_DOWN
                     tapCooldown = 0.4f
                 }
@@ -92,15 +111,18 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         }
 
         if (!w.silent) {
-            // GUNS HOT: hold still while the auto-fire works on anything in range; choke what's close.
+            // GUNS HOT: hold still while the auto-fire works on anything in range; choke what's
+            // close. After a few seconds of holding, push on anyway (the gun fires on the move).
             val nearest = enemies.minByOrNull { abs(it.x - p.x) }
-            if (nearest != null && abs(nearest.x - p.x) < World.AUTO_FIRE_RANGE) {
+            if (nearest != null && abs(nearest.x - p.x) < World.AUTO_FIRE_RANGE && holdTime < 4f) {
+                holdTime += dt
                 val d = abs(nearest.x - p.x)
                 w.moveAxis = if (d < 1.5f && nearest.kind != EnemyKind.HEAVY && nearest.kind != EnemyKind.DRONE && nearest.kind != EnemyKind.TURRET) {
                     if (nearest.x > p.x) 1 else -1
                 } else 0
                 return
             }
+            if (nearest == null || abs(nearest.x - p.x) >= World.AUTO_FIRE_RANGE) holdTime = 0f
         } else if (sneak(w, enemies, dir)) {
             return
         }
@@ -133,7 +155,11 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         w.moveAxis = dir
     }
 
-    /** SILENT: deal with the guard between us and the goal. True if that took this step's input. */
+    /**
+     * SILENT: deal with the guard between us and the goal. True if that took this step's input.
+     * The loop is the Metal Gear one: box up before a guard looking this way gets close, let
+     * him walk into the box (an ambush) or turn his back, then take him down from behind.
+     */
     private fun sneak(w: World, enemies: List<Enemy>, dir: Int): Boolean {
         val p = w.player
         val blocker = enemies.filter { (it.x - p.x) * dir > -0.5f && abs(it.x - p.x) < 9f }.minByOrNull { abs(it.x - p.x) } ?: return false
@@ -150,33 +176,39 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
                 return true
             }
             EnemyKind.HEAVY -> if (facingMe) {
-                // Only from behind: wait for him to turn (hide if he's coming).
-                if (alert && d < 5f) return false
-                waitOrHide(w, d, toward)
+                if (alert && d < 2.8f) {
+                    // Too close to hide from: jump on his head (a stomp drops anyone).
+                    w.moveAxis = toward
+                    if (d < 1.9f && p.grounded) w.commands += Command.SWIPE_UP
+                    return true
+                }
+                // Only from behind: hide and let him turn (or walk past).
+                hide(w)
                 return true
             }
-            else -> if (facingMe && !alert && d > 1.2f) {
-                waitOrHide(w, d, toward)
-                return true
+            else -> {
+                if (alert && d > 2.4f) {
+                    // He's onto us and out of reach: get under cover and let him come.
+                    hide(w)
+                    return true
+                }
+                if (facingMe && !alert && d > 1.2f) {
+                    if (d < sight(w) + 1.2f) hide(w) else w.moveAxis = 0
+                    return true
+                }
             }
         }
-        // Facing away, or already onto us: go for the takedown.
+        // Facing away, or right on top of us: go for the takedown.
         w.moveAxis = toward
         return true
     }
 
-    /** Hold back out of sight (or duck into a doorway) until a guard looking our way turns. */
-    private fun waitOrHide(w: World, d: Float, toward: Int) {
+    /** Duck into a doorway right here, else the box. */
+    private fun hide(w: World) {
         w.moveAxis = 0
-        if (d < World.SIGHT_RANGE + 0.8f) {
-            // Too close to wait in the open: back off, or hide if there's a doorway right here.
-            if (w.hideAction() == ContextAction.DOOR && tapCooldown <= 0f) {
-                w.commands += Command.SWIPE_DOWN
-                tapCooldown = 0.5f
-            } else {
-                w.moveAxis = -toward
-            }
-        }
+        if (tapCooldown > 0f) return
+        w.commands += Command.SWIPE_DOWN
+        tapCooldown = 0.5f
     }
 
     /** Nobody is shooting at us or looking our way close by. */
@@ -184,10 +216,12 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         val p = w.player
         if (w.bullets.any { !it.byPlayer && it.floor == p.floor && it.hall == p.hall && abs(it.x - p.x) < 3f }) return false
         return w.enemies.none {
-            it.floor == p.floor && it.hall == p.hall && it.alive && abs(it.x - p.x) < World.SIGHT_RANGE &&
+            it.floor == p.floor && it.hall == p.hall && it.alive && abs(it.x - p.x) < sight(w) &&
                 (it.state == EnemyState.ALERT || it.state == EnemyState.AIM || it.facing == (if (p.x > it.x) 1 else -1))
         }
     }
+
+    private fun sight(w: World) = if (w.silent) World.SILENT_SIGHT_RANGE else World.SIGHT_RANGE
 
     private fun called(w: World): Boolean {
         val p = w.player

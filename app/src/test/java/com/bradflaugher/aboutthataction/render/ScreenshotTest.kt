@@ -80,7 +80,8 @@ class ScreenshotTest {
                 val img = render(world, scene, 1080, 2400)
                 dir.mkdirs()
                 // Rendered at phone resolution, saved at half size to keep the repo light.
-                ImageIO.write(downscale(img, 540, 1200), "png", File(dir, "${scene.name}.png"))
+                val full = System.getProperty("ata.full") == "true"
+                ImageIO.write(if (full) img else downscale(img, 540, 1200), "png", File(dir, "${scene.name}.png"))
                 println("wrote ${File(dir, "${scene.name}.png")}")
             }
         }
@@ -120,8 +121,10 @@ class ScreenshotTest {
         val r = Renderer()
         val then = scene.then
         if (then != null) {
-            r.render(g, world, scene.time - 0.1f, 80f * k, 48f * k, showHud)
+            // Before, the moment it changes (a slide starts), then a beat into it.
+            r.render(g, world, scene.time - 0.2f, 80f * k, 48f * k, showHud)
             then(world)
+            r.render(g, world, scene.time - 0.1f, 80f * k, 48f * k, showHud)
         }
         r.render(g, world, scene.time, 80f * k, 48f * k, showHud)
         g.dispose()
@@ -403,7 +406,7 @@ class ScreenshotTest {
         val done = w.enemy(EnemyKind.AGENT, X(2.3f), 1, EnemyState.DEAD, 0.4f)
         done.killedBy = com.bradflaugher.aboutthataction.engine.KillMethod.TAKEDOWN
         done.hurtFlash = 0f
-        w.fx.text("+225 SILENT", X(2.3f), Geo.groundY(f) - 2.2f, TextStyle.SCORE)
+        w.fx.text("+300 SILENT", X(2.3f), Geo.groundY(f) - 2.2f, TextStyle.SCORE)
         w.enemy(EnemyKind.AGENT, X(4.6f), 1, EnemyState.PATROL, 0.3f) // back turned: next
         w.enemy(EnemyKind.AGENT, X(8.6f), 1, EnemyState.PATROL, 0.2f).vx = 0f
         w.visit(0, 1)

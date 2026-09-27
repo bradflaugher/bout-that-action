@@ -233,7 +233,7 @@ internal class Hud(private val f: Frame) {
         pauseButton(u)
         modeButton(u)
         scoreBlock(top, u)
-        if (w.combo >= 2) comboBlock(W - MARGIN * u - PAUSE_R * 2f * u - 2.4f * u, top + 16f * u, u) else lastCombo = -1
+        if (w.combo >= 2) comboBlock(W - MARGIN * u - PAUSE_R * 2f * u - 6f * u, top + 16f * u, u) else lastCombo = -1
 
         val bottom = H - f.bottomInset - MARGIN * u
         if (!w.silent) ammoDial(left, bottom, u)
