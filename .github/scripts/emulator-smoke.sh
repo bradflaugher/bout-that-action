@@ -39,7 +39,28 @@ install() {
   return 1
 }
 
-if install "$APK" && install "$TEST_APK"; then
+# The API 37 image restarts its framework shortly after first boot, which can
+# drop a just-installed package. Only trust an install once the launcher
+# activity resolves several times in a row, reinstalling if it vanishes.
+installed_and_stable() {
+  local ok=0
+  for _ in $(seq 1 60); do
+    if timeout 20 adb shell cmd package resolve-activity --brief -n "$APP_ID/$MAIN_ACTIVITY" 2>/dev/null | grep -q "$MAIN_ACTIVITY" &&
+       timeout 20 adb shell pm path "$APP_ID.test" >/dev/null 2>&1; then
+      ok=$((ok + 1))
+      [ "$ok" -ge 4 ] && return 0
+    else
+      ok=0
+      timeout 20 adb shell pm path "$APP_ID" >/dev/null 2>&1 || install "$APK" || true
+      timeout 20 adb shell pm path "$APP_ID.test" >/dev/null 2>&1 || install "$TEST_APK" || true
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+sleep 30
+if install "$APK" && install "$TEST_APK" && installed_and_stable; then
   # Bounded: a hung test must not eat the job timeout (and the artifact upload).
   timeout 420 adb shell am instrument -w -r "$APP_ID.test/androidx.test.runner.AndroidJUnitRunner" | tee smoke/instrument.txt
   if ! grep -q "^OK (" smoke/instrument.txt; then
