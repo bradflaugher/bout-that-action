@@ -490,7 +490,7 @@ class World(val config: RunConfig) {
                 if (p.state == PlayerState.ELEVATOR) return true
                 // In a doorway's shadow a tap steps you out, facing into the hallway.
                 if (p.state == PlayerState.DOOR) {
-                    if (p.stateTime > TOGGLE_GUARD) stepOut()
+                    stepOut()
                     return true
                 }
                 // Jump + tap: swat the lamp overhead.
@@ -1025,7 +1025,8 @@ class World(val config: RunConfig) {
         p.anchorX = p.x
         p.vx = 0f
         p.holdAxis = moveAxis
-        if (!arrivalTipShown && config.coach) {
+        // A coach tip like the others: coached runs from the roof, first few floors only.
+        if (!arrivalTipShown && config.coach && difficulty.startFloor == 0 && deepest <= COACH_FLOORS) {
             arrivalTipShown = true
             fx.text("TAP: STEP OUT", p.x, Geo.groundY(p.floor) - 2.6f, TextStyle.WARN, 1.6f)
         }
@@ -1491,7 +1492,11 @@ class World(val config: RunConfig) {
             sign(dx).toInt() == e.facing && abs(dx) < range && abs(dx) > 0.9f
     }
 
-    private fun suspect(e: Enemy) = investigate(e, player.x)
+    /** The box moved while he was looking: he comes to check on it. */
+    private fun suspect(e: Enemy) {
+        stats.suspicions++
+        investigate(e, player.x)
+    }
 
     /** [e] heard something at [x]: "HUH?", and he goes to check it out. */
     private fun investigate(e: Enemy, x: Float) {
@@ -1501,7 +1506,6 @@ class World(val config: RunConfig) {
         e.lastSeenX = x
         e.vx = 0f
         e.timer = SEARCH_LINGER
-        stats.suspicions++
         events += GameEvent.Suspicious(pan(e.x))
         fx.text(Popup.HUH, e.x, Geo.groundY(e.floor) - e.height - 1.0f, TextStyle.WARN, 0.8f)
     }

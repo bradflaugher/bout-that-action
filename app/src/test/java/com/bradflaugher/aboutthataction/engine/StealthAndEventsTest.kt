@@ -97,6 +97,36 @@ class StealthAndEventsTest {
     }
 
     @Test
+    fun aTapTheMomentYouArriveHiddenStepsYouOut() {
+        val w = world(silent = true)
+        val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
+        w.player.x = door.x
+        w.player.grenades = 0
+        w.commands += Command.TAP
+        var arrived = false
+        run(w, World.PASSAGE_TIME + 0.5f) {
+            if (!arrived && it.player.state == PlayerState.DOOR) {
+                arrived = true
+                it.commands += Command.TAP // no dead window: the tap is honoured at once
+            }
+        }
+        assertTrue(arrived)
+        assertEquals(PlayerState.NORMAL, w.player.state)
+    }
+
+    @Test
+    fun theStepOutTipIsForCoachedRunsFromTheRoofOnly() {
+        val w = world(floor = 3, silent = true) // a warp start: no coaching
+        val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
+        w.player.x = door.x
+        w.player.grenades = 0
+        w.commands += Command.TAP
+        run(w, World.PASSAGE_TIME + 0.2f)
+        assertEquals(PlayerState.DOOR, w.player.state)
+        assertFalse("TAP: STEP OUT" in texts(w))
+    }
+
+    @Test
     fun swipeUpFromADoorwayStepsOutWithoutJumping() {
         val w = world(silent = true)
         w.player.state = PlayerState.DOOR
@@ -443,7 +473,8 @@ class StealthAndEventsTest {
             check(alertAt >= 0f && aimAt >= 0f) { "never reacted" }
             return (aimAt - alertAt) to hallAtAlert
         }
-        val r = Heat.reaction(LevelGen.zoneAndHeat(11L, 3, Difficulty(startFloor = 3)).second) * World.SILENT_REACTION
+        // GUNS HOT: the plain reaction time (SILENT's slowdown doesn't apply).
+        val r = Heat.reaction(LevelGen.zoneAndHeat(11L, 3, Difficulty(startFloor = 3)).second)
         val (settled, _) = reaction(fresh = false)
         assertTrue("settled $settled", settled <= r * 1.2f + 3 * dt)
         val (fresh, clock) = reaction(fresh = true)

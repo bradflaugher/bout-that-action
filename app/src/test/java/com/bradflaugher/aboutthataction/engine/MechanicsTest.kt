@@ -699,6 +699,7 @@ class MechanicsTest {
             assertEquals(lx, listener.lastSeenX, 0.01f)
             assertTrue(w.events.any { it is GameEvent.Suspicious })
             assertTrue(w.events.none { it is GameEvent.Alerted })
+            assertEquals("a lure isn't a box double-take", 0, w.stats.suspicions)
         }
     }
 
