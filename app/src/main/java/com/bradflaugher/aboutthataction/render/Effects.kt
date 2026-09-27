@@ -43,6 +43,82 @@ internal class Effects(private val f: Frame) {
         muzzleGlow()
         closeCall()
         bufferCue()
+        kills()
+    }
+
+    /**
+     * Light that lives in the building: a soft bloom on every live lamp and unused INTEL door
+     * in view. A handful of cached glow sprites per floor, drawn additively over the scene.
+     */
+    fun bloom() {
+        val w = f.w
+        g.blend(Gfx.Blend.ADD)
+        for (i in f.first..f.last) {
+            if (i == 0) continue
+            val fs = w.floors[i] ?: continue
+            val plan = fs.plan
+            val rt = i * Geo.FLOOR_H + 0.35f
+            val gy = Geo.groundY(i)
+            if (!f.visibleY(rt - 1f, gy + 1f)) continue
+            val lamp = f.palette(fs).lamp
+            for (k in plan.lights.indices) {
+                if (!fs.lightAlive[k]) continue
+                val lx = plan.lights[k]
+                val flick = 0.92f + 0.08f * sin(f.t * 7f + lx * 3.1f + i)
+                g.glow(lx, rt + 0.45f, 1.5f, Col.alpha(lamp, 0.09f * flick))
+                g.glow(lx, rt + 0.45f, 0.55f, Col.alpha(lamp, 0.3f * flick))
+            }
+            for (d in plan.doors.indices) {
+                val door = plan.doors[d]
+                if (door.kind != com.bradflaugher.aboutthataction.engine.DoorKind.INTEL || fs.intelUsed[d]) continue
+                val pulse = 0.8f + 0.2f * sin(f.t * 3f + d)
+                g.glow(door.x, gy - 1.15f, 1.35f, Col.alpha(0xFFFF1E3C.toInt(), 0.1f * pulse))
+            }
+        }
+        g.blend(Gfx.Blend.NORMAL)
+    }
+
+    /** The frame an enemy drops: a white-hot flash over the body and a spray of sparks away from the hit. */
+    private fun kills() {
+        val list = f.w.enemies
+        for (i in list.indices) {
+            val e = list[i]
+            if (e.state != com.bradflaugher.aboutthataction.engine.EnemyState.DEAD || e.stateTime > KILL_TIME) continue
+            val gy = Geo.groundY(e.floor)
+            if (!f.visibleY(gy - 2f, gy)) continue
+            val h = e.height
+            val cx = e.x
+            val cy = gy - e.z - h * 0.5f
+            val t = e.stateTime / KILL_TIME
+            val dir = if (e.deathVx != 0f) kotlin.math.sign(e.deathVx) else -e.facing.toFloat()
+            g.blend(Gfx.Blend.ADD)
+            if (e.stateTime < 0.05f) {
+                val k = 1f - e.stateTime / 0.05f
+                g.save()
+                g.translate(cx, cy)
+                g.scale(0.42f, 1f)
+                g.glow(0f, 0f, h * 0.75f, Col.alpha(0xFFFFFFFF.toInt(), 0.85f * k))
+                g.restore()
+                g.save()
+                g.translate(cx, cy)
+                g.scale(0.28f, 1f)
+                g.glow(0f, 0f, h * 0.55f, Col.alpha(0xFFFFFFFF.toInt(), 0.9f * k))
+                g.restore()
+            }
+            val a = 1f - t
+            val ease = HudType.outCubic(t)
+            for (k in 0 until 7) {
+                val ang = (hash(e.id * 7 + k, 811) - 0.5f) * 1.4f
+                val sp = 0.6f + hash(e.id * 7 + k, 812) * 0.9f
+                val ca = cos(ang) * dir
+                val sa = sin(ang)
+                val y0 = cy + (hash(e.id + k, 813) - 0.5f) * h * 0.4f
+                val r1 = (0.15f + 1.1f * ease) * sp
+                val r0 = r1 - 0.35f * sp * a
+                g.line(cx + ca * r0, y0 + sa * r0, cx + ca * r1, y0 + sa * r1, 0.035f * a + 0.005f, Col.alpha(0xFFFFE6B0.toInt(), a))
+            }
+            g.blend(Gfx.Blend.NORMAL)
+        }
     }
 
     // ---------------------------------------------------------------- bullets
@@ -234,13 +310,13 @@ internal class Effects(private val f: Frame) {
                     val c = Col.lerp(0xFFFFF6D8.toInt(), 0xFFFF8A20.toInt(), t)
                     val tx = p.x - p.vx * 0.045f
                     val ty = p.y - p.vy * 0.045f
-                    g.line(p.x, p.y, tx, ty, p.size * 1.1f, Col.alpha(c, 0.3f * fade))
+                    g.line(p.x, p.y, tx, ty, p.size * 1.1f, Col.alpha(c, 0.18f * fade))
                     g.line(p.x, p.y, tx, ty, p.size * 0.45f, Col.alpha(c, fade))
                 }
                 ParticleKind.EMBER -> {
                     val c = Col.lerp(0xFFFFE070.toInt(), 0xFFFF3A10.toInt(), t)
                     val flick = 0.75f + 0.25f * sin(f.t * 30f + i * 1.7f)
-                    g.fillCircle(p.x, p.y, p.size * 2.2f, Col.alpha(c, 0.16f * fade * flick))
+                    g.fillCircle(p.x, p.y, p.size * 2.2f, Col.alpha(c, 0.09f * fade * flick))
                     g.fillCircle(p.x, p.y, p.size * 0.65f, Col.alpha(c, fade * flick))
                 }
                 ParticleKind.GLASS -> {
@@ -253,7 +329,7 @@ internal class Effects(private val f: Frame) {
                     val r = p.size * (0.15f + 0.85f * e)
                     if (t < 0.35f) {
                         val k = 1f - t / 0.35f
-                        g.glow(p.x, p.y, p.size * (0.5f + 0.5f * e), Col.alpha(0xFFFFE0B0.toInt(), 0.75f * k))
+                        g.glow(p.x, p.y, p.size * (0.5f + 0.5f * e), Col.alpha(0xFFFFD0A0.toInt(), 0.5f * k))
                     }
                     g.strokeCircle(p.x, p.y, r, p.size * 0.14f * fade + 0.02f, Col.alpha(0xFFFF9A50.toInt(), 0.22f * fade))
                     g.strokeCircle(p.x, p.y, r, p.size * 0.035f * fade + 0.01f, Col.alpha(0xFFB8F6FF.toInt(), 0.9f * fade))
@@ -396,9 +472,9 @@ internal class Effects(private val f: Frame) {
     private fun popScale(ft: FloatingText): Float {
         val a = age(ft)
         val from = when (ft.style) {
-            TextStyle.SCORE -> 1.45f
-            TextStyle.COMBO, TextStyle.BIG -> 1.9f
-            else -> 1.6f
+            TextStyle.SCORE -> 1.35f
+            TextStyle.COMBO, TextStyle.BIG -> 1.3f
+            else -> 1.3f
         }
         val inK = HudType.spring(a / 0.4f, from)
         val outK = if (ft.t > 0.7f) 1f - 0.18f * (ft.t - 0.7f) / 0.3f else 1f
@@ -412,7 +488,7 @@ internal class Effects(private val f: Frame) {
         val a = (if (ft.t > 0.72f) max(0f, (1f - ft.t) / 0.28f) else 1f)
         if (a <= 0f) return
         val base = styleColor(ft.style)
-        val color = if (ft.style == TextStyle.COMBO) Col.lerp(Col.lerp(0xFFFFFFFF.toInt(), base, 0.45f), base, age(ft) / 0.12f) else base
+        val color = if (ft.style == TextStyle.COMBO) Col.lerp(Col.lerp(0xFFFFFFFF.toInt(), base, 0.8f), base, age(ft) / 0.1f) else base
         if (isClose(ft)) {
             // Split into cyan and magenta that snap together, over a white core.
             val split = sz * 0.09f * HudType.decay(age(ft) / 0.25f) + sz * 0.02f
@@ -545,12 +621,10 @@ internal class Effects(private val f: Frame) {
                 Flash.HURT -> {
                     // Tint the whole frame blood-red without washing it out, then burn the edges.
                     g.blend(Gfx.Blend.MULTIPLY)
-                    g.fillRect(0f, 0f, W, H, Col.alpha(0xFFFF4A5A.toInt(), 0.6f * a))
-                    g.blend(Gfx.Blend.ADD)
-                    g.fillRect(0f, 0f, W, H, Col.alpha(0xFFFF1030.toInt(), 0.12f * a))
+                    g.fillRect(0f, 0f, W, H, Col.alpha(0xFFFF7A84.toInt(), 0.45f * a))
                     g.blend(Gfx.Blend.NORMAL)
-                    vignette(W, H, a, 0xFFE00020.toInt())
-                    chroma(W, H, 0.5f * a, 4f * u)
+                    vignette(W, H, a, 0xFFD0001C.toInt())
+                    chroma(W, H, 0.55f * a, 5f * u, 0xFFFF1A30.toInt(), 0xFFFF6A20.toInt())
                 }
                 Flash.WHITE -> {
                     g.blend(Gfx.Blend.ADD)
@@ -571,18 +645,18 @@ internal class Effects(private val f: Frame) {
     }
 
     /** Coloured fringes on the left/right edges: a cheap stand-in for lens chromatic aberration. */
-    private fun chroma(W: Float, H: Float, a: Float, width: Float) {
+    private fun chroma(W: Float, H: Float, a: Float, width: Float, left: Int = 0xFFFF2B8A.toInt(), right: Int = 0xFF2BD8FF.toInt()) {
         if (a <= 0.005f) return
         g.blend(Gfx.Blend.ADD)
         g.save()
         g.translate(0f, H)
         g.rotate(-90f)
-        g.fillVerticalGradient(0f, 0f, H, width, Col.alpha(0xFFFF2B8A.toInt(), a), 0x00FF2B8A)
+        g.fillVerticalGradient(0f, 0f, H, width, Col.alpha(left, a), left and 0xFFFFFF)
         g.restore()
         g.save()
         g.translate(W, 0f)
         g.rotate(90f)
-        g.fillVerticalGradient(0f, 0f, H, width, Col.alpha(0xFF2BD8FF.toInt(), a), 0x002BD8FF)
+        g.fillVerticalGradient(0f, 0f, H, width, Col.alpha(right, a), right and 0xFFFFFF)
         g.restore()
         g.blend(Gfx.Blend.NORMAL)
     }
@@ -635,6 +709,7 @@ internal class Effects(private val f: Frame) {
     private companion object {
         const val SLOTS = 32
         const val CLOSE_TIME = 0.35f
+        const val KILL_TIME = 0.2f
         /** The engine's near-miss popup label. */
         const val CLOSE_LABEL = "CLOSE!"
     }

@@ -49,6 +49,7 @@ internal class Hud(private val f: Frame) {
     private var lastHp = -1
     private val heartLostAt = FloatArray(MAX_HEARTS) { -9f }
     private val heartGainAt = FloatArray(MAX_HEARTS) { -9f }
+    private var hurtAt = -9f
     private var lastGrenades = -1
     private var grenadeAt = -9f
 
@@ -183,7 +184,9 @@ internal class Hud(private val f: Frame) {
         if (!f.inPerk) perkSeenAt = Float.NaN
 
         // Scrims: a soft top and bottom falloff so white type reads on any zone.
-        g.fillVerticalGradient(0f, 0f, W, f.topInset + 34f * u, 0xC8000000.toInt(), 0x00000000)
+        val band = f.topInset + 29f * u
+        g.fillVerticalGradient(0f, 0f, W, band, 0xE6050309.toInt(), 0x9E050309.toInt())
+        g.fillVerticalGradient(0f, band, W, band + 12f * u, 0x9E050309.toInt(), 0x00050309)
         g.fillVerticalGradient(0f, H - f.bottomInset - 22f * u, W, H, 0x00000000, 0xA6000000.toInt())
 
         val top = f.topInset + TOP * u
@@ -211,7 +214,10 @@ internal class Hud(private val f: Frame) {
         val p = w.player
         val now = f.t
         if (lastHp >= 0) {
-            if (p.hp < lastHp) for (i in p.hp until min(lastHp, MAX_HEARTS)) heartLostAt[i] = now
+            if (p.hp < lastHp) {
+                for (i in p.hp until min(lastHp, MAX_HEARTS)) heartLostAt[i] = now
+                hurtAt = now
+            }
             if (p.hp > lastHp) for (i in lastHp until min(p.hp, MAX_HEARTS)) heartGainAt[i] = now
         }
         lastHp = p.hp
@@ -249,7 +255,8 @@ internal class Hud(private val f: Frame) {
         // Kicker: a neon tick and the zone name, tracked out.
         val ky = top + 2.4f * u
         g.fillRect(x, ky - 1.9f * u, x + 0.6f * u, ky + 0.1f * u, neon)
-        HudType.tracked(g, zoneLabel, x + 1.8f * u, ky, 2.5f * u, neon, Gfx.Font.HUD, Gfx.Align.LEFT, 0.45f * u)
+        // Lifted toward white so dim zone neons still read on the dark band.
+        HudType.tracked(g, zoneLabel, x + 1.8f * u, ky, 2.5f * u, Col.lerp(neon, WHITE, 0.22f), Gfx.Font.HUD, Gfx.Align.LEFT, 0.45f * u)
 
         // Depth: the hero number, with a neon backlight.
         val ds = 7.6f * u
@@ -317,7 +324,8 @@ internal class Hud(private val f: Frame) {
         val now = f.t
         val low = p.hp == 1 && f.w.phase == Phase.PLAYING
         val beat = if (low) HudType.heartbeat(fract(now * 1.25f)) else 0f
-        var cx = x + hs * 0.52f
+        val hurt = since(hurtAt).let { if (it in 0f..0.35f) 1f - it / 0.35f else 0f }
+        var cx = x + hs * 0.52f + sin(now * 90f) * 0.8f * u * hurt * hurt
         for (i in 0 until n) {
             val full = i < p.hp
             val lostAge = since(heartLostAt[i])
@@ -338,6 +346,7 @@ internal class Hud(private val f: Frame) {
                 Glyphs.heart(g, cx, cy, s, HEART)
                 Glyphs.heart(g, cx, cy + s * 0.12f, s * 0.62f, 0xFFD41446.toInt())
                 g.fillCircle(cx - s * 0.21f, cy - s * 0.2f, s * 0.1f, 0xD9FFFFFF.toInt())
+                if (hurt > 0f) Glyphs.heart(g, cx, cy, s, Col.alpha(WHITE, 0.85f * hurt))
             } else if (lostAge in 0f..0.5f) {
                 // Heart bursts: swells, flashes white, and fades out.
                 val k = lostAge / 0.5f
@@ -960,8 +969,10 @@ internal class Hud(private val f: Frame) {
         }
         val gy = Geo.groundY(p.floorF)
         val bob = sin(f.t * 4f) * 0.035f
-        val cx = p.x.coerceIn(0.9f, Geo.FLOOR_W - 0.9f)
+        val cx = p.x
         val head = gy - p.z - (if (p.state == PlayerState.BOX) 1.55f else 2.25f)
+        // Keep the chip off doors, shafts and their signs: it sits beside the nearest one.
+        val avoid = nearestFixture(p.x, p.floor)
 
         // Hidden in a door or riding a lift with the thumb that took you in still held.
         val stepOut = p.holdAxis != 0 && (p.state == PlayerState.DOOR || p.state == PlayerState.ELEVATOR)
@@ -972,7 +983,7 @@ internal class Hud(private val f: Frame) {
         if (stepOut && action == null) {
             // Wait a beat so a quick in-and-out never flashes it.
             val k = HudType.clamp01((since(stepOutAt) - 0.45f) / 0.25f)
-            if (k > 0f) chip(cx, head + bob, "LIFT TO STEP OUT", 0xFFB8C0D8.toInt(), -1, k, false)
+            if (k > 0f) chip(cx, head + bob, avoid, "LIFT TO STEP OUT", 0xFFB8C0D8.toInt(), -1, k, false)
             return
         }
         if (action == null) return
@@ -989,19 +1000,32 @@ internal class Hud(private val f: Frame) {
             ContextAction.DOOR -> "HIDE"
             ContextAction.BOX -> "BOX"
         }
-        chip(cx, head + bob + (1f - appear) * 0.15f, label, color, action.ordinal, appear, true)
+        chip(cx, head + bob + (1f - appear) * 0.15f, avoid, label, color, action.ordinal, appear, true)
+    }
+
+    /** X of the door or shaft nearest [x] on [floor] within reach, or NaN. */
+    private fun nearestFixture(x: Float, floor: Int): Float {
+        val plan = f.w.floors[floor]?.plan ?: return Float.NaN
+        var best = Float.NaN
+        var bd = 1.35f
+        for (d in plan.doors) {
+            val dd = kotlin.math.abs(d.x - x)
+            if (dd < bd) { bd = dd; best = d.x }
+        }
+        for (sh in plan.shafts) {
+            val dd = kotlin.math.abs(sh.x - x)
+            if (dd < bd) { bd = dd; best = sh.x }
+        }
+        return best
     }
 
     /**
      * The hint chip: [icon] = a [ContextAction] ordinal or -1 for none; [swipe] adds the
      * animated swipe-down chevron. Drawn in pixels around the chip centre for crisp type.
      */
-    private fun chip(cx: Float, cy: Float, label: String, color: Int, icon: Int, appear: Float, swipe: Boolean) {
+    private fun chip(px0: Float, cy0: Float, avoid: Float, label: String, color: Int, icon: Int, appear: Float, swipe: Boolean) {
         val e = HudType.outBack(appear, 2.2f)
         val s = f.s
-        g.save()
-        g.translate(cx, cy)
-        g.scale(e / s, e / s)
         val px = 0.13f * s // the chip's own grid unit, in px
         val ts = (if (swipe) 1.9f else 1.5f) * px
         val track = 0.25f * px
@@ -1011,6 +1035,21 @@ internal class Hud(private val f: Frame) {
         var cw = 1.2f * px + lw + 1.2f * px
         if (icon >= 0) cw += iconS + 0.9f * px
         if (swipe) cw += 2.8f * px
+        // Place it: over the head, or beside the nearest door/shaft (on the player's side of it).
+        val hw = cw / 2f / s
+        var cx = px0
+        var cy = cy0
+        if (!avoid.isNaN()) {
+            var side = if (px0 >= avoid) 1f else -1f
+            if (kotlin.math.abs(px0 - avoid) < 0.05f) side = if (avoid < Geo.FLOOR_W / 2f) 1f else -1f
+            cx = avoid + side * (0.62f + hw)
+            if (cx - hw < 0.15f || cx + hw > Geo.FLOOR_W - 0.15f) cx = avoid - side * (0.62f + hw)
+            cy = cy0 + 0.2f
+        }
+        cx = cx.coerceIn(hw + 0.15f, Geo.FLOOR_W - hw - 0.15f)
+        g.save()
+        g.translate(cx, cy)
+        g.scale(e / s, e / s)
         val l = -cw / 2f
         val r = cw / 2f
         val t = -ch / 2f
@@ -1030,11 +1069,15 @@ internal class Hud(private val f: Frame) {
         g.glow(0f, 0f, cw * 0.75f, Col.alpha(color, 0.2f * appear))
         g.restore()
         g.blend(Gfx.Blend.NORMAL)
-        g.fillRoundRect(l, t + 0.25f * px, r, b + 0.25f * px, ch / 2f, 0x80000000.toInt())
-        g.fillRoundRect(l, t, r, b, ch / 2f, 0xE60A0812.toInt())
+        // Solid plate with a soft two-step shadow: always reads as UI, never as signage.
+        g.fillRoundRect(l - 0.2f * px, t + 0.2f * px, r + 0.2f * px, b + 0.7f * px, ch / 2f + 0.2f * px, 0x40000000)
+        g.fillRoundRect(l, t + 0.3f * px, r, b + 0.35f * px, ch / 2f, 0x99000000.toInt())
+        g.fillRoundRect(l, t, r, b, ch / 2f, 0xFF0B0913.toInt())
+        g.fillRoundRect(l + 0.2f * px, t + 0.15f * px, r - 0.2f * px, t + ch * 0.45f, ch / 2f, 0x0FFFFFFF)
         g.strokeRoundRect(l, t, r, b, ch / 2f, 0.16f * px, edge)
-        // Tail.
-        poly.tri(g, -0.55f * px, b - 0.05f * px, 0.55f * px, b - 0.05f * px, 0f, b + 0.8f * px, edge)
+        // Tail, leaning toward the player.
+        val tx = ((px0 - cx) * s / e).coerceIn(l + ch * 0.6f, r - ch * 0.6f)
+        poly.tri(g, tx - 0.55f * px, b - 0.05f * px, tx + 0.55f * px, b - 0.05f * px, tx + (if (tx > 0.5f * px) 0.35f else if (tx < -0.5f * px) -0.35f else 0f) * px, b + 0.8f * px, edge)
         var x = l + 1.2f * px
         if (icon >= 0) {
             val ix = x + iconS / 2f

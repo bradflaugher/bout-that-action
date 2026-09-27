@@ -92,6 +92,7 @@ class Renderer {
             building.lightsAndHazards(fs)
         }
         actors.playerOverlay()
+        effects.bloom()
         effects.world()
         if (showHud && world.phase == Phase.PLAYING) hud.contextHint()
         g.restore()
