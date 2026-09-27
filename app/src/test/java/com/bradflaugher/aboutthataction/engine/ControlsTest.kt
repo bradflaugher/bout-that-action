@@ -303,34 +303,33 @@ class ControlsTest {
     }
 
     @Test
-    fun airborneTapLeavesAnEmptyLightAloneWhenTheGunHasAGuardAhead() {
-        val w = world(silent = false)
-        val lights = w.playerHall()!!.plan.lights
-        w.player.x = lights[0] - 1.2f
-        w.player.facing = 1
-        // A guard ahead, standing nowhere near any light.
-        val gx = (1..80).map { w.player.x + 0.8f + it * 0.1f }.first { x -> x < Geo.FLOOR_W - 1f && lights.all { abs(it - x) > 1.2f } }
-        enemy(w, EnemyKind.AGENT, gx, facing = 1).hp = 99
-        w.commands += Command.SWIPE_UP
-        run(w, 0.15f)
-        w.commands += Command.TAP
-        w.step(dt)
-        assertTrue(w.bullets.none { it.byPlayer && it.targetLight >= 0 })
+    fun jumpAndTapUnderALampSwatsItOutWithoutAShot() {
+        for (silent in listOf(false, true)) {
+            val w = world(silent = silent)
+            val hs = w.playerHall()!!
+            w.player.x = hs.plan.lights[0]
+            w.commands += Command.SWIPE_UP
+            run(w, 0.15f)
+            w.commands += Command.TAP
+            w.step(dt)
+            assertFalse("silent=$silent: the lamp is out", hs.lightAlive[0])
+            assertTrue(w.events.none { it is GameEvent.Shot && it.byPlayer })
+            assertTrue(w.bullets.none { it.byPlayer })
+        }
     }
 
     @Test
-    fun airborneTapInSilentAlwaysGoesForTheLight() {
-        val w = world(silent = true)
-        val lights = w.playerHall()!!.plan.lights
-        w.player.x = lights[0] - 1.2f
-        w.player.facing = 1
-        val gx = (1..80).map { w.player.x + 0.8f + it * 0.1f }.first { x -> x < Geo.FLOOR_W - 1f && lights.all { abs(it - x) > 1.2f } }
-        enemy(w, EnemyKind.AGENT, gx, facing = 1)
+    fun jumpAndTapOutOfReachOfAnyLampDoesNothing() {
+        val w = world(silent = false)
+        val hs = w.playerHall()!!
+        val lights = hs.plan.lights
+        w.player.x = (1..130).map { it * 0.1f }.first { x -> lights.all { abs(it - x) > World.LIGHT_REACH + 0.3f } }
         w.commands += Command.SWIPE_UP
         run(w, 0.15f)
         w.commands += Command.TAP
         w.step(dt)
-        assertTrue(w.bullets.any { it.byPlayer && it.targetLight >= 0 })
+        assertTrue(hs.lightAlive.all { it })
+        assertTrue(w.bullets.none { it.byPlayer })
     }
 
     // ------------------------------------------------------------ double-tap

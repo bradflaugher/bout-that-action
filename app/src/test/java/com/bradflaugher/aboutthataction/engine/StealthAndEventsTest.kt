@@ -70,6 +70,58 @@ class StealthAndEventsTest {
     }
 
     @Test
+    fun inSilentYouArriveHiddenInTheDoorwayAndStepOutWhenYouChoose() {
+        val w = world(silent = true)
+        val hs = w.playerHall()!!
+        val door = hs.plan.doors.first { it.kind == DoorKind.PASSAGE }
+        val farDoor = w.floor(w.player.floor)!!.hall(door.to).plan.doors[door.toDoor]
+        // A guard on the far side, staring right at the door you're coming through.
+        val gx = if (farDoor.x < Geo.FLOOR_W / 2f) farDoor.x + 3f else farDoor.x - 3f
+        val g = Enemy(2000, EnemyKind.AGENT, gx, w.player.floor, if (gx > farDoor.x) -1 else 1, door.to)
+        g.patrolA = gx
+        g.patrolB = gx
+        g.timer = 99f
+        w.enemies += g
+        w.player.x = door.x
+        w.player.grenades = 0
+        w.commands += Command.TAP
+        run(w, World.PASSAGE_TIME + 2f)
+        assertEquals(door.to, w.player.hall)
+        assertEquals(PlayerState.DOOR, w.player.state)
+        assertEquals("he stares right through you", EnemyState.PATROL, g.state)
+        // Your call: a tap steps you out (and now he sees you).
+        w.commands += Command.TAP
+        w.step(dt)
+        assertEquals(PlayerState.NORMAL, w.player.state)
+        assertEquals(farDoor.x, w.player.x, 0.05f)
+    }
+
+    @Test
+    fun swipeUpFromADoorwayStepsOutWithoutJumping() {
+        val w = world(silent = true)
+        w.player.state = PlayerState.DOOR
+        w.player.anchorX = 5f
+        w.player.x = 5f
+        run(w, 0.5f)
+        w.commands += Command.SWIPE_UP
+        w.step(dt)
+        assertEquals(PlayerState.NORMAL, w.player.state)
+        assertTrue(w.player.grounded)
+        assertTrue(w.events.none { it == GameEvent.Jump })
+    }
+
+    @Test
+    fun gunsHotStillArrivesInTheOpen() {
+        val w = world(silent = false)
+        val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
+        w.player.x = door.x
+        w.player.grenades = 0
+        w.commands += Command.TAP
+        run(w, World.PASSAGE_TIME + 0.1f)
+        assertEquals(PlayerState.NORMAL, w.player.state)
+    }
+
+    @Test
     fun beingSpottedSoundsOneAlertAndTheMusicGoesToAlertThenCautionThenCalm() {
         val w = world(silent = true)
         w.player.x = 3f
@@ -174,14 +226,17 @@ class StealthAndEventsTest {
         val lx = hs.plan.lights[li]
         val sleeper = enemy(w, EnemyKind.AGENT, lx + 2f, facing = 1)
         sleeper.asleep = true
-        w.player.x = lx - 1.5f
+        w.player.x = lx
         w.player.facing = 1
         w.commands += Command.SWIPE_UP
         run(w, 0.15f)
         w.commands += Command.TAP
-        run(w, 1f)
+        w.step(dt)
+        run(w, 1f) { it.player.state = PlayerState.DOOR; it.player.anchorX = 0.5f }
         assertFalse(hs.lightAlive[li])
         assertFalse(sleeper.asleep)
+        // Woken by the crash, he goes to look at it: suspicious, not on to you.
+        assertEquals(EnemyState.SEARCH, sleeper.state)
     }
 
     @Test
@@ -357,7 +412,7 @@ class StealthAndEventsTest {
     fun guardsGiveYouABeatAfterYouArrive() {
         /** Through a passage (fresh) or already standing there (settled): seconds from "!" to gun up, and the hallway clock at "!". */
         fun reaction(fresh: Boolean): Pair<Float, Float> {
-            val w = world()
+            val w = world(silent = false) // SILENT arrives hidden in the doorway instead
             val hs = w.playerHall()!!
             val door = hs.plan.doors.first { it.kind == DoorKind.PASSAGE }
             val farDoor = w.floor(w.player.floor)!!.hall(door.to).plan.doors[door.toDoor]
@@ -380,6 +435,7 @@ class StealthAndEventsTest {
             var t = 0f
             run(w, 4f) {
                 it.player.invuln = 1f
+                it.player.fireCooldown = 99f // watch him react; don't shoot him first
                 if (alertAt < 0f && g.state == EnemyState.ALERT) { alertAt = t; hallAtAlert = it.hallTime }
                 if (aimAt < 0f && g.state == EnemyState.AIM) aimAt = t
                 t += dt

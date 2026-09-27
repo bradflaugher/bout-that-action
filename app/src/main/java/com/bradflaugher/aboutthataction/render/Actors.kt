@@ -451,6 +451,12 @@ internal class Actors(private val f: Frame) {
                 k.ik(k.armF, gunX, gunY, false)
             }
         }
+        // Jump-swat at a lamp: the near arm flicks straight up (no gun in that hand).
+        if (pl.swatTime > 0f) {
+            val q = Rig.easeOut(1f - pl.swatTime / World.SWAT_TIME)
+            k.armFK(k.armF, 2.2f + 0.65f * q, 0.35f - 0.25f * q)
+            showGun = false
+        }
         // Final head nod; keep both hands where the pose put them.
         val fx = k.armF.ex
         val fy = k.armF.ey

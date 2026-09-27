@@ -28,11 +28,11 @@ is read on its own, so one thumb can run while the other taps.
 |---|---|
 | **Drag ← →** and hold | Run. Nudge back a little to turn around instantly. Lift to stop. A held run won't pull you out of a doorway or elevator: lift and drag again to step out. |
 | **Tap** | Interact with what you're standing at: go through a green **passage** door into another hallway, enter a red **INTEL** door, ride an open **elevator** down, or call a closed one. With nothing in reach, a tap does nothing. |
-| **Swipe ↓** | Hide: press into a nearby **doorway**, otherwise pop the **cardboard box**. In an elevator, box up in the car. Swipe ↓ again to stand up. |
+| **Swipe ↓** | Hide: press into a nearby **doorway**, otherwise pop the **cardboard box**. In an elevator, box up in the car. Swipe ↓ again to stand up. In a doorway, a tap or a swipe ↑ also steps you out. |
 | **Swipe ↑** | Jump. Clears low shots; land on heads to stomp. Works mid-run. |
 | **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind; a napping guard from anywhere. Works in GUNS HOT too: the gun never shoots a guard with his back to you. |
 | **Double-tap** | Throw a grenade, in either mode. Fast tapping never throws by accident, and mashing a door with nobody around is just the tap. |
-| **Jump + tap** | A suppressed shot at the ceiling light ahead, when someone's under it (or there's nobody else to shoot). It crushes them, blacks out the hallway and wakes nobody. Works in both modes. |
+| **Jump + tap** | Under a ceiling lamp: swat it out by hand. The hallway gets darker, the fixture drops on anyone right under it (never on you), and the crash of glass brings nearby guards over to look: lure them in, then grab them from the shadows. Works in both modes. |
 | **Mode button** (under pause) | **GUNS HOT**: you auto-fire at threats in range. **SILENT**: you never fire; guards only notice what they see, and quiet kills pay double. Your choice sticks between runs. |
 
 A chip over your head shows what a tap (or a swipe ↓) will do right now, and
@@ -213,7 +213,7 @@ Kotlin behind small interfaces, so it's tested on the JVM:
   GUNS HOT auto-fire, SILENT, the mode toggle and its bonus, box vs high
   shots, jumping low shots, doorways, patrol beats, passages, taps that do
   nothing, elevators that only go down, expresses, calling a car, boxing up
-  in the car, intel, suppressed light shots, stomps, grenades, combos, no
+  in the car, intel, swatting lamps, stomps, grenades, combos, no
   stairs, death, replays).
 - `ControlsTest`: input buffering, the hit-grace window, the jump arc,
   turnarounds, auto-aim intent, tap and swipe context, door and car exits.

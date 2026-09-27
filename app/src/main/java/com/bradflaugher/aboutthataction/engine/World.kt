@@ -114,6 +114,7 @@ class World(val config: RunConfig) {
     var alertPhase = AlertPhase.CALM
         private set
     private var cautionLeft = 0f
+    private var arrivalTipShown = false
         private set
     var dyingTime = 0f
         private set
@@ -486,10 +487,15 @@ class World(val config: RunConfig) {
         if (c == Command.SWIPE_DOWN || c == Command.SWIPE_UP) p.tapTimer = 0f
         when (c) {
             Command.TAP -> {
-                if (p.state == PlayerState.ELEVATOR || p.state == PlayerState.DOOR) return true
-                // Jump + tap: a suppressed shot at the ceiling light ahead.
+                if (p.state == PlayerState.ELEVATOR) return true
+                // In a doorway's shadow a tap steps you out, facing into the hallway.
+                if (p.state == PlayerState.DOOR) {
+                    if (p.stateTime > TOGGLE_GUARD) stepOut()
+                    return true
+                }
+                // Jump + tap: swat the lamp overhead.
                 if (p.state == PlayerState.NORMAL && !p.grounded) {
-                    shootLightAhead()
+                    swatLight()
                     return true
                 }
                 if (tapTarget() == null) return true
@@ -517,6 +523,11 @@ class World(val config: RunConfig) {
             }
             Command.SWIPE_UP -> {
                 if (p.state == PlayerState.ELEVATOR) return true
+                // Out of a doorway, swipe up just steps you out (no leap into the open).
+                if (p.state == PlayerState.DOOR) {
+                    stepOut()
+                    return true
+                }
                 val maxJumps = 1 + stacks(Perk.DOUBLE_JUMP)
                 if (p.state == PlayerState.NORMAL && !p.grounded && p.jumpsUsed >= maxJumps) return false
                 if (p.hidden) unhide()
@@ -841,6 +852,12 @@ class World(val config: RunConfig) {
         fx.burst(ParticleKind.DUST, p.x, Geo.groundY(p.floor) - 0.1f, 6, 2f, 0.4f, 0.12f, upBias = 0.4f)
     }
 
+    private fun stepOut() {
+        val p = player
+        unhide()
+        if (p.x < 1f || p.x > Geo.FLOOR_W - 1f) p.facing = if (p.x < Geo.FLOOR_W / 2f) 1 else -1
+    }
+
     private fun unhide() {
         if (!player.hidden) return
         player.state = PlayerState.NORMAL
@@ -882,6 +899,7 @@ class World(val config: RunConfig) {
             startReload()
         }
         p.reflexCooldown -= dt
+        p.swatTime -= dt
         if (p.weapon != null) {
             p.weaponTime -= dt
             if (p.weaponTime <= 0f) p.weapon = null
@@ -943,6 +961,7 @@ class World(val config: RunConfig) {
                     p.state = PlayerState.NORMAL
                     p.stateTime = 0f
                     p.facing = if (moveAxis != 0) moveAxis else if (p.x < Geo.FLOOR_W / 2f) 1 else -1
+                    arriveHidden()
                 }
             }
             PlayerState.ELEVATOR -> {
@@ -990,6 +1009,26 @@ class World(val config: RunConfig) {
         p.x = car.shaft.x + dir * 0.4f
         onFloorEntered(f)
         onHallEntered(f, p.hall)
+        arriveHidden()
+    }
+
+    /**
+     * SILENT: you step into a new hallway tucked into the doorway's shadow, hidden, and pick
+     * your moment: tap or swipe up to step out (or lift and drag). A guard already facing the
+     * door sees nothing.
+     */
+    private fun arriveHidden() {
+        if (!silent) return
+        val p = player
+        p.state = PlayerState.DOOR
+        p.stateTime = 0f
+        p.anchorX = p.x
+        p.vx = 0f
+        p.holdAxis = moveAxis
+        if (!arrivalTipShown && config.coach) {
+            arrivalTipShown = true
+            fx.text("TAP: STEP OUT", p.x, Geo.groundY(p.floor) - 2.6f, TextStyle.WARN, 1.6f)
+        }
     }
 
     private fun movePlayer(dt: Float) {
@@ -1239,34 +1278,20 @@ class World(val config: RunConfig) {
     }
 
     /**
-     * Jump + tap: a suppressed shot at the ceiling light ahead, when that's what you mean
-     * (the light would land on someone, or there's nobody in front to shoot). It wakes
-     * nobody and costs no ammo, in either mode.
+     * Jump + tap under a ceiling lamp: swat it out by hand. No gun and no ammo, in either mode.
+     * The fixture drops a beat later (never onto you) and the crash of glass brings the
+     * guards nearby over to look: a lure, MGS style. Anyone standing right under it is out.
      */
-    private fun shootLightAhead(): Boolean {
+    private fun swatLight(): Boolean {
         val p = player
-        val t = playerTarget()
-        if (t < 0 || p.z < 0.25f) return false
-        val f = t / 8
-        val hs = hall(f, t % 8) ?: return false
+        if (p.z < 0.25f) return false
+        val hs = playerHall() ?: return false
         val lights = hs.plan.lights
         val li = lights.indices
-            .filter { hs.lightAlive[it] && (lights[it] - p.x) * p.facing > -0.2f && abs(lights[it] - p.x) < 4.5f }
+            .filter { hs.lightAlive[it] && abs(lights[it] - p.x) < LIGHT_REACH }
             .minByOrNull { abs(lights[it] - p.x) } ?: return false
-        val lx = lights[li]
-        val crushes = enemies.any { it.floor == f && it.hall == t % 8 && it.alive && it.kind != EnemyKind.TURRET && abs(it.x - lx) < LIGHT_CRUSH_INTENT }
-        val target = if (silent) null else pickTarget()
-        val wanted = crushes || target == null || (target.x - p.x) * p.facing <= -0.2f
-        if (!wanted) return false
-        val originZ = p.z + 1.0f
-        val lz = Geo.FLOOR_H - 0.45f
-        val dx = lx - p.x
-        val dz = lz - originZ
-        val len = sqrt(dx * dx + dz * dz).coerceAtLeast(0.01f)
-        bullets += Bullet(p.x, originZ, f, dx / len * PLAYER_BULLET_V, dz / len * PLAYER_BULLET_V, true, 1, 0, 0, targetLight = li, hall = t % 8)
-        p.sinceShot = 0f
-        events += GameEvent.Shot(byPlayer = true, heavy = false, pan = pan(p.x))
-        fx.burst(ParticleKind.SPARK, p.x + p.facing * 0.3f, Geo.groundY(f) - originZ, 3, 3f, 0.1f, 0.06f, dir = p.facing.toFloat())
+        breakLight(hs, li)
+        p.swatTime = SWAT_TIME
         return true
     }
 
@@ -1407,7 +1432,7 @@ class World(val config: RunConfig) {
         // A GHOST BOX ambush goes off in your arms: it leaves the ceiling alone rather than drop a light on you.
         if (!byGhost) hall(floor, hall)?.let { hs ->
             for (i in hs.plan.lights.indices) {
-                if (hs.lightAlive[i] && abs(hs.plan.lights[i] - x) < radius * 0.8f) shootLight(hs, i)
+                if (hs.lightAlive[i] && abs(hs.plan.lights[i] - x) < radius * 0.8f) breakLight(hs, i)
             }
         }
     }
@@ -1466,10 +1491,14 @@ class World(val config: RunConfig) {
             sign(dx).toInt() == e.facing && abs(dx) < range && abs(dx) > 0.9f
     }
 
-    private fun suspect(e: Enemy) {
+    private fun suspect(e: Enemy) = investigate(e, player.x)
+
+    /** [e] heard something at [x]: "HUH?", and he goes to check it out. */
+    private fun investigate(e: Enemy, x: Float) {
+        e.asleep = false
         e.state = EnemyState.SEARCH
         e.stateTime = 0f
-        e.lastSeenX = player.x
+        e.lastSeenX = x
         e.vx = 0f
         e.timer = SEARCH_LINGER
         stats.suspicions++
@@ -1889,22 +1918,10 @@ class World(val config: RunConfig) {
                 }
             }
             if (b.z < 0f || b.z > Geo.FLOOR_H - 0.1f) {
-                if (b.byPlayer && b.targetLight >= 0) {
-                    hall(b.floor, b.hall)?.let { if (b.targetLight < it.lightAlive.size && it.lightAlive[b.targetLight]) shootLight(it, b.targetLight) }
-                }
                 b.dead = true
                 if (b.gravity) fx.burst(ParticleKind.EMBER, b.x, y, 8, 3f, 0.4f, 0.1f, upBias = 0.5f)
             }
-            if (!b.dead && b.byPlayer && b.targetLight >= 0) {
-                val hs = hall(b.floor, b.hall)
-                if (hs != null && b.targetLight < hs.lightAlive.size && hs.lightAlive[b.targetLight] &&
-                    abs(hs.plan.lights[b.targetLight] - b.x) < 0.3f && b.z > Geo.FLOOR_H - 0.8f
-                ) {
-                    shootLight(hs, b.targetLight)
-                    b.dead = true
-                }
-            }
-            if (!b.dead && b.byPlayer && b.targetLight < 0) {
+            if (!b.dead && b.byPlayer) {
                 for (e in enemies) {
                     if (e.floor != b.floor || e.hall != b.hall || !e.alive || e.id in b.hitIds) continue
                     // The Elevator Action duel: alert guards duck high shots and answer low.
@@ -1996,7 +2013,7 @@ class World(val config: RunConfig) {
 
     // ------------------------------------------------------ world furniture
 
-    private fun shootLight(hs: HallState, i: Int) {
+    private fun breakLight(hs: HallState, i: Int) {
         if (!hs.lightAlive[i]) return
         hs.lightAlive[i] = false
         hs.lightFall[i] = 0f
@@ -2029,12 +2046,12 @@ class World(val config: RunConfig) {
                         if (abs(e.x - x) < 0.8f && e.kind != EnemyKind.TURRET) {
                             kill(e, KillMethod.LIGHT, if (e.x >= x) 1 else -1)
                             crushed = true
-                        } else if (e.asleep && abs(e.x - x) < LIGHT_WAKE_RADIUS) {
-                            alert(e)
+                        } else if (abs(e.x - x) < LIGHT_LURE_RADIUS && (e.state == EnemyState.PATROL || e.asleep) && LevelGen.canNap(e.kind)) {
+                            // What was that? He wakes if he was napping, and comes over to look.
+                            investigate(e, x)
                         }
                     }
                     if (crushed && stage) fx.text(Popup.LIGHTS_OUT, x, y - 2.2f, TextStyle.TAKEDOWN, 0.9f)
-                    if (playerHere && abs(player.x - x) < 0.55f) hurtPlayer(x, HurtCause.LIGHT)
                 }
             }
             for (hz in hs.plan.hazards) {
@@ -2273,6 +2290,11 @@ class World(val config: RunConfig) {
         const val PLAYER_BULLET_V = 24f
         const val GUN_COOLDOWN = 0.27f
         const val TAKEDOWN_TIME = 0.36f
+        /** How far from a lamp (sideways) a jump + tap can swat it. */
+        const val LIGHT_REACH = 1.1f
+        const val SWAT_TIME = 0.22f
+        /** Guards within this of a falling lamp come over to see what broke. */
+        const val LIGHT_LURE_RADIUS = 7f
         /** After the last guard loses you, the music stays tense this long. */
         const val CAUTION_TIME = 6f
         const val COMBO_WINDOW = 2.6f
@@ -2330,8 +2352,6 @@ class World(val config: RunConfig) {
         const val WAKE_GROGGY = 0.6f
         /** How often a napping guard snores (a "z" over his head). */
         const val SNORE_EVERY = 1.3f
-        /** A ceiling light crashing this close wakes a napping guard. */
-        const val LIGHT_WAKE_RADIUS = 3.5f
         /** The box moving faster than this in a guard's view makes him suspicious. */
         const val BOX_SUSPICIOUS_SPEED = 0.5f
         /** GHOST: leaving a floor unseen pays this, plus a little per floor (double in SILENT). */
@@ -2382,7 +2402,5 @@ class World(val config: RunConfig) {
         const val THREAT_TIER_COST = 6f
         /** Auto-aim: turning around costs this much distance. */
         const val BEHIND_COST = 3f
-        /** Airborne taps go to a ceiling light when a guard stands within this of it. */
-        const val LIGHT_CRUSH_INTENT = 0.9f
     }
 }
