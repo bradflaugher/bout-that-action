@@ -46,6 +46,36 @@ interface Gfx {
     fun text(text: String, x: Float, y: Float, size: Float, color: Int, font: Font = Font.HUD, align: Align = Align.LEFT)
     fun textWidth(text: String, size: Float, font: Font = Font.HUD): Float
 
+    /**
+     * Sets how every following draw call combines with what is already there, until the
+     * next [blend] call. It is NOT part of [save]/[restore]: whoever switches away from
+     * [Blend.NORMAL] switches back. [Blend.ADD] is the cheap bloom: soft sprites and lines
+     * drawn with it light the scene up instead of covering it.
+     */
+    fun blend(mode: Blend)
+
+    /**
+     * A soft round light: [color] at the centre falling off smoothly to nothing at [radius],
+     * shaped like a bloom halo rather than a flat disc. The alpha of [color] scales it.
+     * Cheap: one cached gradient per RGB, so vary alpha freely, not the hue.
+     */
+    fun glow(cx: Float, cy: Float, radius: Float, color: Int)
+
+    /**
+     * An arc of the circle at (cx, cy). Angles in degrees, 0 = 3 o'clock, positive sweep =
+     * clockwise on screen (y down). Round caps.
+     */
+    fun strokeArc(cx: Float, cy: Float, radius: Float, startDeg: Float, sweepDeg: Float, strokeWidth: Float, color: Int)
+
+    /** A filled pie wedge; angles as in [strokeArc]. */
+    fun fillArc(cx: Float, cy: Float, radius: Float, startDeg: Float, sweepDeg: Float, color: Int)
+
     enum class Font { TITLE, HUD }
     enum class Align { LEFT, CENTER, RIGHT }
+
+    /**
+     * NORMAL = source over. ADD = additive light (bloom, sparks, tracers). SCREEN = lighten
+     * without blowing out (haze, lifted shadows). MULTIPLY = colour grade / tint (never lightens).
+     */
+    enum class Blend { NORMAL, ADD, SCREEN, MULTIPLY }
 }
