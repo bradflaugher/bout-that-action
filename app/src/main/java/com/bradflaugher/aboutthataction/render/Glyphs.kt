@@ -89,15 +89,50 @@ internal object Glyphs {
         )
     }
 
-    /** A chunky pixel-ish heart centred on (cx, cy), [h] tall. */
+    /**
+     * A heart centred on (cx, cy), [h] tall, built the way icon hearts are: two overlapping
+     * round lobes and the two tangent lines from their outer edges down to a clean point.
+     * Traced once into one smooth polygon, so it stays crisp at every size, with no seams.
+     */
     fun heart(g: Gfx, cx: Float, cy: Float, h: Float, color: Int) {
-        val r = h * 0.28f
-        g.fillCircle(cx - r * 0.95f, cy - h * 0.14f, r, color)
-        g.fillCircle(cx + r * 0.95f, cy - h * 0.14f, r, color)
-        poly.begin()
-            .add(cx - r * 1.9f, cy - h * 0.08f)
-            .add(cx + r * 1.9f, cy - h * 0.08f)
-            .add(cx, cy + h * 0.46f)
-            .fill(g, color)
+        val k = h / HEART_H
+        val pb = poly.begin()
+        for (i in 0 until HEART_N) pb.add(cx + HEART_X[i] * k, cy + HEART_Y[i] * k)
+        pb.fill(g, color)
+    }
+
+    private const val LOBE_N = 30
+    private const val HEART_N = LOBE_N * 2 + 1
+    private val HEART_X = FloatArray(HEART_N)
+    private val HEART_Y = FloatArray(HEART_N)
+    private val HEART_H: Float
+
+    init {
+        // Unit lobes (radius 1) centred at (±C, 0), overlapping into a soft notch; the point
+        // sits P below. Screen coordinates, y down.
+        val c = 0.74
+        val p = 2.2
+        val notch = Math.atan2(-Math.sqrt(1.0 - c * c), c)
+        // Where the line from the point just touches the left lobe: c cos φ + p sin φ = 1.
+        val tangent = Math.atan2(p, c) + Math.acos(1.0 / Math.hypot(c, p))
+        var i = 0
+        // Left lobe: from the notch, over the top, down to the tangent (angles decreasing).
+        val sweep = (tangent - 2 * Math.PI) - notch
+        for (j in 0 until LOBE_N) {
+            val a = notch + sweep * j / (LOBE_N - 1)
+            HEART_X[i] = (-c + Math.cos(a)).toFloat(); HEART_Y[i] = Math.sin(a).toFloat(); i++
+        }
+        HEART_X[i] = 0f; HEART_Y[i] = p.toFloat(); i++
+        // Right lobe: the mirror, from its tangent back up to the notch.
+        for (j in 0 until LOBE_N) {
+            val a = notch + sweep * (LOBE_N - 1 - j) / (LOBE_N - 1)
+            HEART_X[i] = (c - Math.cos(a)).toFloat(); HEART_Y[i] = Math.sin(a).toFloat(); i++
+        }
+        var minY = Float.MAX_VALUE
+        var maxY = -Float.MAX_VALUE
+        for (y in HEART_Y) { minY = minOf(minY, y); maxY = maxOf(maxY, y) }
+        val mid = (minY + maxY) / 2f
+        for (j in 0 until HEART_N) HEART_Y[j] -= mid
+        HEART_H = maxY - minY
     }
 }

@@ -78,6 +78,12 @@ class World(val config: RunConfig) {
     var kills = 0
         private set
     var takedowns = 0
+    /** Takedowns since CQC MASTER was picked: every second one heals. */
+    private var cqcTakedowns = 0
+    /** The floor KEVLAR last took a hit on; it's back 3 floors further down. */
+    private var armorSpentFloor = 0
+    /** A GHOST BOX ambush is going off: its blast counts as a quiet kill and lets sleepers sleep. */
+    private var quietBlast = false
         private set
     var deepest = difficulty.startFloor
         private set
@@ -394,7 +400,7 @@ class World(val config: RunConfig) {
         }
         if (!fs.visited) {
             fs.visited = true
-            if (stacks(Perk.ARMOR) > 0 && f % 3 == 0) player.armorReady = true
+            if (stacks(Perk.ARMOR) > 0 && !player.armorReady && f - armorSpentFloor >= ARMOR_FLOORS) player.armorReady = true
         }
         val newZone = if (fs.plan.isVoid) Zone.VOID else fs.plan.zone
         musicZone = fs.plan.zone
@@ -1140,7 +1146,7 @@ class World(val config: RunConfig) {
         shake = max(shake, 0.2f)
         val y = Geo.groundY(e.floor) - 1.1f
         fx.text(if (napping) Popup.NIGHT_NIGHT else if (ambush) Popup.BOXD else "TAKEDOWN", e.x, y - 0.8f, TextStyle.TAKEDOWN)
-        if (stacks(Perk.CQC) > 0 && takedowns % 2 == 0 && p.hp < p.maxHp) {
+        if (stacks(Perk.CQC) > 0 && ++cqcTakedowns % 2 == 0 && p.hp < p.maxHp) {
             p.hp++
             fx.text("+♥", p.x, y - 1.4f, TextStyle.PICKUP)
         }
@@ -1431,13 +1437,15 @@ class World(val config: RunConfig) {
         fx.burst(ParticleKind.EMBER, x, y, 36, 9f, 0.8f, 0.14f, upBias = 0.3f)
         fx.burst(ParticleKind.SMOKE, x, y, 14, 2.5f, 1.3f, 0.5f, upBias = 0.5f)
         fx.burst(ParticleKind.SPARK, x, y, 18, 12f, 0.3f, 0.1f)
+        quietBlast = byGhost
         for (e in enemies.toList()) {
             if (e.floor == floor && e.hall == hall && e.alive && abs(e.x - x) < radius) {
                 damageEnemy(e, 3, KillMethod.EXPLOSION, if (e.x >= x) 1 else -1)
-            } else if (e.floor == floor && e.hall == hall && e.asleep && e.alive) {
-                alert(e) // nobody sleeps through that
+            } else if (e.floor == floor && e.hall == hall && e.asleep && e.alive && !byGhost) {
+                alert(e) // nobody sleeps through that (but a box going pop in a hug is only a pop)
             }
         }
+        quietBlast = false
         // A GHOST BOX ambush goes off in your arms: it leaves the ceiling alone rather than drop a light on you.
         if (!byGhost) hall(floor, hall)?.let { hs ->
             for (i in hs.plan.lights.indices) {
@@ -1566,7 +1574,7 @@ class World(val config: RunConfig) {
         }
         var points = (e.kind.score + bonus) * mult
         // SILENT pays: every kill without a gunshot is worth double.
-        val quiet = silent && method != KillMethod.SHOT && method != KillMethod.EXPLOSION
+        val quiet = silent && (quietBlast || (method != KillMethod.SHOT && method != KillMethod.EXPLOSION))
         if (quiet) {
             points *= 2
             silentKills++
@@ -1620,7 +1628,10 @@ class World(val config: RunConfig) {
         val y = Geo.groundY(p.floorF) - p.z - 0.9f
         spotted(p.floor)
         if (p.shield || p.armorReady) {
-            if (p.shield) p.shield = false else p.armorReady = false
+            if (p.shield) p.shield = false else {
+                p.armorReady = false
+                armorSpentFloor = p.floor
+            }
             p.invuln = 0.7f
             events += GameEvent.ShieldBlock
             fx.text(Popup.NOT_TODAY, p.x, y - 1.3f, TextStyle.WARN, 0.8f)
@@ -1921,6 +1932,8 @@ class World(val config: RunConfig) {
                 if (b.bounces > 0) {
                     b.bounces--
                     b.vx = -b.vx
+                    // Every bounce gets a full hallway to fly, so the second RICOCHET is worth having.
+                    b.range = max(b.range, Geo.FLOOR_W)
                     b.x = b.x.coerceIn(0.05f, Geo.FLOOR_W - 0.05f)
                     b.hitIds.clear()
                     fx.burst(ParticleKind.SPARK, b.x, y, 5, 4f, 0.15f, 0.07f)
@@ -2163,12 +2176,12 @@ class World(val config: RunConfig) {
                 p.weapon = kind
                 p.weaponTime = kind.seconds
             }
-            PickupKind.SHIELD -> p.shield = true
+            PickupKind.SHIELD -> if (!p.shield) p.shield = true else { score += 100; label = "+100" }
             PickupKind.SLOWMO -> {
                 if (!slowMo) events += GameEvent.SlowMoStart
                 p.slowMoTime = kind.seconds
             }
-            PickupKind.GRENADE -> if (p.grenades < maxGrenades) p.grenades++ else score += 100
+            PickupKind.GRENADE -> if (p.grenades < maxGrenades) p.grenades++ else { score += 100; label = "+100" }
             PickupKind.CASH -> {
                 val amount = 250 + 25 * deepest
                 score += amount
@@ -2380,6 +2393,8 @@ class World(val config: RunConfig) {
         const val BOX_SUSPICIOUS_SPEED = 0.5f
         /** GHOST: leaving a floor unseen pays this, plus a little per floor (double in SILENT). */
         const val GHOST_BONUS = 300
+        /** KEVLAR comes back this many floors below where it last stopped a hit. */
+        const val ARMOR_FLOORS = 3
         const val GHOST_BONUS_PER_FLOOR = 10
         /** Coach tips only show on the first this-many floors of a run from the roof... */
         const val COACH_FLOORS = 6

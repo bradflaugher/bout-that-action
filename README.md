@@ -82,10 +82,11 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   the loot lying around). Some rides come with smooth jazz. The first guard
   of every run is napping on the roof.
 - **Roguelike runs.** Every gold STASH door offers three perks, and they
-  stack: Rapid Fire, Pierce, Ricochet, Split Shot, CQC Master, Ghost Box,
-  Double Jump, Demolition, Reflex (auto bullet-time), Kevlar, Shockwave
-  stomps and more. Enemies drop shotguns, miniguns, shields, bullet time,
-  medkits and cash.
+  stack: Rapid Fire, Hollow Point, Pierce, Ricochet, Split Shot, Vitality,
+  CQC Master, Ghost Box, Double Jump, Demolition, Magnet, Reflex (auto
+  bullet-time), Kevlar, Lucky and Shockwave stomps. Enemies drop shotguns,
+  miniguns, shields, bullet time, grenades, medkits and cash. The gun perks
+  and gun drops only matter in GUNS HOT; SILENT never fires.
 - **Endless and seeded.** Any floor can be rebuilt from `(seed, floor)`, so
   the building never ends and never uses more memory. The same seed plus the
   same difficulty gives the same building, so you can share a seed or play

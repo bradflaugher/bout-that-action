@@ -853,6 +853,99 @@ class MechanicsTest {
         assertTrue(w.events.contains(GameEvent.ShieldBlock))
     }
 
+    /** Rides the first car down from the player's floor (from whichever hallway it leaves), out at the bottom. */
+    private fun rideDown(w: World) {
+        val plan = w.floor(w.player.floor)!!.plan
+        val h = plan.halls.indexOfFirst { hp -> hp.downLandings.any { it.top == plan.index } }
+        val shaft = plan.halls[h].downLandings.first { it.top == plan.index }
+        w.player.state = PlayerState.NORMAL
+        w.player.hall = h
+        w.player.x = shaft.x
+        val car = w.elevators[shaft.id]!!
+        car.pos = shaft.top.toFloat()
+        car.pause = 5f
+        car.openTime = 1f
+        w.commands += Command.TAP
+        run(w, 0.1f)
+        assertEquals(PlayerState.ELEVATOR, w.player.state)
+        run(w, 12f) { it.player.invuln = 1f }
+        assertEquals(shaft.bottom, w.player.floor)
+    }
+
+    @Test
+    fun kevlarComesBackThreeFloorsBelowWhereItStoppedAHit() {
+        val (w, _) = atLanding()
+        w.perks[Perk.ARMOR] = 1
+        w.player.armorReady = true
+        w.player.x = 5f
+        val hp = w.player.hp
+        bullet(w, 8f, Body.HIGH, -9f)
+        run(w, 1.2f)
+        assertEquals(hp, w.player.hp)
+        assertFalse(w.player.armorReady)
+        val spent = w.player.floor
+        // Ride down whatever the floors offer (locals, expresses): it's back at 3 floors down, never before.
+        while (w.player.floor - spent < World.ARMOR_FLOORS) {
+            rideDown(w)
+            assertEquals("floor ${w.player.floor}", w.player.floor - spent >= World.ARMOR_FLOORS, w.player.armorReady)
+        }
+    }
+
+    @Test
+    fun aSpareShieldOrGrenadePaysInstead() {
+        val w = world()
+        w.player.shield = true
+        w.player.grenades = w.maxGrenades
+        val before = w.score
+        w.pickups += Pickup(PickupKind.SHIELD, w.player.x, w.player.floor, w.player.hall)
+        w.pickups += Pickup(PickupKind.GRENADE, w.player.x, w.player.floor, w.player.hall)
+        val popups = HashSet<FloatingText>()
+        run(w, 1.5f) { it.fx.texts.filterTo(popups) { t -> t.text == "+100" } }
+        assertTrue(w.pickups.isEmpty())
+        assertTrue(w.player.shield)
+        assertEquals(before + 200, w.score)
+        assertEquals("a +100 popup for each", 2, popups.size)
+    }
+
+    @Test
+    fun aRicochetBulletGetsAFullHallwayAfterEveryBounce() {
+        val w = world(silent = false)
+        w.player.state = PlayerState.DOOR // out of the way
+        // Fired from the far left, rightward, with two bounces: 13 u to the wall, 14 u back.
+        val b = Bullet(1f, Body.HIGH, w.player.floor, World.PLAYER_BULLET_V, 0f, true, 1, 0, 2, hall = w.player.hall)
+        w.bullets += b
+        var turns = 0
+        var last = b.vx
+        var rangeAfterSecond = -1f
+        run(w, 2f) {
+            if (b.vx != last) {
+                turns++
+                last = b.vx
+                if (turns == 2) rangeAfterSecond = b.range
+            }
+        }
+        assertEquals(2, turns)
+        // Out of the second bounce it has a whole hallway ahead, not the ~3 u left of its 30.
+        assertTrue("range $rangeAfterSecond", rangeAfterSecond >= Geo.FLOOR_W - 1f)
+    }
+
+    @Test
+    fun cqcHealsEverySecondTakedownCountedFromThePick() {
+        val w = world()
+        w.takedowns = 1 // one before the pick: it doesn't count toward the heal
+        w.perks[Perk.CQC] = 1
+        w.player.hp = w.player.maxHp - 1
+        w.player.x = 3f
+        val a = enemy(w, EnemyKind.AGENT, 4.5f, facing = 1)
+        run(w, 1.4f) { it.moveAxis = 1 }
+        assertFalse(a.alive)
+        assertEquals("the first takedown after the pick doesn't heal", w.player.maxHp - 1, w.player.hp)
+        val b = enemy(w, EnemyKind.AGENT, w.player.x + 1.5f, facing = 1)
+        run(w, 1.6f) { it.moveAxis = 1 }
+        assertFalse(b.alive)
+        assertEquals("the second one does", w.player.maxHp, w.player.hp)
+    }
+
     @Test
     fun hazardsAnnounceEachActivationOnce() {
         val (seed, floor) = find(25..49) { plan -> plan.halls[0].hazards.isNotEmpty() }
