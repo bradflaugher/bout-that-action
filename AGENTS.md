@@ -2,17 +2,22 @@
 
 'Bout That Action (a Marshawn Lynch reference) is an endless, portrait-only
 Android action game: a stylized, hyper-modern take on Elevator Action with
-Metal Gear Solid box hiding. Sideloaded only. Read `README.md` for the
+Metal Gear Solid box hiding. Sideloaded, and headed for Google Play
+(`docs/PLAY_STORE.md`). Read `README.md` for the
 player-facing overview and keep it in sync with any behavior you change.
 
 ## Latest-only platform policy
 
-Like bf-12c and Blauncher, this project supports **only the latest stable
-everything**:
+Like bf-12c and Blauncher, this project builds with **only the latest stable
+everything**, and never carries code just for older devices:
 
-- `minSdk`, `targetSdk` and `compileSdk` are the latest stable API level, all
-  equal (`app/build.gradle.kts`). Bump all three together.
-- No `Build.VERSION.SDK_INT` checks, no compat shims for older devices.
+- `targetSdk` and `compileSdk` are the latest stable API level
+  (`app/build.gradle.kts`). Bump them together.
+- `minSdk` is 31 (Android 12): the newest API the code uses today
+  (`VibratorManager`, haptic `PRIMITIVE_THUD`), so older phones come free.
+  If a feature needs a newer API, raise `minSdk` to it rather than add a check.
+- No `Build.VERSION.SDK_INT` checks, no compat shims for older devices. Lint's
+  `NewApi` error keeps the code honest about `minSdk`.
 - AGP, Kotlin, Compose BOM and libraries (`gradle/libs.versions.toml`) and
   Gradle (`gradle/wrapper/gradle-wrapper.properties`, checksum-pinned) track
   the latest stable releases. Dependabot keeps them current.
@@ -113,6 +118,10 @@ the JVM.
 
 - **No network, no storage permissions.** Only `VIBRATE`. No backups
   (`allowBackup=false`, empty extraction rules).
+  `docs/PRIVACY.md` (the Play privacy policy) and the Data safety answers in
+  `docs/PLAY_STORE.md` promise this; change them together.
+- The Play listing text lives in `fastlane/metadata/android/en-US/`. Keep it
+  true to the game, like `README.md`.
 - CI actions stay pinned to commit SHAs.
 
 ## Build, test, release
@@ -128,9 +137,10 @@ deliberately not a merge gate because emulators are slow and flaky) boots an
 API 37 emulator, runs the instrumented tests, plays a little with `adb input`
 and uploads screenshots and logcat.
 
-Every push to `main` builds a signed APK and publishes it as the single
-date-labeled GitHub release `vYYYY.MM.DD.<run>`, deleting all older
-releases. Pull requests build unsigned and publish nothing. Signing uses the
+Every push to `main` builds a signed APK and a signed Play bundle (`.aab`,
+plus the R8 `mapping.txt`) and publishes them as the single date-labeled
+GitHub release `vYYYY.MM.DD.<run>`, deleting all older releases. The
+versionCode is the run number, so it only goes up. Pull requests build unsigned and publish nothing. Signing uses the
 repository secrets `ATA_KEYSTORE_BASE64`, `ATA_STORE_PASSWORD`,
 `ATA_KEY_ALIAS` and `ATA_KEY_PASSWORD`; until they exist, pushes to `main`
 still build and test but skip the release (with a warning). Never commit a

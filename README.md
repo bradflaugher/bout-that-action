@@ -247,18 +247,20 @@ big moments.
 ## Install
 
 Grab `bout-that-action.apk` from the [latest release](../../releases/latest)
-and sideload it. Every push to `main` publishes a single date-labeled release
+and sideload it. The release also carries `bout-that-action.aab`, the same
+build as a Google Play bundle; see [`docs/PLAY_STORE.md`](docs/PLAY_STORE.md). Every push to `main` publishes a single date-labeled release
 (`vYYYY.MM.DD.N`) and deletes the previous one; verify it with the attached
 `.sha256`. Releases need the signing secrets described in `AGENTS.md`. Until
 they're set, CI builds and tests but publishes nothing.
 
-Android 17 (API 37) or newer only. See `AGENTS.md` for the latest-only
-policy. The only permission is vibration.
+Android 12 (API 31) or newer. It's built for the latest Android and runs on
+older versions only where that needs no compatibility code (see `AGENTS.md`). The only permission is vibration, and it collects nothing
+([privacy policy](docs/PRIVACY.md)).
 
 ## Build and test
 
 ```sh
-./gradlew lint test assembleDebug   # what CI runs (plus assembleRelease)
+./gradlew lint test assembleDebug   # what CI runs (plus assembleRelease bundleRelease)
 ./gradlew :app:screenshots          # re-render docs/screenshots
 ./gradlew :app:menuShots            # render the Compose menus to app/build/menushots
                                     # (Robolectric; -PallDevices, -Ponly=title,pause)
