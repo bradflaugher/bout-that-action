@@ -97,7 +97,9 @@ the JVM.
   `:app:menuShots` for the Compose menus (Robolectric). Regenerate them when
   the look changes. `-Pata.scene=<name>` renders one game scene,
   `-Pata.shots=<dir>` writes elsewhere and `-Pata.full=true` keeps full
-  1080x2400 resolution, for iterating on the look.
+  1080x2400 resolution, for iterating on the look. `-Pata.scene=cast` renders
+  the cast sheet instead (`CastScreenshotTest`): every archetype in every zone
+  and the agent's key poses, cropped from real frames at 2x, for character art.
 
 ## Invariants
 
