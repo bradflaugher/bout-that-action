@@ -2,6 +2,7 @@ package com.bradflaugher.aboutthataction.audio
 
 import com.bradflaugher.aboutthataction.engine.AlertPhase
 import com.bradflaugher.aboutthataction.engine.GameEvent
+import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.Zone
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.math.abs
@@ -32,6 +33,7 @@ class SoundEngine(val sampleRate: Int = 48000) {
     @Volatile private var sfxVolIn = 1f
     @Volatile private var pausedIn = false
     @Volatile private var slowMoIn = false
+    @Volatile private var heroIn = Hero.BEAST
 
     private class ZoneCmd(val zone: Zone, val silent: Boolean)
     private object TitleCmd
@@ -104,6 +106,20 @@ class SoundEngine(val sampleRate: Int = 48000) {
 
     fun playTitle() {
         queue.add(TitleCmd)
+    }
+
+    /**
+     * Whose soundtrack plays: every zone track (and its sneak mix) comes in [hero]'s own
+     * arrangement. Takes effect from the next [setZone].
+     */
+    fun setHero(hero: Hero) {
+        heroIn = hero
+    }
+
+    /** [hero]'s theme, for the hero picker (on the next bar line, like the title). */
+    fun playHeroTheme(hero: Hero) {
+        heroIn = hero
+        queue.add(TitleCmd) // TODO(audio agent): each hero's own theme.
     }
 
     fun setMusicVolume(v: Float) {

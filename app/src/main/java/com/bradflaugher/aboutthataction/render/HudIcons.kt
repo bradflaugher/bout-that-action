@@ -128,6 +128,8 @@ internal object HudIcons {
                 g.strokeArc(cx, cy + k * 0.5f, k * 0.86f, 205f, 130f, sw, c)
                 Glyphs.arrow(g, cx, cy - k * 0.55f, k * 0.38f, 0f, 1f, sw * 1.1f, c)
             }
+            // TODO(hero perks): real icons.
+            else -> g.fillCircle(cx, cy, k * 0.6f, c)
         }
     }
 

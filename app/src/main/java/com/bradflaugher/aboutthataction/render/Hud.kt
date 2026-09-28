@@ -184,23 +184,37 @@ internal class Hud(private val f: Frame) {
             Perk.ARMOR -> "KV"
             Perk.LUCKY -> "LK"
             Perk.SHOCKWAVE -> "SW"
+            Perk.STIFF_ARM -> "SA"
+            Perk.BEAST_QUAKE -> "BQ"
+            Perk.CANDY_RAIN -> "CR"
+            Perk.DISGUISE -> "DG"
+            Perk.LASER_WATCH -> "LW"
+            Perk.DEAD_DROP -> "DD"
+            Perk.YIPPEE -> "YP"
+            Perk.VENT_CRAWL -> "VC"
+            Perk.ADRENALINE -> "AD"
+            Perk.OVERRIDE -> "OV"
+            Perk.EMP -> "EM"
+            Perk.GLITCH -> "GL"
         }
 
         /** The STASH's warm gold (its door, tap hint and perk screen). */
         const val STASH_GOLD = 0xFFFFB02E.toInt()
         /** Offense red, defense cyan, stealth violet, utility gold. */
-        fun perkColor(p: Perk): Int = when (p) {
+        fun perkColor(p: Perk): Int = p.hero?.color ?: when (p) {
             Perk.RAPID_FIRE, Perk.HOLLOW_POINT, Perk.PIERCE, Perk.RICOCHET, Perk.SPLIT_SHOT -> 0xFFFF4A5E.toInt()
             Perk.VITALITY, Perk.ARMOR, Perk.REFLEX -> 0xFF3CD8FF.toInt()
             Perk.CQC, Perk.GHOST_BOX, Perk.DOUBLE_JUMP, Perk.SHOCKWAVE -> 0xFFB77CFF.toInt()
             Perk.DEMOLITION, Perk.MAGNET, Perk.LUCKY -> 0xFFFFC23C.toInt()
+            else -> STASH_GOLD
         }
 
-        fun perkClass(p: Perk): String = when (p) {
+        fun perkClass(p: Perk): String = p.hero?.title ?: when (p) {
             Perk.RAPID_FIRE, Perk.HOLLOW_POINT, Perk.PIERCE, Perk.RICOCHET, Perk.SPLIT_SHOT -> "OFFENSE"
             Perk.VITALITY, Perk.ARMOR, Perk.REFLEX -> "DEFENSE"
             Perk.CQC, Perk.GHOST_BOX, Perk.DOUBLE_JUMP, Perk.SHOCKWAVE -> "STEALTH"
             Perk.DEMOLITION, Perk.MAGNET, Perk.LUCKY -> "UTILITY"
+            else -> "HERO"
         }
 
         /** The building's own floor naming: "ROOF", "49F" … "1F", then "B0", "B1" … */

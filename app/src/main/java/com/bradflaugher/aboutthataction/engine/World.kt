@@ -21,6 +21,8 @@ data class RunConfig(
      * time each verb would help ("SWIPE DOWN: HIDE"). Text only; never changes the run.
      */
     val coach: Boolean = true,
+    /** Who's playing: a trait, three hero-only perks, a look and a soundtrack. */
+    val hero: Hero = Hero.BEAST,
 )
 
 enum class Phase { PLAYING, PERK_CHOICE, DYING, OVER }
@@ -45,6 +47,7 @@ enum class Flash { NONE, HURT, WHITE, GOLD }
 class World(val config: RunConfig) {
     val seed = config.seed
     val difficulty = config.difficulty
+    val hero = config.hero
     private val rng = Rng(seed xor 0x5EED5EEDL)
 
     val player = Player()
@@ -2265,7 +2268,7 @@ class World(val config: RunConfig) {
     // ----------------------------------------------------------------- perks
 
     private fun offerPerks() {
-        val available = Perk.entries.filter { stacks(it) < it.maxStacks }.toMutableList()
+        val available = Perk.entries.filter { (it.hero == null || it.hero == hero) && stacks(it) < it.maxStacks }.toMutableList()
         val offer = ArrayList<Perk>(3)
         while (offer.size < 3 && available.isNotEmpty()) {
             val p = available.removeAt(rng.nextInt(available.size))
