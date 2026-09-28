@@ -81,6 +81,7 @@ internal class Building(private val f: Frame) {
         g.clipRect(0f, rt, W, gy)
         if (plan.isVoid) {
             rooms.voidRoom(pal, look, rt, gy)
+            walls.voidSign(pal, look, rt, gy)
         } else {
             g.fillVerticalGradient(0f, rt, W, gy, pal.wallTop, pal.wallBottom)
             walls.material(zone, pal, look, rt, gy)
