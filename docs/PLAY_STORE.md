@@ -29,13 +29,14 @@ one and is always a valid next upload.
    `title.txt` (≤ 30 chars), `short_description.txt` (≤ 80) and
    `full_description.txt` (≤ 4000). Paste it in, or upload it with fastlane
    `supply`.
-3. **Graphics.** App icon: `docs/screenshots/icon.png` (512×512). Phone
-   screenshots aren't committed yet: render them at 1080×1920 (9:16, which
-   Play wants) with the command below. Play also
-   wants a 1024×500 feature graphic, which isn't made yet.
-4. **Privacy policy.** Link
-   <https://github.com/bradflaugher/bout-that-action/blob/main/docs/PRIVACY.md>.
-   The repository has to be public for that link to work.
+3. **Graphics.** Everything is in `fastlane/metadata/android/en-US/images/`:
+   `icon.png` (512×512, same as `docs/screenshots/icon.png`),
+   `featureGraphic.png` (1024×500, the hero lineup under the title) and eight
+   1080×1920 `phoneScreenshots` (also used for the 7- and 10-inch tablet
+   slots). Re-render the screenshots with the command below.
+4. **Privacy policy.** The listing links
+   <https://bradflaugher.com/privacy/bout-that-action/>, which says the same
+   as `docs/PRIVACY.md`. Change both together.
 
 ## App content answers
 
