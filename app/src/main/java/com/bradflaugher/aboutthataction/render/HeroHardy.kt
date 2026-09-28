@@ -8,7 +8,7 @@ import com.bradflaugher.aboutthataction.engine.Hero
  * feet, a buzzed and balding head with stubble and a smirk. An orange rim.
  */
 internal class HardyKit(a: HeroArt) : HeroKit(a) {
-    override val bulk = 1.03f
+    override val bulk = 0.95f
     override val head = 1.02f
     override val accent = ORANGE
     override val rim = RIM
@@ -84,7 +84,7 @@ internal class HardyKit(a: HeroArt) : HeroKit(a) {
     override fun torso() {
         p.lightFrom(k.dir)
         val w = k.waistD * 0.98f
-        val c = k.chestD * 1.06f
+        val c = k.chestD * 0.98f
         // The body in bare skin, then the tank top over it.
         contour(BODY, c, w)
         p.shapeLit(SKIN, tx(1.0f, c * 0.4f), ty(1.0f, c * 0.4f), tx(0.5f, -c * 0.5f), ty(0.5f, -c * 0.5f))
@@ -92,7 +92,7 @@ internal class HardyKit(a: HeroArt) : HeroKit(a) {
         p.begin()
         tp(0.04f, -w * 0.55f); tp(0.28f, -w * 0.51f); tp(0.5f, -w * 0.53f); tp(0.74f, -c * 0.42f); tp(0.9f, -c * 0.42f)
         tp(0.99f, -c * 0.36f); tp(1.0f, -c * 0.28f); tp(0.9f, -c * 0.12f); tp(0.8f, c * 0.14f); tp(0.8f, c * 0.4f)
-        tp(0.78f, c * 0.55f); tp(0.7f, c * 0.57f); tp(0.5f, c * 0.49f); tp(0.3f, w * 0.45f); tp(0.04f, w * 0.49f)
+        tp(0.78f, c * 0.44f); tp(0.7f, c * 0.44f); tp(0.5f, c * 0.43f); tp(0.3f, w * 0.45f); tp(0.04f, w * 0.49f)
         p.shapeGradDetail(TANK_LIT, TANK_SHADE, tx(0.9f, c * 0.3f), ty(0.9f, c * 0.3f), tx(0.3f, -w * 0.5f), ty(0.3f, -w * 0.5f))
         // The strap over the shoulder.
         p.detail(tx(0.97f, -c * 0.34f), ty(0.97f, -c * 0.34f), tx(1.03f, -c * 0.1f), ty(1.03f, -c * 0.1f), 0.06f * k.hs, TANK)
@@ -100,8 +100,8 @@ internal class HardyKit(a: HeroArt) : HeroKit(a) {
         if (p.shading) {
             // Sweat down the chest and under the arm, grime smudges, the tuck bunching at the belt.
             p.begin()
-            tp(0.76f, c * 0.2f); tp(0.72f, c * 0.46f); tp(0.52f, c * 0.4f); tp(0.46f, c * 0.1f); tp(0.6f, -c * 0.04f)
-            p.shapeGradDetail(Col.alpha(SWEAT, 0.8f), Col.alpha(SWEAT, 0f), tx(0.7f, c * 0.3f), ty(0.7f, c * 0.3f), tx(0.48f, c * 0.1f), ty(0.48f, c * 0.1f))
+            tp(0.8f, c * 0.3f); tp(0.78f, c * 0.4f); tp(0.5f, c * 0.36f); tp(0.52f, c * 0.28f)
+            p.shapeGradDetail(Col.alpha(SWEAT, 0.7f), Col.alpha(SWEAT, 0f), tx(0.78f, c * 0.34f), ty(0.78f, c * 0.34f), tx(0.5f, c * 0.32f), ty(0.5f, c * 0.32f))
             p.begin()
             tp(0.84f, -c * 0.2f); tp(0.82f, c * 0.06f); tp(0.62f, c * 0.0f); tp(0.6f, -c * 0.3f)
             p.shapeGradDetail(Col.alpha(SWEAT, 0.9f), Col.alpha(SWEAT, 0f), tx(0.8f, -c * 0.08f), ty(0.8f, -c * 0.08f), tx(0.6f, -c * 0.2f), ty(0.6f, -c * 0.2f))
@@ -109,8 +109,6 @@ internal class HardyKit(a: HeroArt) : HeroKit(a) {
             smudge(0.5f, -c * 0.46f, 0.62f, -c * 0.24f)
             p.detail(tx(0.12f, -w * 0.3f), ty(0.12f, -w * 0.3f), tx(0.16f, w * 0.1f), ty(0.16f, w * 0.1f), 0.012f * k.hs, TANK_SHADE)
             p.detail(tx(0.18f, -w * 0.1f), ty(0.18f, -w * 0.1f), tx(0.2f, w * 0.34f), ty(0.2f, w * 0.34f), 0.01f * k.hs, TANK_SHADE)
-            // The lamp on the chest through the cotton.
-            p.detail(tx(0.78f, c * 0.44f), ty(0.78f, c * 0.44f), tx(0.6f, c * 0.5f), ty(0.6f, c * 0.5f), 0.02f * k.hs, Col.alpha(0xFFFFFFFF.toInt(), 0.6f))
         }
         // The slacks and the belt.
         p.begin()
@@ -239,10 +237,10 @@ internal class HardyKit(a: HeroArt) : HeroKit(a) {
             -0.14f, 0.46f, 0f,
             0.04f, 0.49f, 0f,
             0.3f, 0.46f, 0f,
-            0.5f, 0.5f, 1f,
-            0.7f, 0.58f, 1f,
-            0.86f, 0.54f, 1f,
-            0.96f, 0.4f, 1f,
+            0.5f, 0.44f, 1f,
+            0.7f, 0.45f, 1f,
+            0.86f, 0.44f, 1f,
+            0.96f, 0.36f, 1f,
             1.02f, 0.18f, 1f,
             1.06f, -0.14f, 1f,
             1.02f, -0.34f, 1f,
