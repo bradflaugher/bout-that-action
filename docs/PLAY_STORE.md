@@ -30,8 +30,8 @@ one and is always a valid next upload.
    `full_description.txt` (≤ 4000). Paste it in, or upload it with fastlane
    `supply`.
 3. **Graphics.** App icon: `docs/screenshots/icon.png` (512×512). Phone
-   screenshots: `fastlane/metadata/android/en-US/images/phoneScreenshots/`
-   (1080×1920, 9:16, rendered by the real renderer; see below). Play also
+   screenshots aren't committed yet: render them at 1080×1920 (9:16, which
+   Play wants) with the command below. Play also
    wants a 1024×500 feature graphic, which isn't made yet.
 4. **Privacy policy.** Link
    <https://github.com/bradflaugher/bout-that-action/blob/main/docs/PRIVACY.md>.
