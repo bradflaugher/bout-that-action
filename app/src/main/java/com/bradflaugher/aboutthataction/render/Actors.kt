@@ -849,36 +849,87 @@ internal class Actors(private val f: Frame) {
                 f.glowDot(ex + 0.05f, peek * 0.35f, 0.022f, VISOR, 0.9f * p.alphaMul)
             }
         }
-        val cb = 0xFFC08A52.toInt()
-        val cbDark = 0xFF8E6036.toInt()
-        val cbLit = 0xFFDDA86C.toInt()
-        val print = 0xFF5A3A1E.toInt()
         val d = 0.09f // depth offset of the receding top/side
+        val rs = -dir.toFloat() // the receding side face is on the trailing side
+        val fl = 0.06f * sin(f.t * 1.3f)
         p.twoPass {
-            // Side face (receding, away from the facing side), top face, flaps, front face.
-            val sx = -dir.toFloat()
-            p.begin().add(hw * sx, -h).add(hw * sx + d * 0.6f * sx, -h - d).add(hw * sx + d * 0.6f * sx, -d * 0.6f).add(hw * sx, 0f).shape(cbDark)
-            p.begin().add(-hw, -h).add(hw, -h).add(hw + d * 0.6f * sx, -h - d).add(-hw + d * 0.6f * sx, -h - d).shape(cbLit)
-            val fl = 0.06f * sin(f.t * 1.3f)
-            p.begin().add(-hw, -h).add(-hw + 0.34f, -h).add(-hw + 0.24f, -h - 0.13f - fl).add(-hw - 0.08f, -h - 0.1f).shape(0xFFCC9660.toInt())
-            p.begin().add(hw, -h).add(hw - 0.34f, -h).add(hw - 0.22f, -h - 0.12f + fl).add(hw + 0.08f, -h - 0.09f).shape(0xFFB07A46.toInt())
-            p.begin().add(-hw, -h).add(hw, -h).add(hw, 0f).add(-hw, 0f).shape(cb)
+            // Side face, lid, the two flaps, the front face: each painted like lamp-lit board.
+            p.begin().add(hw * rs, -h).add(hw * rs + d * 0.6f * rs, -h - d).add(hw * rs + d * 0.6f * rs, -d * 0.6f).add(hw * rs, 0f)
+            p.shape(BoxArt.BOX_SIDE)
+            p.shapeGradDetail(BoxArt.BOX_SIDE, ActorPaint.shade(BoxArt.BOX_SIDE), 0f, -h, 0f, 0f)
+            p.begin().add(-hw, -h).add(hw, -h).add(hw + d * 0.6f * rs, -h - d).add(-hw + d * 0.6f * rs, -h - d)
+            p.shape(BoxArt.BOX_TOP)
+            p.begin().add(-hw, -h).add(-hw + 0.34f, -h).add(-hw + 0.24f, -h - 0.13f - fl).add(-hw - 0.08f, -h - 0.1f)
+            p.shape(BoxArt.BOX_FLAP)
+            p.shapeGradDetail(ActorPaint.light(BoxArt.BOX_FLAP), BoxArt.BOX_FLAP, 0f, -h - 0.12f, 0f, -h)
+            p.begin().add(hw, -h).add(hw - 0.34f, -h).add(hw - 0.22f, -h - 0.12f + fl).add(hw + 0.08f, -h - 0.09f)
+            p.shape(BoxArt.BOX_FLAP_FAR)
+            p.shapeGradDetail(BoxArt.BOX_FLAP_FAR, ActorPaint.shade(BoxArt.BOX_FLAP_FAR), 0f, -h - 0.12f, 0f, -h)
+            p.begin().add(-hw, -h).add(hw, -h).add(hw, 0f).add(-hw, 0f)
+            p.shape(BoxArt.BOX_FRONT)
+            // Warm where the ceiling lamp falls on the upper face, cooling toward the floor.
+            p.shapeGradDetail(ActorPaint.light(BoxArt.BOX_FRONT), Col.lerp(BoxArt.BOX_FRONT, ActorPaint.shade(BoxArt.BOX_FRONT), 0.45f), 0f, -h, 0f, 0f)
         }
-        // Shading and print: only what survives the zoomed-out camera.
-        g.fillRect(-hw, -0.12f, hw, 0f, p.c(0x40000000))
-        g.fillRect(-hw, -h, hw, -h + 0.05f, p.c(0x30FFFFFF))
-        g.fillRect(-0.06f, -h, 0.06f, 0f, p.c(0xFFD9B77C.toInt()))
-        // "This side up" arrows on the trailing half.
-        val px = -0.27f * dir
-        Glyphs.arrow(g, px - 0.07f, -0.28f, 0.11f, 0f, -1f, 0.036f, p.c(print))
-        Glyphs.arrow(g, px + 0.07f, -0.28f, 0.11f, 0f, -1f, 0.036f, p.c(print))
-        // A red FRAGILE-style stamp on the leading half.
-        val sx = 0.25f * dir
-        g.strokeRect(sx - 0.13f, -0.3f, sx + 0.13f, -0.14f, 0.026f, p.c(0xC0A8321E.toInt()))
-        // Handle slot: the peek hole, the agent's cyan eyes glowing in it.
-        val hx = 0.24f * dir
+        if (p.shading) {
+            // Cut edges: the pale corrugated core showing along every raw edge of board.
+            p.detail(-hw - 0.08f, -h - 0.1f, -hw + 0.24f, -h - 0.13f - fl, 0.02f, BoxArt.BOX_CUT)
+            p.detail(hw + 0.08f, -h - 0.09f, hw - 0.22f, -h - 0.12f + fl, 0.018f, Col.lerp(BoxArt.BOX_CUT, BoxArt.BOX_FLAP_FAR, 0.4f))
+            // The lid's fold: a crisp shadow line under the lip, a lit crease above it.
+            p.detail(-hw + 0.01f, -h + 0.018f, hw - 0.01f, -h + 0.018f, 0.018f, Col.alpha(ActorPaint.shade(BoxArt.BOX_FRONT), 0.8f))
+            p.detail(-hw, -h - 0.004f, hw, -h - 0.004f, 0.012f, BoxArt.BOX_CUT)
+            // The front corner, rounded over into the side face.
+            p.detail(hw * rs - 0.014f * rs, -h + 0.02f, hw * rs - 0.014f * rs, -0.02f, 0.016f, Col.alpha(ActorPaint.light(BoxArt.BOX_FRONT), 0.7f))
+            // A soft dent near the leading bottom corner: board that's been bumped around.
+            p.begin().add(-rs * 0.3f, -0.1f).add(-rs * 0.46f, -0.2f).add(-rs * 0.44f, -0.05f)
+            p.shapeGradDetail(Col.alpha(ActorPaint.shade(BoxArt.BOX_FRONT), 0.0f), Col.alpha(ActorPaint.shade(BoxArt.BOX_FRONT), 0.55f), -rs * 0.3f, -0.1f, -rs * 0.45f, -0.12f)
+            // The board bows out a little over the agent inside: a broad soft sheen on the lamp side.
+            for (side in 0..1) {
+                val edge = if (side == 0) 0.02f else 0.36f
+                p.begin().add(-rs * edge, -h + 0.04f).add(-rs * 0.19f, -h + 0.04f).add(-rs * 0.19f, -0.05f).add(-rs * edge, -0.05f)
+                p.shapeGradDetail(0x26FFF0DC, 0x00FFF0DC, -rs * 0.19f, 0f, -rs * edge, 0f)
+            }
+            // Contact: the board darkens where it meets the floor.
+            p.begin().add(-hw, -0.16f).add(hw, -0.16f).add(hw, 0f).add(-hw, 0f)
+            p.shapeGradDetail(0x00140A18, 0x70140A18, 0f, -0.16f, 0f, 0f)
+            // The zone's neon catching the back edge.
+            g.blend(Gfx.Blend.ADD)
+            val bx = hw * rs + d * 0.6f * rs
+            g.line(bx, -h - d + 0.02f, bx, -d * 0.6f - 0.02f, 0.02f, p.c(Col.alpha(RIM, 0.35f)))
+            g.blend(Gfx.Blend.NORMAL)
+        }
+        // Packing tape: over the lid seam and down the front, a glossy strip with a torn end.
+        val tw = 0.065f
+        val te = -h + 0.3f
+        p.begin().add(-tw + d * 0.6f * rs, -h - d).add(tw + d * 0.6f * rs, -h - d).add(tw, -h).add(tw, te).add(tw * 0.5f, te + 0.025f)
+            .add(0f, te - 0.004f).add(-tw * 0.5f, te + 0.028f).add(-tw, te).add(-tw, -h)
+        p.shapeDetail(BoxArt.BOX_TAPE)
+        if (p.shading) {
+            p.detail(-tw + 0.012f, -h - d + 0.01f, -tw + 0.012f, te - 0.01f, 0.01f, Col.alpha(ActorPaint.shade(BoxArt.BOX_FRONT), 0.35f))
+            g.blend(Gfx.Blend.ADD)
+            g.line(tw - 0.02f, -h + 0.02f, tw - 0.02f, te - 0.03f, 0.016f, p.c(0x50FFFFFF))
+            g.line(-tw * 0.3f, -h - d + 0.015f, tw * 0.7f, -h - d + 0.015f, 0.012f, p.c(0x40FFFFFF))
+            g.blend(Gfx.Blend.NORMAL)
+        }
+        // "This side up" arrows in a printed frame on the trailing half.
+        val px = 0.27f * rs
+        Glyphs.arrow(g, px - 0.07f, -0.28f, 0.11f, 0f, -1f, 0.036f, p.c(BoxArt.BOX_PRINT))
+        Glyphs.arrow(g, px + 0.07f, -0.28f, 0.11f, 0f, -1f, 0.036f, p.c(BoxArt.BOX_PRINT))
+        p.detail(px - 0.14f, -0.13f, px + 0.14f, -0.13f, 0.014f, BoxArt.BOX_PRINT)
+        // A red FRAGILE stamp, inked on a slant, on the leading half.
+        val stx = -0.25f * rs
+        g.save()
+        g.translate(stx, -0.22f)
+        g.rotate(-7f * dir)
+        g.strokeRoundRect(-0.14f, -0.075f, 0.14f, 0.075f, 0.02f, 0.022f, p.c(BoxArt.BOX_STAMP))
+        p.detail(-0.085f, -0.018f, 0.085f, -0.018f, 0.028f, BoxArt.BOX_STAMP)
+        p.detail(-0.085f, 0.03f, 0.04f, 0.03f, 0.016f, BoxArt.BOX_STAMP)
+        g.restore()
+        // Handle slot: the peek hole, cut through the board, the agent's cyan eyes glowing in it.
+        val hx = -0.24f * rs
         val sy = -h + 0.22f
-        g.fillRoundRect(hx - 0.15f, sy - 0.065f, hx + 0.15f, sy + 0.065f, 0.065f, p.c(0xFF140A04.toInt()))
+        if (p.shading) g.fillRoundRect(hx - 0.162f, sy - 0.072f, hx + 0.162f, sy + 0.08f, 0.074f, p.c(Col.alpha(ActorPaint.shade(BoxArt.BOX_FRONT), 0.9f)))
+        g.fillRoundRect(hx - 0.15f, sy - 0.065f, hx + 0.15f, sy + 0.065f, 0.065f, p.c(0xFF120806.toInt()))
+        if (p.shading) p.detail(hx - 0.11f, sy + 0.068f, hx + 0.11f, sy + 0.068f, 0.014f, BoxArt.BOX_CUT)
         val blink = !watched && nervous == 0f && fract(f.t * 0.37f) > 0.95f
         val look = if (watched || nervous > 0f) lookDir * 0.035f else dir * 0.03f
         if (nervous > 0f) {
@@ -929,6 +980,19 @@ internal class Actors(private val f: Frame) {
                 }
             }
         }
+    }
+
+    /** The cardboard: board tones, the pale corrugated cut edge, tape and printer's inks. */
+    private object BoxArt {
+        const val BOX_FRONT = 0xFFC48E56.toInt()
+        const val BOX_SIDE = 0xFF94643A.toInt()
+        const val BOX_TOP = 0xFFDCAA6C.toInt()
+        const val BOX_FLAP = 0xFFD09A62.toInt()
+        const val BOX_FLAP_FAR = 0xFFB07A46.toInt()
+        const val BOX_CUT = 0xFFEED2A0.toInt()
+        const val BOX_TAPE = 0xC8E6CC98.toInt()
+        const val BOX_PRINT = 0xD04E3018.toInt()
+        const val BOX_STAMP = 0xC0B0301E.toInt()
     }
 
     private fun drop(x: Float, y: Float, r: Float, color: Int) {

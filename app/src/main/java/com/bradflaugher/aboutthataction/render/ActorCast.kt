@@ -1409,6 +1409,11 @@ internal class ActorCast(
 
     // ============================================================ machines
 
+    /**
+     * A premium security quadcopter: a sculpted ceramic-grey hull with a smoked-glass visor
+     * and one glowing lens, swept carbon arms to motor nacelles under translucent rotor discs,
+     * and a gimballed gun pod slung under the chin at exactly the shot height.
+     */
     private fun drone(e: Enemy, x: Float, gy: Float, dir: Int, pal: Palette) {
         val y = gy - e.z - 0.2f
         val dead = e.state == EnemyState.DEAD
@@ -1419,55 +1424,90 @@ internal class ActorCast(
         else g.rotate(e.vx * 6f + sin(f.t * 3f + e.id) * 2f)
         // Drawn a size up: a small machine has to carry its read at the zoomed-out camera.
         g.scale(DRONE_S, DRONE_S)
-        val body = 0xFF1E2230.toInt()
-        val hull = 0xFF3A4462.toInt()
-        val lit = 0xFF7282A6.toInt()
+        val d = dir.toFloat()
         val alarmed = e.state == EnemyState.AIM || e.state == EnemyState.ALERT
         val eyeC = if (alarmed) 0xFFFF2A40.toInt() else pal.neon2
         if (dead) {
             p.flat = 0xFF000000.toInt(); p.flatAmt = min(0.5f, e.stateTime)
         }
+        val podY = 0.1f / DRONE_S
         p.twoPass {
-            // Arm bar and motor pods.
-            p.seg(-0.38f, -0.1f, 0.38f, -0.1f, 0.06f, body)
-            p.seg(-0.38f, -0.19f, -0.38f, -0.08f, 0.08f, body)
-            p.seg(0.38f, -0.19f, 0.38f, -0.08f, 0.08f, body)
-            // Hull: teardrop pod with a nose toward the facing side.
+            // Swept arms out to the motor nacelles, the far pair and the near pair as one read.
+            for (si in 0..1) {
+                val sx = (si * 2 - 1).toFloat()
+                p.begin().add(0.1f * sx, -0.1f).add(0.38f * sx, -0.165f).add(0.42f * sx, -0.15f).add(0.42f * sx, -0.11f).add(0.12f * sx, -0.02f)
+                    .shapeLit(Mech.DRONE_ARM, 0f, -0.165f, 0f, -0.02f)
+                p.bone(0.4f * sx, -0.2f, 0.4f * sx, -0.085f, 0.1f, 0.07f, Mech.DRONE_NACELLE)
+            }
+            // The gun pod: a gimbal ball under the chin and a barrel out to the muzzle.
+            p.ball(0.11f * d, podY - 0.01f, 0.058f, Mech.DRONE_ARM)
+            p.begin().add(0.1f * d, podY - 0.026f).add(0.54f / DRONE_S * d, podY - 0.024f).add(0.54f / DRONE_S * d, podY + 0.024f).add(0.1f * d, podY + 0.026f)
+                .shapeLit(Mech.DRONE_GUN, 0f, podY - 0.026f, 0f, podY + 0.026f)
+            // A dorsal sensor fin: the one sharp note in the silhouette.
+            p.begin().add(-0.12f * d, -0.14f).add(-0.27f * d, -0.21f).add(-0.3f * d, -0.2f).add(-0.24f * d, -0.11f)
+                .shapeLit(Mech.DRONE_HULL, 0f, -0.21f, 0f, -0.11f)
+            // The hull: a long, sculpted lozenge, nose toward the facing side.
             p.begin()
-                .add(-0.28f * dir, -0.11f).add(0.18f * dir, -0.13f).add(0.3f * dir, 0.0f)
-                .add(0.2f * dir, 0.13f).add(-0.22f * dir, 0.13f).add(-0.32f * dir, 0.01f)
-                .shape(hull)
-            // Gun pod: muzzle at exactly the shot height.
-            p.seg(0.05f * dir, 0.1f / DRONE_S, 0.54f * dir / DRONE_S, 0.1f / DRONE_S, 0.055f, 0xFF0A0A10.toInt())
-        }
-        if (p.shading) {
-            // The hull's belly in shadow, a panel seam, and a gloss streak over the top.
-            p.begin()
-                .add(-0.31f * dir, 0.03f).add(0.28f * dir, 0.03f).add(0.2f * dir, 0.13f).add(-0.22f * dir, 0.13f)
-                .shapeShade(hull)
-            p.detail(-0.04f * dir, -0.11f, -0.06f * dir, 0.12f, 0.01f, ActorPaint.shade(hull))
-            g.blend(Gfx.Blend.ADD)
-            g.line(-0.12f * dir, -0.075f, 0.12f * dir, -0.085f, 0.014f, p.c(0x80FFFFFF.toInt()))
-            g.blend(Gfx.Blend.NORMAL)
-            p.dot(-0.38f, -0.1f, 0.022f, lit)
-            p.dot(0.38f, -0.1f, 0.022f, lit)
+                .add(-0.35f * d, -0.03f).add(-0.27f * d, -0.115f).add(-0.02f * d, -0.155f).add(0.2f * d, -0.13f)
+                .add(0.32f * d, -0.05f).add(0.32f * d, 0.02f).add(0.24f * d, 0.1f).add(0.02f * d, 0.13f)
+                .add(-0.22f * d, 0.11f).add(-0.33f * d, 0.05f)
+                .shapeLit(Mech.DRONE_HULL, 0.05f * d, -0.155f, -0.05f * d, 0.13f, mid = 0.38f)
         }
         if (!p.ink) {
-            g.line(-0.2f * dir, -0.095f, 0.16f * dir, -0.105f, 0.035f, p.c(lit))
-            g.fillRect(-0.26f, 0.045f, 0.2f, 0.075f, p.c(pal.enemyAccent))
-            // Rotor blur: one translucent blade stroke per motor.
+            if (p.shading) {
+                // The belly plate falls into cool shadow; one panel seam; the lamp glinting
+                // along the crown; the zone neon catching the tail.
+                p.begin().add(-0.33f * d, 0.03f).add(0.3f * d, 0.03f).add(0.24f * d, 0.1f).add(0.02f * d, 0.13f).add(-0.22f * d, 0.11f)
+                    .shapeGradDetail(ActorPaint.shade(Mech.DRONE_HULL), Col.lerp(ActorPaint.shade(Mech.DRONE_HULL), 0xFF05040C.toInt(), 0.5f), 0f, 0.03f, 0f, 0.13f)
+                p.detail(-0.1f * d, -0.148f, -0.13f * d, 0.12f, 0.009f, ActorPaint.shade(Mech.DRONE_HULL))
+                g.blend(Gfx.Blend.ADD)
+                g.line(-0.22f * d, -0.112f, 0.1f * d, -0.132f, 0.022f, p.c(0x55FFFFFF))
+                g.line(-0.14f * d, -0.124f, 0.02f * d, -0.136f, 0.01f, p.c(0x70FFFFFF))
+                g.blend(Gfx.Blend.NORMAL)
+                // Muzzle collar on the pod and the lamp along its barrel.
+                p.detail(0.5f / DRONE_S * d, podY - 0.022f, 0.5f / DRONE_S * d, podY + 0.022f, 0.022f, Mech.TURRET_HOUSING)
+                g.blend(Gfx.Blend.ADD)
+                g.line(0.16f * d, podY - 0.013f, 0.47f / DRONE_S * d, podY - 0.013f, 0.009f, p.c(0x50FFFFFF))
+                g.blend(Gfx.Blend.NORMAL)
+            }
+            // One accent coach line, where the crown meets the belly.
+            p.detail(-0.31f * d, 0.03f, 0.1f * d, 0.03f, 0.014f, pal.enemyAccent)
+            // The smoked-glass visor wrapping the nose.
+            p.begin().add(0.02f * d, -0.1f).add(0.2f * d, -0.112f).add(0.3f * d, -0.045f).add(0.3f * d, 0.0f).add(0.22f * d, 0.04f).add(0.02f * d, 0.03f)
+            p.shapeGradDetail(0xFF222C44.toInt(), 0xFF040509.toInt(), 0f, -0.112f, 0f, 0.04f)
+            if (p.shading) {
+                g.blend(Gfx.Blend.ADD)
+                g.line(0.06f * d, -0.09f, 0.19f * d, -0.098f, 0.012f, p.c(0x60C8DCFF))
+                g.blend(Gfx.Blend.NORMAL)
+            }
+            // Rotor discs: a translucent blur with a faint rim, and the blade streak turning in it.
             for (si in 0..1) {
-                val rx = (si * 2 - 1) * 0.38f
-                val b = if (dead) 0.2f else 0.55f + 0.45f * abs(sin(f.t * 50f + si))
-                g.line(rx - 0.25f * b, -0.21f, rx + 0.25f * b, -0.21f, 0.04f, p.c(0x90A8B0C8.toInt()))
+                val rx = (si * 2 - 1) * 0.4f
+                g.save()
+                g.translate(rx, -0.215f)
+                g.scale(1f, 0.15f)
+                if (dead) {
+                    val a = e.stateTime * 3f + si
+                    g.line(-0.2f * cos(a), 0f, 0.2f * cos(a), 0f, 0.14f, p.c(0xFF2A2E3C.toInt()))
+                } else {
+                    g.fillCircle(0f, 0f, 0.26f, p.c(0x30B4C0DC))
+                    if (p.shading) g.strokeCircle(0f, 0f, 0.25f, 0.08f, p.c(0x50D0DAF0))
+                    val b = sin(f.t * 50f + si * 1.7f)
+                    g.line(-0.25f * b, 0f, 0.25f * b, 0f, 0.2f, p.c(0x80D8E0F0.toInt()))
+                }
+                g.restore()
+                p.disc(rx, -0.205f, 0.03f, Mech.DRONE_NACELLE)
             }
             if (!dead) {
-                // The eye: a lit lens in a dark socket, glowing into the room.
-                val ex = 0.14f * dir
-                g.fillCircle(ex, 0.0f, 0.075f, p.c(0xFF0A0A10.toInt()))
-                g.fillCircle(ex, 0.0f, 0.052f, p.c(eyeC))
+                // The eye: a lit lens in a dark ring, glowing into the room.
+                val ex = 0.2f * d
+                val ey = -0.035f
+                g.fillCircle(ex, ey, 0.066f, p.c(0xFF06070C.toInt()))
+                if (p.shading) g.strokeCircle(ex, ey, 0.058f, 0.012f, p.c(0xFF3A4560.toInt()))
+                g.fillCircle(ex, ey, 0.042f, p.c(eyeC))
+                g.fillCircle(ex, ey, 0.02f, p.c(Col.lerp(eyeC, 0xFFFFFFFF.toInt(), 0.7f)))
                 g.blend(Gfx.Blend.ADD)
-                g.glow(ex, 0f, 0.3f, p.c(Col.alpha(eyeC, 0.7f)))
+                g.glow(ex, ey, 0.3f, p.c(Col.alpha(eyeC, 0.7f)))
                 g.blend(Gfx.Blend.NORMAL)
             }
         }
@@ -1480,6 +1520,10 @@ internal class ActorCast(
         }
     }
 
+    /**
+     * A ceiling sentry: a mount plate and a hydraulic stem to a yoke, and in it an armoured
+     * gun head that tracks the agent, twin barrels out front and a lens eye in its cheek plate.
+     */
     private fun turret(e: Enemy, x: Float, gy: Float, pal: Palette) {
         val rt = gy - Geo.FLOOR_H + Building.SLAB
         val y = gy - e.z
@@ -1492,39 +1536,80 @@ internal class ActorCast(
             ang = Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
         }
         if (dead) ang = 110f + sin(f.t * 3f) * 6f
-        val housing = 0xFF3A3E54.toInt()
-        val lit = 0xFF626884.toInt()
         // Its own key light, never the one the last humanoid left in the pen.
         p.lightFrom(if (e.facing >= 0) 1 else -1)
         p.twoPass {
-            p.seg(x, rt, x, y - 0.2f, 0.14f, 0xFF22222C.toInt())
-            p.begin().add(x - 0.32f, rt).add(x + 0.32f, rt).add(x + 0.26f, rt + 0.1f).add(x - 0.26f, rt + 0.1f).shape(0xFF3A3A46.toInt())
+            p.bone(x, rt + 0.05f, x, y - 0.18f, 0.13f, 0.1f, Mech.TURRET_STEM)
+            p.begin().add(x - 0.32f, rt).add(x + 0.32f, rt).add(x + 0.25f, rt + 0.09f).add(x - 0.25f, rt + 0.09f)
+                .shapeLit(Mech.TURRET_MOUNT, x, rt, x, rt + 0.09f)
+            // The yoke's collar the head swings under.
+            p.begin().add(x - 0.17f, y - 0.26f).add(x + 0.17f, y - 0.26f).add(x + 0.13f, y - 0.16f).add(x - 0.13f, y - 0.16f)
+                .shapeLit(Mech.TURRET_MOUNT, x, y - 0.26f, x, y - 0.16f)
+        }
+        if (p.shading) {
+            p.detail(x - 0.28f, rt + 0.012f, x + 0.28f, rt + 0.012f, 0.014f, ActorPaint.light(Mech.TURRET_MOUNT))
+            p.detail(x - 0.028f, rt + 0.1f, x - 0.028f, y - 0.2f, 0.016f, Col.alpha(0xFFFFFFFF.toInt(), 0.18f))
         }
         g.save()
         g.translate(x, y)
         g.rotate(ang)
+        // Keep the head's top up whichever way it tracks, so its lamp-lit crown stays on top.
+        val left = cos(Math.toRadians(ang.toDouble())) < 0.0
+        if (left) g.scale(1f, -1f)
         p.twoPass {
-            // Twin barrels as one fat stroke, and the breech.
-            p.seg(0.12f, 0f, 0.56f, 0f, 0.13f, 0xFF15151C.toInt())
-            p.seg(0.1f, 0f, 0.3f, 0f, 0.17f, 0xFF2A2A34.toInt())
+            // Twin barrels, as one outlined block, with a heavy muzzle collar.
+            p.begin().add(0.16f, -0.05f).add(0.5f, -0.05f).add(0.5f, -0.062f).add(0.565f, -0.062f)
+                .add(0.565f, 0.062f).add(0.5f, 0.062f).add(0.5f, 0.05f).add(0.16f, 0.05f)
+                .shapeLit(Mech.TURRET_GUN, 0f, -0.062f, 0f, 0.062f)
+            // The armoured head: a faceted pod, chamfered nose and a heavy brow.
+            p.begin()
+                .add(-0.3f, -0.08f).add(-0.22f, -0.175f).add(0.1f, -0.19f).add(0.24f, -0.12f)
+                .add(0.27f, 0.02f).add(0.21f, 0.13f).add(-0.17f, 0.15f).add(-0.29f, 0.07f)
+                .shapeLit(Mech.TURRET_HOUSING, 0.05f, -0.19f, -0.05f, 0.15f, mid = 0.4f)
         }
-        g.restore()
-        p.twoPass {
-            p.begin().add(x - 0.32f, y - 0.26f).add(x + 0.32f, y - 0.26f).add(x + 0.28f, y - 0.08f).add(x - 0.28f, y - 0.08f).shape(lit)
-            p.ball(x, y - 0.02f, 0.23f, housing, gloss = 0.3f)
+        if (p.shading) {
+            // The gap between the barrels, the belly armour in shadow, a plate seam, the lamp on the brow.
+            p.detail(0.18f, 0f, 0.5f, 0f, 0.014f, 0xFF07080C.toInt())
+            p.begin().add(-0.28f, 0.05f).add(0.25f, 0.05f).add(0.21f, 0.13f).add(-0.17f, 0.15f).add(-0.29f, 0.07f)
+                .shapeGradDetail(ActorPaint.shade(Mech.TURRET_HOUSING), 0xFF08070F.toInt(), 0f, 0.05f, 0f, 0.15f)
+            p.detail(-0.08f, -0.18f, -0.1f, 0.14f, 0.012f, ActorPaint.shade(Mech.TURRET_HOUSING))
+            g.blend(Gfx.Blend.ADD)
+            g.line(-0.2f, -0.162f, 0.09f, -0.176f, 0.02f, p.c(0x48FFFFFF))
+            g.line(0.51f, -0.052f, 0.555f, -0.052f, 0.012f, p.c(0x50FFFFFF))
+            g.blend(Gfx.Blend.NORMAL)
         }
-        bevel(x - 0.3f, y - 0.255f, x + 0.3f, y - 0.255f, x - 0.27f, y - 0.09f, x + 0.27f, y - 0.09f, lit)
+        p.detail(-0.26f, 0.06f, 0.2f, 0.06f, 0.024f, pal.enemyAccent)
+        val lx = 0.13f
+        val ly = -0.075f
         if (!dead) {
             val alarmed = e.state == EnemyState.AIM || e.state == EnemyState.ALERT
             val eyeC = if (alarmed) 0xFFFF2A40.toInt() else pal.neon2
-            g.fillCircle(x, y, 0.1f, 0xFF08080C.toInt())
-            g.fillCircle(x, y, 0.065f, eyeC)
+            g.fillCircle(lx, ly, 0.088f, p.c(0xFF06070C.toInt()))
+            if (p.shading) g.strokeCircle(lx, ly, 0.078f, 0.014f, p.c(0xFF3C4258.toInt()))
+            g.fillCircle(lx, ly, 0.056f, p.c(eyeC))
+            g.fillCircle(lx, ly, 0.026f, p.c(Col.lerp(eyeC, 0xFFFFFFFF.toInt(), 0.7f)))
             g.blend(Gfx.Blend.ADD)
-            g.glow(x, y, 0.36f, Col.alpha(eyeC, 0.75f))
+            g.glow(lx, ly, 0.36f, p.c(Col.alpha(eyeC, 0.75f)))
             g.blend(Gfx.Blend.NORMAL)
-        } else if (hash((f.t * 12f).toInt(), e.id) > 0.8f) {
+        } else {
+            g.fillCircle(lx, ly, 0.07f, p.c(0xFF06070C.toInt()))
+        }
+        g.restore()
+        if (dead && hash((f.t * 12f).toInt(), e.id) > 0.8f) {
             f.glowDot(x + 0.1f, y + 0.1f, 0.04f, 0xFFFFE080.toInt())
         }
+    }
+
+    /** The machines' materials. */
+    private object Mech {
+        const val DRONE_HULL = 0xFF56607C.toInt()
+        const val DRONE_ARM = 0xFF22252F.toInt()
+        const val DRONE_NACELLE = 0xFF343846.toInt()
+        const val DRONE_GUN = 0xFF1C1E27.toInt()
+        const val TURRET_HOUSING = 0xFF4A5068.toInt()
+        const val TURRET_MOUNT = 0xFF2E3140.toInt()
+        const val TURRET_STEM = 0xFF262833.toInt()
+        const val TURRET_GUN = 0xFF1C1E27.toInt()
     }
 
     // =========================================================== telegraphs
