@@ -20,6 +20,16 @@ internal class Look {
     /** Leg/arm width multipliers. */
     var legW = 1f
     var armW = 1f
+    /** What's on the feet: [FEET_BOOT], [FEET_BARE] or [FEET_DRESS]. */
+    var feet = FEET_BOOT
+
+    companion object {
+        const val FEET_BOOT = 0
+        /** Bare skin: heel, arch and toes, in [boots] (the skin tone). */
+        const val FEET_BARE = 1
+        /** A sleek low dress shoe with a long toe. */
+        const val FEET_DRESS = 2
+    }
 }
 
 /** Shared humanoid parts drawn from a [Rig] through an [ActorPaint]. */
@@ -93,7 +103,7 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
         // Thigh tapering to the knee; the shin swells into a calf, then a slim ankle.
         p.bone(l.ax, l.ay, l.jx, l.jy, lw * 1.34f, lw * 0.94f, col, sep, lit = !far)
         p.bone(l.jx, l.jy, l.ex, l.ey, lw * 0.94f, lw * 0.66f, col, sep, bulge = lw * 1.04f, lit = !far)
-        boot(l, if (far) Col.mul(look.boots, 0.75f) else look.boots, sep)
+        boot(l, if (far) Col.mul(look.boots, 0.75f) else look.boots, sep, look.feet)
         if (!far && look.rim != 0) {
             p.boneRim(l.ax, l.ay, l.jx, l.jy, lw * 1.34f, lw * 0.94f, rimX, rimY, look.rim)
         }
@@ -103,7 +113,11 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
      * A boot: a real last, not a stick. Heel, a shaft up the ankle, the instep sloping to a
      * rounded toe cap, a sole underneath and a lamp-lit edge on the toe.
      */
-    fun boot(l: Limb, color: Int, sep: Boolean) {
+    fun boot(l: Limb, color: Int, sep: Boolean, feet: Int = Look.FEET_BOOT) {
+        if (feet != Look.FEET_BOOT && p.hi) {
+            shoe(l, color, sep, feet)
+            return
+        }
         if (!p.hi) {
             val fx = cos(l.pitch) * k.dir
             val fy = sin(l.pitch)
@@ -146,6 +160,49 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
                 .add(px(-0.02f, 0.03f), py(-0.02f, 0.03f))
                 .shapeShade(color)
             p.detail(px(0.07f, 0.075f), py(0.07f, 0.075f), px(0.15f, 0.052f), py(0.15f, 0.052f), 0.014f * s, Col.alpha(ActorPaint.light(color), 0.8f))
+        }
+    }
+
+    /**
+     * The other feet: a bare foot (a real heel, the arch, the ball and a row of toes, painted
+     * like skin) or a low dress shoe with a long polished toe. Same foot frame as [boot].
+     */
+    private fun shoe(l: Limb, color: Int, sep: Boolean, feet: Int) {
+        val s = k.hs
+        val fx = cos(l.pitch) * k.dir
+        val fy = sin(l.pitch)
+        val ux = fy * k.dir
+        val uy = -cos(l.pitch)
+        val ox = l.ex
+        val oy = l.ey + 0.045f * s
+        fun px(f: Float, u: Float) = ox + (fx * f + ux * u) * s
+        fun py(f: Float, u: Float) = oy + (fy * f + uy * u) * s
+        val pts = if (feet == Look.FEET_BARE) BARE else DRESS
+        p.begin()
+        var i = 0
+        while (i < pts.size) {
+            p.add(px(pts[i], pts[i + 1]), py(pts[i], pts[i + 1])); i += 2
+        }
+        if (feet == Look.FEET_BARE) {
+            p.shapeLit(color, px(0.04f, 0.12f), py(0.04f, 0.12f), px(0.02f, -0.01f), py(0.02f, -0.01f), sep = sep)
+            if (!p.shading) return
+            // The sole in shadow, the ankle bone catching the lamp, the toes split by two creases.
+            p.begin()
+                .add(px(-0.07f, 0.0f), py(-0.07f, 0.0f)).add(px(-0.08f, 0.03f), py(-0.08f, 0.03f))
+                .add(px(0.18f, 0.018f), py(0.18f, 0.018f)).add(px(0.188f, 0.0f), py(0.188f, 0.0f))
+                .shapeShade(color)
+            p.dot(px(-0.035f, 0.085f), py(-0.035f, 0.085f), 0.016f * s, ActorPaint.light(color))
+            p.detail(px(0.148f, 0.04f), py(0.148f, 0.04f), px(0.152f, 0.012f), py(0.152f, 0.012f), 0.008f * s, ActorPaint.shade(color))
+            p.detail(px(0.168f, 0.034f), py(0.168f, 0.034f), px(0.171f, 0.01f), py(0.171f, 0.01f), 0.007f * s, ActorPaint.shade(color))
+            p.detail(px(0.06f, 0.075f), py(0.06f, 0.075f), px(0.13f, 0.05f), py(0.13f, 0.05f), 0.012f * s, Col.alpha(ActorPaint.light(color), 0.7f))
+        } else {
+            p.shape(color, sep)
+            if (!p.shading) return
+            // A thin welt sole, the heel block and one bright polish glint down the toe.
+            p.detail(px(-0.07f, 0.008f), py(-0.07f, 0.008f), px(0.185f, 0.008f), py(0.185f, 0.008f), 0.014f * s, 0xFF050508.toInt())
+            p.detail(px(-0.07f, 0.02f), py(-0.07f, 0.02f), px(-0.02f, 0.02f), py(-0.02f, 0.02f), 0.02f * s, ActorPaint.shade(color))
+            p.detail(px(0.07f, 0.07f), py(0.07f, 0.07f), px(0.17f, 0.036f), py(0.17f, 0.036f), 0.016f * s, Col.alpha(0xFFFFFFFF.toInt(), 0.55f))
+            p.detail(px(-0.05f, 0.085f), py(-0.05f, 0.085f), px(0.0f, 0.09f), py(0.0f, 0.09f), 0.01f * s, Col.alpha(0xFFFFFFFF.toInt(), 0.3f))
         }
     }
 
@@ -229,7 +286,7 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
      * underneath), one silhouette per kind (a boxy slide, a long pump gun with a wooden stock, a
      * carry-handled rotary, a drum-fed cannon), a single accent trim line and a specular glint.
      */
-    fun gun(kind: Int, hx: Float, hy: Float, up: Float, trim: Int, spin: Float = 0f, scale: Float = 1f) {
+    fun gun(kind: Int, hx: Float, hy: Float, up: Float, trim: Int, spin: Float = 0f, scale: Float = 1f, variant: Int = PISTOL) {
         val g = p.g
         g.save()
         g.translate(hx, hy)
@@ -238,7 +295,17 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
         when (kind) {
             0 -> {
                 pistol(trim)
-                muzzleAt(hx, hy, 0.21f * scale, -0.055f * scale, up)
+                when (variant) {
+                    SUPPRESSED -> {
+                        suppressor(trim)
+                        muzzleAt(hx, hy, 0.43f * scale, -0.056f * scale, up)
+                    }
+                    SMART -> {
+                        smart(trim)
+                        muzzleAt(hx, hy, 0.225f * scale, -0.055f * scale, up)
+                    }
+                    else -> muzzleAt(hx, hy, 0.21f * scale, -0.055f * scale, up)
+                }
             }
             1 -> {
                 shotgun(trim)
@@ -325,6 +392,36 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
             glint(0.1f, -0.086f, 0.17f, -0.086f, 0.008f, 0.5f)
         }
         trimLine(-0.045f, -0.052f, 0.18f, -0.052f, 0.014f, trim)
+    }
+
+    /** A long suppressor screwed onto the pistol's muzzle: one matte tube, a ringed seam, a clean glint. */
+    private fun suppressor(trim: Int) {
+        p.begin()
+            .add(0.2f, -0.082f).add(0.42f, -0.082f).add(0.432f, -0.074f).add(0.432f, -0.038f)
+            .add(0.42f, -0.03f).add(0.2f, -0.03f)
+        plate(GUN_DARK, -0.082f, -0.03f)
+        if (p.ink) return
+        if (p.shading) {
+            p.detail(0.225f, -0.08f, 0.225f, -0.032f, 0.008f, GUN_DEEP)
+            p.detail(0.4f, -0.08f, 0.4f, -0.032f, 0.006f, GUN_DEEP)
+            glint(0.24f, -0.074f, 0.39f, -0.074f, 0.008f, 0.55f)
+            p.detail(0.43f, -0.07f, 0.43f, -0.042f, 0.008f, 0xFF08090E.toInt())
+        }
+        trimLine(0.232f, -0.082f, 0.232f, -0.03f, 0.016f, trim)
+    }
+
+    /** The smart pistol: an under-barrel emitter block and a light strip down the slide. */
+    private fun smart(trim: Int) {
+        p.begin()
+            .add(0.1f, -0.03f).add(0.23f, -0.03f).add(0.236f, -0.02f).add(0.22f, -0.002f).add(0.1f, -0.004f)
+        plate(GUN_DARK, -0.03f, -0.002f)
+        if (p.ink) return
+        p.g.blend(Gfx.Blend.ADD)
+        p.g.line(-0.05f, -0.062f, 0.19f, -0.062f, 0.014f, p.c(Col.alpha(trim, 0.95f)))
+        p.g.glow(0.232f, -0.016f, 0.03f, p.c(Col.alpha(trim, 0.9f)))
+        if (p.shading) p.g.glow(0.07f, -0.062f, 0.12f, p.c(Col.alpha(trim, 0.35f)))
+        p.g.blend(Gfx.Blend.NORMAL)
+        p.dot(0.232f, -0.016f, 0.008f, 0xFFFFFFFF.toInt())
     }
 
     private fun shotgun(trim: Int) {
@@ -460,12 +557,27 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
         g.restore()
     }
 
-    private companion object {
+    companion object {
+        /** Pistol variants for [gun]. */
+        const val PISTOL = 0
+        const val SUPPRESSED = 1
+        const val SMART = 2
+
+        /** Foot outlines in the foot frame (forward, up), as in [boot]. */
+        private val BARE = floatArrayOf(
+            -0.07f, 0.0f, -0.085f, 0.045f, -0.06f, 0.105f, 0.0f, 0.12f, 0.06f, 0.078f,
+            0.13f, 0.05f, 0.172f, 0.04f, 0.192f, 0.018f, 0.188f, 0.0f,
+        )
+        private val DRESS = floatArrayOf(
+            -0.075f, 0.0f, -0.082f, 0.06f, -0.052f, 0.104f, 0.03f, 0.1f, 0.09f, 0.064f,
+            0.16f, 0.044f, 0.198f, 0.022f, 0.196f, 0.0f,
+        )
+
         /** Gunmetal: a cool blue-grey that paints into a lamp-lit top and a violet shadow. */
-        const val GUN = 0xFF2C313F.toInt()
-        const val GUN_DARK = 0xFF1E212B.toInt()
-        const val GUN_DEEP = 0xFF12131B.toInt()
-        const val GUN_LIT = 0xFF565D70.toInt()
-        const val WALNUT = 0xFF6A3E24.toInt()
+        private const val GUN = 0xFF2C313F.toInt()
+        private const val GUN_DARK = 0xFF1E212B.toInt()
+        private const val GUN_DEEP = 0xFF12131B.toInt()
+        private const val GUN_LIT = 0xFF565D70.toInt()
+        private const val WALNUT = 0xFF6A3E24.toInt()
     }
 }

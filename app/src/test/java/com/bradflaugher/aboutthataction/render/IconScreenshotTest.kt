@@ -20,6 +20,31 @@ class IconScreenshotTest {
     private val sizes = floatArrayOf(22f, 44f, 120f)
     private val cell = 150
 
+    /** Every icon, drawn into a fresh image. */
+    private fun allIcons(): IntArray {
+        val img = BufferedImage(64 * (Perk.entries.size + PickupKind.entries.size + 1), 64, BufferedImage.TYPE_INT_ARGB)
+        val g = AwtGfx(img)
+        var x = 32f
+        for (p in Perk.entries) { HudIcons.perk(g, p, x, 32f, 44f, 0xFFB98CFF.toInt()); x += 64f }
+        for (k in PickupKind.entries) { HudIcons.pickup(g, k, x, 32f, 44f, 0xFF7FF0FF.toInt()); x += 64f }
+        Glyphs.heart(g, x, 32f, 44f, 0xFFFF2E63.toInt())
+        g.dispose()
+        return img.getRGB(0, 0, img.width, img.height, null, 0, img.width)
+    }
+
+    /** The game thread and the hero picker draw icons at the same time: neither may garble the other. */
+    @Test
+    fun iconsDrawCleanlyFromTwoThreadsAtOnce() {
+        val expected = allIcons()
+        val bad = java.util.concurrent.atomic.AtomicInteger()
+        val threads = List(2) {
+            Thread { repeat(30) { if (!allIcons().contentEquals(expected)) bad.incrementAndGet() } }
+        }
+        threads.forEach(Thread::start)
+        threads.forEach(Thread::join)
+        assertTrue("${bad.get()} garbled sheets", bad.get() == 0)
+    }
+
     @Test
     fun iconSheet() {
         val rows = Perk.entries.size + PickupKind.entries.size + 2

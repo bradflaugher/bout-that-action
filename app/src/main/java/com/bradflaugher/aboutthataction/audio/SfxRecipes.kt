@@ -3,6 +3,7 @@ package com.bradflaugher.aboutthataction.audio
 import com.bradflaugher.aboutthataction.engine.EnemyKind
 import com.bradflaugher.aboutthataction.engine.FloorEvent
 import com.bradflaugher.aboutthataction.engine.GameEvent
+import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.KillMethod
 import com.bradflaugher.aboutthataction.engine.PickupKind
 import com.bradflaugher.aboutthataction.engine.Zone
@@ -842,7 +843,62 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
     }
 
     /** Game-over stinger: a dying minor chord over a boom. */
-    fun gameOverStinger() {
+    /** The game-over chord, signed off in [hero]'s style (null: just the chord). */
+    fun gameOverStinger(hero: Hero?) {
+        gameOverStinger()
+        when (hero) {
+            Hero.BEAST -> {
+                // Sad trombone: three falling "wah"s and a long, wobbling fourth.
+                for (k in 0 until 4) voice {
+                    val last = k == 3
+                    wave = Wave.SAW; wave2 = Wave.SQUARE; level2 = 0.3f; f0 = 146.8f * Dsp.semis(-k.toFloat()); f1 = f0 * (if (last) 0.97f else 0.99f)
+                    sweep = if (last) 1.2f else 0.3f; filter = FilterMode.LOW; cut0 = 400f; cut1 = 1400f; cutTime = 0.12f; q = 2f
+                    attack = 0.03f; hold = if (last) 0.7f else 0.18f; decay = if (last) 0.6f else 0.12f
+                    vibRate = if (last) 6f else 0f; vibDepth = 0.012f; gain = 0.16f; reverb = 0.25f; delay = 0.9f + k * 0.34f; priority = 4f
+                }
+            }
+            Hero.ACE -> {
+                // Vibes, rolled: a cool D minor 9 fading out on tremolo.
+                for (k in ACE_EXIT.indices) voice {
+                    val s = ACE_EXIT[k]
+                    wave = Wave.SINE; wave2 = Wave.SINE; ratio2 = 4f; level2 = 0.2f; f0 = 293.7f * Dsp.semis(s.toFloat()); f1 = f0
+                    attack = 0.003f; decay = 2.4f; tremRate = 5.5f; tremDepth = 0.5f; gain = 0.07f
+                    pan = (k - 2f) * 0.2f; reverb = 0.55f; delay = 0.8f + k * 0.09f; priority = 4f
+                }
+            }
+            Hero.HARDY -> {
+                // A shake of sleigh bells and three tolling bells: ho... ho... no.
+                voice {
+                    level1 = 0f; noise = 1f; filter = FilterMode.HIGH; cut0 = 6000f; cut1 = 6000f; attack = 0.02f; hold = 0.35f
+                    decay = 0.4f; tremRate = 17f; tremDepth = 0.8f; gain = 0.1f; reverb = 0.3f; delay = 0.8f; priority = 4f
+                }
+                for (k in HO_HO_NO.indices) voice {
+                    val s = HO_HO_NO[k]
+                    wave = Wave.SINE; wave2 = Wave.SINE; ratio2 = 2.76f; fm = 0.9f; f0 = 293.7f * Dsp.semis(s.toFloat()); f1 = f0
+                    attack = 0.002f; decay = 2f; gain = 0.12f; reverb = 0.45f; delay = 1.1f + k * 0.42f; priority = 4f
+                }
+            }
+            Hero.VIPER -> {
+                // Two war drums in the distance, and a lone horn falling to rest.
+                for (k in 0 until 2) voice {
+                    wave = Wave.SINE; f0 = 82f; f1 = 52f; sweep = 0.25f; attack = 0.002f; decay = 0.9f; noise = 0.15f
+                    filter = FilterMode.LOW; cut0 = 900f; cut1 = 200f; cutTime = 0.3f; gain = 0.14f - k * 0.05f; reverb = 0.5f
+                    delay = 0.8f + k * 0.45f; priority = 4f
+                }
+                for (k in VIPER_EXIT.indices) voice {
+                    val s = VIPER_EXIT[k]
+                    val last = k == VIPER_EXIT.size - 1
+                    wave = Wave.SAW; wave2 = Wave.TRIANGLE; level2 = 0.6f; f0 = 146.8f * Dsp.semis(s.toFloat()); f1 = f0
+                    filter = FilterMode.LOW; cut0 = 500f; cut1 = 1100f; cutTime = 0.15f; attack = 0.05f
+                    hold = if (last) 0.8f else 0.25f; decay = if (last) 1.2f else 0.15f; vibRate = 5f; vibDepth = 0.006f
+                    gain = 0.1f; reverb = 0.5f; delay = 1.5f + k * 0.42f; priority = 4f
+                }
+            }
+            null -> {}
+        }
+    }
+
+    private fun gameOverStinger() {
         trim = 1f
         for (k in STINGER.indices) voice {
             val s = STINGER[k]
@@ -869,6 +925,11 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         private val SHIELD_ARP = intArrayOf(0, 4, 7, 12, 16)
         private val PERK_SWELL = intArrayOf(0, 3, 7, 14)
         private val STINGER = intArrayOf(-12, 0, 3, 7)
+        /** Dm9 (D F A C E), rolled up. */
+        private val ACE_EXIT = intArrayOf(0, 3, 7, 10, 14)
+        private val HO_HO_NO = intArrayOf(7, 3, -5)
+        /** D minor horn: A, F, then down to D. */
+        private val VIPER_EXIT = intArrayOf(7, 3, 0)
         private val FIFTHS = intArrayOf(0, 7, 12, 19)
         private val ROOT_SHIFT = intArrayOf(0, 2, -3, 5)
         /** Semitones above A1 for each zone's impact "braam". */

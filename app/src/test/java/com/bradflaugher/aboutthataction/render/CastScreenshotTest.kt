@@ -6,6 +6,7 @@ import com.bradflaugher.aboutthataction.engine.Enemy
 import com.bradflaugher.aboutthataction.engine.EnemyKind
 import com.bradflaugher.aboutthataction.engine.EnemyState
 import com.bradflaugher.aboutthataction.engine.Geo
+import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.PickupKind
 import com.bradflaugher.aboutthataction.engine.PlayerState
 import com.bradflaugher.aboutthataction.engine.RunConfig
@@ -24,27 +25,45 @@ import javax.imageio.ImageIO
  *
  *   ./gradlew :app:screenshots -x menuShots -Pata.scene=cast -Pata.shots=<dir>
  *
- * Without `ata.scene=cast` it renders one small lineup in memory (a crash test).
+ * `-Pata.scene=heroes` renders just the hero rows (every hero in every key pose) and the
+ * picker portraits into heroes.png, for iterating on the heroes.
+ *
+ * Without either it renders one small lineup and every hero's rows in memory (a crash test).
  */
 class CastScreenshotTest {
     private val outDir: File? = System.getProperty("ata.screenshots")?.let(::File)
     private val wanted = System.getProperty("ata.scene") == "cast"
+    private val heroesOnly = System.getProperty("ata.scene") == "heroes"
     private var nextId = 9000
 
     private val zones = listOf("tower" to 9, "labs" to 30, "metro" to 55, "mines" to 80, "magma" to 105, "hell" to 155)
 
     @Test
     fun castSheet() {
+        if (heroesOnly && outDir != null) {
+            val rows = ArrayList<BufferedImage>()
+            for (h in Hero.entries) rows += heroRow(h)
+            rows += portraitRow()
+            val sheet = stack(rows)
+            outDir.mkdirs()
+            ImageIO.write(sheet, "png", File(outDir, "heroes.png"))
+            println("wrote ${File(outDir, "heroes.png")}")
+            return
+        }
         if (!wanted || outDir == null) {
             val w = lineup(9)
             val img = BufferedImage(270, 600, BufferedImage.TYPE_INT_ARGB)
             Renderer().render(AwtGfx(img), w, 2f, 20f, 12f, showHud = false)
             assertTrue(img.width == 270)
+            // Every hero in every pose, and the portraits: a crash test for each costume.
+            for (h in Hero.entries) assertTrue(heroRow(h).width > 0)
+            assertTrue(portraitRow().width > 0)
             return
         }
         val rows = ArrayList<BufferedImage>()
         for ((_, floor) in zones) rows += stageCrop(lineup(floor), 3.1f)
-        rows += heroRow()
+        for (h in Hero.entries) rows += heroRow(h)
+        rows += portraitRow()
         rows += propsRow()
         rows += pickupsRow()
         val sheet = stack(rows)
@@ -55,8 +74,8 @@ class CastScreenshotTest {
 
     // --------------------------------------------------------------- scenes
 
-    private fun world(floor: Int, silent: Boolean = false): World {
-        val w = World(RunConfig(11, Difficulty(startFloor = floor), silent = silent))
+    private fun world(floor: Int, silent: Boolean = false, hero: Hero = Hero.BEAST): World {
+        val w = World(RunConfig(11, Difficulty(startFloor = floor), silent = silent, hero = hero))
         w.viewAspect = 2400f / 1080f
         var t = 0f
         while (t < 1.6f) {
@@ -110,30 +129,59 @@ class CastScreenshotTest {
         return w
     }
 
-    /** The agent: idle, run, shooting, SILENT sneak, jump, in the box-free states. */
-    private fun heroRow(): BufferedImage {
-        val poses = listOf<(World) -> Unit>(
-            { },
-            { it.player.vx = 4.5f; it.player.runTime = 0.3f },
-            { it.player.weapon = null; it.player.sinceShot = 0.03f },
-            { it.player.weapon = PickupKind.SHOTGUN; it.player.sinceShot = 0.2f },
-            { it.player.vx = -4.5f; it.player.facing = -1; it.player.runTime = 0.55f },
-            { it.player.z = 0.9f; it.player.vz = 1f; it.player.vx = 3f },
+    /**
+     * One hero in every key pose: idle, run, the three guns firing, running back, the jump,
+     * a reload, SILENT's sneak, guard and takedown, a doorway, a passage and the fall.
+     */
+    private fun heroRow(hero: Hero): BufferedImage {
+        val poses = listOf<Pair<Boolean, (World) -> Unit>>(
+            false to { },
+            false to { it.player.vx = 4.5f; it.player.runTime = 0.3f },
+            false to { it.player.weapon = null; it.player.sinceShot = 0.03f },
+            false to { it.player.weapon = PickupKind.SHOTGUN; it.player.sinceShot = 0.03f },
+            false to { it.player.weapon = PickupKind.MINIGUN; it.player.sinceShot = 0.03f },
+            false to { it.player.vx = -4.5f; it.player.facing = -1; it.player.runTime = 0.55f },
+            false to { it.player.z = 0.9f; it.player.vz = 1f; it.player.vx = 3f },
+            false to { it.player.reloadTotal = 1f; it.player.reloadTime = 0.5f },
+            true to { it.player.vx = 3f; it.player.runTime = 0.2f },
+            true to { },
+            true to {
+                val e = it.put(EnemyKind.AGENT, 7.25f, 1, EnemyState.CHOKED)
+                it.player.state = PlayerState.TAKEDOWN
+                it.player.stateTime = 0.35f
+                it.player.takedownTarget = e.id
+            },
+            false to { it.player.state = PlayerState.DOOR },
+            false to { it.player.state = PlayerState.BOX; it.player.stateTime = 1f },
+            false to { it.player.state = PlayerState.PASSAGE; it.player.stateTime = World.PASSAGE_TIME * 0.18f },
+            false to { it.player.state = PlayerState.DEAD; it.player.stateTime = 1.4f },
+            false to { it.player.camoTime = 0.3f },
+            false to { it.player.unseenTime = 1f },
         )
         val crops = ArrayList<BufferedImage>()
-        for (pose in poses) {
-            val w = world(9)
+        for ((silent, pose) in poses) {
+            val w = world(9, silent, hero)
             w.player.x = 7f
             w.player.facing = 1
             pose(w)
             crops += stageCrop(w, 1.3f, 7f)
         }
-        val w = world(9, silent = true)
-        w.player.x = 7f
-        w.player.vx = 3f
-        w.player.runTime = 0.2f
-        crops += stageCrop(w, 1.3f, 7f)
         return join(crops)
+    }
+
+    /** The hero picker: every hero's portrait, large and at a small card size. */
+    private fun portraitRow(): BufferedImage {
+        val cw = 420
+        val h = 720
+        val img = BufferedImage(cw * Hero.entries.size + 4 * 150, h, BufferedImage.TYPE_INT_ARGB)
+        val g = AwtGfx(img)
+        g.fillVerticalGradient(0f, 0f, img.width.toFloat(), h.toFloat(), 0xFF141026.toInt(), 0xFF07060E.toInt())
+        for ((i, hero) in Hero.entries.withIndex()) {
+            HeroPortrait.draw(g, hero, cw * i + cw / 2f, h - 60f, 600f, 1.3f + i * 0.4f)
+            HeroPortrait.draw(g, hero, cw * Hero.entries.size + 150f * i + 75f, h - 60f, 160f, 1.3f + i * 0.4f)
+        }
+        g.dispose()
+        return img
     }
 
     /** The hardware up close: the box (idle, peeking, waddling, spotted), every gun firing, the machines aiming. */

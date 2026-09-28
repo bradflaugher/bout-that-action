@@ -196,12 +196,13 @@ fun HowToPlay() {
         "GRENADE" to "The lime button under the mode button throws one. It shows how many you have.",
         "SWIPE ↑" to "Jump. Clears low shots. Land on heads to stomp.",
         "SWIPE ↓" to "Hide in a doorway or pop the cardboard box. Swipe ↓ again to stand up.",
-        "WALK INTO" to "An enemy to choke him out instantly. Heavies only from behind. Nappers from anywhere.",
+        "WALK INTO" to "An enemy to choke him out instantly. Heavies only from behind (BEAST tackles them head-on). Nappers from anywhere.",
         "THE BOX" to "Move it while a guard's looking and he comes over to check. Let him. (Heavies and ninjas kick it.)",
         "JUMP + TAP" to "Swat out the lamp overhead. The crash lures guards over to look; anyone right under it is out.",
         "ARRIVING" to "In SILENT you step into each new hallway hidden in the doorway. Tap or swipe ↑ to step out.",
         "MODE" to "The button under pause: GUNS HOT auto-fires at threats; SILENT never fires and quiet kills score double.",
         "GHOST" to "Leave a floor without anyone spotting you for a bonus. Double in SILENT.",
+        "HEROES" to "Four of them, all free. Tap the hero bar on the title to swap. Each has a trait and three perks of their own.",
         "DOWN" to "Only elevators go down, and only some hallways have one. Find it. Keep going, or take a break. It'll wait.",
     )
     Column(verticalArrangement = Arrangement.spacedBy(Space.s)) {

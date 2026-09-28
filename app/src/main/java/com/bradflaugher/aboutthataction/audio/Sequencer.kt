@@ -21,6 +21,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private val kit = DrumKit(sr)
     private val wind = Wind(sr)
     private val rotor = Rotor(sr)
+    private val crowd = Crowd(sr)
+    private val jungle = Jungle(sr)
     private val rng = Rng(0x5eed + id.toLong())
 
     var spec: SongSpec? = null; private set
@@ -35,6 +37,9 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private var swingPending = false
     private var stutterPending = false
     private var impactPending = false
+    private var rollPending = false
+    private var rollAt = 0.5
+    private var rollVel = 0f
 
     // Controls
     var rate = 1f
@@ -46,6 +51,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private var heldL = 0f
     private var heldR = 0f
     private var time = 0.0
+    private var crowdSwell = 0f
 
     private var fade = 0f
     private var fadeTarget = 0f
@@ -92,7 +98,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         pad.patch = s.pad; bass.patch = s.bass; arp.patch = s.arp; lead.patch = s.lead
         kit.setTuning(s.kit)
         absStep = -1L; stepPos = 1.0
-        swingPending = false; stutterPending = false
+        swingPending = false; stutterPending = false; rollPending = false
+        crowdSwell = 0f
         endStep = Long.MAX_VALUE
         sequencing = true
         bpm = s.bpm
@@ -171,6 +178,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         val s = spec
         if (swingPending && s != null && s.swing > stepPos) target = min(target, s.swing.toDouble())
         if (stutterPending && 0.5 > stepPos) target = min(target, 0.5)
+        if (rollPending && rollAt > stepPos) target = min(target, rollAt)
         val k = ceil((target - stepPos) / inc())
         return max(1.0, min(k, c.toDouble())).toInt()
     }
@@ -190,6 +198,11 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             }
             if (swingPending && stepPos >= s.swing - 1e-7) {
                 swingPending = false; fireStep(s); continue
+            }
+            if (rollPending && stepPos >= rollAt - 1e-7) {
+                rollPending = false
+                kit.snare.trigger(rollVel)
+                continue
             }
             if (stutterPending && stepPos >= 0.5 - 1e-7) {
                 stutterPending = false
@@ -215,15 +228,15 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     }
 
     /** Steps until the pad should release: next strike/release or chord change. */
-    private fun padLength(sp: SongSpec, bar: Int, s: Int): Int {
+    private fun padLength(sp: SongSpec, bar: Int, s: Int, row: String, sustain: Boolean): Int {
         var k = 1
         while (k < 64) {
             val pos = s + k
             val b = bar + pos / 16
             val st = pos % 16
             if (st == 0 && b % sp.barsPerChord == 0) break
-            if (!sp.padSustain) {
-                val ch = sp.padRhythm[st]
+            if (!sustain) {
+                val ch = row[st]
                 if (ch == 'x' || ch == '-') break
             }
             k++
@@ -260,8 +273,15 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             if (kv > 0.02f) {
                 kit.kick.trigger(kv * rng.vary(0.05f)); duckEnv = max(duckEnv, kv)
             }
-            val sv = DrumPattern.velocity(pat.snare[s]) * sMul
-            if (sv > 0.02f) kit.snare.trigger(sv * rng.vary(0.06f))
+            val sc = pat.snare[s]
+            val sv = DrumPattern.velocity(sc) * sMul
+            if (sv > 0.02f) {
+                kit.snare.trigger(sv * rng.vary(0.06f))
+                if (sc == 'r') {
+                    // Roll: a second stroke halfway to the next step.
+                    rollPending = true; rollAt = (stepPos + 1.0) * 0.5; rollVel = sv * 0.8f
+                }
+            }
             val cv = DrumPattern.velocity(pat.clap[s]) * sMul * (0.4f + 0.6f * lPerc)
             if (cv > 0.02f) kit.clap.trigger(cv)
         }
@@ -272,6 +292,11 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             val hv = DrumPattern.velocity(pat.hat[s])
             if (hv > 0f) kit.hat.trigger(hv * lHat * rng.vary(0.12f), false)
         }
+        val jc = pat.jingle[s]
+        if (jc != '.') {
+            val jv = DrumPattern.velocity(jc) * lHat
+            if (jv > 0.02f) kit.jingle.trigger(jv)
+        }
         val tc = pat.tom[s]
         val tomMul = if (transitionFill) max(lSnare, 0.6f) else lSnare
         if (tc != '.' && tomMul > 0.05f) kit.tom(DrumPattern.velocity(tc) * tomMul, if (tc in '1'..'3') tc - '1' else 1)
@@ -279,7 +304,10 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         if (pv > 0.02f && !brk) kit.perc(pv * rng.vary(0.1f))
         if (s == 0 && ((phraseBar == 0 && bar > 0 && lKick > 0.5f && !brk) || impactPending)) {
             kit.crash.trigger(if (impactPending) 1f else 0.75f)
+            crowdSwell = 1f
         }
+        // The crowd leans in through the phrase's last bar.
+        if (phraseBar == 7 && sp.crowd > 0f) crowdSwell = max(crowdSwell, s / 16f * 0.8f)
         if (impactPending) {
             kit.kick.trigger(1f); duckEnv = 1f; impactPending = false
         }
@@ -290,11 +318,15 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         if (bc != '.' && bc != '~') {
             val root = nearest(key + chord.root, sp.bassCenter)
             val iv = chord.intervals
-            val note = root + when (bc) {
-                'O', 'o' -> 12
-                'F' -> iv[min(2, iv.size - 1)]
-                'T' -> iv[1]
-                else -> 0
+            val note = when (bc) {
+                'O', 'o' -> root + 12
+                'F' -> root + iv[min(2, iv.size - 1)]
+                'T' -> root + iv[1]
+                'D', 'd' -> root + iv[min(2, iv.size - 1)] - 12
+                'S', 's' -> root + Scales.note(comp.scale, chord.degree + 1) - Scales.note(comp.scale, chord.degree)
+                '7' -> root + if (iv.size > 3) iv[3] else Scales.note(comp.scale, chord.degree + 6) - Scales.note(comp.scale, chord.degree)
+                'A', 'a' -> nearest(key + comp.chordAt(bar + 1).root, sp.bassCenter) - 1
+                else -> root
             }
             val vel = (if (bc.isLowerCase()) 0.62f else 1f) * (if (brk) 0.8f else 1f)
             val len = 1 + ties(brow, s)
@@ -303,13 +335,22 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
 
         // ---- Pad
         val chordChange = s == 0 && bar % sp.barsPerChord == 0
-        val strike = if (sp.padSustain) chordChange else sp.padRhythm[s] == 'x'
+        val prow = if (isB) sp.padRhythmB else sp.padRhythm
+        val sustain = if (isB) sp.padSustainB else sp.padSustain
+        val strike = if (sustain) chordChange else prow[s] == 'x'
         if (strike) {
-            val len = padLength(sp, bar, s)
+            val len = (padLength(sp, bar, s, prow, sustain) * stepSamples).toInt()
             pad.releaseAll()
-            for (k in 0 until chord.size) {
-                val note = nearest(key + chord.root + chord.intervals[k], sp.padCenter)
-                pad.noteOn(note, 0.8f, (len * stepSamples).toInt())
+            if (sp.padPower) {
+                // Power chord: root, fifth and octave, stacked up from the root.
+                val root = nearest(key + chord.root, sp.padCenter - 5)
+                val fifth = chord.intervals[min(2, chord.size - 1)]
+                pad.noteOn(root, 0.8f, len); pad.noteOn(root + fifth, 0.8f, len); pad.noteOn(root + 12, 0.7f, len)
+            } else {
+                for (k in 0 until chord.size) {
+                    val note = nearest(key + chord.root + chord.intervals[k], sp.padCenter)
+                    pad.noteOn(note, 0.8f, len)
+                }
             }
         }
 
@@ -362,6 +403,12 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         ambL.fill(0f, 0, n); ambR.fill(0f, 0, n)
         wind.render(ambL, ambR, n, sp.wind)
         rotor.render(ambL, ambR, n, sp.rotor, 0.6f * Dsp.sin01((time * 0.05).toFloat()))
+        jungle.render(ambL, ambR, n, sp.jungle)
+        if (sp.crowd > 0f) {
+            val i = if (sp.fixedIntensity >= 0f) sp.fixedIntensity else intensity
+            crowdSwell *= crowdDecay.pow(n)
+            crowd.render(ambL, ambR, n, sp.crowd * (0.15f + 0.3f * i + crowdSwell) * fadeTarget)
+        }
 
         val m = sp.mix
         val gPad = m.pad
@@ -389,7 +436,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
                 }
                 l = heldL; r = heldR
             }
-            val f = fade
+            val f = fade * sp.gain
             dL[off + i] += l * f
             dR[off + i] += r * f
             dRev[off + i] += ((padL[i] + padR[i]) * pd * m.padVerb + a * gArp * m.arpVerb + ld * m.leadVerb +
@@ -397,6 +444,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             dDly[off + i] += (a * gArp * m.arpDelay + ld * m.leadDelay) * f
         }
     }
+
+    private val crowdDecay = Dsp.decay60(3.5f, sr)
 
     companion object {
         private val VOID_BPMS = floatArrayOf(96f, 110f, 124f, 132f, 140f, 150f, 170f)
@@ -410,7 +459,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
  */
 internal class MusicDirector(private val sr: Int) {
     private val players = arrayOf(MusicPlayer(sr, 0), MusicPlayer(sr, 1))
-    private val composers = IdentityHashMap<SongSpec, Composer>().apply { Songs.all.forEach { put(it, Composer(it)) } }
+    // Every arrangement's composer is built up front, so nothing allocates on the audio thread.
+    private val composers = IdentityHashMap<SongSpec, Composer>().apply { (Songs.all + HeroSongs.all).forEach { put(it, Composer(it)) } }
     private var active = 0
     private val riser = Riser(sr)
     private var riserStart = 0.0

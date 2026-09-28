@@ -9,7 +9,8 @@ class WorldFuzzTest {
     fun randomPlayNeverBreaks() {
         var deepest = 0
         for (seed in 1L..24L) {
-            val world = World(RunConfig(seed, Difficulty.Preset.entries[(seed % 4).toInt()].difficulty))
+            // Every preset with every hero.
+            val world = World(RunConfig(seed, Difficulty.Preset.entries[(seed % 4).toInt()].difficulty, hero = Hero.entries[((seed / 4) % 4).toInt()]))
             val rng = Rng(seed * 77)
             var t = 0f
             while (t < 90f && world.phase != Phase.OVER) {

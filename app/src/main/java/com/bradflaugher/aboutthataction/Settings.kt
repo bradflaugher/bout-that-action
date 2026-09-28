@@ -2,6 +2,7 @@ package com.bradflaugher.aboutthataction
 
 import android.content.Context
 import com.bradflaugher.aboutthataction.engine.Difficulty
+import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.Rng
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -23,6 +24,8 @@ data class Settings(
     val coach: Boolean = true,
     val musicVolume: Float = 0.8f,
     val sfxVolume: Float = 1f,
+    /** Who drops in. Picked on the title screen, remembered between runs. All four from the start. */
+    val hero: Hero = Hero.BEAST,
 ) {
     val difficulty: Difficulty get() = preset?.difficulty ?: custom
 
@@ -64,6 +67,7 @@ class Prefs(context: Context) {
             coach = sp.getBoolean("coach", d.coach),
             musicVolume = sp.getFloat("music", d.musicVolume),
             sfxVolume = sp.getFloat("sfx", d.sfxVolume),
+            hero = Hero.entries.firstOrNull { it.name == sp.getString("hero", null) } ?: d.hero,
         )
     }
 
@@ -84,6 +88,7 @@ class Prefs(context: Context) {
             .putBoolean("coach", s.coach)
             .putFloat("music", s.musicVolume)
             .putFloat("sfx", s.sfxVolume)
+            .putString("hero", s.hero.name)
             .apply()
     }
 

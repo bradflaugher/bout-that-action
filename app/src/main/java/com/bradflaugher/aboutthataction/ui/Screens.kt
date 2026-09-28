@@ -47,6 +47,7 @@ import com.bradflaugher.aboutthataction.SeedMode
 import com.bradflaugher.aboutthataction.Settings
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.FloorLabel
+import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.Zone
 import java.util.Locale
 
@@ -69,6 +70,8 @@ data class RunSummary(
     val quip: String = "",
     /** Label to value: best combo, ghost floors, box ambushes... only the non-zero ones. */
     val highlights: List<Pair<String, String>> = emptyList(),
+    /** Who ran it. */
+    val hero: Hero = Hero.BEAST,
 )
 
 internal fun grouped(n: Long): String = String.format(Locale.US, "%,d", n)
@@ -89,10 +92,11 @@ fun FitText(
     title: Boolean = true,
     letterSpacing: TextUnit = 2.sp,
     glow: Float = 0.6f,
+    alignment: Alignment = Alignment.Center,
 ) {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+    BoxWithConstraints(modifier, contentAlignment = alignment) {
         // (fits with a little air, so edge-to-edge titles still breathe)
         val avail = with(density) { maxWidth.toPx() }
         val size = remember(text, avail, maxSize) {
@@ -143,6 +147,7 @@ fun TitleScreen(
     onPlay: () -> Unit,
     onSettings: () -> Unit,
     onPreset: (Difficulty.Preset) -> Unit,
+    onHeroes: () -> Unit,
 ) {
     Box(Modifier.fillMaxSize().titleScrim().padding(insets).padding(horizontal = Space.l)) {
         Column(
@@ -180,6 +185,7 @@ fun TitleScreen(
                 modifier = Modifier.reveal(300),
                 onSelect = onPreset,
             )
+            HeroBar(settings.hero, Modifier.reveal(340), onHeroes)
             NeonButton(
                 "DROP IN", Neon.magenta, Modifier.fillMaxWidth().reveal(380).padding(top = Space.xxs),
                 style = ButtonStyle.PRIMARY, height = 72.dp, textSize = 26.sp,
@@ -223,7 +229,7 @@ private fun RecordChip(label: String, value: String) {
 
 /** Three chevrons cascading downward: this button takes you down. */
 @Composable
-private fun RowScope.DropChevrons() {
+internal fun RowScope.DropChevrons() {
     val t = rememberInfiniteTransition(label = "chev")
     val phase by t.animateFloat(0f, 1f, infiniteRepeatable(tween(900, easing = LinearEasing)), label = "phase")
     Box(
@@ -273,6 +279,7 @@ private fun SeedChip(settings: Settings, modifier: Modifier, onClick: () -> Unit
 fun PauseScreen(
     settings: Settings,
     seedLabel: String,
+    hero: Hero,
     insets: PaddingValues,
     onResume: () -> Unit,
     onRestart: () -> Unit,
@@ -291,7 +298,10 @@ fun PauseScreen(
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Kicker("MISSION ON HOLD", Neon.cyan.copy(alpha = 0.8f))
+                    Row {
+                        Kicker(hero.title, hero.tint)
+                        Kicker("  ·  MISSION ON HOLD", Neon.cyan.copy(alpha = 0.8f))
+                    }
                     NeonText("PAUSED", size = Type.display, color = Color.White, title = true, letterSpacing = 3.sp, glow = 0.4f)
                 }
                 Column(horizontalAlignment = Alignment.End) {

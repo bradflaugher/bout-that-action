@@ -2,6 +2,7 @@ package com.bradflaugher.aboutthataction.audio
 
 import com.bradflaugher.aboutthataction.engine.AlertPhase
 import com.bradflaugher.aboutthataction.engine.GameEvent
+import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.Zone
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.math.abs
@@ -34,8 +35,13 @@ class SoundEngine(val sampleRate: Int = 48000) {
     @Volatile private var slowMoIn = false
 
     private class ZoneCmd(val zone: Zone, val silent: Boolean)
+    private class HeroCmd(val hero: Hero?)
+    private class ThemeCmd(val hero: Hero)
     private object TitleCmd
     private object GameOverCmd
+    private val heroCmds = Hero.entries.map { HeroCmd(it) }
+    private val noHeroCmd = HeroCmd(null)
+    private val themeCmds = Hero.entries.map { ThemeCmd(it) }
 
     // ---- Audio-thread state -------------------------------------------------------------
     private val director = MusicDirector(sr)
@@ -68,6 +74,9 @@ class SoundEngine(val sampleRate: Int = 48000) {
     private var paused = false
     private var gameOverWait = -1
     private var first = true
+
+    /** Whose arrangement plays (audio thread); null is the original soundtrack. */
+    private var hero: Hero? = null
 
     // ---- Public API (any thread) -------------------------------------------------------
 
@@ -104,6 +113,26 @@ class SoundEngine(val sampleRate: Int = 48000) {
 
     fun playTitle() {
         queue.add(TitleCmd)
+    }
+
+    /**
+     * Whose soundtrack plays: every zone track (and its sneak mix) comes in [hero]'s own
+     * arrangement, and the game-over stinger gets their sign-off. Takes effect from the next
+     * [setZone] (call it before the run's first one; the hero is fixed for the run). Null
+     * goes back to the original soundtrack. Ordered with the other commands.
+     */
+    fun setHero(hero: Hero?) {
+        queue.add(if (hero == null) noHeroCmd else heroCmds[hero.ordinal])
+    }
+
+    /**
+     * [hero]'s signature theme, for the hero picker; also makes them the hero ([setHero]).
+     * From the title (or anything else) it lands on the next bar line; flicking between
+     * heroes' themes crossfades right away.
+     */
+    fun playHeroTheme(hero: Hero) {
+        queue.add(heroCmds[hero.ordinal])
+        queue.add(themeCmds[hero.ordinal])
     }
 
     fun setMusicVolume(v: Float) {
@@ -152,17 +181,25 @@ class SoundEngine(val sampleRate: Int = 48000) {
                 is GameEvent -> if (!paused) sfx.play(c)
                 is ZoneCmd -> {
                     gameOverWait = -1
-                    val spec = Songs.forZone(c.zone, c.silent)
+                    val spec = HeroSongs.forZone(hero, c.zone, c.silent)
                     // Same zone, other mode: a quick crossfade, not a wait for the bar line.
-                    val modeFlip = director.current.let { it != null && it !== spec && Songs.forZone(c.zone, !c.silent) === it }
+                    val modeFlip = director.current.let { it != null && it !== spec && HeroSongs.forZone(hero, c.zone, !c.silent) === it }
                     director.request(spec, immediate = modeFlip)
+                }
+                is HeroCmd -> hero = c.hero
+                is ThemeCmd -> {
+                    gameOverWait = -1
+                    val spec = HeroSongs.theme(c.hero)
+                    val cur = director.current
+                    // Browsing the picker: one hero's theme to the next without waiting.
+                    director.request(spec, immediate = cur !== spec && HeroSongs.isTheme(cur))
                 }
                 TitleCmd -> {
                     gameOverWait = -1
                     director.request(Songs.title, immediate = false)
                 }
                 GameOverCmd -> {
-                    sfx.gameOverStinger()
+                    sfx.gameOverStinger(hero)
                     director.stop(0.5f)
                     gameOverWait = (1.6f * sr).toInt()
                 }

@@ -33,7 +33,7 @@ internal class Actors(private val f: Frame) {
     private val k = Rig()
     private val body = ActorBody(p, k)
     private val cast = ActorCast(f, p, k, body)
-    private val look = Look()
+    private val art = HeroArt(f, p, k, body)
 
     // Renderer-side animation memory (visual only; the simulation never reads it).
     private var wasAir = false
@@ -42,79 +42,10 @@ internal class Actors(private val f: Frame) {
     private var watchT = 0f
 
     companion object {
-        /**
-         * The home uniform. College navy (lifted a touch so it clears every zone's walls), trimmed
-         * in action green and wolf grey; wolf-grey pants; warm dark-brown skin.
-         */
-        const val NAVY = 0xFF1C3A6A.toInt()
-        const val NAVY_LIT = 0xFF8FB2E0.toInt()
-        const val NAVY_DARK = 0xFF0C1A38.toInt()
-        const val NAVY_FAR = 0xFF12264A.toInt()
-        const val GREEN = 0xFF69BE28.toInt()
-        const val GREY = 0xFFA5ACAF.toInt()
-        const val PANTS = 0xFF9EA6AE.toInt()
-        const val PANTS_FAR = 0xFF5A6272.toInt()
-        const val SKIN = 0xFF6A4330.toInt()
-        const val SKIN_LIT = 0xFFB88060.toInt()
-        const val SKIN_FAR = 0xFF3E2619.toInt()
-        const val DREAD = 0xFF24160F.toInt()
-        const val DREAD_FAR = 0xFF180F0A.toInt()
-        const val GOLD = 0xFFFFCF4A.toInt()
-        const val TAPE = 0xFFE6EAF0.toInt()
-        /** Cleats: navy uppers over a pale plate, an action-green heel. */
-        const val CLEAT = 0xFF1A2646.toInt()
-        /** Gloves: action green, so the hands (and the gun in them) read first. */
-        const val GLOVE = 0xFF62B02A.toInt()
-        /** The helmet: glossy lacquered college navy. */
-        const val HELMET = 0xFF15294E.toInt()
-        const val ARMOR = 0xFF0F121C.toInt()
-        const val VISOR = 0xFF3CF4FF.toInt()
-        const val RIM = 0xFF7CF4FF.toInt()
-        /** His own rim and floor ring: action green, lifted for light. */
-        const val RIM_G = 0xFFA4F564.toInt()
-        /** The crisp rim on his back contour (~1.5 px on a phone). */
-        const val RIM_PX = 0.02f
         /** The agent reads larger than the guards: the hero scale (visual only; hitboxes are the engine's). */
-        const val HS = 1.12f
-        /** Shoulder pads and a running back's build: bulk on the hero (visual only). */
-        const val BULK = 1.1f
-        const val HEAD = 0.95f
-        /** How far the helmet sinks into the pads, toward the neck. */
-        const val SINK = 0.14f
-        /** A football helmet is a size up on a head. */
-        const val HELM = 1.14f
-
-        /** The torso contour: (along the spine, toward the chest, 1 = in chest units / 0 = waist units). */
-        private val TORSO = floatArrayOf(
-            -0.12f, -0.52f, 0f,
-            -0.14f, 0.46f, 0f,
-            0.1f, 0.44f, 0f,
-            0.32f, 0.44f, 0f,
-            0.5f, 0.44f, 1f,
-            0.66f, 0.5f, 1f,
-            0.8f, 0.56f, 1f,
-            0.93f, 0.66f, 1f,
-            1.03f, 0.62f, 1f,
-            1.11f, 0.44f, 1f,
-            1.15f, 0.12f, 1f,
-            1.15f, -0.26f, 1f,
-            1.1f, -0.52f, 1f,
-            1.0f, -0.64f, 1f,
-            0.84f, -0.6f, 1f,
-            0.62f, -0.6f, 0f,
-            0.34f, -0.52f, 0f,
-            0.08f, -0.52f, 0f,
-        )
-        /** The back contour the rim runs down: pad corner to waist. */
-        private const val RIM_FROM = 12
-        private const val RIM_TO = 17
-
-        /** The dreadlocks, outermost first: root (helmet space), tip sweep back and length, in helmet radii. */
-        private const val DREADS = 5
-        private val DREAD_U = floatArrayOf(-1.14f, -1.02f, -0.86f, -0.7f, -0.54f)
-        private val DREAD_V = floatArrayOf(0.3f, 0.55f, 0.66f, 0.7f, 0.68f)
-        private val DREAD_DU = floatArrayOf(-0.9f, -0.72f, -0.58f, -0.5f, -0.4f)
-        private val DREAD_L = floatArrayOf(2.0f, 2.6f, 2.3f, 2.1f, 1.25f)
+        const val HS = HeroArt.HS
+        /** The zone's neon catching the box's back edge. */
+        const val RIM = 0xFF7CF4FF.toInt()
     }
 
     // ================================================================= player
@@ -142,6 +73,7 @@ internal class Actors(private val f: Frame) {
         }
 
         p.reset()
+        art.hero = f.w.hero
         if (pl.invuln > 0f && pl.state != PlayerState.DEAD && !f.inPerk) {
             if (pl.invuln > 1.12f) {
                 p.flat = 0xFFFF3A48.toInt()
@@ -152,15 +84,19 @@ internal class Actors(private val f: Frame) {
                 p.alphaMul = 0.8f
             }
         }
+        // VENT CRAWL: out of the vent unseen, a shimmering see-through figure until it wears off.
+        if (pl.unseenTime > 0f && pl.state != PlayerState.DEAD) {
+            p.alphaMul *= 0.42f + 0.08f * sin(f.t * 9f) + 0.5f * (1f - min(1f, pl.unseenTime / 0.35f))
+        }
 
         // SILENT: once through a passage you stay in the far doorway's shadow (you arrive
         // hidden), rather than walking out lit and then vanishing into it.
-        val hiddenArrival = pl.state == PlayerState.PASSAGE && f.w.silent && pl.stateTime >= World.PASSAGE_TIME * 0.5f
+        val hiddenArrival = pl.state == PlayerState.PASSAGE && f.w.silent && pl.stateTime >= f.w.passageTime * 0.5f
         val hidden = pl.state == PlayerState.DOOR || hiddenArrival
         // Stepping through a passage: into the dark doorway, then out of the far one.
         val passing = if (pl.state == PlayerState.PASSAGE) {
-            val half = World.PASSAGE_TIME * 0.5f
-            Rig.smooth(if (pl.stateTime < half) pl.stateTime / half else (World.PASSAGE_TIME - pl.stateTime) / half)
+            val half = f.w.passageTime * 0.5f
+            Rig.smooth(if (pl.stateTime < half) pl.stateTime / half else (f.w.passageTime - pl.stateTime) / half)
         } else 0f
         if (!hidden && pl.state != PlayerState.ELEVATOR) {
             val hw = if (pl.state == PlayerState.BOX) 0.62f else 0.42f
@@ -179,8 +115,8 @@ internal class Actors(private val f: Frame) {
         }
         when (pl.state) {
             PlayerState.BOX -> box(pl.x, gy, dir, pl.vx, pl.stateTime)
-            PlayerState.DOOR -> doorHide(pl.x, foot, dir)
-            PlayerState.PASSAGE -> if (hiddenArrival) doorHide(pl.x, foot, dir) else {
+            PlayerState.DOOR -> art.doorHide(pl.x, foot, dir, f.t)
+            PlayerState.PASSAGE -> if (hiddenArrival) art.doorHide(pl.x, foot, dir, f.t) else {
                 // Walking into the doorway's dark (a touch smaller: deeper in), then out.
                 poseHero(pl.x, foot, dir)
                 p.flat = 0xFF04050A.toInt()
@@ -190,7 +126,7 @@ internal class Actors(private val f: Frame) {
                 g.translate(pl.x, foot)
                 g.scale(sc, sc)
                 g.translate(-pl.x, -foot)
-                drawHero(ghost = false)
+                art.draw(ghost = false)
                 g.restore()
             }
             PlayerState.DEAD -> deadHero(pl.x, gy, dir)
@@ -203,16 +139,18 @@ internal class Actors(private val f: Frame) {
                     for (i in 3 downTo 1) {
                         p.noInk = true
                         p.alphaMul = keepA * (0.3f - i * 0.07f)
-                        p.flat = if (i % 2 == 0) GREEN else 0xFF3A6AD0.toInt()
+                        p.flat = if (i % 2 == 0) art.kit.accent else art.kit.echo
                         p.flatAmt = 1f
                         poseHero(pl.x - pl.vx * 0.045f * i, foot, dir)
-                        drawHero(ghost = true)
+                        art.draw(ghost = true)
                     }
                     p.noInk = false
                     p.alphaMul = keepA
                     p.flatAmt = keepF
                     p.flat = keepC
                 }
+                // CAMO: a hit that misses shimmers the figure into optical camouflage.
+                if (pl.camoTime > 0f) camoShimmer(pl.x, foot, dir, pl.camoTime)
                 poseHero(pl.x, foot, dir)
                 val flip = flipAngle()
                 if (flip != 0f) {
@@ -224,7 +162,7 @@ internal class Actors(private val f: Frame) {
                     g.translate(-cx, -cy)
                 }
                 if (pl.state == PlayerState.TAKEDOWN) {
-                    drawHero(ghost = false, skipFrontArm = true)
+                    art.draw(ghost = false, skipFrontArm = true)
                     val victim = takedownVictim()
                     if (victim != null) {
                         val keepA = p.alphaMul
@@ -235,15 +173,39 @@ internal class Actors(private val f: Frame) {
                         poseHero(pl.x, foot, dir)
                     }
                     // The front arm over the victim, in full kit: pad, tape and all.
-                    p.twoPass { frontArm() }
-                    if (!p.ink) heroStrips()
+                    p.twoPass { art.frontArm() }
+                    art.strips()
                 } else {
-                    drawHero(ghost = false)
+                    art.draw(ghost = false)
                 }
                 if (flip != 0f) g.restore()
             }
         }
         p.reset()
+    }
+
+    /**
+     * Optical camo: the figure goes glassy (mostly see-through) with two pale, heat-haze echoes
+     * wavering either side of it, fading out as the shimmer wears off.
+     */
+    private fun camoShimmer(x: Float, foot: Float, dir: Int, left: Float) {
+        val keepA = p.alphaMul
+        val keepF = p.flatAmt
+        val keepC = p.flat
+        val q = (left / 0.4f).coerceIn(0f, 1f)
+        p.noInk = true
+        p.flatAmt = 1f
+        p.flat = 0xFFD8FFE8.toInt()
+        for (i in 0..1) {
+            p.alphaMul = keepA * 0.28f * q
+            val off = (if (i == 0) -1f else 1f) * (0.035f + 0.025f * sin(f.t * 47f + i * 2f))
+            poseHero(x + off, foot, dir)
+            art.draw(ghost = true)
+        }
+        p.noInk = false
+        p.flatAmt = keepF
+        p.flat = keepC
+        p.alphaMul = keepA * (1f - 0.62f * q)
     }
 
     private var heroNeckX = 0f
@@ -261,7 +223,8 @@ internal class Actors(private val f: Frame) {
         g.save()
         g.translate(x, cy)
         g.scale(if (boxed) 1f else 0.62f, 1f)
-        g.glow(0f, 0f, if (boxed) 1.15f else 1.6f, Col.alpha(GREEN, 0.4f * a))
+        val accent = art.kit.accent
+        g.glow(0f, 0f, if (boxed) 1.15f else 1.6f, Col.alpha(accent, 0.4f * a))
         g.restore()
         val fz = (1f - z / 2.5f).coerceIn(0f, 1f)
         if (fz > 0f) {
@@ -270,8 +233,17 @@ internal class Actors(private val f: Frame) {
             g.save()
             g.translate(x, gy - 0.02f)
             g.scale(1f, 0.24f)
-            g.glow(0f, 0f, r * 1.7f, Col.alpha(GREEN, 0.4f * a * fz))
-            g.strokeCircle(0f, 0f, r, 0.1f, Col.alpha(RIM_G, 0.55f * a * fz * pulse))
+            g.glow(0f, 0f, r * 1.7f, Col.alpha(accent, 0.4f * a * fz))
+            g.strokeCircle(0f, 0f, r, 0.1f, Col.alpha(art.kit.rim, 0.55f * a * fz * pulse))
+            g.restore()
+        }
+        if (f.w.adrenaline && !boxed) {
+            // ADRENALINE: a hot orange aura beating round him on his last heart.
+            val beat = 0.5f + 0.5f * sin(f.t * 11f)
+            g.save()
+            g.translate(x, cy)
+            g.scale(0.7f, 1f)
+            g.glow(0f, 0f, 1.5f + 0.15f * beat, Col.alpha(0xFFFF6A2A.toInt(), (0.22f + 0.2f * beat) * a))
             g.restore()
         }
         g.blend(Gfx.Blend.NORMAL)
@@ -318,11 +290,29 @@ internal class Actors(private val f: Frame) {
     private fun aimTarget(): Enemy? = f.w.aimTarget()
 
     private fun poseHero(x: Float, foot: Float, dir: Int) {
+        posePlayer(x, foot, dir)
+        // Hand the pose's gun and hair state to the painter.
+        val pl = f.w.player
+        art.gunKind = gunKind
+        art.gunUp = gunUp
+        art.gunX = gunX
+        art.gunY = gunY
+        art.showGun = showGun
+        art.flash = flash
+        art.magInHand = magInHand
+        art.holstered = !showGun && f.w.silent
+        art.live = pl.state != PlayerState.DEAD && pl.state != PlayerState.DOOR
+        art.run = if (art.live) (abs(pl.vx) / 5f).coerceIn(0f, 1f) else 0f
+        art.fall = if (art.live) (-pl.vz / 9f).coerceIn(0f, 1f) else 0f
+        art.bob = if (art.live) sin(pl.runTime * 2.05f * Rig.TAU * 2f) * 0.1f * art.run else 0f
+        art.idle = if (art.live) sin(f.t * 1.7f) * 0.03f else 0f
+        art.dim = 1f
+    }
+
+    private fun posePlayer(x: Float, foot: Float, dir: Int) {
         val pl = f.w.player
         val state = pl.state
-        k.setup(dir, foot - 0.045f * HS, HS, BULK)
-        // Heroic proportions: a touch smaller head than the guards.
-        k.headR *= HEAD
+        art.setup(dir, foot)
         val speed = abs(pl.vx)
         val airborne = state == PlayerState.INTRO || (state == PlayerState.NORMAL && pl.z > 0.001f)
         val breathe = sin(f.t * 2.4f)
@@ -437,9 +427,9 @@ internal class Actors(private val f: Frame) {
                 val land = if (landT < 0.22f) (1f - landT / 0.22f) else 0f
                 val squash = land * land * (0.1f + 0.08f * landHard)
                 val wide = if (shooting && !lowAim) 1f - lower else 0f
-                k.stand(x, 0.035f + breathe * 0.006f + squash, Rig.mix(0.1f, 0.17f, wide), Rig.mix(-0.13f, -0.2f, wide))
-                lean = 0.05f + breathe * 0.01f + squash * 1.2f
-                k.spine(lean, 0f)
+                k.stand(x, 0.015f + breathe * 0.006f + squash, Rig.mix(0.1f, 0.17f, wide), Rig.mix(-0.13f, -0.2f, wide))
+                lean = -0.01f + breathe * 0.01f + squash * 1.2f
+                k.spine(lean, -0.04f)
                 k.armFK(k.armB, -0.12f - breathe * 0.02f, 0.3f)
                 k.armFK(k.armF, 0.25f, 0.5f)
             }
@@ -584,536 +574,7 @@ internal class Actors(private val f: Frame) {
         k.armFK(k.armB, aB, eB)
     }
 
-    // -------------------------------------------------------------- drawing
-
-    private fun heroLook(ghost: Boolean) {
-        look.torso = NAVY
-        look.torsoLit = NAVY_LIT
-        look.legs = PANTS
-        look.legsFar = PANTS_FAR
-        look.arms = SKIN
-        look.armsFar = SKIN_FAR
-        look.boots = CLEAT
-        look.gloves = GLOVE
-        look.skin = SKIN
-        look.rim = if (ghost) 0 else Col.alpha(RIM_G, 1f)
-        look.legW = 0.96f
-        look.armW = 0.94f
-    }
-
-    /** The near arm and its kit: the sleeve, the taped wrist, the near shoulder pad. */
-    private fun frontArm() {
-        body.arm(k.armF, look, far = false, hand = true)
-        bracer(k.armF, far = false)
-        shoulderCap(k.armF, far = false)
-    }
-
-    private fun drawHero(ghost: Boolean, skipFrontArm: Boolean = false) {
-        heroLook(ghost)
-        val dir = k.dir
-        p.twoPass {
-            body.arm(k.armB, look, far = true)
-            bracer(k.armB, far = true)
-            if (magInHand && !p.ink) g.fillRect(k.armB.ex - 0.025f, k.armB.ey - 0.09f, k.armB.ex + 0.025f, k.armB.ey, p.c(0xFF2A2E3A.toInt()))
-            body.leg(k.legB, look, far = true)
-            shinGuard(k.legB, far = true)
-            heroBoot(k.legB, far = true)
-            shoulderCap(k.armB, far = true)
-        }
-        p.twoPass {
-            body.leg(k.legF, look, far = false)
-            shinGuard(k.legF, far = false)
-            heroBoot(k.legF, far = false)
-            heroCollar()
-            heroTorso()
-            heroDetails(dir, ghost)
-            heroHead(dir, ghost)
-            if (skipFrontArm) heroDreads(dir)
-        }
-        if (skipFrontArm) return
-        p.twoPass {
-            if (showGun) {
-                // A size up on the agent: GUNS HOT has to read against SILENT's empty hands.
-                body.gun(gunKind, gunX, gunY, gunUp, GREEN, spin = f.t * 60f, scale = if (gunKind == 0) 1.3f else 1.1f)
-            }
-            frontArm()
-            // Over the pads: the locks hang down the back of them.
-            heroDreads(dir)
-        }
-        if (!ghost && !p.ink) heroStrips()
-        if (flash && !ghost) body.muzzleFlash(gunUp, if (gunKind == 1) 0.2f else if (gunKind == 2) 0.17f else 0.15f, (f.t * 30f).toInt())
-    }
-
-    private val nrm = FloatArray(2)
-
-    /** The side of a limb segment facing forward (the way he looks), as a unit normal in [nrm]. */
-    private fun frontOf(x1: Float, y1: Float, x2: Float, y2: Float) {
-        val dx = x2 - x1
-        val dy = y2 - y1
-        val len = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1e-4f)
-        var nx = -dy / len
-        var ny = dx / len
-        if (nx * k.dir < 0f) {
-            nx = -nx; ny = -ny
-        }
-        nrm[0] = nx; nrm[1] = ny
-    }
-
-    /**
-     * The game sock: navy from just under the knee (where the wolf-grey pants end) to the
-     * cleat, with an action-green band round the top. Inside the shin's own contour.
-     */
-    private fun shinGuard(l: Limb, far: Boolean) {
-        val lw = k.limbW * look.legW
-        // The knee pad inside the pants: a rounded bump on the front of the knee.
-        frontOf(l.jx, l.jy, l.ex, l.ey)
-        val ox = nrm[0] * lw * 0.14f
-        val oy = nrm[1] * lw * 0.14f
-        p.bone(Rig.mix(l.jx, l.ax, 0.14f) + ox, Rig.mix(l.jy, l.ay, 0.14f) + oy, Rig.mix(l.jx, l.ex, 0.14f) + ox, Rig.mix(l.jy, l.ey, 0.14f) + oy, lw * 0.9f, lw * 0.84f, if (far) PANTS_FAR else PANTS, lit = !far)
-        val x1 = Rig.mix(l.jx, l.ex, 0.24f)
-        val y1 = Rig.mix(l.jy, l.ey, 0.24f)
-        p.bone(x1, y1, l.ex, l.ey, lw * 0.98f, lw * 0.64f, if (far) NAVY_FAR else NAVY, bulge = lw * 0.96f, lit = !far)
-        if (p.ink || !p.hi) return
-        // The band: green over a wolf-grey hairline, straight across the calf.
-        val dx = l.ex - l.jx
-        val dy = l.ey - l.jy
-        val len = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1e-4f)
-        val px = -dy / len * lw * 0.46f
-        val py = dx / len * lw * 0.46f
-        val bx = Rig.mix(l.jx, l.ex, 0.33f)
-        val by = Rig.mix(l.jy, l.ey, 0.33f)
-        p.detail(bx - px, by - py, bx + px, by + py, 0.034f * k.hs, Col.mul(GREEN, if (far) 0.6f else 1f))
-        if (p.shading) {
-            val gx = Rig.mix(l.jx, l.ex, 0.4f)
-            val gy = Rig.mix(l.jy, l.ey, 0.4f)
-            p.detail(gx - px * 0.95f, gy - py * 0.95f, gx + px * 0.95f, gy + py * 0.95f, 0.012f * k.hs, Col.mul(GREY, if (far) 0.6f else 1f))
-        }
-    }
-
-    /**
-     * Paints the cleat over the body pen's last (fill only, full detail): a pale moulded plate
-     * underneath with a heel break, an action-green heel counter and a glint on the toe.
-     */
-    private fun heroBoot(l: Limb, far: Boolean) {
-        if (!p.shading) return
-        val sc = k.hs
-        val fx = cos(l.pitch) * k.dir
-        val fy = sin(l.pitch)
-        val ux = fy * k.dir
-        val uy = -cos(l.pitch)
-        val ox = l.ex
-        val oy = l.ey + 0.045f * sc
-        fun bx(a: Float, u: Float) = ox + (fx * a + ux * u) * sc
-        fun by(a: Float, u: Float) = oy + (fy * a + uy * u) * sc
-        val dim = if (far) 0.62f else 1f
-        // The plate: a pale band under the whole foot, a dark break at the heel.
-        p.begin()
-            .add(bx(-0.075f, 0.0f), by(-0.075f, 0.0f))
-            .add(bx(-0.08f, 0.03f), by(-0.08f, 0.03f))
-            .add(bx(0.176f, 0.028f), by(0.176f, 0.028f))
-            .add(bx(0.175f, 0.0f), by(0.175f, 0.0f))
-            .shapeDetail(Col.mul(0xFFC9D0D8.toInt(), dim))
-        p.detail(bx(-0.01f, 0.004f), by(-0.01f, 0.004f), bx(-0.01f, 0.028f), by(-0.01f, 0.028f), 0.014f * sc, 0xFF141A2C.toInt())
-        // The heel counter in action green, swept up the back of the ankle.
-        p.begin()
-            .add(bx(-0.078f, 0.03f), by(-0.078f, 0.03f))
-            .add(bx(-0.085f, 0.07f), by(-0.085f, 0.07f))
-            .add(bx(-0.052f, 0.118f), by(-0.052f, 0.118f))
-            .add(bx(-0.02f, 0.105f), by(-0.02f, 0.105f))
-            .add(bx(0.02f, 0.03f), by(0.02f, 0.03f))
-            .shapeDetail(Col.mul(GREEN, dim))
-        p.detail(bx(0.1f, 0.062f), by(0.1f, 0.062f), bx(0.158f, 0.042f), by(0.158f, 0.042f), 0.012f * sc, Col.alpha(0xFFE0ECFF.toInt(), 0.7f * dim))
-    }
-
-    /** Athletic tape round the wrist: a clean white band where the forearm meets the glove. */
-    private fun bracer(l: Limb, far: Boolean) {
-        val aw = k.limbW * look.armW
-        val x1 = Rig.mix(l.jx, l.ex, 0.72f)
-        val y1 = Rig.mix(l.jy, l.ey, 0.72f)
-        val x2 = Rig.mix(l.jx, l.ex, 0.96f)
-        val y2 = Rig.mix(l.jy, l.ey, 0.96f)
-        p.bone(x1, y1, x2, y2, aw * 0.7f, aw * 0.62f, if (far) 0xFF8C94A2.toInt() else TAPE, lit = !far)
-    }
-
-    /**
-     * The shoulder pad: THE silhouette. A squared-off block of armour sitting on the shoulder
-     * in the torso's frame (so it rides the spine, not the swinging arm), the navy jersey
-     * sleeve hanging from it over the top of the arm with the green and grey trim, and the
-     * TV number on the near one.
-     */
-    private fun shoulderCap(l: Limb, far: Boolean) {
-        val aw = k.limbW * look.armW
-        val col = if (far) NAVY_FAR else NAVY
-        // The sleeve: a short loose tube off the pad, down the top third of the arm.
-        val sx = Rig.mix(l.ax, l.jx, 0.42f)
-        val sy = Rig.mix(l.ay, l.jy, 0.42f)
-        p.bone(l.ax, l.ay, sx, sy, aw * 1.5f, aw * 1.36f, col, sep = !far, lit = !far)
-        val hs = k.hs
-        val ax = l.ax + k.ux * 0.008f * hs
-        val ay = l.ay + k.uy * 0.008f * hs
-        fun cx(a: Float, s: Float) = ax + (k.ux * a + k.nx * s) * hs
-        fun cy(a: Float, s: Float) = ay + (k.uy * a + k.ny * s) * hs
-        p.begin()
-            .add(cx(-0.1f, -0.14f), cy(-0.1f, -0.14f))
-            .add(cx(0.03f, -0.17f), cy(0.03f, -0.17f))
-            .add(cx(0.1f, -0.145f), cy(0.1f, -0.145f))
-            .add(cx(0.115f, -0.07f), cy(0.115f, -0.07f))
-            .add(cx(0.115f, 0.07f), cy(0.115f, 0.07f))
-            .add(cx(0.1f, 0.14f), cy(0.1f, 0.14f))
-            .add(cx(0.03f, 0.16f), cy(0.03f, 0.16f))
-            .add(cx(-0.1f, 0.13f), cy(-0.1f, 0.13f))
-            .add(cx(-0.135f, 0.0f), cy(-0.135f, 0.0f))
-            .shapeLit(col, cx(0.12f, 0.1f), cy(0.12f, 0.1f), cx(-0.12f, -0.14f), cy(-0.12f, -0.14f), sep = !far)
-        if (p.ink || !p.hi) return
-        // Sleeve trim where it ends on the arm: action green over wolf grey.
-        val dx = l.jx - l.ax
-        val dy = l.jy - l.ay
-        val len = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1e-4f)
-        val px = -dy / len * aw * 0.66f
-        val py = dx / len * aw * 0.66f
-        val dim = if (far) 0.6f else 1f
-        val tx = Rig.mix(l.ax, l.jx, 0.38f)
-        val ty = Rig.mix(l.ay, l.jy, 0.38f)
-        p.detail(tx - px, ty - py, tx + px, ty + py, 0.03f * hs, Col.mul(GREEN, dim))
-        val gx = Rig.mix(l.ax, l.jx, 0.3f)
-        val gy = Rig.mix(l.ay, l.jy, 0.3f)
-        p.detail(gx - px * 1.02f, gy - py * 1.02f, gx + px * 1.02f, gy + py * 1.02f, 0.014f * hs, Col.mul(GREY, dim))
-        if (far) return
-        if (p.shading) {
-            // The lamp along the pad's flat top: it's a hard shell under the jersey.
-            p.detail(cx(0.1f, -0.11f), cy(0.1f, -0.11f), cx(0.1f, 0.11f), cy(0.1f, 0.11f), 0.024f * hs, Col.alpha(NAVY_LIT, 0.7f))
-            // TV numbers on the pad.
-            number24(cx(-0.02f, 0.0f), cy(-0.02f, 0.0f), 0.085f * hs, 0.012f * hs)
-        }
-        if (look.rim != 0) {
-            g.blend(Gfx.Blend.ADD)
-            val rc = p.c(look.rim)
-            val i = RIM_PX * 0.5f
-            g.line(cx(0.1f, -0.145f + i), cy(0.1f, -0.145f + i), cx(0.03f, -0.17f + i), cy(0.03f, -0.17f + i), RIM_PX, rc)
-            g.line(cx(0.03f, -0.17f + i), cy(0.03f, -0.17f + i), cx(-0.1f, -0.14f + i), cy(-0.1f, -0.14f + i), RIM_PX, rc)
-            g.blend(Gfx.Blend.NORMAL)
-        }
-    }
-
-    /**
-     * "24" as two clean block numerals (white, trimmed in action green), [h] tall, centred on
-     * (x, y) and upright along the spine. Always reads left to right, whichever way he faces.
-     */
-    private fun number24(x: Float, y: Float, h: Float, sw: Float) {
-        // Screen-right across the spine, and down it.
-        val rx = -k.uy
-        val ry = k.ux * k.dir
-        val rxx = if (rx < 0f) -rx else rx
-        val ryy = if (rx < 0f) -ry else ry
-        val dx = -k.ux
-        val dy = -k.uy
-        val w = h * 0.56f
-        val gap = h * 0.16f
-        for (pass in 0..1) {
-            val col = if (pass == 0) GREEN else 0xFFF4F7FA.toInt()
-            val lw = if (pass == 0) sw * 2.1f else sw
-            // Local (u right, v down) from the numerals' top-left, in units of h.
-            fun sx(u: Float, v: Float) = x + rxx * (u * h - (w * 2f + gap) * 0.5f) + dx * (v * h - h * 0.5f)
-            fun sy(u: Float, v: Float) = y + ryy * (u * h - (w * 2f + gap) * 0.5f) + dy * (v * h - h * 0.5f)
-            val o = (w + gap) / h
-            // 2
-            p.detail(sx(0.02f, 0.08f), sy(0.02f, 0.08f), sx(0.5f, 0.0f), sy(0.5f, 0.0f), lw, col)
-            p.detail(sx(0.5f, 0.0f), sy(0.5f, 0.0f), sx(0.54f, 0.34f), sy(0.54f, 0.34f), lw, col)
-            p.detail(sx(0.54f, 0.34f), sy(0.54f, 0.34f), sx(0.02f, 1f), sy(0.02f, 1f), lw, col)
-            p.detail(sx(0.02f, 1f), sy(0.02f, 1f), sx(0.56f, 1f), sy(0.56f, 1f), lw, col)
-            // 4
-            p.detail(sx(o + 0.36f, 0.0f), sy(o + 0.36f, 0.0f), sx(o + 0.0f, 0.66f), sy(o + 0.0f, 0.66f), lw, col)
-            p.detail(sx(o + 0.0f, 0.66f), sy(o + 0.0f, 0.66f), sx(o + 0.58f, 0.66f), sy(o + 0.58f, 0.66f), lw, col)
-            p.detail(sx(o + 0.4f, 0.28f), sy(o + 0.4f, 0.28f), sx(o + 0.4f, 1f), sy(o + 0.4f, 1f), lw, col)
-        }
-    }
-
-    // Torso contour (along the spine, toward the chest in units of c or w): the jersey over
-    // the pads, a slim waist flaring into a squared-off block across the shoulders.
-    private fun tA(i: Int) = TORSO[i * 3]
-    private fun tS(i: Int, c: Float, w: Float) = TORSO[i * 3 + 1] * (if (TORSO[i * 3 + 2] > 0f) c else w)
-
-    /**
-     * The agent's torso: the jersey stretched over the shoulder pads, narrow at the waist, a
-     * wall across the shoulders, lamp-lit across the chest into shadow down the back, with the
-     * green rim on the back contour.
-     */
-    private fun heroTorso() {
-        p.lightFrom(k.dir)
-        val w = k.waistD * 0.9f
-        val c = k.chestD * 1.12f
-        fun x(a: Float, s: Float) = body.ptX(a, s)
-        fun y(a: Float, s: Float) = body.ptY(a, s)
-        p.begin()
-        for (i in 0 until TORSO.size / 3) p.add(x(tA(i), tS(i, c, w)), y(tA(i), tS(i, c, w)))
-        p.shapeLit(NAVY, x(1.1f, c * 0.6f), y(1.1f, c * 0.6f), x(0.05f, -w * 0.6f), y(0.05f, -w * 0.6f))
-        if (p.ink) return
-        // The pants: wolf grey up to the waist, the jersey tucked in under a navy belt.
-        p.begin()
-            .add(x(-0.13f, -w * 0.5f), y(-0.13f, -w * 0.5f))
-            .add(x(-0.14f, w * 0.44f), y(-0.14f, w * 0.44f))
-            .add(x(0.07f, w * 0.43f), y(0.07f, w * 0.43f))
-            .add(x(0.07f, -w * 0.51f), y(0.07f, -w * 0.51f))
-            .shapeGradDetail(PANTS, ActorPaint.shade(PANTS), x(0f, w * 0.5f), y(0f, w * 0.5f), x(0f, -w * 0.5f), y(0f, -w * 0.5f))
-        p.detail(x(0.07f, -w * 0.5f), y(0.07f, -w * 0.5f), x(0.07f, w * 0.42f), y(0.07f, w * 0.42f), 0.035f * k.hs, NAVY_DARK)
-        if (p.shading) {
-            // The chest plane catching the lamp, over the front of the pads.
-            p.begin()
-                .add(x(1.08f, c * 0.4f), y(1.08f, c * 0.4f))
-                .add(x(0.98f, c * 0.58f), y(0.98f, c * 0.58f))
-                .add(x(0.66f, c * 0.48f), y(0.66f, c * 0.48f))
-                .add(x(0.74f, c * 0.0f), y(0.74f, c * 0.0f))
-                .add(x(1.1f, -c * 0.05f), y(1.1f, -c * 0.05f))
-                .shapeGradDetail(Col.alpha(NAVY_LIT, 0.6f), Col.alpha(NAVY_LIT, 0f), x(1.06f, c * 0.45f), y(1.06f, c * 0.45f), x(0.7f, c * 0.1f), y(0.7f, c * 0.1f))
-            // The back turned from the lamp: a violet shadow plane down the whole back.
-            val sh = ActorPaint.shade(NAVY_DARK)
-            p.begin()
-                .add(x(0.08f, -w * 0.51f), y(0.08f, -w * 0.51f))
-                .add(x(0.34f, -w * 0.52f), y(0.34f, -w * 0.52f))
-                .add(x(0.62f, -w * 0.6f), y(0.62f, -w * 0.6f))
-                .add(x(0.84f, -c * 0.58f), y(0.84f, -c * 0.58f))
-                .add(x(0.98f, -c * 0.58f), y(0.98f, -c * 0.58f))
-                .add(x(1.06f, -c * 0.44f), y(1.06f, -c * 0.44f))
-                .add(x(0.9f, -c * 0.1f), y(0.9f, -c * 0.1f))
-                .add(x(0.5f, -w * 0.08f), y(0.5f, -w * 0.08f))
-                .add(x(0.1f, -w * 0.12f), y(0.1f, -w * 0.12f))
-                .shapeGradDetail(Col.alpha(sh, 0.85f), Col.alpha(sh, 0f), x(0.6f, -c * 0.55f), y(0.6f, -c * 0.55f), x(0.62f, c * 0.02f), y(0.62f, c * 0.02f))
-            // The neckline: a wolf-grey and green V trim round the collar over the pads.
-            p.detail(x(1.13f, -c * 0.18f), y(1.13f, -c * 0.18f), x(1.02f, c * 0.3f), y(1.02f, c * 0.3f), 0.034f * k.hs, GREEN)
-            p.detail(x(1.02f, c * 0.3f), y(1.02f, c * 0.3f), x(0.9f, c * 0.46f), y(0.9f, c * 0.46f), 0.03f * k.hs, GREEN)
-            p.detail(x(1.1f, -c * 0.2f), y(1.1f, -c * 0.2f), x(0.99f, c * 0.27f), y(0.99f, c * 0.27f), 0.012f * k.hs, GREY)
-        }
-        if (look.rim != 0) {
-            // The rim light: a crisp green edge right on the back contour, waist to pad.
-            g.blend(Gfx.Blend.ADD)
-            val i = RIM_PX * 0.5f
-            val rc = p.c(look.rim)
-            for (j in RIM_FROM until RIM_TO) {
-                g.line(x(tA(j), tS(j, c, w) + i), y(tA(j), tS(j, c, w) + i), x(tA(j + 1), tS(j + 1, c, w) + i), y(tA(j + 1), tS(j + 1, c, w) + i), RIM_PX, rc)
-            }
-            g.blend(Gfx.Blend.NORMAL)
-        }
-    }
-
-    private fun heroDetails(dir: Int, ghost: Boolean) {
-        if (p.ink) return
-        if (!showGun && !ghost && f.w.silent) {
-            // SILENT: the pistol holstered on the thigh, hands free for CQC.
-            val l = k.legF
-            p.detail(Rig.mix(l.ax, l.jx, 0.2f) - 0.03f * dir, Rig.mix(l.ay, l.jy, 0.2f), Rig.mix(l.ax, l.jx, 0.62f) - 0.035f * dir, Rig.mix(l.ay, l.jy, 0.62f), 0.1f, ARMOR)
-            if (p.shading) p.detail(Rig.mix(l.ax, l.jx, 0.24f) - 0.01f * dir, Rig.mix(l.ay, l.jy, 0.24f), Rig.mix(l.ax, l.jx, 0.56f) - 0.015f * dir, Rig.mix(l.ay, l.jy, 0.56f), 0.02f, 0xFF3A4260.toInt())
-        }
-    }
-
-    /**
-     * The agent's lights and trim after the body: the green rim on the back contour of the
-     * near forearm and shin (the body pen rims the upper arm and thigh) and the navy-and-green
-     * stripe down the outside of the near thigh.
-     */
-    private fun heroStrips() {
-        val af = k.armF
-        if (look.rim != 0) {
-            val aw = k.limbW * look.armW
-            p.boneRim(af.jx, af.jy, af.ex, af.ey, aw * 0.8f, aw * 0.6f, body.rimX, body.rimY, look.rim, RIM_PX)
-            val lf = k.legF
-            val lw = k.limbW * look.legW
-            p.boneRim(lf.jx, lf.jy, lf.ex, lf.ey, lw * 0.94f, lw * 0.66f, body.rimX, body.rimY, look.rim, RIM_PX)
-        }
-        val lf = k.legF
-        if (p.hi) {
-            // The pants stripe: navy with a green core, hip to knee.
-            val x1 = Rig.mix(lf.ax, lf.jx, 0.08f)
-            val y1 = Rig.mix(lf.ay, lf.jy, 0.08f)
-            val x2 = Rig.mix(lf.ax, lf.jx, 0.96f)
-            val y2 = Rig.mix(lf.ay, lf.jy, 0.96f)
-            p.detail(x1, y1, x2, y2, 0.05f * k.hs, NAVY)
-            p.detail(x1, y1, x2, y2, 0.018f * k.hs, GREEN)
-        }
-    }
-
-    /** The helmet sits a little down into the pads: its centre, pulled toward the neck. */
-    private fun helmX() = Rig.mix(k.headX, k.neckX, SINK)
-    private fun helmY() = Rig.mix(k.headY, k.neckY, SINK)
-
-    // Helmet-space helpers: [u] forward (the facing), [v] down, in head radii.
-    private fun hpX(u: Float) = helmX() + u * k.headR * HELM * k.dir
-    private fun hpY(v: Float) = helmY() + v * k.headR * HELM
-
-    /** The neck, down inside the pads: dark skin under the helmet's skirt. */
-    private fun heroCollar() {
-        p.seg(k.neckX, k.neckY + 0.02f * k.hs, Rig.mix(k.neckX, helmX(), 0.7f), Rig.mix(k.neckY, helmY(), 0.7f), 0.1f * k.hs, SKIN_FAR)
-    }
-
-    /**
-     * The dreadlocks spilling out under the back of the helmet down onto the pads: five thick
-     * locks, back ones in shadow, trailing behind him when he runs, floating when he falls.
-     */
-    private fun heroDreads(dir: Int) {
-        val pl = f.w.player
-        val live = pl.state != PlayerState.DEAD && pl.state != PlayerState.DOOR
-        val run = if (live) (abs(pl.vx) / 5f).coerceIn(0f, 1f) else 0f
-        val fallLift = if (live) (-pl.vz / 9f).coerceIn(0f, 1f) else 0f
-        val bob = if (live) sin(pl.runTime * 2.05f * Rig.TAU * 2f) * 0.1f * run else 0f
-        val idle = if (live) sin(f.t * 1.7f) * 0.03f else 0f
-        val r = k.headR * HELM
-        p.lightFrom(dir)
-        for (i in 0 until DREADS) {
-            val ru = DREAD_U[i]
-            val rv = DREAD_V[i]
-            val len = DREAD_L[i] * (1f - 0.3f * fallLift)
-            val tu = ru + DREAD_DU[i] - (0.5f * run + 0.45f * fallLift) * len * 0.4f + idle * (1f + i * 0.3f)
-            val tv = rv + len + bob * (1.2f - i * 0.15f)
-            // Bowed out over the curve of the pads.
-            val mu = Rig.mix(ru, tu, 0.45f) - 0.14f
-            val mv = Rig.mix(rv, tv, 0.45f)
-            val lit = i % 2 == 0
-            val col = if (lit) DREAD else DREAD_FAR
-            p.bone(hpX(ru), hpY(rv), hpX(mu), hpY(mv), r * 0.3f, r * 0.27f, col, sep = i > 0, lit = lit)
-            p.bone(hpX(mu), hpY(mv), hpX(tu), hpY(tv), r * 0.27f, r * 0.19f, col, sep = i > 0, lit = lit)
-            if (i == 0 && look.rim != 0 && !p.ink) {
-                // The rim down the outermost lock.
-                g.blend(Gfx.Blend.ADD)
-                val rc = p.c(look.rim)
-                val o = r * 0.11f * dir
-                g.line(hpX(ru) - o, hpY(rv), hpX(mu) - o, hpY(mv), RIM_PX, rc)
-                g.line(hpX(mu) - o, hpY(mv), hpX(tu) - o * 0.7f, hpY(tv), RIM_PX, rc)
-                g.blend(Gfx.Blend.NORMAL)
-            }
-        }
-    }
-
-    private fun heroHead(dir: Int, ghost: Boolean) {
-        val r = k.headR * HELM
-        p.lightFrom(dir)
-        // The shell: a big glossy navy dome, its skirt dropping low at the back and a jaw guard
-        // round the front.
-        p.begin()
-            .add(hpX(-1.14f), hpY(-0.1f))
-            .add(hpX(-1.12f), hpY(0.42f))
-            .add(hpX(-0.92f), hpY(0.72f))
-            .add(hpX(-0.46f), hpY(0.64f))
-            .add(hpX(-0.02f), hpY(0.58f))
-            .add(hpX(0.24f), hpY(0.76f))
-            .add(hpX(0.52f), hpY(0.7f))
-            .add(hpX(0.54f), hpY(0.2f))
-            .add(hpX(0.2f), hpY(-0.2f))
-            .shapeLit(HELMET, hpX(0.2f), hpY(-0.6f), hpX(-0.9f), hpY(0.7f))
-        p.ball(hpX(-0.1f), hpY(-0.14f), r * 1.08f, HELMET, gloss = if (ghost) 0f else 0.32f)
-        // The facemask: wolf-grey bars forward of the face, clipped to the brow and the jaw.
-        val bw = r * 0.14f
-        p.seg(hpX(0.86f), hpY(-0.44f), hpX(1.2f), hpY(-0.22f), bw, GREY)
-        p.seg(hpX(1.2f), hpY(-0.22f), hpX(1.3f), hpY(0.2f), bw, GREY)
-        p.seg(hpX(1.3f), hpY(0.2f), hpX(1.22f), hpY(0.6f), bw, GREY)
-        p.seg(hpX(1.22f), hpY(0.6f), hpX(0.98f), hpY(0.86f), bw, GREY)
-        p.seg(hpX(0.98f), hpY(0.86f), hpX(0.46f), hpY(0.8f), bw, GREY)
-        if (p.ink) return
-        val hx = helmX()
-        val hy = helmY()
-        // The crown stripe: action green between two wolf-grey pinstripes, brow to nape.
-        if (p.hi) {
-            val sa = if (dir > 0) 186f else 214f
-            g.strokeArc(hpX(-0.1f), hpY(-0.14f), r * 0.96f, sa, 140f, r * 0.22f, p.c(GREEN))
-            if (p.shading) g.strokeArc(hpX(-0.1f), hpY(-0.14f), r * 0.8f, sa + 4f, 132f, r * 0.07f, p.c(GREY))
-        }
-        // The face opening: the dark inside of the helmet, his face lit from above.
-        p.begin()
-            .add(hpX(0.4f), hpY(-0.36f))
-            .add(hpX(0.97f), hpY(-0.42f))
-            .add(hpX(1.06f), hpY(0.18f))
-            .add(hpX(0.98f), hpY(0.66f))
-            .add(hpX(0.54f), hpY(0.7f))
-            .add(hpX(0.38f), hpY(0.1f))
-            .shapeDetail(0xFF090B14.toInt())
-        p.begin()
-            .add(hpX(0.52f), hpY(-0.1f))
-            .add(hpX(0.99f), hpY(-0.08f))
-            .add(hpX(1.07f), hpY(0.14f))
-            .add(hpX(0.99f), hpY(0.26f))
-            .add(hpX(1.01f), hpY(0.46f))
-            .add(hpX(0.92f), hpY(0.66f))
-            .add(hpX(0.58f), hpY(0.66f))
-            .add(hpX(0.46f), hpY(0.2f))
-            .shapeGradDetail(SKIN_LIT, SKIN_FAR, hpX(0.95f), hpY(0.0f), hpX(0.6f), hpY(0.6f))
-        // The eyeshield: dark smoke glass under the brow, one clean glint across it.
-        p.begin()
-            .add(hpX(0.5f), hpY(-0.34f))
-            .add(hpX(0.99f), hpY(-0.38f))
-            .add(hpX(1.0f), hpY(-0.1f))
-            .add(hpX(0.56f), hpY(-0.08f))
-            .shapeDetail(if (ghost) 0xFF06080E.toInt() else 0xFF101830.toInt())
-        if (p.shading && !ghost) {
-            p.detail(hpX(0.6f), hpY(-0.24f), hpX(0.97f), hpY(-0.27f), r * 0.07f, Col.alpha(0xFFBFF0FF.toInt(), 0.75f))
-            // The facemask bars catching the lamp, and the two cross bars behind them.
-            p.detail(hpX(0.9f), hpY(-0.44f), hpX(1.2f), hpY(-0.24f), r * 0.05f, 0xFFF2F5F8.toInt())
-            p.detail(hpX(1.2f), hpY(-0.24f), hpX(1.28f), hpY(0.1f), r * 0.05f, 0xFFF2F5F8.toInt())
-        }
-        p.detail(hpX(0.5f), hpY(0.1f), hpX(1.27f), hpY(0.08f), r * 0.12f, GREY)
-        p.detail(hpX(0.5f), hpY(0.44f), hpX(1.26f), hpY(0.42f), r * 0.12f, GREY)
-        if (!ghost) {
-            // The gold grill: a glint behind the facemask.
-            p.detail(hpX(0.86f), hpY(0.35f), hpX(0.97f), hpY(0.34f), r * 0.08f, GOLD)
-            if (p.shading) {
-                val a = p.alphaMul * (1f - p.flatAmt) * (if (f.w.player.state == PlayerState.DEAD) 0.3f else 1f)
-                g.blend(Gfx.Blend.ADD)
-                g.glow(hpX(0.92f), hpY(0.34f), r * 0.28f, Col.alpha(GOLD, 0.35f * a))
-                g.blend(Gfx.Blend.NORMAL)
-            }
-        }
-        // The jaw guard's snap: where the chin strap clips on.
-        if (p.shading) p.dot(hpX(0.3f), hpY(0.46f), r * 0.1f, GREY)
-        if (look.rim != 0 && !ghost) {
-            // The rim light round the back of the shell and down its skirt.
-            val i = RIM_PX * 0.5f
-            val rc = p.c(look.rim)
-            g.blend(Gfx.Blend.ADD)
-            g.strokeArc(hpX(-0.1f), hpY(-0.14f), r * 1.08f - i, if (dir > 0) 160f else 290f, 90f, RIM_PX, rc)
-            g.blend(Gfx.Blend.NORMAL)
-        }
-        if (p.shading) {
-            // Lacquer: one crisp specular sweep over the crown.
-            g.blend(Gfx.Blend.ADD)
-            g.strokeArc(hx - 0.1f * r * dir, hy - 0.14f * r, r * 0.62f, if (dir > 0) 226f else 254f, 60f, r * 0.12f, p.c(Col.alpha(0xFFBFD8FF.toInt(), if (ghost) 0f else 0.5f)))
-            g.blend(Gfx.Blend.NORMAL)
-        }
-    }
-
     // ------------------------------------------------------------ hide, die
-
-    private fun doorHide(x: Float, foot: Float, dir: Int) {
-        // Flattened into the doorway: a near-black silhouette, the grill's glint and a whisper of rim.
-        k.setup(dir, foot - 0.045f * HS, HS, BULK)
-        k.headR *= HEAD
-        val breathe = sin(f.t * 2f) * 0.005f
-        k.stand(x, 0.02f + breathe, 0.06f, -0.06f)
-        k.spine(-0.04f, 0.05f)
-        k.armFK(k.armF, -0.1f, 0.15f)
-        k.armFK(k.armB, -0.2f, 0.1f)
-        heroLook(ghost = true)
-        p.flat = 0xFF05060A.toInt()
-        p.flatAmt = 0.93f
-        p.noInk = true
-        p.twoPass {
-            body.arm(k.armB, look, true)
-            shoulderCap(k.armB, true)
-            body.leg(k.legB, look, true)
-            body.leg(k.legF, look, false)
-            heroCollar()
-            heroTorso()
-            heroHead(dir, ghost = true)
-            body.arm(k.armF, look, false)
-            shoulderCap(k.armF, true)
-            heroDreads(dir)
-        }
-        p.flatAmt = 0f
-        p.noInk = false
-        // The gold grill glinting out of the dark behind the facemask, now and then a flash.
-        val blink = fract(f.t * 0.31f) > 0.96f
-        if (!blink) {
-            p.detail(hpX(0.84f), hpY(0.3f), hpX(0.98f), hpY(0.3f), k.headR * 0.1f, Col.alpha(GOLD, 0.85f))
-            f.glowDot(hpX(0.92f), hpY(0.3f), 0.02f, GOLD, 0.55f)
-        }
-        g.line(k.hipX - 0.16f * dir, k.hipY - 0.2f, k.neckX - 0.18f * dir, k.neckY + 0.05f, 0.02f, Col.alpha(RIM_G, 0.25f))
-    }
 
     private fun deadHero(x: Float, gy: Float, dir: Int) {
         val pl = f.w.player
@@ -1121,34 +582,23 @@ internal class Actors(private val f: Frame) {
         val fall = if (abs(pl.vx) > 0.2f) (if (pl.vx > 0f) 1 else -1) else -dir
         p.flat = 0xFFFF2030.toInt()
         p.flatAmt = max(0f, 0.5f - t * 0.8f)
-        heroLook(ghost = false)
-        cast.ragdoll(x, gy, pl.z, dir, HS, fall, t, 0.55f, CastDeath.KNOCK, look, heroRagdollHead, bulk = BULK)
+        art.live = false
+        art.holstered = false
+        art.dim = 0.3f
+        art.kit.look(art.look, ghost = false)
+        cast.ragdoll(x, gy, pl.z, dir, HS, fall, t, 0.55f, CastDeath.KNOCK, art.look, heroRagdollHead, bulk = art.kit.bulk, arm = heroRagdollArm)
         p.flatAmt = 0f
     }
 
-    private val heroRagdollHead: (Int) -> Unit = { d -> heroHeadAt(d) }
-
-    private fun heroHeadAt(dir: Int) {
-        // The ragdoll paints the base torso: dress it in the jersey, the pads and the helmet.
-        k.headR *= HEAD
-        p.twoPass {
-            shinGuard(k.legB, far = true)
-            heroBoot(k.legB, far = true)
-            shinGuard(k.legF, far = false)
-            heroBoot(k.legF, far = false)
-            shoulderCap(k.armB, far = true)
-            heroCollar()
-            heroTorso()
-            heroHead(dir, false)
-            heroDreads(dir)
-        }
-    }
+    private val heroRagdollHead: (Int) -> Unit = { d -> art.ragdollDress(d) }
+    private val heroRagdollArm: () -> Unit = { art.ragdollArm() }
 
     // --------------------------------------------------------------- box
 
     /** The cardboard box: printed markings, a peek slit with eyes, a waddle, the "!" moment. */
     private fun box(x: Float, gy: Float, dir: Int, vx: Float, t: Float) {
         val pl = f.w.player
+        val kit = art.kit
         val moving = abs(vx) > 0.2f
         // Being watched? A guard who's onto you is an alarm; one creeping over to check the
         // box that moved ("HUH?") is a slow, sweaty freeze that gets worse as he closes in.
@@ -1190,22 +640,25 @@ internal class Actors(private val f: Frame) {
         val hw = w / 2f
         val sqY = if (moving) 1f - abs(cos(ph)) * 0.03f else 1f
 
+        // The commando's own box: a size up, and it's seen some jungle.
+        val battered = kit.batteredBox
+        val bs = if (battered) 1.08f else 1f
         g.save()
         g.translate(x + shake, gy - bob - hop - peek)
         g.rotate(tilt)
-        g.scale(1f, sqY)
+        g.scale(bs, sqY * bs)
         if (moving || peek > 0.02f) {
             // Boots shuffling under the box.
             val s = if (moving) sin(ph) * 0.13f else 0f
             p.twoPass {
-                p.seg(-0.2f + s, -0.02f + bob + peek, -0.08f + s, -0.02f + bob + peek, 0.09f, ARMOR)
-                p.seg(0.12f - s, -0.02f + bob + peek, 0.24f - s, -0.02f + bob + peek, 0.09f, ARMOR)
+                p.seg(-0.2f + s, -0.02f + bob + peek, -0.08f + s, -0.02f + bob + peek, 0.09f, kit.boxFeet)
+                p.seg(0.12f - s, -0.02f + bob + peek, 0.24f - s, -0.02f + bob + peek, 0.09f, kit.boxFeet)
             }
             if (peek > 0.02f) {
                 g.fillRect(-hw + 0.04f, -0.02f, hw - 0.04f, peek * 0.8f, p.c(0xE0050308.toInt()))
                 val ex = 0.18f * dir
-                f.glowDot(ex - 0.05f, peek * 0.35f, 0.022f, VISOR, 0.9f * p.alphaMul)
-                f.glowDot(ex + 0.05f, peek * 0.35f, 0.022f, VISOR, 0.9f * p.alphaMul)
+                f.glowDot(ex - 0.05f, peek * 0.35f, 0.022f, kit.eyes, 0.9f * p.alphaMul)
+                f.glowDot(ex + 0.05f, peek * 0.35f, 0.022f, kit.eyes, 0.9f * p.alphaMul)
             }
         }
         val d = 0.1f // depth offset of the receding top/side
@@ -1269,6 +722,7 @@ internal class Actors(private val f: Frame) {
             g.line(-tw * 0.3f, -h - d + 0.015f, tw * 0.7f, -h - d + 0.015f, 0.012f, p.c(0x40FFFFFF))
             g.blend(Gfx.Blend.NORMAL)
         }
+        if (battered) batter(hw, h, rs)
         // "This side up" arrows in a printed frame on the trailing half.
         val px = 0.27f * rs
         Glyphs.arrow(g, px - 0.07f, -0.28f, 0.11f, 0f, -1f, 0.036f, p.c(BoxArt.BOX_PRINT))
@@ -1306,13 +760,13 @@ internal class Actors(private val f: Frame) {
             g.fillCircle(hx - 0.052f + look, sy, r * 0.45f, p.c(0xFF101018.toInt()))
             g.fillCircle(hx + 0.064f + look, sy, r * 0.45f, p.c(0xFF101018.toInt()))
         } else if (blink) {
-            g.line(hx - 0.09f + look, sy, hx - 0.03f + look, sy, 0.02f, p.c(VISOR))
-            g.line(hx + 0.03f + look, sy, hx + 0.09f + look, sy, 0.02f, p.c(VISOR))
+            g.line(hx - 0.09f + look, sy, hx - 0.03f + look, sy, 0.02f, p.c(kit.eyes))
+            g.line(hx + 0.03f + look, sy, hx + 0.09f + look, sy, 0.02f, p.c(kit.eyes))
         } else {
-            g.fillCircle(hx - 0.058f + look, sy, 0.036f, p.c(VISOR))
-            g.fillCircle(hx + 0.058f + look, sy, 0.036f, p.c(VISOR))
+            g.fillCircle(hx - 0.058f + look, sy, 0.036f, p.c(kit.eyes))
+            g.fillCircle(hx + 0.058f + look, sy, 0.036f, p.c(kit.eyes))
             g.blend(Gfx.Blend.ADD)
-            g.glow(hx + look, sy, 0.2f, p.c(Col.alpha(VISOR, 0.6f)))
+            g.glow(hx + look, sy, 0.2f, p.c(Col.alpha(kit.eyes, 0.6f)))
             g.blend(Gfx.Blend.NORMAL)
         }
         g.restore()
@@ -1339,6 +793,23 @@ internal class Actors(private val f: Frame) {
                 }
             }
         }
+    }
+
+    /** Field wear on the commando's box: a crushed corner, a patch of tape, mud and a scrawled mark. */
+    private fun batter(hw: Float, h: Float, rs: Float) {
+        // The leading top corner crushed in.
+        p.begin().add(-hw * rs, -h).add(-hw * rs + 0.2f * rs, -h).add(-hw * rs, -h + 0.16f)
+        p.shapeDetail(ActorPaint.shade(BoxArt.BOX_FRONT))
+        p.detail(-hw * rs + 0.2f * rs, -h, -hw * rs, -h + 0.16f, 0.014f, BoxArt.BOX_CUT)
+        // A tape patch slapped over a tear, on a slant.
+        p.begin().add(0.06f * rs, -0.5f).add(0.34f * rs, -0.58f).add(0.37f * rs, -0.5f).add(0.09f * rs, -0.42f)
+        p.shapeDetail(Col.alpha(0xFFB8B8A8.toInt(), 0.9f))
+        if (!p.shading) return
+        p.detail(0.14f * rs, -0.55f, 0.26f * rs, -0.47f, 0.01f, Col.alpha(ActorPaint.shade(BoxArt.BOX_FRONT), 0.7f))
+        // Mud up from the floor and a dent crease.
+        p.begin().add(-hw, -0.1f).add(-hw + 0.3f, -0.2f).add(0.1f, -0.08f).add(hw - 0.2f, -0.16f).add(hw, -0.06f).add(hw, 0f).add(-hw, 0f)
+        p.shapeGradDetail(0x00302418, 0x90302418.toInt(), 0f, -0.2f, 0f, 0f)
+        p.detail(-0.1f * rs, -h + 0.08f, 0.02f * rs, -0.6f, 0.012f, Col.alpha(ActorPaint.shade(BoxArt.BOX_FRONT), 0.6f))
     }
 
     /** The cardboard: board tones, the pale corrugated cut edge, tape and printer's inks. */

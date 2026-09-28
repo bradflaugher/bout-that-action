@@ -33,11 +33,13 @@ import com.bradflaugher.aboutthataction.engine.AlertPhase
 import com.bradflaugher.aboutthataction.engine.Autopilot
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.GameEvent
+import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.RunConfig
 import com.bradflaugher.aboutthataction.engine.RunReport
 import com.bradflaugher.aboutthataction.engine.World
 import com.bradflaugher.aboutthataction.engine.Zone
 import com.bradflaugher.aboutthataction.ui.GameOverScreen
+import com.bradflaugher.aboutthataction.ui.HeroPickerScreen
 import com.bradflaugher.aboutthataction.ui.Motion
 import com.bradflaugher.aboutthataction.ui.PauseScreen
 import com.bradflaugher.aboutthataction.ui.RunSummary
@@ -47,7 +49,7 @@ import kotlin.random.Random
 
 class MainActivity : ComponentActivity(), GameView.Host {
 
-    private enum class Screen { TITLE, SETTINGS, PLAYING, PAUSED, GAME_OVER }
+    private enum class Screen { TITLE, HEROES, SETTINGS, PLAYING, PAUSED, GAME_OVER }
 
     private lateinit var prefs: Prefs
     private lateinit var sound: SoundEngine
@@ -117,10 +119,17 @@ class MainActivity : ComponentActivity(), GameView.Host {
                             onPlay = ::startRun,
                             onSettings = { screen = Screen.SETTINGS },
                             onPreset = { updateSettings(settings.copy(preset = it, custom = it.difficulty)) },
+                            onHeroes = { screen = Screen.HEROES },
+                        )
+                        Screen.HEROES -> HeroPickerScreen(
+                            settings.hero, pad,
+                            onPick = ::pickHero,
+                            onPlay = ::startRun,
+                            onBack = ::heroesToTitle,
                         )
                         Screen.SETTINGS -> SettingsScreen(settings, pad, ::updateSettings) { screen = Screen.TITLE }
                         Screen.PAUSED -> PauseScreen(
-                            settings, runSeedLabel, pad,
+                            settings, runSeedLabel, runConfig?.hero ?: settings.hero, pad,
                             onResume = ::resume,
                             onRestart = { runConfig?.let { startRun(it) } },
                             onQuit = ::toTitle,
@@ -152,6 +161,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
                 when (screen) {
                     Screen.PLAYING -> pause()
                     Screen.PAUSED -> resume()
+                    Screen.HEROES -> heroesToTitle()
                     Screen.SETTINGS, Screen.GAME_OVER -> toTitle()
                     Screen.TITLE -> finish()
                 }
@@ -189,7 +199,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
         gameView.attract = true
         gameView.paused = false
         gameView.autopilot = Autopilot(seed)
-        gameView.world = World(RunConfig(seed, Difficulty.Preset.CHILL.difficulty, coach = false))
+        // The demo stars whoever you'll drop in as.
+        gameView.world = World(RunConfig(seed, Difficulty.Preset.CHILL.difficulty, coach = false, hero = settings.hero))
         musicZone = null
         musicAlert = AlertPhase.CALM
         sound.setAlert(AlertPhase.CALM)
@@ -205,7 +216,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
             SeedMode.CUSTOM -> s.seedText.ifBlank { seed.toString() }.uppercase()
             SeedMode.RANDOM -> seed.toString()
         }
-        startRun(RunConfig(seed, s.difficulty, silent = s.silent, coach = s.coach))
+        startRun(RunConfig(seed, s.difficulty, silent = s.silent, coach = s.coach, hero = s.hero))
     }
 
     private fun startRun(config: RunConfig) {
@@ -215,6 +226,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
         musicZone = null
         musicAlert = AlertPhase.CALM
         sound.setAlert(AlertPhase.CALM)
+        // Before the first frame's setZone, so the run opens in this hero's arrangement.
+        sound.setHero(config.hero)
         gameView.world = World(config.copy(silent = settings.silent, coach = settings.coach))
         gameView.attract = false
         gameView.paused = false
@@ -239,6 +252,21 @@ class MainActivity : ComponentActivity(), GameView.Host {
         sound.setPaused(false)
         screen = Screen.TITLE
         showAttract()
+    }
+
+    /** A hero card settled on the picker: remember them, play their theme, star them in the demo. */
+    private fun pickHero(hero: Hero) {
+        if (screen != Screen.HEROES) return
+        if (hero != settings.hero) {
+            updateSettings(settings.copy(hero = hero))
+            showAttract(music = false)
+        }
+        sound.playHeroTheme(hero)
+    }
+
+    private fun heroesToTitle() {
+        screen = Screen.TITLE
+        sound.playTitle()
     }
 
     private fun updateSettings(s: Settings) {
@@ -320,6 +348,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
             deathLine = report.deathLine,
             quip = report.quip,
             highlights = report.highlights,
+            hero = world.hero,
         )
         endSlowMo()
         sound.gameOver()
@@ -333,10 +362,10 @@ class MainActivity : ComponentActivity(), GameView.Host {
         return when {
             // Into play: get out of the way immediately.
             to == Screen.PLAYING -> fadeIn(quick) togetherWith fadeOut(tween(Motion.fast)) + scaleOut(tween(Motion.fast), 1.04f)
-            // Settings slides in over the title and back out.
-            to == Screen.SETTINGS -> (slideInHorizontally(tween(Motion.base, easing = Motion.out)) { it / 5 } + fadeIn(base)) togetherWith
+            // Settings and the hero picker slide in over the title and back out.
+            to == Screen.SETTINGS || to == Screen.HEROES -> (slideInHorizontally(tween(Motion.base, easing = Motion.out)) { it / 5 } + fadeIn(base)) togetherWith
                 fadeOut(quick)
-            from == Screen.SETTINGS -> fadeIn(base) togetherWith
+            from == Screen.SETTINGS || from == Screen.HEROES -> fadeIn(base) togetherWith
                 (slideOutHorizontally(tween(Motion.base, easing = Motion.out)) { it / 5 } + fadeOut(quick))
             // Pause pops in; game over has its own staged entrance.
             to == Screen.PAUSED -> (fadeIn(quick) + scaleIn(tween(Motion.base, easing = Motion.out), 0.94f)) togetherWith fadeOut(quick)

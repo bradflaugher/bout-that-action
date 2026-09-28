@@ -61,6 +61,9 @@ internal class Patch(
     val crush: Int = 0,
     /** How strongly music intensity opens the filter (0 = ignores intensity). */
     val bright: Float = 1f,
+    /** Tremolo depth 0..1 (amplitude LFO: surf guitar, vibraphone, Rhodes). */
+    val trem: Float = 0f,
+    val tremRate: Float = 6f,
 ) {
     val driveGain = 1f + drive * 3f
     val driveComp = if (drive > 0f) 1f / Dsp.tanh(min(driveGain, 3f)) * (1f / (1f + drive * 0.5f)) else 1f
@@ -88,6 +91,8 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
     private var p3 = 0f
     private var ps = 0f
     private var lfo = 0f
+    private var tremPh = 0f
+    private var tremGain = 1f
     private var sinceOn = 0
     private var vel = 1f
 
@@ -157,11 +162,22 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
         val g = Dsp.svfG(cut, sr)
         svfL.set(g, pt.q)
         if (pt.supersaw) svfR.set(g, pt.q)
-        val gain = pt.gain * vel
+        var gain = pt.gain * vel
+        var gainStep = 0f
+        if (pt.trem > 0f) {
+            // Ramped across the chunk so the LFO never zippers.
+            tremPh += pt.tremRate * n / sr
+            if (tremPh > 1f) tremPh -= 1f
+            val tg = 1f - pt.trem * (0.5f + 0.5f * Dsp.sin01(tremPh))
+            gainStep = gain * (tg - tremGain) / n
+            gain *= tremGain
+            tremGain = tg
+        }
         val w1 = pt.wave1
         val w2 = pt.wave2
         for (i in 0 until n) {
             flt.next()
+            gain += gainStep
             val a = amp.next() * gain
             if (gate > 0 && --gate == 0) {
                 amp.gateOff(); flt.gateOff()
@@ -339,5 +355,75 @@ internal class Riser(private val sr: Int) {
             l[off + i] += x
             r[off + i] += x
         }
+    }
+}
+
+/**
+ * A stadium crowd: decorrelated noise through two vowel-ish formants per side, with a slow
+ * random murmur. [render]'s level carries the swell (the sequencer lifts it into fills and
+ * slams it up on the crash).
+ */
+internal class Crowd(private val sr: Int) {
+    private val nl = Noise(2718)
+    private val nr = Noise(31415)
+    private val nm = Noise(1618)
+    private val f1l = Svf().apply { setHz(620f, 0.9f, sr) }
+    private val f2l = Svf().apply { setHz(1550f, 1.1f, sr) }
+    private val f1r = Svf().apply { setHz(700f, 0.9f, sr) }
+    private val f2r = Svf().apply { setHz(1400f, 1.1f, sr) }
+    private val murmur = OnePole().apply { setHz(5f, sr) }
+    private var level = 0f
+
+    fun render(l: FloatArray, r: FloatArray, n: Int, target: Float) {
+        if (target <= 0f && level < 1e-4f) return
+        val step = (target - level) / n
+        for (i in 0 until n) {
+            level += step
+            val m = 1f + 6f * murmur.lp(nm.next())
+            val g = level * m
+            val xl = nl.next()
+            val xr = nr.next()
+            l[i] += (f1l.bp(xl) + 0.7f * f2l.bp(xl)) * g
+            r[i] += (f1r.bp(xr) + 0.7f * f2r.bp(xr)) * g
+        }
+    }
+}
+
+/**
+ * Night jungle: a cricket on each side (chirp trains of a pure ~4.4 kHz tone) over a thin
+ * cicada hiss that breathes slowly. Quiet by design; it sits under a sneak mix.
+ */
+internal class Jungle(private val sr: Int) {
+    private val noise = Noise(8086)
+    private val hiss = Svf().apply { setHz(6500f, 3f, sr) }
+    private var t = 0.0
+    private var pl = 0f
+    private var pr = 0f
+
+    fun render(l: FloatArray, r: FloatArray, n: Int, level: Float) {
+        if (level <= 0f) return
+        val inv = 1f / sr
+        for (i in 0 until n) {
+            t += inv
+            val tf = t.toFloat()
+            // Chirps: 4 pulses at 30 Hz, bursts every ~0.9 s (the right cricket answers late).
+            val cl = chirp(tf)
+            val cr = chirp(tf + 0.41f) * (0.6f + 0.4f * Dsp.sin01(tf * 0.05f))
+            pl += 4400f * inv; if (pl >= 1f) pl -= 1f
+            pr += 4650f * inv; if (pr >= 1f) pr -= 1f
+            val breath = 0.5f + 0.5f * Dsp.sin01(tf * 0.13f)
+            val h = hiss.bp(noise.next()) * 0.35f * breath
+            l[i] += (Dsp.sin01(pl) * cl * 0.25f + h) * level
+            r[i] += (Dsp.sin01(pr) * cr * 0.25f + h) * level
+        }
+    }
+
+    private fun chirp(x: Float): Float {
+        val burst = x / 0.9f
+        val inBurst = (burst - burst.toInt()) * 0.9f // seconds into this burst
+        if (inBurst > 0.13f) return 0f
+        val p = inBurst * 30f
+        val ph = p - p.toInt()
+        return if (ph < 0.5f) Dsp.sin01(ph) else 0f
     }
 }

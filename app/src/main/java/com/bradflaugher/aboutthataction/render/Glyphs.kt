@@ -6,7 +6,10 @@ package com.bradflaugher.aboutthataction.render
  */
 internal object Glyphs {
     private const val ICONS = "←→↑↓♥"
-    private val poly = Poly()
+    // Scratch polygon per thread: the game thread and the menus (the hero picker) both draw
+    // these, and a shared one would have them scribbling over each other's points.
+    private val polys = ThreadLocal.withInitial { Poly() }
+    private val poly: Poly get() = polys.get()
 
     private fun isIcon(c: Char) = ICONS.indexOf(c) >= 0
 
