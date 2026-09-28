@@ -55,7 +55,9 @@ the JVM.
 - `input/GestureInput.kt` — multi-touch gesture classifier (run drag with
   instant reversal, flicks mid-drag, zero-latency taps; grenades are a HUD button, not a gesture).
 - `render/` — `Gfx.kt` is the tiny drawing interface; `Renderer` draws the
-  world, HUD and overlays through it.
+  world, HUD and overlays through it. `HeroArt` paints the player on one shared
+  rig, dressed by a `HeroKit` per hero (`HeroBeast`, `HeroAce`, `HeroHardy`,
+  `HeroViper`); `HeroPortrait` draws that same figure for the hero picker.
 - `audio/` — procedural synth, sequencer, songs per zone, SFX; `SoundEngine`
   is the API. `AudioOutput.kt` streams it to an `AudioTrack`.
 - `AndroidGfx.kt` — `Gfx` on `android.graphics.Canvas`.
@@ -101,7 +103,9 @@ the JVM.
   `-Pata.shots=<dir>` writes elsewhere and `-Pata.full=true` keeps full
   1080x2400 resolution, for iterating on the look. `-Pata.scene=cast` renders
   the cast sheet instead (`CastScreenshotTest`): every archetype in every zone
-  and the agent's key poses, cropped from real frames at 2x, for character art.
+  and every hero in every key pose, cropped from real frames at 2x, plus the
+  hero picker portraits, for character art; `-Pata.scene=heroes` renders just
+  the hero rows and portraits (`heroes.png`).
   `-Pata.scene=icons` renders the icon sheet (`IconScreenshotTest`): every perk
   and pickup icon, the heart and the badges at chip, pill and card sizes.
 

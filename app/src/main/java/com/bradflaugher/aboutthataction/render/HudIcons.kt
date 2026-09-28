@@ -128,10 +128,184 @@ internal object HudIcons {
                 g.strokeArc(cx, cy + k * 0.5f, k * 0.86f, 205f, 130f, sw, c)
                 Glyphs.arrow(g, cx, cy - k * 0.55f, k * 0.38f, 0f, 1f, sw * 1.1f, c)
             }
-            // TODO(hero perks): real icons.
-            else -> g.fillCircle(cx, cy, k * 0.6f, c)
+            Perk.STIFF_ARM -> {
+                // A stiff arm driving an open palm forward, the impact lines ahead of it.
+                g.line(cx - k * 0.98f, cy + k * 0.3f, cx - k * 0.05f, cy + k * 0.12f, sw * 1.5f, c)
+                g.fillRoundRect(cx - k * 0.2f, cy - k * 0.36f, cx + k * 0.4f, cy + k * 0.56f, k * 0.16f, c)
+                for (i in 0 until 4) {
+                    val x = cx - k * 0.12f + i * k * 0.16f
+                    g.fillRoundRect(x - k * 0.07f, cy - k * (0.84f - (if (i == 0 || i == 3) 0.1f else 0f)), x + k * 0.07f, cy - k * 0.2f, k * 0.07f, c)
+                }
+                g.line(cx - k * 0.16f, cy + k * 0.12f, cx - k * 0.4f, cy - k * 0.16f, sw * 1.05f, c)
+                g.line(cx + k * 0.6f, cy - k * 0.5f, cx + k * 0.92f, cy - k * 0.7f, sw * 0.8f, c)
+                g.line(cx + k * 0.62f, cy + k * 0.06f, cx + k * 0.98f, cy + k * 0.06f, sw * 0.8f, c)
+                g.line(cx + k * 0.6f, cy + k * 0.62f, cx + k * 0.92f, cy + k * 0.82f, sw * 0.8f, c)
+            }
+            Perk.BEAST_QUAKE -> {
+                // The seismograph needle jumping off the chart, over the ground line.
+                val xs = QUAKE_X
+                val ys = QUAKE_Y
+                for (i in 0 until xs.size - 1) g.line(cx + xs[i] * k, cy + ys[i] * k, cx + xs[i + 1] * k, cy + ys[i + 1] * k, sw * 0.95f, c)
+                g.fillRoundRect(cx - k * 0.98f, cy + k * 0.8f, cx + k * 0.98f, cy + k * 0.96f, k * 0.08f, c)
+            }
+            Perk.CANDY_RAIN -> {
+                // A wrapped candy falling, a trail of little ones behind it, and the heart it's worth.
+                candy(g, cx - k * 0.2f, cy - k * 0.28f, k * 0.44f, c)
+                g.fillCircle(cx - k * 0.78f, cy - k * 0.86f, k * 0.14f, c)
+                g.fillCircle(cx + k * 0.46f, cy - k * 0.88f, k * 0.14f, c)
+                g.fillCircle(cx - k * 0.72f, cy + k * 0.46f, k * 0.16f, c)
+                Glyphs.heart(g, cx + k * 0.5f, cy + k * 0.5f, k * 0.86f, c)
+            }
+            Perk.DISGUISE -> {
+                // Round spectacles over a curly moustache: nobody you've ever seen.
+                g.strokeCircle(cx - k * 0.44f, cy - k * 0.38f, k * 0.32f, sw * 0.9f, c)
+                g.strokeCircle(cx + k * 0.44f, cy - k * 0.38f, k * 0.32f, sw * 0.9f, c)
+                g.strokeArc(cx, cy - k * 0.36f, k * 0.14f, 200f, 140f, sw * 0.8f, c)
+                val pb = poly.begin()
+                for (i in MOUSTACHE_X.indices) pb.add(cx + MOUSTACHE_X[i] * k, cy + MOUSTACHE_Y[i] * k)
+                for (i in MOUSTACHE_X.indices.reversed()) pb.add(cx - MOUSTACHE_X[i] * k, cy + MOUSTACHE_Y[i] * k)
+                pb.fill(g, c)
+            }
+            Perk.LASER_WATCH -> {
+                // A wristwatch on its strap, a laser beam cutting out of its face.
+                g.fillRoundRect(cx - k * 0.62f, cy - k * 0.96f, cx - k * 0.18f, cy + k * 0.96f, k * 0.1f, c)
+                g.fillCircle(cx - k * 0.4f, cy, k * 0.5f, c)
+                g.fillCircle(cx - k * 0.4f, cy, k * 0.34f, cut(HOLE, c))
+                g.line(cx - k * 0.4f, cy, cx - k * 0.4f, cy - k * 0.24f, sw * 0.6f, c)
+                g.line(cx - k * 0.4f, cy, cx - k * 0.24f, cy + k * 0.06f, sw * 0.6f, c)
+                g.line(cx + k * 0.1f, cy, cx + k * 0.8f, cy, sw * 0.9f, c)
+                spark(g, cx + k * 0.8f, cy, k * 0.26f, c)
+            }
+            Perk.DEAD_DROP -> {
+                // A briefcase with a drop arrow cut into it: the loot left behind.
+                g.strokeRoundRect(cx - k * 0.28f, cy - k * 0.82f, cx + k * 0.28f, cy - k * 0.4f, k * 0.1f, sw * 0.85f, c)
+                g.fillRoundRect(cx - k * 0.94f, cy - k * 0.52f, cx + k * 0.94f, cy + k * 0.82f, k * 0.16f, c)
+                val h = cut(HOLE, c)
+                g.line(cx, cy - k * 0.3f, cx, cy + k * 0.26f, sw * 0.85f, h)
+                poly.tri(g, cx - k * 0.34f, cy + k * 0.16f, cx + k * 0.34f, cy + k * 0.16f, cx, cy + k * 0.6f, h)
+            }
+            Perk.YIPPEE -> {
+                // A cowboy hat: dented crown, a curled brim, a band.
+                poly.begin()
+                    .add(cx - k * 0.46f, cy + k * 0.05f).add(cx - k * 0.52f, cy - k * 0.44f).add(cx - k * 0.42f, cy - k * 0.72f)
+                    .add(cx - k * 0.2f, cy - k * 0.82f).add(cx, cy - k * 0.74f).add(cx + k * 0.2f, cy - k * 0.82f)
+                    .add(cx + k * 0.42f, cy - k * 0.72f).add(cx + k * 0.52f, cy - k * 0.44f).add(cx + k * 0.46f, cy + k * 0.05f)
+                    .fill(g, c)
+                poly.begin()
+                    .add(cx - k * 0.98f, cy - k * 0.28f).add(cx - k * 0.72f, cy + k * 0.04f).add(cx, cy + k * 0.16f)
+                    .add(cx + k * 0.72f, cy + k * 0.04f).add(cx + k * 0.98f, cy - k * 0.28f).add(cx + k * 0.86f, cy + k * 0.3f)
+                    .add(cx, cy + k * 0.5f).add(cx - k * 0.86f, cy + k * 0.3f)
+                    .fill(g, c)
+                g.line(cx - k * 0.46f, cy - k * 0.14f, cx + k * 0.46f, cy - k * 0.14f, sw * 0.7f, cut(HOLE, c))
+            }
+            Perk.VENT_CRAWL -> {
+                // An air vent: a grille of slats and four screws.
+                g.fillRoundRect(cx - k * 0.9f, cy - k * 0.74f, cx + k * 0.9f, cy + k * 0.74f, k * 0.14f, c)
+                for (i in 0 until 3) {
+                    val y = cy - k * 0.34f + i * k * 0.34f
+                    g.fillRoundRect(cx - k * 0.56f, y - k * 0.09f, cx + k * 0.56f, y + k * 0.09f, k * 0.09f, cut(HOLE, c))
+                }
+                for (sx in -1..1 step 2) for (sy in -1..1 step 2) {
+                    g.fillCircle(cx + sx * k * 0.72f, cy + sy * k * 0.56f, k * 0.07f, cut(HOLE, c))
+                }
+            }
+            Perk.ADRENALINE -> {
+                // A heart with the pulse racing straight through it.
+                Glyphs.heart(g, cx, cy + k * 0.06f, k * 1.8f, c)
+                val h = cut(HOLE, c)
+                g.line(cx - k * 0.98f, cy - k * 0.02f, cx - k * 0.42f, cy - k * 0.02f, sw * 0.7f, h)
+                g.line(cx - k * 0.42f, cy - k * 0.02f, cx - k * 0.2f, cy - k * 0.46f, sw * 0.7f, h)
+                g.line(cx - k * 0.2f, cy - k * 0.46f, cx + k * 0.06f, cy + k * 0.42f, sw * 0.7f, h)
+                g.line(cx + k * 0.06f, cy + k * 0.42f, cx + k * 0.28f, cy - k * 0.02f, sw * 0.7f, h)
+                g.line(cx + k * 0.28f, cy - k * 0.02f, cx + k * 0.98f, cy - k * 0.02f, sw * 0.7f, h)
+            }
+            Perk.JAMMER -> {
+                // A jammer: a handset with its antenna up, its signal arcs torn by a bolt of static.
+                g.fillRoundRect(cx - k * 0.86f, cy - k * 0.02f, cx - k * 0.1f, cy + k * 0.96f, k * 0.14f, c)
+                val h = cut(HOLE, c)
+                g.fillRoundRect(cx - k * 0.72f, cy + k * 0.14f, cx - k * 0.24f, cy + k * 0.44f, k * 0.06f, h)
+                g.fillCircle(cx - k * 0.62f, cy + k * 0.7f, k * 0.09f, h)
+                g.fillCircle(cx - k * 0.34f, cy + k * 0.7f, k * 0.09f, h)
+                g.line(cx - k * 0.3f, cy, cx - k * 0.3f, cy - k * 0.36f, sw * 0.8f, c)
+                g.fillCircle(cx - k * 0.3f, cy - k * 0.42f, k * 0.13f, c)
+                g.strokeArc(cx - k * 0.3f, cy - k * 0.42f, k * 0.38f, -40f, 80f, sw * 0.75f, c)
+                g.strokeArc(cx - k * 0.3f, cy - k * 0.42f, k * 0.68f, -36f, 72f, sw * 0.75f, c)
+                // And the static it throws out: a jagged bolt.
+                g.line(cx + k * 0.6f, cy - k * 0.98f, cx + k * 0.86f, cy - k * 0.5f, sw * 0.85f, c)
+                g.line(cx + k * 0.86f, cy - k * 0.5f, cx + k * 0.62f, cy - k * 0.42f, sw * 0.85f, c)
+                g.line(cx + k * 0.62f, cy - k * 0.42f, cx + k * 0.9f, cy + k * 0.1f, sw * 0.85f, c)
+            }
+            Perk.CHAFF -> {
+                // A grenade bursting into a cloud of glittering foil strips.
+                grenade(g, cx - k * 0.42f, cy + k * 0.34f, s * 0.64f, c)
+                for (i in CHAFF_X.indices) {
+                    val x = cx + CHAFF_X[i] * k
+                    val y = cy + CHAFF_Y[i] * k
+                    val ang = CHAFF_A[i]
+                    val dx = cos(ang) * k * 0.13f
+                    val dy = sin(ang) * k * 0.13f
+                    g.line(x - dx, y - dy, x + dx, y + dy, sw * 0.7f, c)
+                }
+                spark(g, cx + k * 0.78f, cy - k * 0.78f, k * 0.2f, c)
+                spark(g, cx - k * 0.1f, cy - k * 0.7f, k * 0.16f, c)
+            }
+            Perk.CAMO -> {
+                // A figure half dissolved into the jungle: solid on one side, leaves on the other.
+                g.fillCircle(cx - k * 0.3f, cy - k * 0.56f, k * 0.3f, c)
+                g.fillRoundRect(cx - k * 0.78f, cy - k * 0.18f, cx + k * 0.18f, cy + k * 0.96f, k * 0.28f, c)
+                val h = cut(HOLE, c)
+                leaf(g, cx + k * 0.12f, cy + k * 0.16f, k * 0.24f, 1.1f, h)
+                leaf(g, cx + k * 0.1f, cy + k * 0.66f, k * 0.22f, -1.0f, h)
+                leaf(g, cx + k * 0.5f, cy - k * 0.3f, k * 0.26f, 0.9f, c)
+                leaf(g, cx + k * 0.66f, cy + k * 0.3f, k * 0.24f, -0.6f, c)
+                leaf(g, cx + k * 0.44f, cy + k * 0.8f, k * 0.2f, 0.4f, c)
+            }
         }
     }
+
+    /** A wrapped sweet: a round candy with its wrapper twisted at both ends and a stripe. */
+    private fun candy(g: Gfx, x: Float, y: Float, r: Float, c: Int) {
+        g.fillCircle(x, y, r, c)
+        poly.tri(g, x - r * 0.8f, y, x - r * 1.75f, y - r * 0.7f, x - r * 1.75f, y + r * 0.7f, c)
+        poly.tri(g, x + r * 0.8f, y, x + r * 1.75f, y - r * 0.7f, x + r * 1.75f, y + r * 0.7f, c)
+        g.line(x - r * 0.4f, y + r * 0.62f, x + r * 0.4f, y - r * 0.62f, r * 0.3f, cut(HOLE, c))
+    }
+
+    /** A leaf: a pointed lens [r] long, turned [ang] radians. */
+    private fun leaf(g: Gfx, x: Float, y: Float, r: Float, ang: Float, c: Int) {
+        val ux = cos(ang)
+        val uy = sin(ang)
+        val pb = poly.begin()
+        for (i in 0..6) {
+            val t = -1f + i / 3f
+            val w = (1f - t * t) * 0.5f
+            pb.add(x + ux * t * r - uy * w * r, y + uy * t * r + ux * w * r)
+        }
+        for (i in 1..5) {
+            val t = 1f - i / 3f
+            val w = (1f - t * t) * 0.5f
+            pb.add(x + ux * t * r + uy * w * r, y + uy * t * r - ux * w * r)
+        }
+        pb.fill(g, c)
+    }
+
+    /** A four-point spark. */
+    private fun spark(g: Gfx, x: Float, y: Float, r: Float, c: Int) {
+        poly.begin()
+            .add(x, y - r).add(x + r * 0.25f, y - r * 0.25f).add(x + r, y).add(x + r * 0.25f, y + r * 0.25f)
+            .add(x, y + r).add(x - r * 0.25f, y + r * 0.25f).add(x - r, y).add(x - r * 0.25f, y - r * 0.25f)
+            .fill(g, c)
+    }
+
+    /** The chaff cloud: foil strips flung up and out of the burst. */
+    private val CHAFF_X = floatArrayOf(0.02f, 0.4f, 0.82f, 0.3f, 0.7f, 0.88f, 0.44f, -0.34f)
+    private val CHAFF_Y = floatArrayOf(-0.36f, -0.66f, -0.34f, -0.06f, 0.12f, 0.52f, 0.5f, -0.66f)
+    private val CHAFF_A = floatArrayOf(0.6f, -0.4f, 1.2f, -0.9f, 0.3f, -1.1f, 0.9f, -0.2f)
+    private val QUAKE_X = floatArrayOf(-0.98f, -0.6f, -0.38f, -0.08f, 0.22f, 0.48f, 0.66f, 0.98f)
+    private val QUAKE_Y = floatArrayOf(0.1f, 0.1f, -0.72f, 0.62f, -0.9f, 0.4f, 0.1f, 0.1f)
+    /** Half a curly moustache, from the centre out to the curled tip (mirrored for the other half). */
+    private val MOUSTACHE_X = floatArrayOf(0f, 0.36f, 0.72f, 0.94f, 0.9f, 0.76f, 0.84f, 0.5f, 0f)
+    private val MOUSTACHE_Y = floatArrayOf(0.2f, 0.12f, 0.24f, 0.1f, -0.06f, 0.02f, 0.3f, 0.56f, 0.44f)
 
     fun pickup(g: Gfx, p: PickupKind, cx: Float, cy: Float, s: Float, c: Int) {
         val k = s / 2f

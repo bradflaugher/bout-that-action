@@ -56,6 +56,11 @@ internal class ActorPaint(private val f: Frame) {
         out = (OUT_PX / f.s).coerceIn(OUT, OUT_MAX)
     }
 
+    /** Overrides this frame's outline weight (world units), e.g. a finer line for a large portrait. */
+    fun weight(world: Float) {
+        out = world
+    }
+
     /** Fill colour through the tint. */
     fun c(color: Int): Int {
         var col = color
