@@ -13,7 +13,10 @@ import kotlin.math.sqrt
  * chip up to a perk-card medallion.
  */
 internal object HudIcons {
-    private val poly = Poly()
+    // Scratch polygon per thread: the game thread and the menus (the hero picker) both draw
+    // these, and a shared one would have them scribbling over each other's points.
+    private val polys = ThreadLocal.withInitial { Poly() }
+    private val poly: Poly get() = polys.get()
 
     /** A cut-out tone (a dark hole, a white tip) at the icon colour's own alpha, so dimmed icons dim whole. */
     private fun cut(tone: Int, c: Int) = Col.alpha(tone, Col.a(c) / 255f)
