@@ -90,12 +90,12 @@ internal class HardyKit(a: HeroArt) : HeroKit(a) {
         p.shapeLit(SKIN, tx(1.0f, c * 0.4f), ty(1.0f, c * 0.4f), tx(0.5f, -c * 0.5f), ty(0.5f, -c * 0.5f))
         if (p.ink) return
         p.begin()
-        tp(0.04f, -w * 0.55f); tp(0.28f, -w * 0.51f); tp(0.5f, -w * 0.53f); tp(0.74f, -c * 0.55f); tp(0.9f, -c * 0.57f)
-        tp(0.99f, -c * 0.44f); tp(1.0f, -c * 0.28f); tp(0.9f, -c * 0.12f); tp(0.8f, c * 0.14f); tp(0.8f, c * 0.4f)
+        tp(0.04f, -w * 0.55f); tp(0.28f, -w * 0.51f); tp(0.5f, -w * 0.53f); tp(0.74f, -c * 0.42f); tp(0.9f, -c * 0.42f)
+        tp(0.99f, -c * 0.36f); tp(1.0f, -c * 0.28f); tp(0.9f, -c * 0.12f); tp(0.8f, c * 0.14f); tp(0.8f, c * 0.4f)
         tp(0.78f, c * 0.55f); tp(0.7f, c * 0.57f); tp(0.5f, c * 0.49f); tp(0.3f, w * 0.45f); tp(0.04f, w * 0.49f)
         p.shapeGradDetail(TANK_LIT, TANK_SHADE, tx(0.9f, c * 0.3f), ty(0.9f, c * 0.3f), tx(0.3f, -w * 0.5f), ty(0.3f, -w * 0.5f))
         // The strap over the shoulder.
-        p.detail(tx(0.97f, -c * 0.4f), ty(0.97f, -c * 0.4f), tx(1.03f, -c * 0.1f), ty(1.03f, -c * 0.1f), 0.06f * k.hs, TANK)
+        p.detail(tx(0.97f, -c * 0.34f), ty(0.97f, -c * 0.34f), tx(1.03f, -c * 0.1f), ty(1.03f, -c * 0.1f), 0.06f * k.hs, TANK)
         p.detail(tx(1.03f, -c * 0.1f), ty(1.03f, -c * 0.1f), tx(0.82f, c * 0.32f), ty(0.82f, c * 0.32f), 0.055f * k.hs, TANK_LIT)
         if (p.shading) {
             // Sweat down the chest and under the arm, grime smudges, the tuck bunching at the belt.
@@ -133,22 +133,22 @@ internal class HardyKit(a: HeroArt) : HeroKit(a) {
         val hs = k.hs
         // Two straps down the back from the shoulder, a V meeting at the holster.
         strap(tx(1.03f, -c * 0.2f), ty(1.03f, -c * 0.2f), tx(0.7f, -c * 0.36f), ty(0.7f, -c * 0.36f))
-        strap(tx(0.93f, -c * 0.58f), ty(0.93f, -c * 0.58f), tx(0.6f, -c * 0.44f), ty(0.6f, -c * 0.44f))
+        strap(tx(0.93f, -c * 0.38f), ty(0.93f, -c * 0.38f), tx(0.6f, -c * 0.34f), ty(0.6f, -c * 0.34f))
         // The holster: a leather pouch riding under the arm, muzzle down the back.
         p.begin()
-        tp(0.76f, -c * 0.26f); tp(0.72f, -c * 0.46f); tp(0.54f, -c * 0.56f); tp(0.5f, -c * 0.44f); tp(0.66f, -c * 0.24f)
+        tp(0.76f, -c * 0.187f); tp(0.72f, -c * 0.331f); tp(0.54f, -c * 0.403f); tp(0.5f, -c * 0.317f); tp(0.66f, -c * 0.173f)
         p.shapeDetail(LEATHER_DARK)
         p.begin()
-        tp(0.745f, -c * 0.285f); tp(0.71f, -c * 0.44f); tp(0.55f, -c * 0.52f); tp(0.53f, -c * 0.45f); tp(0.67f, -c * 0.28f)
-        p.shapeGradDetail(LEATHER_LIT, LEATHER, tx(0.74f, -c * 0.3f), ty(0.74f, -c * 0.3f), tx(0.55f, -c * 0.5f), ty(0.55f, -c * 0.5f))
-        if (p.shading) p.detail(tx(0.72f, -c * 0.32f), ty(0.72f, -c * 0.32f), tx(0.57f, -c * 0.48f), ty(0.57f, -c * 0.48f), 0.007f * hs, Col.lerp(ORANGE, LEATHER, 0.45f))
+        tp(0.745f, -c * 0.205f); tp(0.71f, -c * 0.317f); tp(0.55f, -c * 0.374f); tp(0.53f, -c * 0.324f); tp(0.67f, -c * 0.202f)
+        p.shapeGradDetail(LEATHER_LIT, LEATHER, tx(0.74f, -c * 0.216f), ty(0.74f, -c * 0.216f), tx(0.55f, -c * 0.36f), ty(0.55f, -c * 0.36f))
+        if (p.shading) p.detail(tx(0.72f, -c * 0.23f), ty(0.72f, -c * 0.23f), tx(0.57f, -c * 0.346f), ty(0.57f, -c * 0.346f), 0.007f * hs, Col.lerp(ORANGE, LEATHER, 0.45f))
         if (a.holstered) {
             // The grip, butt up and forward, ready for the draw.
             p.begin()
-            tp(0.74f, -c * 0.3f); tp(0.84f, -c * 0.2f); tp(0.8f, -c * 0.12f); tp(0.7f, -c * 0.24f)
+            tp(0.74f, -c * 0.216f); tp(0.84f, -c * 0.144f); tp(0.8f, -c * 0.086f); tp(0.7f, -c * 0.173f)
             p.shapeDetail(0xFF1A1C24.toInt())
         }
-        p.dot(tx(0.71f, -c * 0.37f), ty(0.71f, -c * 0.37f), 0.018f * hs, BUCKLE_LIT)
+        p.dot(tx(0.71f, -c * 0.266f), ty(0.71f, -c * 0.266f), 0.018f * hs, BUCKLE_LIT)
     }
 
     /** A leather strap with a dark edge (fill pass). */
@@ -245,9 +245,9 @@ internal class HardyKit(a: HeroArt) : HeroKit(a) {
             0.96f, 0.4f, 1f,
             1.02f, 0.18f, 1f,
             1.06f, -0.14f, 1f,
-            1.02f, -0.42f, 1f,
-            0.92f, -0.58f, 1f,
-            0.74f, -0.56f, 1f,
+            1.02f, -0.34f, 1f,
+            0.92f, -0.42f, 1f,
+            0.74f, -0.42f, 1f,
             0.5f, -0.54f, 0f,
             0.28f, -0.52f, 0f,
             0.06f, -0.56f, 0f,

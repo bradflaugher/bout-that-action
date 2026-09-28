@@ -161,7 +161,7 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
         /** Above this far up the spine, the back of the torso slopes down toward the shoulder... */
         const val BACK_TOP = 0.8f
         /** ...by this share of the height it would have had. */
-        const val BACK_SLOPE = 0.7f
+        const val BACK_SLOPE = 0.5f
     }
 }
 
