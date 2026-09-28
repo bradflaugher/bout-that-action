@@ -59,7 +59,8 @@ internal class ActorPaint(private val f: Frame) {
     /** Fill colour through the tint. */
     fun c(color: Int): Int {
         var col = color
-        if (flatAmt > 0f) col = Col.lerp(col, flat or (col and 0xFF000000.toInt()), flatAmt)
+        // Tint the colour only: the target keeps the colour's own alpha, so clear stays clear.
+        if (flatAmt > 0f) col = Col.lerp(col, (flat and 0xFFFFFF) or (col and 0xFF000000.toInt()), flatAmt)
         return if (alphaMul >= 1f) col else Col.fade(col, alphaMul)
     }
 
@@ -115,10 +116,11 @@ internal class ActorPaint(private val f: Frame) {
     }
 
     /**
-     * A limb bone. At full detail a tapered, sculpted segment: root width [w1], end width
-     * [w2], swelling to [bulge] (0 = none) a third of the way down (a calf, a forearm), with
-     * round joints, a cool core shadow on the side away from the key light and a thin lit edge
-     * on the side facing it. On distant floors, one round-capped stroke at the mean width.
+     * A limb bone. At full detail one sculpted capsule: root width [w1], end width [w2],
+     * swelling to [bulge] (0 = none) a third of the way down (a calf, a forearm), round at
+     * both joints, and painted like a cylinder: a smooth gradient from the lamp-lit edge
+     * through the base tone into a cool shadow on the far side. On distant floors, one
+     * round-capped stroke at the mean width.
      */
     fun bone(x1: Float, y1: Float, x2: Float, y2: Float, w1: Float, w2: Float, color: Int, sep: Boolean = false, bulge: Float = 0f, lit: Boolean = true) {
         if (!hi) {
@@ -134,7 +136,8 @@ internal class ActorPaint(private val f: Frame) {
         val dy = y2 - y1
         val len = sqrt(dx * dx + dy * dy)
         if (len < 1e-4f) {
-            disc(x1, y1, max(w1, w2) * 0.5f, color)
+            if (sep && !ink && !noInk) g.fillCircle(x1, y1, max(w1, w2) * 0.5f + out * 0.8f, inkC())
+            ball(x1, y1, max(w1, w2) * 0.5f, color)
             return
         }
         val ux = dx / len
@@ -147,38 +150,50 @@ internal class ActorPaint(private val f: Frame) {
         }
         val wb = if (bulge > 0f) bulge else (w1 * 0.66f + w2 * 0.34f)
         if (ink || (sep && !noInk)) {
-            if (!noInk) limbOutline(x1, y1, x2, y2, ux, uy, px, py, w1, wb, w2, if (ink) out else out * 0.8f)
+            if (!noInk) g.fillPolygon(capsule(x1, y1, x2, y2, ux, uy, px, py, w1, wb, w2, if (ink) out else out * 0.8f), inkC())
             if (ink) return
         }
-        val col = c(color)
-        limbFill(x1, y1, x2, y2, ux, uy, px, py, w1, wb, w2, 0f, col)
-        if (flatAmt >= 0.9f) return
-        // Core shadow: the shadow-side 45% of the limb, in the shade tone.
-        val sh = c(shade(color))
-        val a = 0.5f
-        begin()
-            .add(x1 + px * w1 * a, y1 + py * w1 * a)
-            .add(x1 + dx * 0.33f + px * wb * a, y1 + dy * 0.33f + py * wb * a)
-            .add(x2 + px * w2 * a, y2 + py * w2 * a)
-            .add(x2 + px * w2 * 0.05f, y2 + py * w2 * 0.05f)
-            .add(x1 + dx * 0.33f + px * wb * 0.02f, y1 + dy * 0.33f + py * wb * 0.02f)
-            .add(x1 + px * w1 * 0.05f, y1 + py * w1 * 0.05f)
-        fillBuilt(sh)
-        if (lit) {
-            // A thin lit edge on the light side, where the ceiling lamp catches the cloth.
-            val li = 0.36f
-            g.line(
-                x1 + dx * 0.1f - px * w1 * li, y1 + dy * 0.1f - py * w1 * li,
-                x1 + dx * 0.7f - px * (wb * 0.6f + w2 * 0.4f) * li, y1 + dy * 0.7f - py * (wb * 0.6f + w2 * 0.4f) * li,
-                min(w1, w2) * 0.16f, c(Col.alpha(light(color), 0.8f)),
-            )
+        val q = capsule(x1, y1, x2, y2, ux, uy, px, py, w1, wb, w2, 0f)
+        if (flatAmt >= 0.9f) {
+            g.fillPolygon(q, c(color))
+            return
         }
+        // The gradient runs across the limb at its widest point, lit edge to shadow edge.
+        val mx = x1 + dx * 0.4f
+        val my = y1 + dy * 0.4f
+        val h = max(max(w1, w2), wb) * 0.5f
+        val top = if (lit) light(color) else Col.lerp(color, light(color), 0.4f)
+        grad(q, mx - px * h, my - py * h, mx + px * h, my + py * h, top, color, shade(color), 0.42f)
     }
 
-    private val limbPts = FloatArray(12)
+    /**
+     * Every painted gradient goes through here. The tint is applied as a flat overlay rather
+     * than baked into the gradient's colours, so a hit flash or an emerging silhouette doesn't
+     * mint a new cached shader each frame; the fade rides on alpha, which the backends keep out
+     * of their shader keys. For opaque colours the overlay equals [c]'s lerp exactly; translucent
+     * ones take the tint in their stops instead.
+     */
+    private fun grad(q: FloatArray, x0: Float, y0: Float, x1: Float, y1: Float, c0: Int, c1: Int, c2: Int, mid: Float) {
+        if (flatAmt > 0f && (alphaMul < 1f || Col.a(c0) < 255 || Col.a(c1) < 255 || Col.a(c2) < 255)) {
+            // Translucent and tinted (a fading death): an overlay would stack a second alpha on
+            // top, so bake the tint into the stops. The tint holds still while the body fades,
+            // and the backends keep a whole-shape fade out of their shader keys.
+            g.fillPolygonGradient(q, x0, y0, x1, y1, c(c0), c(c1), c(c2), mid)
+            return
+        }
+        g.fillPolygonGradient(q, x0, y0, x1, y1, fade(c0), fade(c1), fade(c2), mid)
+        if (flatAmt > 0f) g.fillPolygon(q, Col.alpha(flat, flatAmt))
+    }
 
-    /** The tapered limb polygon grown by [grow] (sides only; the round joints cover the ends). */
-    private fun limbFill(x1: Float, y1: Float, x2: Float, y2: Float, ux: Float, uy: Float, px: Float, py: Float, w1: Float, wb: Float, w2: Float, grow: Float, color: Int) {
+    private fun fade(color: Int): Int = if (alphaMul >= 1f) color else Col.fade(color, alphaMul)
+
+    private val capPts = FloatArray(24)
+
+    /**
+     * The tapered capsule of a limb, outset by [grow]: the lit side root to end, a round cap,
+     * the shadow side back, a round cap. Twelve points, one polygon, so a gradient spans it.
+     */
+    private fun capsule(x1: Float, y1: Float, x2: Float, y2: Float, ux: Float, uy: Float, px: Float, py: Float, w1: Float, wb: Float, w2: Float, grow: Float): FloatArray {
         val dx = x2 - x1
         val dy = y2 - y1
         val a = w1 * 0.5f + grow
@@ -186,38 +201,86 @@ internal class ActorPaint(private val f: Frame) {
         val e = w2 * 0.5f + grow
         val bx = x1 + dx * 0.33f
         val by = y1 + dy * 0.33f
-        val q = limbPts
-        q[0] = x1 + px * a; q[1] = y1 + py * a
-        q[2] = bx + px * b; q[3] = by + py * b
-        q[4] = x2 + px * e; q[5] = y2 + py * e
-        q[6] = x2 - px * e; q[7] = y2 - py * e
-        q[8] = bx - px * b; q[9] = by - py * b
-        q[10] = x1 - px * a; q[11] = y1 - py * a
-        g.fillPolygon(q, color)
-        g.fillCircle(x1, y1, a, color)
-        g.fillCircle(x2, y2, e, color)
+        val q = capPts
+        q[0] = x1 - px * a; q[1] = y1 - py * a
+        q[2] = bx - px * b; q[3] = by - py * b
+        q[4] = x2 - px * e; q[5] = y2 - py * e
+        // End cap, from the lit side round the tip to the shadow side.
+        q[6] = x2 + (-px * C45 + ux * C45) * e; q[7] = y2 + (-py * C45 + uy * C45) * e
+        q[8] = x2 + ux * e; q[9] = y2 + uy * e
+        q[10] = x2 + (px * C45 + ux * C45) * e; q[11] = y2 + (py * C45 + uy * C45) * e
+        q[12] = x2 + px * e; q[13] = y2 + py * e
+        q[14] = bx + px * b; q[15] = by + py * b
+        q[16] = x1 + px * a; q[17] = y1 + py * a
+        // Root cap, from the shadow side round the back to the lit side.
+        q[18] = x1 + (px * C45 - ux * C45) * a; q[19] = y1 + (py * C45 - uy * C45) * a
+        q[20] = x1 - ux * a; q[21] = y1 - uy * a
+        q[22] = x1 + (-px * C45 - ux * C45) * a; q[23] = y1 + (-py * C45 - uy * C45) * a
+        return q
     }
 
-    private fun limbOutline(x1: Float, y1: Float, x2: Float, y2: Float, ux: Float, uy: Float, px: Float, py: Float, w1: Float, wb: Float, w2: Float, d: Float) =
-        limbFill(x1, y1, x2, y2, ux, uy, px, py, w1, wb, w2, d, inkC())
+    private val ringPts = FloatArray(RING * 2)
+
+    private fun ring(x: Float, y: Float, r: Float): FloatArray {
+        val q = ringPts
+        for (i in 0 until RING) {
+            q[i * 2] = x + RING_C[i] * r
+            q[i * 2 + 1] = y + RING_S[i] * r
+        }
+        return q
+    }
 
     /**
-     * A shaded ball (heads, joints, domes): the shade tone, then the base tone offset toward
-     * the key light, so a crescent of shadow wraps the far side. A soft gloss dot if [gloss].
+     * A shaded ball (heads, joints, domes): a sphere lit from the lamp, the gradient running
+     * from the lit crown through the base tone to a cool shadow underneath. A soft gloss
+     * highlight if [gloss] (lacquer, glass, plate).
      */
     fun ball(x: Float, y: Float, r: Float, color: Int, gloss: Float = 0f) {
         if (!shading) {
             disc(x, y, r, color)
             return
         }
-        g.fillCircle(x, y, r, c(shade(color)))
-        val k = 0.2f
-        g.fillCircle(x + lightX * r * k, y + lightY * r * k, r * (1f - k), c(color))
+        val q = ring(x, y, r)
+        grad(q, x + lightX * r, y + lightY * r, x - lightX * r, y - lightY * r, light(color), color, shade(color), 0.4f)
         if (gloss > 0f) {
             g.blend(Gfx.Blend.ADD)
-            g.glow(x + lightX * r * 0.4f, y + lightY * r * 0.5f, r * 0.6f, c(Col.alpha(0xFFFFFFFF.toInt(), gloss * (1f - flatAmt))))
+            g.glow(x + lightX * r * 0.42f, y + lightY * r * 0.5f, r * 0.55f, c(Col.alpha(0xFFFFFFFF.toInt(), gloss * (1f - flatAmt))))
             g.blend(Gfx.Blend.NORMAL)
         }
+    }
+
+    /**
+     * Fills the built polygon painted: a gradient from the lamp-lit tone at (x0, y0) through
+     * [color] to its shadow at (x1, y1); in the ink pass (or [sep]) its outline as [shape]
+     * does. Flat on distant floors.
+     */
+    fun shapeLit(color: Int, x0: Float, y0: Float, x1: Float, y1: Float, sep: Boolean = false, mid: Float = 0.45f) {
+        if (np < 6) return
+        if (ink || (sep && !noInk)) {
+            if (!noInk) fillGrown(if (ink) out else out * 0.8f, inkC())
+            if (ink) return
+        }
+        if (!shading) {
+            fillBuilt(c(color))
+            return
+        }
+        val points = np / 2
+        val arr = exact[points] ?: FloatArray(np).also { exact[points] = it }
+        System.arraycopy(pts, 0, arr, 0, np)
+        grad(arr, x0, y0, x1, y1, light(color), color, shade(color), mid)
+    }
+
+    /** Fill-pass only: the built polygon with a two-tone gradient [c0] -> [c1] from (x0, y0) to (x1, y1). */
+    fun shapeGradDetail(c0: Int, c1: Int, x0: Float, y0: Float, x1: Float, y1: Float) {
+        if (ink || np < 6) return
+        if (!shading) {
+            fillBuilt(c(Col.lerp(c0, c1, 0.5f)))
+            return
+        }
+        val points = np / 2
+        val arr = exact[points] ?: FloatArray(np).also { exact[points] = it }
+        System.arraycopy(pts, 0, arr, 0, np)
+        grad(arr, x0, y0, x1, y1, c0, Col.lerp(c0, c1, 0.5f), c1, 0.5f)
     }
 
     /** Key light direction (unit, toward the lamp: up and a little in front of the facing). */
@@ -381,6 +444,10 @@ internal class ActorPaint(private val f: Frame) {
         /** Target outline width in pixels. */
         const val OUT_PX = 2.4f
         const val RIM_W = 0.026f
+        private const val C45 = 0.7071f
+        private const val RING = 16
+        private val RING_C = FloatArray(RING) { cos(it * 2.0 * Math.PI / RING).toFloat() }
+        private val RING_S = FloatArray(RING) { sin(it * 2.0 * Math.PI / RING).toFloat() }
         const val INK = 0xFF06060B.toInt()
         /** Shadows go cool and violet, never grey: the neon-noir look. */
         private const val SHADOW = 0xFF0A0620.toInt()
