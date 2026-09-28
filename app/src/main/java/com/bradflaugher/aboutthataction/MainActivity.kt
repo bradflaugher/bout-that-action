@@ -1,11 +1,18 @@
 package com.bradflaugher.aboutthataction
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.os.Bundle
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
-import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
@@ -17,16 +24,22 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
 import com.bradflaugher.aboutthataction.audio.AudioOutput
 import com.bradflaugher.aboutthataction.audio.SoundEngine
 import com.bradflaugher.aboutthataction.engine.AlertPhase
@@ -78,7 +91,6 @@ class MainActivity : ComponentActivity(), GameView.Host {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        window.setDecorFitsSystemWindows(false)
 
         prefs = Prefs(this)
         settings = prefs.loadSettings()
@@ -103,8 +115,24 @@ class MainActivity : ComponentActivity(), GameView.Host {
         setContent {
             val density = LocalDensity.current
             val pad = with(density) { PaddingValues(top = insetTop.toDp(), bottom = insetBottom.toDp()) }
-            Box(Modifier.fillMaxSize()) {
-                AndroidView(factory = { gameView }, modifier = Modifier.fillMaxSize())
+            // Back on the title leaves the app, with the system's predictive back-to-home animation.
+            BackHandler(enabled = screen != Screen.TITLE) {
+                when (screen) {
+                    Screen.PLAYING -> pause()
+                    Screen.PAUSED -> resume()
+                    Screen.HEROES -> heroesToTitle()
+                    Screen.SETTINGS, Screen.GAME_OVER -> toTitle()
+                    Screen.TITLE -> Unit
+                }
+            }
+            BoxWithConstraints(Modifier.fillMaxSize().background(Color(NIGHT))) {
+                // The hallway always fills the game's width, so a window that isn't tall enough
+                // (a landscape tablet, a desktop window) plays in a centred portrait column.
+                val tall = maxHeight >= maxWidth * MIN_ASPECT
+                AndroidView(
+                    factory = { gameView },
+                    modifier = if (tall) Modifier.fillMaxSize() else Modifier.align(Alignment.Center).fillMaxHeight().width(maxHeight / MIN_ASPECT),
+                )
                 AnimatedContent(
                     targetState = screen,
                     // Full size even while PLAYING shows nothing, so menus never grow from 0×0.
@@ -155,22 +183,12 @@ class MainActivity : ComponentActivity(), GameView.Host {
             hide(WindowInsets.Type.systemBars())
             systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
-
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                when (screen) {
-                    Screen.PLAYING -> pause()
-                    Screen.PAUSED -> resume()
-                    Screen.HEROES -> heroesToTitle()
-                    Screen.SETTINGS, Screen.GAME_OVER -> toTitle()
-                    Screen.TITLE -> finish()
-                }
-            }
-        })
     }
 
     override fun onResume() {
         super.onResume()
+        audioManager.requestAudioFocus(focusRequest)
+        registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
         audio.start()
         gameView.onHostResume()
     }
@@ -179,7 +197,45 @@ class MainActivity : ComponentActivity(), GameView.Host {
         if (screen == Screen.PLAYING) pause()
         gameView.onHostPause()
         audio.pause()
+        unregisterReceiver(noisy)
+        audioManager.abandonAudioFocusRequest(focusRequest)
         super.onPause()
+    }
+
+    /** The notification shade or the other app in split screen took focus: the run shouldn't play on unseen. */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus) pause()
+    }
+
+    // ------------------------------------------------------------- audio focus
+
+    private val audioManager by lazy { getSystemService(AudioManager::class.java) }
+
+    /** A call, an alarm or another app's audio: pause the run and go quiet until it's over. */
+    private val focusRequest by lazy {
+        AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_GAME)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build(),
+            )
+            .setOnAudioFocusChangeListener { change ->
+                when (change) {
+                    AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                        pause()
+                        audio.pause()
+                    }
+                    AudioManager.AUDIOFOCUS_GAIN -> if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) audio.start()
+                }
+            }
+            .build()
+    }
+
+    /** Headphones unplugged: pause before the soundtrack blasts out of the speaker. */
+    private val noisy = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = pause()
     }
 
     override fun onDestroy() {
@@ -376,5 +432,9 @@ class MainActivity : ComponentActivity(), GameView.Host {
     companion object {
         /** Launch straight into a run (used by the emulator smoke test). */
         const val EXTRA_AUTOSTART = "autostart"
+
+        /** The squattest window (height / width) the game plays in; wider ones get side bars. */
+        private const val MIN_ASPECT = 1.6f
+        private const val NIGHT = 0xFF07060F
     }
 }

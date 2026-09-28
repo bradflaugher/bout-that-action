@@ -1,6 +1,6 @@
 A helicopter drops you on the roof of a skyscraper. Then you go down, and down, and down.
 
-'Bout That Action is an endless, portrait-only action game: a neon-noir take on the arcade classic Elevator Action, with a cardboard box to hide in. Ride elevators down through the Neon Tower, the Black Labs, the Deep Metro, the Iron Mines and the Magma Core, into Hell, and past it into a Void where anything goes.
+'Bout That Action is an endless, portrait-only action game: a neon-noir spy caper in the spirit of the 80s arcade, with a cardboard box to hide in. Ride elevators down through the Neon Tower, the Black Labs, the Deep Metro, the Iron Mines and the Magma Core, into Hell, and past it into a Void where anything goes.
 
 BUILT FOR THUMBS
 • Drag to run, swipe up to jump, swipe down to hide in a doorway or pop the box.
@@ -21,4 +21,6 @@ YOUR GAME, YOUR RULES
 Pick a difficulty from CHILL to STRAIGHT TO HELL, or tune the heat curve yourself. Share a seed to play the same building as a friend.
 
 NO NONSENSE
+Phones, tablets and foldables: it always plays in portrait, and pauses itself when a call, the notification shade or unplugged headphones interrupt.
+
 No ads. No in-app purchases. No accounts. No network. No daily rewards or timers nagging you to come back. The only permission is vibration.

@@ -257,6 +257,14 @@ Android 12 (API 31) or newer. It's built for the latest Android and runs on
 older versions only where that needs no compatibility code (see `AGENTS.md`). The only permission is vibration, and it collects nothing
 ([privacy policy](docs/PRIVACY.md)).
 
+It's a game to Android (`appCategory="game"`), so it keeps its portrait lock on
+tablets and unfolded foldables too; a window that still isn't tall enough (a
+desktop or split-screen window) plays in a centred portrait column. A run pauses
+itself when the window loses focus (the notification shade, the other app in
+split screen), when a call or another app takes the audio, and when headphones
+are unplugged. Phones whose motor can't play crisp haptic primitives get the
+closest standard click instead.
+
 ## Build and test
 
 ```sh
