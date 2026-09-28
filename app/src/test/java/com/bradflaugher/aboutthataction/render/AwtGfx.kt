@@ -136,6 +136,28 @@ class AwtGfx(private val image: BufferedImage) : Gfx {
         g.fill(path)
     }
 
+    override fun fillPolygonGradient(xy: FloatArray, x0: Float, y0: Float, x1: Float, y1: Float, c0: Int, c1: Int, c2: Int, mid: Float) {
+        if (xy.size < 6) return
+        if ((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0) < 1e-12f) {
+            fillPolygon(xy, c1)
+            return
+        }
+        path.reset()
+        path.moveTo(xy[0], xy[1])
+        var i = 2
+        while (i + 1 < xy.size) {
+            path.lineTo(xy[i], xy[i + 1])
+            i += 2
+        }
+        path.closePath()
+        g.paint = java.awt.LinearGradientPaint(
+            x0, y0, x1, y1,
+            floatArrayOf(0f, mid.coerceIn(0.02f, 0.98f), 1f),
+            arrayOf(color(c0), color(c1), color(c2)),
+        )
+        g.fill(path)
+    }
+
     override fun fillVerticalGradient(left: Float, top: Float, right: Float, bottom: Float, colorTop: Int, colorBottom: Int) {
         if (bottom <= top) return
         g.paint = GradientPaint(0f, top, color(colorTop), 0f, bottom, color(colorBottom))

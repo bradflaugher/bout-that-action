@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.BlendMode
 import android.graphics.Canvas
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
@@ -127,6 +128,48 @@ class AndroidGfx(context: Context) : Gfx {
     private fun radialShader(center: Int, edge: Int): Shader {
         if (radial.size > 192) radial.clear()
         return radial.getOrPut(key(center, edge)) { RadialGradient(0f, 0f, 1f, center, edge, Shader.TileMode.CLAMP) }
+    }
+
+    private val tri = HashMap<Long, LinearGradient>()
+    private val triStops = FloatArray(3)
+    private val triColors = IntArray(3)
+    private val triMatrix = Matrix()
+
+    /** 19 bits of a colour for a cache key: 5-5-5 RGB and 4 bits of alpha (close enough to share a shader). */
+    private fun q(c: Int): Long = (((c ushr 28) shl 15) or (((c shr 19) and 0x1F) shl 10) or (((c shr 11) and 0x1F) shl 5) or ((c shr 3) and 0x1F)).toLong()
+
+    override fun fillPolygonGradient(xy: FloatArray, x0: Float, y0: Float, x1: Float, y1: Float, c0: Int, c1: Int, c2: Int, mid: Float) {
+        if (xy.size < 6) return
+        val dx = x1 - x0
+        val dy = y1 - y0
+        val len = kotlin.math.sqrt(dx * dx + dy * dy)
+        if (len < 1e-6f) {
+            fillPolygon(xy, c1)
+            return
+        }
+        val m = (mid.coerceIn(0.02f, 0.98f) * 127f).toInt()
+        val key = (q(c0) shl 45) or (q(c1) shl 26) or (q(c2) shl 7) or m.toLong()
+        if (tri.size > 384) tri.clear()
+        // A unit gradient along x, mapped onto the real endpoints by its local matrix.
+        val shader = tri.getOrPut(key) {
+            triColors[0] = c0; triColors[1] = c1; triColors[2] = c2
+            triStops[0] = 0f; triStops[1] = m / 127f; triStops[2] = 1f
+            LinearGradient(0f, 0f, 1f, 0f, triColors, triStops, Shader.TileMode.CLAMP)
+        }
+        triMatrix.setScale(len, len)
+        triMatrix.postRotate(Math.toDegrees(kotlin.math.atan2(dy, dx).toDouble()).toFloat())
+        triMatrix.postTranslate(x0, y0)
+        shader.setLocalMatrix(triMatrix)
+        path.rewind()
+        path.moveTo(xy[0], xy[1])
+        var i = 2
+        while (i + 1 < xy.size) {
+            path.lineTo(xy[i], xy[i + 1])
+            i += 2
+        }
+        path.close()
+        shaderPaint.shader = shader
+        c.drawPath(path, shaderPaint)
     }
 
     override fun fillVerticalGradient(left: Float, top: Float, right: Float, bottom: Float, colorTop: Int, colorBottom: Int) {

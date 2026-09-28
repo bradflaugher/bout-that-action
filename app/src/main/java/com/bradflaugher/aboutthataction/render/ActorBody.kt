@@ -46,28 +46,8 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
             .add(tx(1.03f, -c * 0.28f), ty(1.03f, -c * 0.28f))
             .add(tx(0.8f, -c * 0.5f), ty(0.8f, -c * 0.5f))
             .add(tx(0.34f, -w * 0.52f), ty(0.34f, -w * 0.52f))
-            .shape(l.torso)
-        if (p.shading) {
-            // Form: the back plane falls into shadow, the belly under the ribcage a touch too,
-            // and the chest's upper plane catches the lamp. Painted planes, not a gradient.
-            p.begin()
-                .add(tx(-0.12f, -w * 0.5f), ty(-0.12f, -w * 0.5f))
-                .add(tx(0.34f, -w * 0.52f), ty(0.34f, -w * 0.52f))
-                .add(tx(0.8f, -c * 0.5f), ty(0.8f, -c * 0.5f))
-                .add(tx(1.03f, -c * 0.28f), ty(1.03f, -c * 0.28f))
-                .add(tx(0.98f, -c * 0.1f), ty(0.98f, -c * 0.1f))
-                .add(tx(0.72f, -c * 0.16f), ty(0.72f, -c * 0.16f))
-                .add(tx(0.42f, -w * 0.02f), ty(0.42f, -w * 0.02f))
-                .add(tx(0.12f, w * 0.08f), ty(0.12f, w * 0.08f))
-                .add(tx(-0.12f, w * 0.1f), ty(-0.12f, w * 0.1f))
-                .shapeShade(l.torso)
-            p.begin()
-                .add(tx(0.98f, -c * 0.02f), ty(0.98f, -c * 0.02f))
-                .add(tx(0.98f, c * 0.3f), ty(0.98f, c * 0.3f))
-                .add(tx(0.78f, c * 0.5f), ty(0.78f, c * 0.5f))
-                .add(tx(0.7f, c * 0.2f), ty(0.7f, c * 0.2f))
-                .shapeDetail(Col.alpha(ActorPaint.light(l.torso), 0.55f))
-        }
+            // Painted: lamp-lit across the chest and shoulders, into shadow down the back.
+            .shapeLit(l.torso, tx(1.0f, c * 0.45f), ty(1.0f, c * 0.45f), tx(0.05f, -w * 0.55f), ty(0.05f, -w * 0.55f))
         if (!p.ink) {
             // Key light from the ceiling on the shoulders, neon rim down the back.
             p.detail(tx(0.97f, -c * 0.18f), ty(0.97f, -c * 0.18f), tx(0.95f, c * 0.22f), ty(0.95f, c * 0.22f), 0.04f * k.hs, l.torsoLit)

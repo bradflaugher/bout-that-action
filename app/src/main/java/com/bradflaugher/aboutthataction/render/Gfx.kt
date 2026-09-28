@@ -30,6 +30,13 @@ interface Gfx {
     /** Filled polygon; [xy] is x0, y0, x1, y1, ... */
     fun fillPolygon(xy: FloatArray, color: Int)
 
+    /**
+     * Fills a polygon ([xy] as in [fillPolygon]) with a three-stop linear gradient: [c0] at
+     * (x0, y0), [c1] at [mid] of the way along, [c2] at (x1, y1), clamped beyond both ends.
+     * The painter's brush: cylinders, lit-to-shadow planes and glassy visors in one call.
+     */
+    fun fillPolygonGradient(xy: FloatArray, x0: Float, y0: Float, x1: Float, y1: Float, c0: Int, c1: Int, c2: Int, mid: Float = 0.5f)
+
     /** Vertical gradient fill from [top] (colorTop) to [bottom] (colorBottom). */
     fun fillVerticalGradient(left: Float, top: Float, right: Float, bottom: Float, colorTop: Int, colorBottom: Int)
     /** Radial gradient from [colorCenter] at the center to [colorEdge] at [radius]. */
