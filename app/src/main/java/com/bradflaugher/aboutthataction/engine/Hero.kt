@@ -66,7 +66,7 @@ enum class Hero(
     /** Jungle commando in a bandana. Lives in the box, unplugs the robots, never makes a sound. */
     VIPER(
         "VIPER", "Jungle commando. Bandana on.",
-        "Sneaks unseen, unplugs robots by hand, sly box", "A box is a lifestyle.",
+        "Sneaks unseen, unplugs robots, sly box, fast reloads", "A box is a lifestyle.",
         0xFFE8413A.toInt(),
         boxPro = true, sabotage = true, sneakSight = 0.75f, reloadScale = 0.75f,
     ),
