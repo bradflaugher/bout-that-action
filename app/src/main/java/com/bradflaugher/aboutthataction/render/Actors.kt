@@ -44,18 +44,19 @@ internal class Actors(private val f: Frame) {
          * The sneaking suit: a steel blue a clear step lighter than every zone's walls, lamp-lit
          * pale on the chest and thighs, falling to violet shadow down the back.
          */
-        const val SUIT = 0xFF34507E.toInt()
+        const val SUIT = 0xFF3A5C94.toInt()
         const val SUIT_LIT = 0xFFB8D4F4.toInt()
-        const val SUIT_DARK = 0xFF1E2A4C.toInt()
+        const val SUIT_DARK = 0xFF223260.toInt()
         const val ARMOR = 0xFF0F121C.toInt()
-        const val BOOT = 0xFF141925.toInt()
+        /** Boots: a gunmetal upper over a black sole, so they read as boots, not slabs. */
+        const val BOOT = 0xFF303C5C.toInt()
         /** Gloves: pale gunmetal, so the hands (and the gun in them) read first. */
         const val GLOVE = 0xFF62749A.toInt()
         /** The helmet: glossy lacquered midnight, so the visor band is the brightest thing on him. */
         const val HELMET = 0xFF1C2440.toInt()
         /** The few hard pieces (shoulders, gauntlets, knees): the helmet's midnight lacquer. */
-        const val PLATE = 0xFF222C4E.toInt()
-        const val PLATE_FAR = 0xFF161D36.toInt()
+        const val PLATE = 0xFF2C3E6C.toInt()
+        const val PLATE_FAR = 0xFF1C2848.toInt()
         const val GLASS = 0xFF08323E.toInt()
         const val VISOR = 0xFF3CF4FF.toInt()
         const val VISOR_DEEP = 0xFF12A8C8.toInt()
@@ -546,7 +547,7 @@ internal class Actors(private val f: Frame) {
         look.boots = BOOT
         look.gloves = GLOVE
         look.skin = SUIT
-        look.rim = if (ghost) 0 else Col.alpha(RIM, 0.85f)
+        look.rim = if (ghost) 0 else Col.alpha(RIM, 1f)
         look.legW = 0.94f
         look.armW = 0.92f
     }
@@ -573,10 +574,12 @@ internal class Actors(private val f: Frame) {
             if (magInHand && !p.ink) g.fillRect(k.armB.ex - 0.025f, k.armB.ey - 0.09f, k.armB.ex + 0.025f, k.armB.ey, p.c(0xFF2A2E3A.toInt()))
             body.leg(k.legB, look, far = true)
             shinGuard(k.legB, far = true)
+            heroBoot(k.legB, far = true)
         }
         p.twoPass {
             body.leg(k.legF, look, far = false)
             shinGuard(k.legF, far = false)
+            heroBoot(k.legF, far = false)
             heroTorso()
             heroDetails(dir, ghost)
             heroHead(dir, ghost)
@@ -625,6 +628,45 @@ internal class Actors(private val f: Frame) {
         val x2 = Rig.mix(l.jx, l.ex, 0.3f) + ox
         val y2 = Rig.mix(l.jy, l.ey, 0.3f) + oy
         p.bone(x1, y1, x2, y2, lw * 0.72f, lw * 0.62f, if (far) PLATE_FAR else PLATE, lit = !far)
+    }
+
+    /**
+     * Paints the agent's boot over the body pen's last (fill only, full detail): a black sole
+     * break under the upper, a lacquered toe cap, a lamp-lit plane down the instep and a
+     * darker cuff at the ankle.
+     */
+    private fun heroBoot(l: Limb, far: Boolean) {
+        if (!p.shading) return
+        val sc = k.hs
+        val fx = cos(l.pitch) * k.dir
+        val fy = sin(l.pitch)
+        val ux = fy * k.dir
+        val uy = -cos(l.pitch)
+        val ox = l.ex
+        val oy = l.ey + 0.045f * sc
+        fun bx(a: Float, u: Float) = ox + (fx * a + ux * u) * sc
+        fun by(a: Float, u: Float) = oy + (fy * a + uy * u) * sc
+        val dim = if (far) 0.7f else 1f
+        // The sole: a black band with a heel break.
+        p.begin()
+            .add(bx(-0.075f, 0.0f), by(-0.075f, 0.0f))
+            .add(bx(-0.08f, 0.03f), by(-0.08f, 0.03f))
+            .add(bx(0.176f, 0.028f), by(0.176f, 0.028f))
+            .add(bx(0.175f, 0.0f), by(0.175f, 0.0f))
+            .shapeDetail(0xFF0B0D16.toInt())
+        p.detail(bx(-0.01f, 0.004f), by(-0.01f, 0.004f), bx(-0.01f, 0.028f), by(-0.01f, 0.028f), 0.012f * sc, 0xFF2A3050.toInt())
+        // The toe cap: midnight lacquer, like the helmet.
+        p.begin()
+            .add(bx(0.095f, 0.03f), by(0.095f, 0.03f))
+            .add(bx(0.1f, 0.066f), by(0.1f, 0.066f))
+            .add(bx(0.155f, 0.05f), by(0.155f, 0.05f))
+            .add(bx(0.18f, 0.02f), by(0.18f, 0.02f))
+            .add(bx(0.176f, 0.03f), by(0.176f, 0.03f))
+            .shapeGradDetail(Col.mul(0xFF6A82BC.toInt(), dim), Col.mul(0xFF1C2440.toInt(), dim), bx(0.13f, 0.07f), by(0.13f, 0.07f), bx(0.15f, 0.03f), by(0.15f, 0.03f))
+        p.detail(bx(0.12f, 0.058f), by(0.12f, 0.058f), bx(0.162f, 0.042f), by(0.162f, 0.042f), 0.01f * sc, Col.alpha(0xFFE0ECFF.toInt(), 0.7f * dim))
+        // The lamp on the instep, and the ankle cuff.
+        p.detail(bx(0.03f, 0.112f), by(0.03f, 0.112f), bx(0.09f, 0.068f), by(0.09f, 0.068f), 0.016f * sc, Col.alpha(SUIT_LIT, 0.55f * dim))
+        p.detail(bx(-0.05f, 0.112f), by(-0.05f, 0.112f), bx(0.032f, 0.108f), by(0.032f, 0.108f), 0.022f * sc, Col.mul(PLATE, dim))
     }
 
     /** A slim gauntlet over the forearm: a sleeve that hugs the wrist, tone rather than a plate. */
@@ -683,6 +725,21 @@ internal class Actors(private val f: Frame) {
                 .add(x(0.72f, -c * 0.05f), y(0.72f, -c * 0.05f))
                 .add(x(0.98f, -c * 0.1f), y(0.98f, -c * 0.1f))
                 .shapeGradDetail(Col.alpha(SUIT_LIT, 0.7f), Col.alpha(SUIT_LIT, 0f), x(0.97f, c * 0.3f), y(0.97f, c * 0.3f), x(0.66f, c * 0.1f), y(0.66f, c * 0.1f))
+            // The back turned from the lamp: a violet shadow plane down the whole back.
+            val sh = ActorPaint.shade(SUIT_DARK)
+            p.begin()
+                .add(x(0.08f, -w * 0.5f), y(0.08f, -w * 0.5f))
+                .add(x(0.28f, -w * 0.49f), y(0.28f, -w * 0.49f))
+                .add(x(0.55f, -w * 0.52f), y(0.55f, -w * 0.52f))
+                .add(x(0.8f, -c * 0.46f), y(0.8f, -c * 0.46f))
+                .add(x(0.97f, -c * 0.42f), y(0.97f, -c * 0.42f))
+                .add(x(1.02f, -c * 0.24f), y(1.02f, -c * 0.24f))
+                .add(x(0.86f, -c * 0.04f), y(0.86f, -c * 0.04f))
+                .add(x(0.5f, -w * 0.06f), y(0.5f, -w * 0.06f))
+                .add(x(0.1f, -w * 0.12f), y(0.1f, -w * 0.12f))
+                .shapeGradDetail(Col.alpha(sh, 0.85f), Col.alpha(sh, 0f), x(0.6f, -c * 0.5f), y(0.6f, -c * 0.5f), x(0.62f, c * 0.02f), y(0.62f, c * 0.02f))
+            // The lamp along the tops of the shoulders.
+            p.detail(x(1.02f, -c * 0.16f), y(1.02f, -c * 0.16f), x(0.99f, c * 0.26f), y(0.99f, c * 0.26f), 0.04f * k.hs, Col.alpha(SUIT_LIT, 0.75f))
         }
         if (look.rim != 0) {
             // The rim light: a crisp cyan edge right on the back contour, waist to shoulder.
@@ -828,6 +885,14 @@ internal class Actors(private val f: Frame) {
         if (p.shading) {
             // The fin's leading edge catching the lamp.
             p.detail(hpX(0.2f), hpY(-0.98f), hpX(-1.2f), hpY(-1.2f), r * 0.07f, Col.alpha(0xFFBFD8FF.toInt(), 0.55f))
+        }
+        if (!ghost) {
+            // His signature light: the visor's glow runs on up over the brow and along the
+            // fin's crest to its tip, one lit blade edge.
+            pipe(hpX(0.9f), hpY(-0.5f), hpX(0.3f), hpY(-0.96f), 0.02f)
+            pipe(hpX(0.3f), hpY(-0.96f), hpX(-0.4f), hpY(-1.17f), 0.02f)
+            pipe(hpX(-0.4f), hpY(-1.17f), hpX(-1.2f), hpY(-1.27f), 0.02f)
+            pipe(hpX(-1.2f), hpY(-1.27f), hpX(-1.84f), hpY(-1.21f), 0.018f, 0.9f)
         }
         if (look.rim != 0 && !ghost) {
             // The rim light down the fin's trailing edge and the back of the helmet.
