@@ -39,7 +39,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.Lifecycle
 import com.bradflaugher.aboutthataction.audio.AudioOutput
 import com.bradflaugher.aboutthataction.audio.SoundEngine
 import com.bradflaugher.aboutthataction.engine.AlertPhase
@@ -187,9 +186,9 @@ class MainActivity : ComponentActivity(), GameView.Host {
 
     override fun onResume() {
         super.onResume()
-        audioManager.requestAudioFocus(focusRequest)
+        resumed = true
         registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
-        audio.start()
+        startAudio()
         gameView.onHostResume()
     }
 
@@ -197,8 +196,10 @@ class MainActivity : ComponentActivity(), GameView.Host {
         if (screen == Screen.PLAYING) pause()
         gameView.onHostPause()
         audio.pause()
+        resumed = false
         unregisterReceiver(noisy)
         audioManager.abandonAudioFocusRequest(focusRequest)
+        hasFocus = false
         super.onPause()
     }
 
@@ -211,6 +212,19 @@ class MainActivity : ComponentActivity(), GameView.Host {
     // ------------------------------------------------------------- audio focus
 
     private val audioManager by lazy { getSystemService(AudioManager::class.java) }
+    private var hasFocus = false
+    /** Between onResume and onPause (the lifecycle only reports RESUMED after onResume returns). */
+    private var resumed = false
+
+    /**
+     * Plays only with audio focus. Asking again after a loss is how RESUME and the menus win it
+     * back; while a call holds it, the request is delayed and the gain callback starts playback.
+     */
+    private fun startAudio() {
+        if (!resumed) return
+        if (!hasFocus) hasFocus = audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        if (hasFocus) audio.start()
+    }
 
     /** A call, an alarm or another app's audio: pause the run and go quiet until it's over. */
     private val focusRequest by lazy {
@@ -221,21 +235,29 @@ class MainActivity : ComponentActivity(), GameView.Host {
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build(),
             )
+            .setAcceptsDelayedFocusGain(true)
             .setOnAudioFocusChangeListener { change ->
                 when (change) {
                     AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                        hasFocus = false
                         pause()
                         audio.pause()
                     }
-                    AudioManager.AUDIOFOCUS_GAIN -> if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) audio.start()
+                    AudioManager.AUDIOFOCUS_GAIN -> {
+                        hasFocus = true
+                        startAudio()
+                    }
                 }
             }
             .build()
     }
 
-    /** Headphones unplugged: pause before the soundtrack blasts out of the speaker. */
+    /** Headphones unplugged: pause and go silent until the player picks it back up. */
     private val noisy = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) = pause()
+        override fun onReceive(context: Context, intent: Intent) {
+            pause()
+            audio.pause()
+        }
     }
 
     override fun onDestroy() {
@@ -276,6 +298,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
     }
 
     private fun startRun(config: RunConfig) {
+        startAudio()
         runConfig = config
         runSeed = config.seed
         if (runSeedLabel.isEmpty()) runSeedLabel = config.seed.toString()
@@ -299,12 +322,14 @@ class MainActivity : ComponentActivity(), GameView.Host {
     }
 
     private fun resume() {
+        startAudio()
         gameView.paused = false
         sound.setPaused(false)
         screen = Screen.PLAYING
     }
 
     private fun toTitle() {
+        startAudio()
         sound.setPaused(false)
         screen = Screen.TITLE
         showAttract()
