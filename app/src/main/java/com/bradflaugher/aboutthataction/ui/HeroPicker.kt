@@ -289,10 +289,11 @@ fun HeroPickerScreen(
                 beyondViewportPageCount = 1,
                 key = { heroes[it].name },
             ) { page ->
-                val off = (pager.currentPage - page) + pager.currentPageOffsetFraction
                 HeroCard(
                     heroes[page],
                     Modifier.fillMaxSize().graphicsLayer {
+                        // Read in the layer, not in composition: it changes every frame of a swipe.
+                        val off = (pager.currentPage - page) + pager.currentPageOffsetFraction
                         val k = abs(off).coerceAtMost(1f)
                         alpha = 1f - 0.55f * k
                         scaleX = 1f - 0.06f * k
