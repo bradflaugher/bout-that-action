@@ -43,20 +43,19 @@ internal class Actors(private val f: Frame) {
         const val SUIT = 0xFF1B2144.toInt()
         const val SUIT_LIT = 0xFF8298DC.toInt()
         const val SUIT_DARK = 0xFF10142C.toInt()
-        /** The long coat over the suit: a shade deeper, so the tailoring reads. */
-        const val JACKET = 0xFF28336A.toInt()
-        /** The coat's lining and the shirt under it. */
-        const val LINING = 0xFF0F5C6E.toInt()
-        const val SHIRT = 0xFF0D1020.toInt()
         const val ARMOR = 0xFF0F121C.toInt()
         const val BOOT = 0xFF171A28.toInt()
         const val GLOVE = 0xFF1A1E2E.toInt()
-        const val HELMET = 0xFF232C52.toInt()
+        const val HELMET = 0xFF26305C.toInt()
+        /** Armour plate over the suit: a steel blue a step above it. */
+        const val PLATE = 0xFF2E3A68.toInt()
+        const val PLATE_FAR = 0xFF1C2446.toInt()
         const val GLASS = 0xFF08323E.toInt()
         const val VISOR = 0xFF3CF4FF.toInt()
         const val RIM = 0xFF7CF4FF.toInt()
         /** The agent reads larger than the guards: the hero scale (visual only; hitboxes are the engine's). */
         const val HS = 1.12f
+        const val HEAD = 0.92f
     }
 
     // ================================================================= player
@@ -261,6 +260,8 @@ internal class Actors(private val f: Frame) {
         val pl = f.w.player
         val state = pl.state
         k.setup(dir, foot - 0.045f * HS, HS)
+        // Heroic proportions: a touch smaller head than the guards.
+        k.headR *= HEAD
         val speed = abs(pl.vx)
         val airborne = state == PlayerState.INTRO || (state == PlayerState.NORMAL && pl.z > 0.001f)
         val breathe = sin(f.t * 2.4f)
@@ -525,11 +526,11 @@ internal class Actors(private val f: Frame) {
     // -------------------------------------------------------------- drawing
 
     private fun heroLook(ghost: Boolean) {
-        look.torso = JACKET
+        look.torso = SUIT
         look.torsoLit = SUIT_LIT
         look.legs = SUIT
         look.legsFar = SUIT_DARK
-        look.arms = JACKET
+        look.arms = SUIT
         look.armsFar = SUIT_DARK
         look.boots = BOOT
         look.gloves = GLOVE
@@ -553,37 +554,18 @@ internal class Actors(private val f: Frame) {
 
     private fun drawHero(ghost: Boolean, skipFrontArm: Boolean = false) {
         heroLook(ghost)
-        val pl = f.w.player
         val dir = k.dir
         p.twoPass {
             body.arm(k.armB, look, far = true)
+            bracer(k.armB, far = true)
             if (magInHand && !p.ink) g.fillRect(k.armB.ex - 0.025f, k.armB.ey - 0.09f, k.armB.ex + 0.025f, k.armB.ey, p.c(0xFF2A2E3A.toInt()))
             body.leg(k.legB, look, far = true)
-        }
-        // The long coat's tails, behind the near leg: they swing out as he runs and lift in the air.
-        val swing = min(1f, abs(pl.vx) / 5f + (if (pl.z > 0.01f) 0.5f else 0f))
-        val flare = (0.02f + 0.16f * swing + sin(f.t * 9f) * 0.015f * swing) * k.hs
-        val coat = 0.78f * k.hs
-        p.twoPass { body.hem(JACKET, coat, flare) }
-        if (!p.ink) {
-            val w = k.waistD
-            // The lining: deep teal silk, showing inside the back tail as it flares out.
-            if (p.shading && flare > 0.035f * k.hs) {
-                p.begin()
-                    .add(body.ptX(-0.05f, -w * 0.5f), body.ptY(-0.05f, -w * 0.5f))
-                    .add(body.ptX(-coat * 1.05f, -w * 0.5f - flare), body.ptY(-coat * 1.05f, -w * 0.5f - flare))
-                    .add(body.ptX(-coat * 1.0f, -w * 0.45f - flare * 0.35f), body.ptY(-coat * 1.0f, -w * 0.45f - flare * 0.35f))
-                    .shapeDetail(LINING)
-            }
-            if (!ghost) {
-                // A cool edge light down the coat's back seam, and piping along the hem.
-                p.detail(body.ptX(0.02f, -w * 0.5f), body.ptY(0.02f, -w * 0.5f), body.ptX(-coat * 1.02f, -w * 0.5f - flare * 0.95f), body.ptY(-coat * 1.02f, -w * 0.5f - flare * 0.95f), 0.018f, Col.alpha(RIM, 0.3f))
-                pipe(body.ptX(-coat * 0.99f, w * 0.48f + flare * 0.3f), body.ptY(-coat * 0.99f, w * 0.48f + flare * 0.3f), body.ptX(-coat * 1.04f, -w * 0.48f - flare), body.ptY(-coat * 1.04f, -w * 0.48f - flare), 0.016f, 0.8f)
-            }
+            shinGuard(k.legB, far = true)
         }
         p.twoPass {
             body.leg(k.legF, look, far = false)
-            body.torso(look)
+            shinGuard(k.legF, far = false)
+            body.torso(look, chest = 1.1f)
             heroDetails(dir, ghost)
             heroCollar(dir)
             heroHead(dir, ghost)
@@ -595,67 +577,115 @@ internal class Actors(private val f: Frame) {
                 body.gun(gunKind, gunX, gunY, gunUp, VISOR, spin = f.t * 60f, scale = if (gunKind == 0) 1.3f else 1.1f)
             }
             body.arm(k.armF, look, far = false, hand = true)
+            bracer(k.armF, far = false)
         }
-        if (!ghost && !p.ink) heroStrips(dir)
+        if (!ghost && !p.ink) heroStrips()
         if (flash && !ghost) body.muzzleFlash(gunUp, if (gunKind == 1) 0.2f else if (gunKind == 2) 0.17f else 0.15f, (f.t * 30f).toInt())
     }
 
-    private fun heroDetails(dir: Int, ghost: Boolean) {
-        if (p.ink) return
-        val hs = k.hs
-        val c = k.chestD
-        val w = k.waistD
-        // The coat's front: a lapel folding back from the collar into a deep V over a dark
-        // shirt, the coat buttoned at the waist.
-        if (p.shading) {
-            p.begin()
-                .add(body.ptX(0.99f, c * 0.3f), body.ptY(0.99f, c * 0.3f))
-                .add(body.ptX(0.98f, c * 0.06f), body.ptY(0.98f, c * 0.06f))
-                .add(body.ptX(0.5f, w * 0.44f), body.ptY(0.5f, w * 0.44f))
-                .shapeDetail(SHIRT)
-            p.begin()
-                .add(body.ptX(0.99f, c * 0.06f), body.ptY(0.99f, c * 0.06f))
-                .add(body.ptX(0.84f, c * 0.02f), body.ptY(0.84f, c * 0.02f))
-                .add(body.ptX(0.66f, c * 0.3f), body.ptY(0.66f, c * 0.3f))
-                .add(body.ptX(0.5f, w * 0.44f), body.ptY(0.5f, w * 0.44f))
-                .shapeDetail(SUIT_LIT and 0x00FFFFFF or 0x90000000.toInt())
-            p.detail(body.ptX(0.84f, c * 0.02f), body.ptY(0.84f, c * 0.02f), body.ptX(0.52f, w * 0.4f), body.ptY(0.52f, w * 0.4f), 0.012f, ActorPaint.shade(JACKET))
+    private val nrm = FloatArray(2)
+
+    /** The side of a limb segment facing forward (the way he looks), as a unit normal in [nrm]. */
+    private fun frontOf(x1: Float, y1: Float, x2: Float, y2: Float) {
+        val dx = x2 - x1
+        val dy = y2 - y1
+        val len = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1e-4f)
+        var nx = -dy / len
+        var ny = dx / len
+        if (nx * k.dir < 0f) {
+            nx = -nx; ny = -ny
         }
-        // Belt with a brushed-steel buckle.
-        val bx1 = body.ptX(0.05f, -w * 0.5f); val by1 = body.ptY(0.05f, -w * 0.5f)
-        val bx2 = body.ptX(0.05f, w * 0.5f); val by2 = body.ptY(0.05f, w * 0.5f)
-        p.detail(bx1, by1, bx2, by2, 0.05f * hs, ARMOR)
+        nrm[0] = nx; nrm[1] = ny
+    }
+
+    /** Armoured shin guard and knee cap: a plate down the front of the shin, a domed knee. */
+    private fun shinGuard(l: Limb, far: Boolean) {
+        frontOf(l.jx, l.jy, l.ex, l.ey)
+        val nx = nrm[0]
+        val ny = nrm[1]
+        val lw = k.limbW
+        val col = if (far) PLATE_FAR else PLATE
+        fun px(t: Float, o: Float) = Rig.mix(l.jx, l.ex, t) + nx * o
+        fun py(t: Float, o: Float) = Rig.mix(l.jy, l.ey, t) + ny * o
+        p.begin()
+            .add(px(0.16f, lw * 0.1f), py(0.16f, lw * 0.1f))
+            .add(px(0.14f, lw * 0.5f), py(0.14f, lw * 0.5f))
+            .add(px(0.45f, lw * 0.56f), py(0.45f, lw * 0.56f))
+            .add(px(0.84f, lw * 0.4f), py(0.84f, lw * 0.4f))
+            .add(px(0.84f, lw * 0.06f), py(0.84f, lw * 0.06f))
+            .add(px(0.45f, lw * 0.02f), py(0.45f, lw * 0.02f))
+            .shapeLit(col, px(0.1f, lw * 0.6f), py(0.1f, lw * 0.6f), px(0.86f, 0f), py(0.86f, 0f), sep = !far)
+        p.ball(l.jx + nx * lw * 0.3f, l.jy + ny * lw * 0.3f, lw * 0.36f, col, gloss = if (far) 0f else 0.3f)
+    }
+
+    /** An armoured bracer over the forearm, from below the elbow to the wrist. */
+    private fun bracer(l: Limb, far: Boolean) {
+        val aw = k.limbW
+        val x1 = Rig.mix(l.jx, l.ex, 0.22f)
+        val y1 = Rig.mix(l.jy, l.ey, 0.22f)
+        val x2 = Rig.mix(l.jx, l.ex, 0.84f)
+        val y2 = Rig.mix(l.jy, l.ey, 0.84f)
+        p.bone(x1, y1, x2, y2, aw * 0.9f, aw * 0.74f, if (far) PLATE_FAR else PLATE, sep = !far, bulge = aw * 0.94f)
+    }
+
+    private fun heroDetails(dir: Int, ghost: Boolean) {
+        val hs = k.hs
+        val c = k.chestD * 1.1f
+        val w = k.waistD
+        // A slim comm pack between the shoulder blades: a clean shape on the back of the silhouette.
+        p.begin()
+            .add(body.ptX(0.92f, -c * 0.42f), body.ptY(0.92f, -c * 0.42f))
+            .add(body.ptX(0.95f, -c * 0.66f), body.ptY(0.95f, -c * 0.66f))
+            .add(body.ptX(0.55f, -c * 0.7f), body.ptY(0.55f, -c * 0.7f))
+            .add(body.ptX(0.5f, -c * 0.44f), body.ptY(0.5f, -c * 0.44f))
+            .shapeLit(PLATE, body.ptX(0.95f, -c * 0.5f), body.ptY(0.95f, -c * 0.5f), body.ptX(0.5f, -c * 0.7f), body.ptY(0.5f, -c * 0.7f))
+        if (p.ink) return
         if (p.shading) {
+            // The harness: a strap from the far shoulder across the chest to the near hip.
+            p.detail(body.ptX(0.97f, -c * 0.2f), body.ptY(0.97f, -c * 0.2f), body.ptX(0.3f, w * 0.5f), body.ptY(0.3f, w * 0.5f), 0.045f * hs, ARMOR)
+            p.detail(body.ptX(0.95f, -c * 0.17f), body.ptY(0.95f, -c * 0.17f), body.ptX(0.32f, w * 0.46f), body.ptY(0.32f, w * 0.46f), 0.01f, 0xFF3A4260.toInt())
+            val hx = body.ptX(0.66f, c * 0.14f)
+            val hy = body.ptY(0.66f, c * 0.14f)
+            g.fillRoundRect(hx - 0.024f, hy - 0.024f, hx + 0.024f, hy + 0.024f, 0.008f, p.c(0xFF8A96B8.toInt()))
+            // The comm pack's status light.
+            f.glowDot(body.ptX(0.85f, -c * 0.6f), body.ptY(0.85f, -c * 0.6f), 0.014f, VISOR, p.alphaMul * (1f - p.flatAmt))
+        }
+        // Utility belt: a dark strap, a pouch on the back hip, a steel buckle.
+        val bx1 = body.ptX(0.05f, -w * 0.52f); val by1 = body.ptY(0.05f, -w * 0.52f)
+        val bx2 = body.ptX(0.05f, w * 0.52f); val by2 = body.ptY(0.05f, w * 0.52f)
+        p.detail(bx1, by1, bx2, by2, 0.055f * hs, ARMOR)
+        if (p.shading) {
+            p.begin()
+                .add(body.ptX(0.12f, -w * 0.55f), body.ptY(0.12f, -w * 0.55f))
+                .add(body.ptX(0.12f, -w * 0.08f), body.ptY(0.12f, -w * 0.08f))
+                .add(body.ptX(-0.06f, -w * 0.1f), body.ptY(-0.06f, -w * 0.1f))
+                .add(body.ptX(-0.06f, -w * 0.56f), body.ptY(-0.06f, -w * 0.56f))
+                .shapeGradDetail(0xFF3A4260.toInt(), 0xFF141828.toInt(), body.ptX(0.12f, -w * 0.3f), body.ptY(0.12f, -w * 0.3f), body.ptX(-0.06f, -w * 0.3f), body.ptY(-0.06f, -w * 0.3f))
             val kx = body.ptX(0.05f, w * 0.34f)
             val ky = body.ptY(0.05f, w * 0.34f)
-            g.fillRoundRect(kx - 0.028f, ky - 0.022f, kx + 0.028f, ky + 0.022f, 0.008f, p.c(0xFF7C88A8.toInt()))
-            p.dot(kx - 0.008f, ky - 0.008f, 0.009f, 0xFFE0E8FF.toInt())
-        }
-        if (!ghost) {
-            // Piping down the coat's front edge from the collar to the hem: the suit is lit
-            // like a sign, precisely.
-            pipe(body.ptX(0.93f, c * 0.42f), body.ptY(0.93f, c * 0.42f), body.ptX(0.02f, w * 0.44f), body.ptY(0.02f, w * 0.44f), 0.018f)
+            g.fillRoundRect(kx - 0.026f, ky - 0.02f, kx + 0.026f, ky + 0.02f, 0.008f, p.c(0xFF8A96B8.toInt()))
         }
         if (!showGun && !ghost && f.w.silent) {
+            // SILENT: the pistol holstered on the thigh, hands free for CQC.
             val l = k.legF
             p.detail(Rig.mix(l.ax, l.jx, 0.2f) - 0.03f * dir, Rig.mix(l.ay, l.jy, 0.2f), Rig.mix(l.ax, l.jx, 0.62f) - 0.035f * dir, Rig.mix(l.ay, l.jy, 0.62f), 0.1f, ARMOR)
             if (p.shading) p.detail(Rig.mix(l.ax, l.jx, 0.24f) - 0.01f * dir, Rig.mix(l.ay, l.jy, 0.24f), Rig.mix(l.ax, l.jx, 0.56f) - 0.015f * dir, Rig.mix(l.ay, l.jy, 0.56f), 0.02f, 0xFF3A4260.toInt())
         }
     }
 
-    /** Emissive piping along the forearm into a lit cuff: with the coat's edge and hem, the agent's three strands. */
-    private fun heroStrips(dir: Int) {
+    /**
+     * The agent's light lines, down the bracer and the shin guard: few, exact, and the brightest
+     * things on him after the visor.
+     */
+    private fun heroStrips() {
         val af = k.armF
-        // The cuff: a lit ring at the wrist, and a strand up the forearm.
-        pipe(Rig.mix(af.jx, af.ex, 0.15f), Rig.mix(af.jy, af.ey, 0.15f) - 0.012f, Rig.mix(af.jx, af.ex, 0.7f), Rig.mix(af.jy, af.ey, 0.7f) - 0.012f, 0.018f)
-        val dx = af.ex - af.jx
-        val dy = af.ey - af.jy
-        val len = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1e-4f)
-        val cx = Rig.mix(af.jx, af.ex, 0.84f)
-        val cy = Rig.mix(af.jy, af.ey, 0.84f)
-        val nx = -dy / len * 0.045f
-        val ny = dx / len * 0.045f
-        pipe(cx - nx, cy - ny, cx + nx, cy + ny, 0.02f, 0.9f)
+        frontOf(af.jx, af.jy, af.ex, af.ey)
+        val o = k.limbW * 0.18f
+        pipe(Rig.mix(af.jx, af.ex, 0.3f) + nrm[0] * o, Rig.mix(af.jy, af.ey, 0.3f) + nrm[1] * o, Rig.mix(af.jx, af.ex, 0.76f) + nrm[0] * o, Rig.mix(af.jy, af.ey, 0.76f) + nrm[1] * o, 0.016f)
+        val lf = k.legF
+        frontOf(lf.jx, lf.jy, lf.ex, lf.ey)
+        val q = k.limbW * 0.42f
+        pipe(Rig.mix(lf.jx, lf.ex, 0.3f) + nrm[0] * q, Rig.mix(lf.jy, lf.ey, 0.3f) + nrm[1] * q, Rig.mix(lf.jx, lf.ex, 0.72f) + nrm[0] * q, Rig.mix(lf.jy, lf.ey, 0.72f) + nrm[1] * q, 0.016f, 0.85f)
     }
 
     /** A high armoured collar and a plate on the near shoulder: tailoring, not a costume. */
@@ -663,20 +693,20 @@ internal class Actors(private val f: Frame) {
         val nx = k.neckX
         val ny = k.neckY
         val hs = k.hs
-        // Turned-up coat collar behind the neck, then the armoured neck seal in front of it.
+        // A raised suit collar behind the neck, then the armoured neck seal in front of it.
         p.begin()
             .add(nx - 0.05f * dir, ny + 0.07f * hs)
             .add(nx - 0.12f * dir, ny - 0.13f * hs)
             .add(nx - 0.01f * dir, ny - 0.08f * hs)
             .add(nx + 0.06f * dir, ny + 0.03f * hs)
-            .shape(JACKET)
+            .shape(SUIT)
         if (p.shading) {
             p.begin()
                 .add(nx - 0.05f * dir, ny + 0.07f * hs)
                 .add(nx - 0.12f * dir, ny - 0.13f * hs)
                 .add(nx - 0.06f * dir, ny - 0.1f * hs)
                 .add(nx - 0.01f * dir, ny + 0.05f * hs)
-                .shapeShade(JACKET)
+                .shapeShade(SUIT)
         }
         p.seg(nx - 0.05f * dir, ny + 0.03f * hs, nx + 0.05f * dir, ny - 0.02f * hs, 0.11f * hs, ARMOR)
         val a = k.armF
@@ -737,6 +767,7 @@ internal class Actors(private val f: Frame) {
     private fun doorHide(x: Float, foot: Float, dir: Int) {
         // Flattened into the doorway: a near-black silhouette, visor glint and a whisper of rim.
         k.setup(dir, foot - 0.045f * HS, HS)
+        k.headR *= HEAD
         val breathe = sin(f.t * 2f) * 0.005f
         k.stand(x, 0.02f + breathe, 0.06f, -0.06f)
         k.spine(-0.04f, 0.05f)
