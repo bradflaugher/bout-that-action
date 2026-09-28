@@ -193,9 +193,9 @@ internal class Hud(private val f: Frame) {
             Perk.YIPPEE -> "YP"
             Perk.VENT_CRAWL -> "VC"
             Perk.ADRENALINE -> "AD"
-            Perk.OVERRIDE -> "OV"
-            Perk.EMP -> "EM"
-            Perk.GLITCH -> "GL"
+            Perk.JAMMER -> "JM"
+            Perk.CHAFF -> "CF"
+            Perk.CAMO -> "CM"
         }
 
         /** The STASH's warm gold (its door, tap hint and perk screen). */

@@ -61,12 +61,13 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
                     return
                 }
                 // The lure: a guard strolling this way, looking at the box? Wiggle it. He'll come
-                // over to check, straight into an ambush. (Heavies and ninjas kick the box; skip them.)
+                // over to check, straight into an ambush. (Heavies and ninjas kick the box; skip them. A
+                // box that never looks suspicious lures nobody.)
                 val mark = w.enemies.firstOrNull {
                     it.floor == p.floor && it.hall == p.hall && it.alive && !it.asleep && it.state == EnemyState.PATROL &&
                         (it.kind == EnemyKind.AGENT || it.kind == EnemyKind.DEMON) &&
                         it.facing == (if (p.x > it.x) 1 else -1) && abs(it.x - p.x) in 1.5f..sight(w) &&
-                        w.stacks(Perk.GHOST_BOX) == 0
+                        !w.boxPro
                 }
                 if (mark != null && p.stateTime > 0.3f) {
                     w.moveAxis = if (mark.x > p.x) 1 else -1
@@ -114,7 +115,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         // Crowds eat a grenade in either mode; SILENT also grenades what it can't choke.
         if (grenadeCooldown <= 0f && p.grenades > 0 && w.grenades.isEmpty()) {
             val near = enemies.filter { !it.asleep && abs(it.x - p.x) in 1.5f..6f }
-            val unchokeable = w.silent && near.any { it.kind == EnemyKind.TURRET || (it.kind == EnemyKind.HEAVY && !w.hero.tacklesHeavies && it.state != EnemyState.PATROL) }
+            val unchokeable = w.silent && near.any { it.kind == EnemyKind.TURRET && !w.hero.sabotage || (it.kind == EnemyKind.HEAVY && !w.hero.tacklesHeavies && it.state != EnemyState.PATROL) }
             if (near.size >= 2 || unchokeable) {
                 w.commands += Command.GRENADE
                 grenadeCooldown = 1.5f
@@ -189,6 +190,11 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         if (blocker.asleep) {
             // Night night.
             w.moveAxis = toward
+            return true
+        }
+        // VIPER walks up to a machine and pulls the plug (not into one drawing a bead: wait it out).
+        if (w.hero.sabotage && (blocker.kind == EnemyKind.TURRET || blocker.kind == EnemyKind.DRONE)) {
+            w.moveAxis = if (blocker.state == EnemyState.AIM && d < 3f) 0 else toward
             return true
         }
         // The BEAST takes a Heavy head-on, like anyone else.

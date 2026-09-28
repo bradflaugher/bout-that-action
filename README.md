@@ -133,7 +133,7 @@ music.
 | **BEAST** | A running back in full pads. Tough, fast, bulldozes. | +1 heart, runs 10% faster, tackles Heavies head-on (no bouncing off the armor) |
 | **ACE** | A gentleman spy in a pressed tux. | An 8-round magazine (instead of 6) and a 15% quicker trigger; guards take 35% longer to react once they spot him |
 | **HARDY** | A barefoot cop in a tank top, in the wrong building on the wrong night. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
-| **VOLT** | A neon hacker-courier on skates. | Double jump built in (so no Double Jump perk for Volt); skates 8% faster; reloads 25% faster |
+| **VIPER** | A jungle commando in a bandana who lives in his cardboard box: the SILENT specialist. | Unplugs drones and turrets by hand, like a takedown (quiet, and not while one is aiming at him); in SILENT guards spot him from a quarter less far; the box glides (2.2 u/s instead of 1.3) and never looks suspicious moving; reloads 25% faster |
 
 Their perks:
 
@@ -151,13 +151,13 @@ Their perks:
   time and nobody can see you for 1.5 s once you're out in the open (firing
   gives you away). *Adrenaline* (2 levels): on your last heart you shoot,
   reload and run 30% faster (50% at LV 2).
-- **VOLT.** *Override*: drones and turrets drop to a single hit. *EMP*
-  (2 levels): a grenade also dazes everyone in the hallway for 2 s (3.5 s
-  at LV 2). *Glitch* (2 levels): 1 in 4 hits phase right through you (1 in
-  3 at LV 2).
+- **VIPER.** *Jammer*: drones and turrets take twice as long to react to
+  him. *Chaff* (2 levels): a grenade also dazes everyone in the hallway,
+  machines too, for 2 s (3.5 s at LV 2). *Camo* (2 levels): 1 in 4 hits miss
+  you (1 in 3 at LV 2).
 
-The BEAST is a nod to the game's namesake, in spirit only: no real names, no
-team colors.
+Each hero is a nod to an action icon, in spirit only: no real names, no
+logos, no team colors.
 
 ## The descent
 

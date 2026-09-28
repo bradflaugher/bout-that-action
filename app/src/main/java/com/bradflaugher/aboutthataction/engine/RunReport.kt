@@ -51,7 +51,7 @@ data class RunReport(
             Hero.BEAST to "Pads off. Good game, boss.",
             Hero.ACE to "The tux survived. Mostly.",
             Hero.HARDY to "Worst holiday ever. Again.",
-            Hero.VOLT to "Turned it off and on again.",
+            Hero.VIPER to "Back to the box.",
         )
 
         fun of(w: World): RunReport {
@@ -116,7 +116,8 @@ data class RunReport(
             val depth = w.deepest - w.difficulty.startFloor
             return when {
                 s.stiffArms + s.tackles >= 6 -> "HUMAN BULLDOZER"
-                s.glitches >= 4 -> "LAG INCARNATE"
+                s.unplugged >= 5 -> "ROBOT WHISPERER"
+                s.camoMisses >= 4 -> "JUST A FERN"
                 s.napTakedowns >= 3 -> "BEDTIME STORYTELLER"
                 s.boxAmbushes >= 6 -> "CARDBOARD ENTHUSIAST"
                 s.ghostFloors >= 6 -> "THE GHOST"
@@ -144,7 +145,8 @@ data class RunReport(
                 "LIGHTS OUT" to s.lightKills.nz(),
                 "CLOSE CALLS" to w.closeCalls.nz(),
                 "TACKLES" to (s.tackles + s.stiffArms).nz(),
-                "GLITCHES" to s.glitches.nz(),
+                "UNPLUGGED" to s.unplugged.nz(),
+                "CAMO MISSES" to s.camoMisses.nz(),
                 "SECOND WIND" to s.secondWinds.takeIf { it > 0 }?.let { "USED" },
                 "SPECIAL FLOORS" to s.floorEvents.nz(),
                 "PERKS" to perks.nz(),

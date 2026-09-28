@@ -96,8 +96,8 @@ class Player {
      * counts down only while you're out in the open, and firing ends it).
      */
     var unseenTime = 0f
-    /** GLITCH: seconds since a hit phased through you is shown (counts down from [World.GLITCH_SHOW]). */
-    var glitchTime = 0f
+    /** CAMO: a hit just missed you; the camo shimmer shows this long (counts down from [World.CAMO_SHOW]). */
+    var camoTime = 0f
 
     val floor: Int get() = kotlin.math.floor(floorF + 0.001f).toInt()
     val grounded: Boolean get() = z <= 0f && vz == 0f
