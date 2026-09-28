@@ -179,9 +179,9 @@ class ControlsTest {
         val w = world()
         w.player.x = 2f
         run(w, 0.3f) { it.moveAxis = 1 }
-        assertEquals(World.RUN_SPEED, w.player.vx, 1e-4f)
+        assertEquals(w.runSpeed, w.player.vx, 1e-4f)
         run(w, 0.1f) { it.moveAxis = -1 }
-        assertEquals(-World.RUN_SPEED, w.player.vx, 1e-4f)
+        assertEquals(-w.runSpeed, w.player.vx, 1e-4f)
         assertEquals(-1, w.player.facing)
         run(w, 0.07f) { it.moveAxis = 0 }
         assertEquals(0f, w.player.vx, 1e-4f)

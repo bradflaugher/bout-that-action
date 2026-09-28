@@ -114,7 +114,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         // Crowds eat a grenade in either mode; SILENT also grenades what it can't choke.
         if (grenadeCooldown <= 0f && p.grenades > 0 && w.grenades.isEmpty()) {
             val near = enemies.filter { !it.asleep && abs(it.x - p.x) in 1.5f..6f }
-            val unchokeable = w.silent && near.any { it.kind == EnemyKind.TURRET || (it.kind == EnemyKind.HEAVY && it.state != EnemyState.PATROL) }
+            val unchokeable = w.silent && near.any { it.kind == EnemyKind.TURRET || (it.kind == EnemyKind.HEAVY && !w.hero.tacklesHeavies && it.state != EnemyState.PATROL) }
             if (near.size >= 2 || unchokeable) {
                 w.commands += Command.GRENADE
                 grenadeCooldown = 1.5f
@@ -136,7 +136,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
             if (nearest != null && abs(nearest.x - p.x) < World.AUTO_FIRE_RANGE && holdTime < 4f) {
                 holdTime += dt
                 val d = abs(nearest.x - p.x)
-                w.moveAxis = if (d < 1.5f && nearest.kind != EnemyKind.HEAVY && nearest.kind != EnemyKind.DRONE && nearest.kind != EnemyKind.TURRET) {
+                w.moveAxis = if (d < 1.5f && (nearest.kind != EnemyKind.HEAVY || w.hero.tacklesHeavies) && nearest.kind != EnemyKind.DRONE && nearest.kind != EnemyKind.TURRET) {
                     if (nearest.x > p.x) 1 else -1
                 } else 0
                 return
@@ -191,7 +191,8 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
             w.moveAxis = toward
             return true
         }
-        when (blocker.kind) {
+        // The BEAST takes a Heavy head-on, like anyone else.
+        when (if (blocker.kind == EnemyKind.HEAVY && w.hero.tacklesHeavies) EnemyKind.AGENT else blocker.kind) {
             EnemyKind.TURRET -> return false // run past it (a grenade goes first if there is one)
             EnemyKind.DRONE -> {
                 // Stomp it: jump as it comes overhead.

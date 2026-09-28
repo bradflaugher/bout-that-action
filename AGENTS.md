@@ -49,6 +49,8 @@ the JVM.
     never change a floor's layout.
   - `Zone.kt` — the descent: Rooftop → Neon Tower → Black Labs → Deep Metro →
     Iron Mines → Magma Core → Hell (150–199) → the Void (200+, random zones).
+  - `Hero.kt` — the four heroes (`RunConfig.hero`): each trait is data on the
+    enum, and `Perk.hero` / `Perk.offeredTo` keep three perks per hero.
   - `Entities.kt`, `Perk.kt`, `Fx.kt`, `Events.kt`, `Rng.kt` (SplitMix64).
 - `input/GestureInput.kt` — multi-touch gesture classifier (run drag with
   instant reversal, flicks mid-drag, zero-latency taps; grenades are a HUD button, not a gesture).

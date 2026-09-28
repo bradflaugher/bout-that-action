@@ -40,6 +40,16 @@ object Popup {
     const val GHOST = "GHOST"
     const val CLOSE = "CLOSE!"
     const val SNORE = "z"
+    /** BEAST running through a Heavy's front door. */
+    const val TACKLE = "TACKLE!"
+    /** BEAST's STIFF ARM: a guard flattened on the run. */
+    const val FLATTENED = "FLATTENED"
+    /** HARDY's once-a-run shrug-off of a fatal hit. */
+    const val SECOND_WIND = "SECOND WIND"
+    /** VOLT's GLITCH: a hit phased right through. */
+    const val GLITCH = "GLITCH"
+    /** Guards stunned by an EMP, a BEAST QUAKE or a YIPPEE blast. */
+    const val DAZED = "DAZED"
 }
 
 enum class TextStyle { SCORE, TAKEDOWN, COMBO, PICKUP, WARN, BIG }

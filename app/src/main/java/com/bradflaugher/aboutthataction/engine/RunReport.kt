@@ -46,12 +46,20 @@ data class RunReport(
             Zone.VOID to "The Void says hi. Probably.",
         )
 
+        /** Extra sign-offs for whoever was playing. */
+        val HERO_QUIPS = mapOf(
+            Hero.BEAST to "Pads off. Good game, boss.",
+            Hero.ACE to "The tux survived. Mostly.",
+            Hero.HARDY to "Worst holiday ever. Again.",
+            Hero.VOLT to "Turned it off and on again.",
+        )
+
         fun of(w: World): RunReport {
             val s = w.stats
             return RunReport(
                 title = title(w),
                 deathLine = deathLine(s.fatal),
-                quip = quip(w.seed, w.deepest, w.score, w.zone),
+                quip = quip(w.seed, w.deepest, w.score, w.zone, w.hero),
                 highlights = highlights(w),
             )
         }
@@ -96,9 +104,9 @@ data class RunReport(
         }
 
         /** A stable sign-off for a run: the same run always gets the same one. */
-        fun quip(seed: Long, deepest: Int, score: Long, zone: Zone? = null): String {
+        fun quip(seed: Long, deepest: Int, score: Long, zone: Zone? = null, hero: Hero? = null): String {
             val rng = Rng(seed * 31 + deepest * 7919L + score)
-            val pool = if (zone != null) QUIPS + ZONE_QUIPS.getValue(zone) else QUIPS
+            val pool = QUIPS + listOfNotNull(zone?.let { ZONE_QUIPS.getValue(it) }, hero?.let { HERO_QUIPS.getValue(it) })
             return pool[rng.nextInt(pool.size)]
         }
 
@@ -107,6 +115,8 @@ data class RunReport(
             val s = w.stats
             val depth = w.deepest - w.difficulty.startFloor
             return when {
+                s.stiffArms + s.tackles >= 6 -> "HUMAN BULLDOZER"
+                s.glitches >= 4 -> "LAG INCARNATE"
                 s.napTakedowns >= 3 -> "BEDTIME STORYTELLER"
                 s.boxAmbushes >= 6 -> "CARDBOARD ENTHUSIAST"
                 s.ghostFloors >= 6 -> "THE GHOST"
@@ -133,6 +143,9 @@ data class RunReport(
                 "BONKS" to s.stomps.nz(),
                 "LIGHTS OUT" to s.lightKills.nz(),
                 "CLOSE CALLS" to w.closeCalls.nz(),
+                "TACKLES" to (s.tackles + s.stiffArms).nz(),
+                "GLITCHES" to s.glitches.nz(),
+                "SECOND WIND" to s.secondWinds.takeIf { it > 0 }?.let { "USED" },
                 "SPECIAL FLOORS" to s.floorEvents.nz(),
                 "PERKS" to perks.nz(),
             ).mapNotNull { (k, v) -> v?.let { k to it } }.take(6)

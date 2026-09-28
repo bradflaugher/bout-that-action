@@ -30,7 +30,7 @@ is read on its own, so one thumb can run while the other taps.
 | **Tap** | Interact with what you're standing at: go through a green **passage** door into another hallway, enter a gold **STASH** door, ride an open **elevator** down, or call a closed one. With nothing in reach, a tap does nothing. |
 | **Swipe ↓** | Hide: press into a nearby **doorway**, otherwise pop the **cardboard box**. In an elevator, box up in the car. Swipe ↓ again to stand up. In a doorway, a tap or a swipe ↑ also steps you out. |
 | **Swipe ↑** | Jump. Clears low shots; land on heads to stomp. Works mid-run. |
-| **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind; a napping guard from anywhere. Works in GUNS HOT too: the gun never shoots a guard with his back to you. |
+| **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind (the BEAST tackles them head-on); a napping guard from anywhere. Works in GUNS HOT too: the gun never shoots a guard with his back to you. |
 | **Grenade button** (under the mode button) | Throw a grenade, in either mode. The lime button shows how many you carry and greys out when you're empty. Taps never throw one, so hammering a door is always just the door. |
 | **Jump + tap** | Under a ceiling lamp: swat it out by hand. The hallway gets darker, the fixture drops on anyone right under it (never on you), and the crash of glass brings nearby guards over to look: lure them in, then grab them from the shadows. Works in both modes. |
 | **Mode button** (under pause) | **GUNS HOT**: you auto-fire at threats in range. **SILENT**: you never fire; guards only notice what they see, and quiet kills pay double. Your choice sticks between runs. |
@@ -84,7 +84,8 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 - **Roguelike runs.** Every gold STASH door offers three perks, and they
   stack: Rapid Fire, Hollow Point, Pierce, Ricochet, Split Shot, Vitality,
   CQC Master, Ghost Box, Double Jump, Demolition, Magnet, Reflex (auto
-  bullet-time), Kevlar, Lucky and Shockwave stomps. Enemies drop shotguns,
+  bullet-time), Kevlar, Lucky and Shockwave stomps, plus three that only your
+  [hero](#heroes) ever finds. Enemies drop shotguns,
   miniguns, shields, bullet time, grenades, medkits and cash. The gun perks
   and gun drops only matter in GUNS HOT; SILENT never fires.
 - **Endless and seeded.** Any floor can be rebuilt from `(seed, floor)`, so
@@ -119,6 +120,44 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
     <td align="center" width="33%"><img src="docs/screenshots/bonk.png" alt="A lamp swatted onto a guard"><p><em><b>BONK!</b> Mind the lamp</em></p></td>
   </tr>
 </table>
+
+## Heroes
+
+Pick who's going down on the title screen. Every hero plays the same
+building, but with a different body: an always-on trait, three perks only
+they find in a STASH, their own look and their own take on every zone's
+music.
+
+| Hero | Who | Trait (always on) |
+|---|---|---|
+| **BEAST** | A running back in full pads. Tough, fast, bulldozes. | +1 heart, runs 10% faster, tackles Heavies head-on (no bouncing off the armor) |
+| **ACE** | A gentleman spy in a pressed tux. | An 8-round magazine (instead of 6); guards take 35% longer to react once they spot him |
+| **HARDY** | A barefoot cop in a tank top, in the wrong building on the wrong night. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
+| **VOLT** | A neon hacker-courier on skates. | Double jump built in (so no Double Jump perk for Volt); reloads 25% faster |
+
+Their perks:
+
+- **BEAST.** *Stiff Arm*: run into a guard and he's flattened on the spot,
+  even mid-swing, and you keep running. *Beast Quake* (2 levels): every
+  takedown dazes everyone within a quarter of the hallway for 1.8 s
+  (nearly half of it at LV 2). *Candy
+  Rain* (2 levels): every 8th kill heals a heart (every 5th at LV 2).
+- **ACE.** *Disguise*: guards take twice as long again to react.
+  *Laser Watch*: every shot slices the first lamp it passes under, and one
+  jump-swat kills every lamp in the hallway. *Dead Drop* (2 levels): SILENT
+  kills drop loot twice as often (three times at LV 2).
+- **HARDY.** *Yippee*: bigger blasts, and anyone within twice the blast who
+  survives is knocked flat for 2.5 s. *Vent Crawl*: passages take half the
+  time and nobody can see you for 1.5 s once you're out in the open (firing
+  gives you away). *Adrenaline* (2 levels): on your last heart you shoot,
+  reload and run 30% faster (50% at LV 2).
+- **VOLT.** *Override*: drones and turrets drop to a single hit. *EMP*
+  (2 levels): a grenade also dazes everyone in the hallway for 2 s (3.5 s
+  at LV 2). *Glitch* (2 levels): 1 in 4 hits phase right through you (1 in
+  3 at LV 2).
+
+The BEAST is a nod to the game's namesake, in spirit only: no real names, no
+team colors.
 
 ## The descent
 
@@ -227,6 +266,8 @@ Kotlin behind small interfaces, so it's tested on the JVM:
   stairs, death, replays).
 - `ControlsTest`: input buffering, the hit-grace window, the jump arc,
   turnarounds, auto-aim intent, tap and swipe context, door and car exits.
+- `HeroTest`: every hero trait and every hero perk, and that a STASH only
+  ever offers a hero their own three.
 - `StealthAndEventsTest`: napping guards, the box double-take and the kick,
   GHOST, special floors, the arrival grace, coach tips, the run report.
 - `LevelGenTest`: determinism, a reachable ride down from every hallway on
@@ -236,7 +277,7 @@ Kotlin behind small interfaces, so it's tested on the JVM:
   two-thumb play.
 - `BotPlaythroughTest`: an autopilot plays full runs on every preset in both
   modes and prints a balance report (floors, seconds and encounters per
-  floor, deaths) and a pacing report (seconds per floor and hallway,
+  floor, deaths; every hero on AGENT, so no hero runs away with it) and a pacing report (seconds per floor and hallway,
   elevator waits, dead time, the first minute, what hurt you and whether it
   was an ambush or an arrival). The same autopilot plays the demo behind the title screen.
 - `WorldFuzzTest`: minutes of random thumbs on every preset.
