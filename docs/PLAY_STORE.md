@@ -2,8 +2,8 @@
 
 The game ships two ways from the same signed build: the sideload APK on the
 GitHub release, and a Google Play listing. Play gets the same app with the
-same latest-only policy (`AGENTS.md`). `minSdk` stays at the latest API level,
-so Play only offers it to phones on that version.
+same platform policy (`AGENTS.md`): it targets the latest Android and installs
+on Android 12 (API 31) and up.
 
 ## What CI hands you
 

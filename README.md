@@ -253,8 +253,8 @@ build as a Google Play bundle; see [`docs/PLAY_STORE.md`](docs/PLAY_STORE.md). E
 `.sha256`. Releases need the signing secrets described in `AGENTS.md`. Until
 they're set, CI builds and tests but publishes nothing.
 
-Android 17 (API 37) or newer only. See `AGENTS.md` for the latest-only
-policy. The only permission is vibration, and it collects nothing
+Android 12 (API 31) or newer. It's built for the latest Android and runs on
+older versions only where that needs no compatibility code (see `AGENTS.md`). The only permission is vibration, and it collects nothing
 ([privacy policy](docs/PRIVACY.md)).
 
 ## Build and test

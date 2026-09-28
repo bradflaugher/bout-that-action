@@ -28,7 +28,7 @@ android {
 
     defaultConfig {
         applicationId = "com.bradflaugher.aboutthataction"
-        minSdk = 37
+        minSdk = 31
         targetSdk = 37
         versionCode = versionCodeFromEnvironment.toInt()
         versionName = System.getenv("ATA_VERSION_NAME") ?: "dev"

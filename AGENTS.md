@@ -8,12 +8,16 @@ player-facing overview and keep it in sync with any behavior you change.
 
 ## Latest-only platform policy
 
-Like bf-12c and Blauncher, this project supports **only the latest stable
-everything**:
+Like bf-12c and Blauncher, this project builds with **only the latest stable
+everything**, and never carries code just for older devices:
 
-- `minSdk`, `targetSdk` and `compileSdk` are the latest stable API level, all
-  equal (`app/build.gradle.kts`). Bump all three together.
-- No `Build.VERSION.SDK_INT` checks, no compat shims for older devices.
+- `targetSdk` and `compileSdk` are the latest stable API level
+  (`app/build.gradle.kts`). Bump them together.
+- `minSdk` is 31 (Android 12): the newest API the code uses today
+  (`VibratorManager`, haptic `PRIMITIVE_THUD`), so older phones come free.
+  If a feature needs a newer API, raise `minSdk` to it rather than add a check.
+- No `Build.VERSION.SDK_INT` checks, no compat shims for older devices. Lint's
+  `NewApi` error keeps the code honest about `minSdk`.
 - AGP, Kotlin, Compose BOM and libraries (`gradle/libs.versions.toml`) and
   Gradle (`gradle/wrapper/gradle-wrapper.properties`, checksum-pinned) track
   the latest stable releases. Dependabot keeps them current.
