@@ -59,7 +59,8 @@ internal class ActorPaint(private val f: Frame) {
     /** Fill colour through the tint. */
     fun c(color: Int): Int {
         var col = color
-        if (flatAmt > 0f) col = Col.lerp(col, flat or (col and 0xFF000000.toInt()), flatAmt)
+        // Tint the colour only: the target keeps the colour's own alpha, so clear stays clear.
+        if (flatAmt > 0f) col = Col.lerp(col, (flat and 0xFFFFFF) or (col and 0xFF000000.toInt()), flatAmt)
         return if (alphaMul >= 1f) col else Col.fade(col, alphaMul)
     }
 
