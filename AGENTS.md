@@ -2,7 +2,8 @@
 
 'Bout That Action (a Marshawn Lynch reference) is an endless, portrait-only
 Android action game: a stylized, hyper-modern take on Elevator Action with
-Metal Gear Solid box hiding. Sideloaded only. Read `README.md` for the
+Metal Gear Solid box hiding. Sideloaded, and headed for Google Play
+(`docs/PLAY_STORE.md`). Read `README.md` for the
 player-facing overview and keep it in sync with any behavior you change.
 
 ## Latest-only platform policy
@@ -113,6 +114,10 @@ the JVM.
 
 - **No network, no storage permissions.** Only `VIBRATE`. No backups
   (`allowBackup=false`, empty extraction rules).
+  `docs/PRIVACY.md` (the Play privacy policy) and the Data safety answers in
+  `docs/PLAY_STORE.md` promise this; change them together.
+- The Play listing text lives in `fastlane/metadata/android/en-US/`. Keep it
+  true to the game, like `README.md`.
 - CI actions stay pinned to commit SHAs.
 
 ## Build, test, release
@@ -128,9 +133,10 @@ deliberately not a merge gate because emulators are slow and flaky) boots an
 API 37 emulator, runs the instrumented tests, plays a little with `adb input`
 and uploads screenshots and logcat.
 
-Every push to `main` builds a signed APK and publishes it as the single
-date-labeled GitHub release `vYYYY.MM.DD.<run>`, deleting all older
-releases. Pull requests build unsigned and publish nothing. Signing uses the
+Every push to `main` builds a signed APK and a signed Play bundle (`.aab`,
+plus the R8 `mapping.txt`) and publishes them as the single date-labeled
+GitHub release `vYYYY.MM.DD.<run>`, deleting all older releases. The
+versionCode is the run number, so it only goes up. Pull requests build unsigned and publish nothing. Signing uses the
 repository secrets `ATA_KEYSTORE_BASE64`, `ATA_STORE_PASSWORD`,
 `ATA_KEY_ALIAS` and `ATA_KEY_PASSWORD`; until they exist, pushes to `main`
 still build and test but skip the release (with a warning). Never commit a

@@ -52,8 +52,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -380,23 +382,45 @@ private fun HeroCard(hero: Hero, modifier: Modifier, time: () -> Float, compact:
             onNext?.let { StageArrow(Alignment.CenterEnd, "Next hero", c, left = false, onClick = it) }
         }
 
-        // who they are
-        Column(
-            Modifier.fillMaxWidth().padding(horizontal = Space.m).padding(top = Space.xxs, bottom = if (compact) Space.s else Space.m),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(Space.xxs),
-        ) {
-            FitText(hero.title, if (compact) 30.sp else 44.sp, c, Modifier.fillMaxWidth(), letterSpacing = 6.sp, glow = 0.9f)
-            NeonText(hero.tagline.uppercase(Locale.US), size = Type.small, color = Neon.soft, letterSpacing = 2.sp, glow = 0f,
-                align = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            Trait(hero, Modifier.padding(top = if (compact) 0.dp else Space.xs))
-            if (!compact) {
-                NeonText("\u201C${hero.flavor}\u201D", size = Type.small, color = Neon.dim, glow = 0f, align = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(top = Space.xxs))
-            }
-            SectionHeader("//", "HERO-ONLY PERKS", c)
-            for (p in hero.perks) PerkRow(p, c)
+        // who they are, at the tallest hero's height: every card's stage is the same size
+        Tallest(hero.ordinal, Modifier.fillMaxWidth()) {
+            for (h in Hero.entries) HeroInfo(h, compact, if (h == hero) Modifier else Modifier.clearAndSetSemantics {})
         }
+    }
+}
+
+/** The card's text: name, tagline, trait, the joke and the three hero-only perks. */
+@Composable
+private fun HeroInfo(hero: Hero, compact: Boolean, modifier: Modifier = Modifier) {
+    val c = hero.tint
+    Column(
+        modifier.fillMaxWidth().padding(horizontal = Space.m).padding(top = Space.xxs, bottom = if (compact) Space.s else Space.m),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Space.xxs),
+    ) {
+        FitText(hero.title, if (compact) 30.sp else 44.sp, c, Modifier.fillMaxWidth(), letterSpacing = 6.sp, glow = 0.9f)
+        NeonText(hero.tagline.uppercase(Locale.US), size = Type.small, color = Neon.soft, letterSpacing = 2.sp, glow = 0f,
+            align = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        Trait(hero, Modifier.padding(top = if (compact) 0.dp else Space.xs))
+        if (!compact) {
+            NeonText("\u201C${hero.flavor}\u201D", size = Type.small, color = Neon.dim, glow = 0f, align = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = Space.xxs))
+        }
+        SectionHeader("//", "HERO-ONLY PERKS", c)
+        for (p in hero.perks) PerkRow(p, c)
+    }
+}
+
+/**
+ * Measures every child but places only child [shown], at the tallest child's height. The
+ * others are never drawn; they only set the size.
+ */
+@Composable
+private fun Tallest(shown: Int, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content, modifier) { measurables, constraints ->
+        val placeables = measurables.map { it.measure(constraints.copy(minHeight = 0)) }
+        val h = placeables.maxOf { it.height }.coerceIn(constraints.minHeight, constraints.maxHeight)
+        layout(constraints.maxWidth, h) { placeables[shown].place(0, 0) }
     }
 }
 
