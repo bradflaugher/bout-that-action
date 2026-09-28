@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.BlendMode
 import android.graphics.Canvas
 import android.graphics.LinearGradient
-import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
@@ -130,46 +129,77 @@ class AndroidGfx(context: Context) : Gfx {
         return radial.getOrPut(key(center, edge)) { RadialGradient(0f, 0f, 1f, center, edge, Shader.TileMode.CLAMP) }
     }
 
-    private val tri = HashMap<Long, LinearGradient>()
+    // Three-stop gradients, cached by colours in an open-addressed table (no boxed keys): each
+    // shader is a unit gradient along x drawn through a canvas transform, so its matrix never
+    // changes and HWUI never rebuilds it. Alpha stays out of the key: it rides on the paint.
+    private val triKeys = LongArray(TRI_SLOTS)
+    private val triShaders = arrayOfNulls<LinearGradient>(TRI_SLOTS)
+    private var triCount = 0
     private val triStops = FloatArray(3)
     private val triColors = IntArray(3)
-    private val triMatrix = Matrix()
 
-    /** 19 bits of a colour for a cache key: 5-5-5 RGB and 4 bits of alpha (close enough to share a shader). */
-    private fun q(c: Int): Long = (((c ushr 28) shl 15) or (((c shr 19) and 0x1F) shl 10) or (((c shr 11) and 0x1F) shl 5) or ((c shr 3) and 0x1F)).toLong()
+    /** 15 bits of an opaque colour for a cache key: 5-5-5 RGB (close enough to share a shader). */
+    private fun q(c: Int): Long = ((((c shr 19) and 0x1F) shl 10) or (((c shr 11) and 0x1F) shl 5) or ((c shr 3) and 0x1F)).toLong()
+
+    private fun triShader(c0: Int, c1: Int, c2: Int, m: Int): LinearGradient {
+        // Never 0, the empty slot.
+        val key = (1L shl 62) or (q(c0) shl 37) or (q(c1) shl 22) or (q(c2) shl 7) or m.toLong()
+        var i = ((key xor (key ushr 29)) * -0x61c8864680b583ebL ushr 54).toInt() and (TRI_SLOTS - 1)
+        while (true) {
+            val k = triKeys[i]
+            if (k == key) return triShaders[i]!!
+            if (k == 0L) break
+            i = (i + 1) and (TRI_SLOTS - 1)
+        }
+        if (triCount >= TRI_SLOTS * 3 / 4) {
+            triKeys.fill(0L)
+            triShaders.fill(null)
+            triCount = 0
+            return triShader(c0, c1, c2, m)
+        }
+        triColors[0] = c0 or OPAQUE; triColors[1] = c1 or OPAQUE; triColors[2] = c2 or OPAQUE
+        triStops[0] = 0f; triStops[1] = m / 127f; triStops[2] = 1f
+        val sh = LinearGradient(0f, 0f, 1f, 0f, triColors, triStops, Shader.TileMode.CLAMP)
+        triKeys[i] = key
+        triShaders[i] = sh
+        triCount++
+        return sh
+    }
 
     override fun fillPolygonGradient(xy: FloatArray, x0: Float, y0: Float, x1: Float, y1: Float, c0: Int, c1: Int, c2: Int, mid: Float) {
         if (xy.size < 6) return
         val dx = x1 - x0
         val dy = y1 - y0
-        val len = kotlin.math.sqrt(dx * dx + dy * dy)
-        if (len < 1e-6f) {
+        val len2 = dx * dx + dy * dy
+        if (len2 < 1e-12f) {
             fillPolygon(xy, c1)
             return
         }
         val m = (mid.coerceIn(0.02f, 0.98f) * 127f).toInt()
-        val key = (q(c0) shl 45) or (q(c1) shl 26) or (q(c2) shl 7) or m.toLong()
-        if (tri.size > 384) tri.clear()
-        // A unit gradient along x, mapped onto the real endpoints by its local matrix.
-        val shader = tri.getOrPut(key) {
-            triColors[0] = c0; triColors[1] = c1; triColors[2] = c2
-            triStops[0] = 0f; triStops[1] = m / 127f; triStops[2] = 1f
-            LinearGradient(0f, 0f, 1f, 0f, triColors, triStops, Shader.TileMode.CLAMP)
-        }
-        triMatrix.setScale(len, len)
-        triMatrix.postRotate(Math.toDegrees(kotlin.math.atan2(dy, dx).toDouble()).toFloat())
-        triMatrix.postTranslate(x0, y0)
-        shader.setLocalMatrix(triMatrix)
+        shaderPaint.shader = triShader(c0, c1, c2, m)
+        shaderPaint.alpha = c1 ushr 24
+        // The polygon in the gradient's own frame: u along (x0,y0)->(x1,y1), v across, both in
+        // units of its length; the canvas transform maps it back.
+        val inv = 1f / len2
         path.rewind()
-        path.moveTo(xy[0], xy[1])
-        var i = 2
+        var i = 0
         while (i + 1 < xy.size) {
-            path.lineTo(xy[i], xy[i + 1])
+            val px = xy[i] - x0
+            val py = xy[i + 1] - y0
+            val u = (px * dx + py * dy) * inv
+            val v = (py * dx - px * dy) * inv
+            if (i == 0) path.moveTo(u, v) else path.lineTo(u, v)
             i += 2
         }
         path.close()
-        shaderPaint.shader = shader
+        c.save()
+        c.translate(x0, y0)
+        c.rotate(Math.toDegrees(kotlin.math.atan2(dy, dx).toDouble()).toFloat())
+        val len = kotlin.math.sqrt(len2)
+        c.scale(len, len)
         c.drawPath(path, shaderPaint)
+        c.restore()
+        shaderPaint.alpha = 255
     }
 
     override fun fillVerticalGradient(left: Float, top: Float, right: Float, bottom: Float, colorTop: Int, colorBottom: Int) {
@@ -284,5 +314,10 @@ class AndroidGfx(context: Context) : Gfx {
         fill.color = color
         rect.set(cx - radius, cy - radius, cx + radius, cy + radius)
         c.drawArc(rect, startDeg, sweepDeg, true, fill)
+    }
+
+    private companion object {
+        const val TRI_SLOTS = 1024
+        const val OPAQUE = 0xFF000000.toInt()
     }
 }

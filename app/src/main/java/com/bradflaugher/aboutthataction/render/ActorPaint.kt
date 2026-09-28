@@ -135,6 +135,7 @@ internal class ActorPaint(private val f: Frame) {
         val dy = y2 - y1
         val len = sqrt(dx * dx + dy * dy)
         if (len < 1e-4f) {
+            if (sep && !ink && !noInk) g.fillCircle(x1, y1, max(w1, w2) * 0.5f + out * 0.8f, inkC())
             ball(x1, y1, max(w1, w2) * 0.5f, color)
             return
         }
@@ -161,8 +162,21 @@ internal class ActorPaint(private val f: Frame) {
         val my = y1 + dy * 0.4f
         val h = max(max(w1, w2), wb) * 0.5f
         val top = if (lit) light(color) else Col.lerp(color, light(color), 0.4f)
-        g.fillPolygonGradient(q, mx - px * h, my - py * h, mx + px * h, my + py * h, c(top), c(color), c(shade(color)), 0.42f)
+        grad(q, mx - px * h, my - py * h, mx + px * h, my + py * h, top, color, shade(color), 0.42f)
     }
+
+    /**
+     * Every painted gradient goes through here. The tint is applied as a flat overlay rather
+     * than baked into the gradient's colours, so a hit flash or an emerging silhouette doesn't
+     * mint a new cached shader each frame; the fade rides on alpha, which the backends keep out
+     * of their shader keys. For opaque colours the overlay equals [c]'s lerp exactly.
+     */
+    private fun grad(q: FloatArray, x0: Float, y0: Float, x1: Float, y1: Float, c0: Int, c1: Int, c2: Int, mid: Float) {
+        g.fillPolygonGradient(q, x0, y0, x1, y1, fade(c0), fade(c1), fade(c2), mid)
+        if (flatAmt > 0f) g.fillPolygon(q, Col.alpha(flat, flatAmt * alphaMul * (Col.a(c1) / 255f)))
+    }
+
+    private fun fade(color: Int): Int = if (alphaMul >= 1f) color else Col.fade(color, alphaMul)
 
     private val capPts = FloatArray(24)
 
@@ -217,10 +231,8 @@ internal class ActorPaint(private val f: Frame) {
             disc(x, y, r, color)
             return
         }
-        g.fillPolygonGradient(
-            ring(x, y, r), x + lightX * r, y + lightY * r, x - lightX * r, y - lightY * r,
-            c(light(color)), c(color), c(shade(color)), 0.4f,
-        )
+        val q = ring(x, y, r)
+        grad(q, x + lightX * r, y + lightY * r, x - lightX * r, y - lightY * r, light(color), color, shade(color), 0.4f)
         if (gloss > 0f) {
             g.blend(Gfx.Blend.ADD)
             g.glow(x + lightX * r * 0.42f, y + lightY * r * 0.5f, r * 0.55f, c(Col.alpha(0xFFFFFFFF.toInt(), gloss * (1f - flatAmt))))
@@ -246,7 +258,7 @@ internal class ActorPaint(private val f: Frame) {
         val points = np / 2
         val arr = exact[points] ?: FloatArray(np).also { exact[points] = it }
         System.arraycopy(pts, 0, arr, 0, np)
-        g.fillPolygonGradient(arr, x0, y0, x1, y1, c(light(color)), c(color), c(shade(color)), mid)
+        grad(arr, x0, y0, x1, y1, light(color), color, shade(color), mid)
     }
 
     /** Fill-pass only: the built polygon with a two-tone gradient [c0] -> [c1] from (x0, y0) to (x1, y1). */
@@ -259,7 +271,7 @@ internal class ActorPaint(private val f: Frame) {
         val points = np / 2
         val arr = exact[points] ?: FloatArray(np).also { exact[points] = it }
         System.arraycopy(pts, 0, arr, 0, np)
-        g.fillPolygonGradient(arr, x0, y0, x1, y1, c(c0), c(Col.lerp(c0, c1, 0.5f)), c(c1), 0.5f)
+        grad(arr, x0, y0, x1, y1, c0, Col.lerp(c0, c1, 0.5f), c1, 0.5f)
     }
 
     /** Key light direction (unit, toward the lamp: up and a little in front of the facing). */
