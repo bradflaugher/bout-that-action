@@ -93,6 +93,9 @@ the JVM.
   render change alongside any new value; prefer fields and events.
 - Determinism: a run is a pure function of `RunConfig` and the input
   sequence. Never use wall-clock time or unseeded randomness in `engine/`.
+- `android:appCategory="game"` keeps the portrait lock on large screens (API
+  36+ ignores it for non-games); `MainActivity` pillarboxes any window squatter
+  than `MIN_ASPECT`, so the game view itself is always portrait.
 - The game is portrait-only and the floor exactly fills the screen width:
   the whole hallway is always visible, never scrolled. The HUD, the context
   chip and touch thresholds are sized to the screen (px/dp), not the world.

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -149,52 +150,59 @@ fun TitleScreen(
     onPreset: (Difficulty.Preset) -> Unit,
     onHeroes: () -> Unit,
 ) {
-    Box(Modifier.fillMaxSize().titleScrim().padding(insets).padding(horizontal = Space.l)) {
+    // Logo up top, controls down by the thumbs; at big font sizes or in a short window, it scrolls.
+    BoxWithConstraints(Modifier.fillMaxSize().titleScrim().padding(insets).padding(horizontal = Space.l)) {
         Column(
-            Modifier.align(Alignment.TopCenter).fillMaxWidth().widthIn(max = 480.dp).padding(top = Space.l),
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            NeonLogo()
-            Tagline(Modifier.reveal(700).padding(top = Space.xs))
-            if (records.runs > 0) {
-                Row(
-                    Modifier.reveal(850).padding(top = Space.m),
-                    horizontalArrangement = Arrangement.spacedBy(Space.xs),
-                ) {
-                    RecordChip("DEEPEST", FloorLabel.of(records.bestFloor))
-                    RecordChip("BEST", grouped(records.bestScore))
+            Column(
+                Modifier.fillMaxWidth().widthIn(max = 480.dp).padding(top = Space.l),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                NeonLogo()
+                Tagline(Modifier.reveal(700).padding(top = Space.xs))
+                if (records.runs > 0) {
+                    Row(
+                        Modifier.reveal(850).padding(top = Space.m),
+                        horizontalArrangement = Arrangement.spacedBy(Space.xs),
+                    ) {
+                        RecordChip("DEEPEST", FloorLabel.of(records.bestFloor))
+                        RecordChip("BEST", grouped(records.bestScore))
+                    }
                 }
             }
-        }
 
-        Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth().widthIn(max = 480.dp).padding(bottom = Space.l),
-            verticalArrangement = Arrangement.spacedBy(Space.s),
-        ) {
-            Row(Modifier.fillMaxWidth().reveal(250), verticalAlignment = Alignment.CenterVertically) {
-                LiveDot(Neon.blood)
-                Kicker("LIVE FEED", Neon.blood.copy(alpha = 0.9f), Modifier.padding(start = Space.xs))
-                Spacer(Modifier.weight(1f))
-                Kicker((settings.preset?.blurb ?: "Your own curve").uppercase(Locale.US), Neon.dim, align = TextAlign.End)
-            }
-            Segmented(
-                Difficulty.Preset.entries.toList(),
-                settings.preset,
-                label = ::presetLabel,
-                color = Neon.magenta,
-                modifier = Modifier.reveal(300),
-                onSelect = onPreset,
-            )
-            HeroBar(settings.hero, Modifier.reveal(340), onHeroes)
-            NeonButton(
-                "DROP IN", Neon.magenta, Modifier.fillMaxWidth().reveal(380).padding(top = Space.xxs),
-                style = ButtonStyle.PRIMARY, height = 72.dp, textSize = 26.sp,
-                trailing = { DropChevrons() },
-                onClick = onPlay,
-            )
-            Row(Modifier.fillMaxWidth().reveal(460), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                NeonButton("SETTINGS", Neon.cyan, Modifier.weight(1f), height = 52.dp, onClick = onSettings)
-                SeedChip(settings, Modifier.weight(1f), onSettings)
+            Column(
+                Modifier.fillMaxWidth().widthIn(max = 480.dp).padding(top = Space.l, bottom = Space.l),
+                verticalArrangement = Arrangement.spacedBy(Space.s),
+            ) {
+                Row(Modifier.fillMaxWidth().reveal(250), verticalAlignment = Alignment.CenterVertically) {
+                    LiveDot(Neon.blood)
+                    Kicker("LIVE FEED", Neon.blood.copy(alpha = 0.9f), Modifier.padding(start = Space.xs))
+                    Spacer(Modifier.weight(1f))
+                    Kicker((settings.preset?.blurb ?: "Your own curve").uppercase(Locale.US), Neon.dim, align = TextAlign.End)
+                }
+                Segmented(
+                    Difficulty.Preset.entries.toList(),
+                    settings.preset,
+                    label = ::presetLabel,
+                    color = Neon.magenta,
+                    modifier = Modifier.reveal(300),
+                    onSelect = onPreset,
+                )
+                HeroBar(settings.hero, Modifier.reveal(340), onHeroes)
+                NeonButton(
+                    "DROP IN", Neon.magenta, Modifier.fillMaxWidth().reveal(380).padding(top = Space.xxs),
+                    style = ButtonStyle.PRIMARY, height = 72.dp, textSize = 26.sp,
+                    trailing = { DropChevrons() },
+                    onClick = onPlay,
+                )
+                Row(Modifier.fillMaxWidth().reveal(460), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                    NeonButton("SETTINGS", Neon.cyan, Modifier.weight(1f), height = 52.dp, onClick = onSettings)
+                    SeedChip(settings, Modifier.weight(1f), onSettings)
+                }
             }
         }
     }

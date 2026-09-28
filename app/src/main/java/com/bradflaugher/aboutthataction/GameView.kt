@@ -2,6 +2,7 @@ package com.bradflaugher.aboutthataction
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
@@ -66,8 +67,8 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
 
     private val renderer = Renderer()
     private val gfx = AndroidGfx(context)
-    private val density = resources.displayMetrics.density
-    private val input = GestureInput(density)
+    private var density = resources.displayMetrics.density
+    private var input = GestureInput(density)
     private val inputLock = Any()
     private val pendingPerk = AtomicInteger(-1)
     private val pendingToggle = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -119,6 +120,16 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
     fun onHostPause() {
         hostResumed = false
         stopLoop()
+    }
+
+    /** Display size changed, or the window moved to another screen: gesture thresholds follow the new dp. */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val d = resources.displayMetrics.density
+        if (d != density) synchronized(inputLock) {
+            density = d
+            input = GestureInput(d)
+        }
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
@@ -188,6 +199,8 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
                 }
             }
             draw(w)
+            // Behind the pause menu the frame barely changes: a slow redraw saves the battery.
+            if (paused) Thread.sleep(PAUSED_FRAME_MS)
         }
     }
 
@@ -288,6 +301,7 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
 
     companion object {
         private const val STEP = 1.0 / 120.0
+        private const val PAUSED_FRAME_MS = 50L
         private const val EDGE_EXCLUSION_DP = 32f
         private const val EDGE_EXCLUSION_TALL_DP = 200f
     }

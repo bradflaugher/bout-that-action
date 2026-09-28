@@ -1,5 +1,6 @@
 package com.bradflaugher.aboutthataction
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -23,25 +24,31 @@ class Haptics(context: Context) {
     private var lastShot = 0L
     private var lastLight = 0L
 
-    private val shotTick = VibrationEffect.startComposition().addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.5f).compose()
-    private val softTick = VibrationEffect.startComposition().addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.3f).compose()
-    private val hide = VibrationEffect.startComposition().addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.45f).compose()
-    private val click = VibrationEffect.startComposition().addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.8f).compose()
-    private val thud = VibrationEffect.startComposition().addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1f).compose()
-    private val empty = VibrationEffect.startComposition()
-        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.3f)
-        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.3f, 50)
-        .compose()
-    private val takedown = VibrationEffect.startComposition()
-        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_QUICK_RISE, 0.6f)
-        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 1f, 40)
-        .compose()
+    private val shotTick = compose(VibrationEffect.EFFECT_TICK, Part(TICK, 0.5f))
+    private val softTick = compose(VibrationEffect.EFFECT_TICK, Part(TICK, 0.3f))
+    private val hide = compose(VibrationEffect.EFFECT_CLICK, Part(CLICK, 0.45f))
+    private val click = compose(VibrationEffect.EFFECT_CLICK, Part(CLICK, 0.8f))
+    private val thud = compose(VibrationEffect.EFFECT_HEAVY_CLICK, Part(THUD, 1f))
+    private val empty = compose(VibrationEffect.EFFECT_DOUBLE_CLICK, Part(TICK, 0.3f), Part(TICK, 0.3f, 50))
+    private val takedown = compose(VibrationEffect.EFFECT_HEAVY_CLICK, Part(QUICK_RISE, 0.6f), Part(CLICK, 1f, 40))
     private val boom = VibrationEffect.createWaveform(longArrayOf(0, 60, 30, 90), intArrayOf(0, 255, 0, 160), -1)
     private val death = VibrationEffect.createWaveform(longArrayOf(0, 120, 60, 300), intArrayOf(0, 255, 0, 200), -1)
-    private val perk = VibrationEffect.startComposition()
-        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_SLOW_RISE, 0.7f)
-        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.9f)
-        .compose()
+    private val perk = compose(VibrationEffect.EFFECT_HEAVY_CLICK, Part(SLOW_RISE, 0.7f), Part(CLICK, 0.9f))
+
+    private class Part(val primitive: Int, val scale: Float, val delayMs: Int = 0)
+
+    /**
+     * A crisp primitive composition, or, on a motor that can't play one of its primitives
+     * (a composition with any unsupported primitive plays nothing at all), the closest
+     * predefined effect, which every vibrator renders.
+     */
+    @SuppressLint("WrongConstant") // Every Part is built from the PRIMITIVE_* constants below.
+    private fun compose(fallback: Int, vararg parts: Part): VibrationEffect {
+        if (!vibrator.areAllPrimitivesSupported(*parts.map { it.primitive }.toIntArray())) return VibrationEffect.createPredefined(fallback)
+        val c = VibrationEffect.startComposition()
+        for (p in parts) c.addPrimitive(p.primitive, p.scale, p.delayMs)
+        return c.compose()
+    }
 
     fun onEvent(e: GameEvent) {
         if (!enabled) return
@@ -91,5 +98,10 @@ class Haptics(context: Context) {
     private companion object {
         const val SHOT_GAP_NS = 95_000_000L
         const val LIGHT_GAP_NS = 45_000_000L
+        const val TICK = VibrationEffect.Composition.PRIMITIVE_TICK
+        const val CLICK = VibrationEffect.Composition.PRIMITIVE_CLICK
+        const val THUD = VibrationEffect.Composition.PRIMITIVE_THUD
+        const val QUICK_RISE = VibrationEffect.Composition.PRIMITIVE_QUICK_RISE
+        const val SLOW_RISE = VibrationEffect.Composition.PRIMITIVE_SLOW_RISE
     }
 }

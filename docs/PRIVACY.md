@@ -1,6 +1,6 @@
 # Privacy policy
 
-'Bout That Action collects nothing.
+'Bout That Action, a game by Brad Flaugher, collects nothing.
 
 - **No data leaves your phone.** The app has no network permission, so it
   can't send anything anywhere: no accounts, analytics, ads, crash reports or
@@ -17,4 +17,4 @@ If this ever changes, this page will change first.
 Questions: open an issue at
 <https://github.com/bradflaugher/bout-that-action/issues>.
 
-*Last updated 2026-09-28.*
+*Effective and last updated 2026-09-28.*
