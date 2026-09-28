@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.abs
 
 /** The four heroes: every trait, every hero-only perk, and who gets offered what. */
 class HeroTest {
@@ -105,7 +106,7 @@ class HeroTest {
             val own = Perk.entries.filter { it.hero == hero }
             assertEquals(3, own.size)
             for (p in Perk.entries) {
-                val expected = p.hero == null && !(p == Perk.DOUBLE_JUMP && hero == Hero.VOLT) || p.hero == hero
+                val expected = p.hero == null || p.hero == hero
                 assertEquals("$p for $hero", expected, p.offeredTo(hero))
             }
             // Everyone's perks maxed out: a STASH can only offer this hero's own three.
@@ -118,23 +119,6 @@ class HeroTest {
     }
 
     @Test
-    fun voltIsNeverOfferedDoubleJump() {
-        for (hero in Hero.entries) {
-            val w = world(hero, floor = 1)
-            for (p in Perk.entries) if (p != Perk.DOUBLE_JUMP) w.perks[p] = p.maxStacks
-            toStash(w)
-            if (hero == Hero.VOLT) {
-                assertTrue("VOLT has it built in: the STASH pays out instead", w.perkOffer.isEmpty())
-                assertEquals(Phase.PLAYING, w.phase)
-            } else {
-                assertEquals(listOf(Perk.DOUBLE_JUMP), w.perkOffer)
-            }
-        }
-    }
-
-    // ------------------------------------------------------------ BEAST
-
-    @Test
     fun theBeastHasAnExtraHeartAndRunsFaster() {
         for (hero in Hero.entries) {
             val w = World(RunConfig(1L, Difficulty(hearts = 3), hero = hero))
@@ -142,7 +126,7 @@ class HeroTest {
             assertEquals(if (beast) 4 else 3, w.player.maxHp)
             assertEquals(w.player.maxHp, w.player.hp)
             assertEquals(World.RUN_SPEED * hero.runSpeed, w.runSpeed, 1e-4f)
-            assertEquals(if (beast) 1.1f else if (hero == Hero.VOLT) 1.08f else 1f, hero.runSpeed)
+            assertEquals(if (beast) 1.1f else 1f, hero.runSpeed)
         }
         val w = world(Hero.BEAST)
         w.player.x = 2f
@@ -488,57 +472,88 @@ class HeroTest {
         }
     }
 
-    // ------------------------------------------------------------ VOLT
+    // ------------------------------------------------------------ VIPER
 
     @Test
-    fun voltDoubleJumpsWithoutThePerk() {
-        for (hero in listOf(Hero.VOLT, Hero.BEAST)) {
+    fun viperGlidesInTheBoxUnsuspected() {
+        for (hero in listOf(Hero.VIPER, Hero.BEAST)) {
             val w = world(hero)
-            assertEquals(if (hero == Hero.VOLT) 2 else 1, w.maxJumps)
-            w.commands += Command.SWIPE_UP
-            run(w, 0.15f)
-            w.commands += Command.SWIPE_UP
-            run(w, 0.05f)
-            assertEquals("$hero", if (hero == Hero.VOLT) 2 else 1, w.events.count { it == GameEvent.Jump })
+            w.player.x = 3f
+            w.player.state = PlayerState.BOX
+            w.player.stateTime = 1f
+            assertEquals(hero == Hero.VIPER, w.boxPro)
+            val guard = enemy(w, EnemyKind.AGENT, 10f, facing = -1)
+            var suspicious = false
+            run(w, 0.8f) {
+                it.moveAxis = 1
+                if (guard.state != EnemyState.PATROL) suspicious = true
+            }
+            assertEquals("$hero box speed", if (hero == Hero.VIPER) 2.2f else 1.3f, abs(w.player.vx), 0.05f)
+            assertEquals("$hero looked suspicious", hero != Hero.VIPER, suspicious)
         }
     }
 
     @Test
-    fun voltReloadsFaster() {
-        for (hero in listOf(Hero.VOLT, Hero.BEAST)) {
-            val w = world(hero)
-            w.player.ammo = 0
-            w.player.sinceShot = 9f
-            w.step(dt)
-            assertEquals(World.RELOAD_TIME * if (hero == Hero.VOLT) 0.75f else 1f, w.player.reloadTotal, 1e-4f)
+    fun viperUnplugsDronesAndTurretsByHandQuietly() {
+        for (kind in listOf(EnemyKind.DRONE, EnemyKind.TURRET)) {
+            for (hero in listOf(Hero.VIPER, Hero.BEAST)) {
+                val w = world(hero)
+                w.player.x = 4f
+                w.player.facing = 1
+                val e = enemy(w, kind, 4.5f)
+                e.state = EnemyState.PATROL
+                e.fireCooldown = 99f
+                e.timer = 99f
+                run(w, 0.1f) { e.fireCooldown = 99f }
+                assertEquals("$hero vs $kind", hero != Hero.VIPER, e.alive)
+                if (hero == Hero.VIPER) {
+                    assertEquals(1, w.stats.unplugged)
+                    assertEquals("a quiet kill in SILENT", 1, w.silentKills)
+                    assertTrue(w.fx.texts.any { it.text == Popup.UNPLUGGED })
+                }
+            }
+        }
+        // Not while it's drawing a bead on you.
+        val w = world(Hero.VIPER)
+        w.player.x = 4f
+        val drone = enemy(w, EnemyKind.DRONE, 4.5f)
+        drone.state = EnemyState.AIM
+        drone.stateTime = 0f
+        w.step(dt)
+        assertEquals(0, w.stats.unplugged)
+    }
+
+    @Test
+    fun guardsSpotViperFromCloserInSilent() {
+        for (hero in listOf(Hero.VIPER, Hero.BEAST)) {
+            val w = world(hero, silent = true)
+            w.floor(w.player.floor)!!.halls.forEach { it.lightAlive.fill(true) }
+            w.player.x = 2f
+            // Inside a lit hallway's SILENT sight range, but past three quarters of it.
+            val guard = enemy(w, EnemyKind.AGENT, 2f + World.SILENT_SIGHT_RANGE * 0.87f, facing = -1)
+            guard.vx = 0f
+            run(w, 0.3f) { guard.x = 2f + World.SILENT_SIGHT_RANGE * 0.87f }
+            assertEquals("$hero", hero != Hero.VIPER, guard.state != EnemyState.PATROL)
         }
     }
 
     @Test
-    fun overrideDropsMachinesInOneHit() {
-        for (perk in listOf(true, false)) {
-            val w = world(Hero.VOLT, silent = false)
-            if (perk) w.perks[Perk.OVERRIDE] = 1
-            park(w)
-            val turret = enemy(w, EnemyKind.TURRET, 7f)
-            val drone = enemy(w, EnemyKind.DRONE, 10f)
-            turret.hp = 3
-            drone.hp = 3
-            val f = w.player.floor
-            val h = w.player.hall
-            w.bullets += Bullet(6f, 3f, f, World.PLAYER_BULLET_V, 0f, true, 1, 0, 0, hall = h)
-            w.bullets += Bullet(9f, drone.targetZ, f, World.PLAYER_BULLET_V, 0f, true, 1, 0, 0, hall = h)
-            run(w, 0.2f)
-            assertEquals(!perk, turret.alive)
-            assertEquals(!perk, drone.alive)
-        }
+    fun jammerSlowsTheMachinesOnly() {
+        val w = world(Hero.VIPER)
+        val drone = enemy(w, EnemyKind.DRONE, 9f)
+        val guard = enemy(w, EnemyKind.AGENT, 11f)
+        val base = w.reactionScale(drone)
+        assertEquals(base, w.reactionScale(guard), 1e-4f)
+        w.perks[Perk.JAMMER] = 1
+        assertEquals(base * 2f, w.reactionScale(drone), 1e-4f)
+        assertEquals(base, w.reactionScale(guard), 1e-4f)
     }
 
     @Test
-    fun empDazesTheWholeHallway() {
+    fun chaffDazesTheWholeHallway() {
         for (level in 0..2) {
-            val w = world(Hero.VOLT)
-            if (level > 0) w.perks[Perk.EMP] = level
+            val w = world(Hero.VIPER)
+            if (level > 0) w.perks[Perk.CHAFF] = level
             park(w)
             val far = enemy(w, EnemyKind.AGENT, 12.5f)
             val turret = enemy(w, EnemyKind.TURRET, 11f)
@@ -548,15 +563,15 @@ class HeroTest {
             } else {
                 assertEquals(EnemyState.STUNNED, far.state)
                 assertEquals(EnemyState.STUNNED, turret.state)
-                assertEquals(if (level >= 2) World.EMP_STUN_2 else World.EMP_STUN, far.stunFor, 1e-4f)
+                assertEquals(if (level >= 2) World.CHAFF_STUN_2 else World.CHAFF_STUN, far.stunFor, 1e-4f)
             }
         }
     }
 
-    /** Hits that phased through out of [trials] bullets to the chest. */
-    private fun glitches(level: Int, trials: Int = 200): Int {
-        val w = world(Hero.VOLT)
-        if (level > 0) w.perks[Perk.GLITCH] = level
+    /** Hits that missed out of [trials] bullets to the chest. */
+    private fun camoMisses(level: Int, trials: Int = 200): Int {
+        val w = world(Hero.VIPER)
+        if (level > 0) w.perks[Perk.CAMO] = level
         repeat(trials) {
             val p = w.player
             p.hp = p.maxHp
@@ -568,36 +583,37 @@ class HeroTest {
             run(w, 0.25f)
             w.bullets.clear()
         }
-        return w.stats.glitches
+        return w.stats.camoMisses
     }
 
     @Test
-    fun glitchPhasesOneHitInFourOrOneInThree() {
-        assertEquals(0, glitches(0))
-        val one = glitches(1)
-        val two = glitches(2)
+    fun camoMissesOneHitInFourOrOneInThree() {
+        assertEquals(0, camoMisses(0))
+        val one = camoMisses(1)
+        val two = camoMisses(2)
         assertTrue("LV 1: $one / 200", one in 28..75)
         assertTrue("LV 2: $two / 200", two in 45..90)
-        assertEquals("seeded: the same run glitches the same", one, glitches(1))
-        // A phased hit is a blocked hit: no heart lost, a GLITCH popup.
-        val w = world(Hero.VOLT)
-        w.perks[Perk.GLITCH] = 2
-        var phased = false
+        assertEquals("seeded: the same run misses the same", one, camoMisses(1))
+        // A miss is a blocked hit: no heart lost, a MISSED popup.
+        val w = world(Hero.VIPER)
+        w.perks[Perk.CAMO] = 2
+        var missed = false
         var tries = 0
-        while (!phased && tries++ < 50) {
+        while (!missed && tries++ < 50) {
             w.player.invuln = 0f
             val hp = w.player.hp
             w.events.clear()
             bullet(w, w.player.x + 0.2f, Body.HIGH, -9f)
             run(w, 0.25f)
             if (w.events.contains(GameEvent.ShieldBlock)) {
-                phased = true
+                missed = true
                 assertEquals(hp, w.player.hp)
-                assertTrue(w.fx.texts.any { it.text == Popup.GLITCH })
+                assertTrue(w.fx.texts.any { it.text == Popup.MISSED })
                 assertTrue(w.player.invuln > 0f)
+                assertTrue(w.player.camoTime > 0f)
             }
             w.player.hp = w.player.maxHp
         }
-        assertTrue(phased)
+        assertTrue(missed)
     }
 }

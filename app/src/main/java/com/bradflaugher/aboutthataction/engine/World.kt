@@ -158,8 +158,8 @@ class World(val config: RunConfig) {
     private var reflexTime = 0f
     private var heavyBounceCooldown = 0f
 
-    /** GLITCH's rolls, on their own stream so they never shift anything else in the run. */
-    private val glitchRng = Rng(seed xor GLITCH_KEY)
+    /** CAMO's rolls, on their own stream so they never shift anything else in the run. */
+    private val camoRng = Rng(seed xor CAMO_KEY)
     /** Kills since CANDY RAIN was picked (or last paid out). */
     private var candyKills = 0
 
@@ -186,8 +186,14 @@ class World(val config: RunConfig) {
     /** How much longer than usual guards take to react once they spot you (ACE's trait, DISGUISE). */
     val reactionScale: Float get() = hero.reactionScale * if (stacks(Perk.DISGUISE) > 0) 2f else 1f
 
+    /** How slow [e] is to react once it spots you: [reactionScale], and JAMMER on the machines. */
+    fun reactionScale(e: Enemy): Float =
+        reactionScale * if (stacks(Perk.JAMMER) > 0 && (e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET)) 2f else 1f
+
     /** Jumps before touching down: one, plus the hero's or the perk's second. */
-    val maxJumps: Int get() = 1 + (if (hero.doubleJump) 1 else 0) + stacks(Perk.DOUBLE_JUMP)
+    val maxJumps: Int get() = 1 + stacks(Perk.DOUBLE_JUMP)
+    /** The box glides and never looks suspicious: VIPER's trait or GHOST BOX. */
+    val boxPro: Boolean get() = hero.boxPro || stacks(Perk.GHOST_BOX) > 0
     val heat: Float get() = floors[player.floor]?.plan?.heat ?: 0f
 
     fun stacks(perk: Perk): Int = perks[perk] ?: 0
@@ -912,7 +918,7 @@ class World(val config: RunConfig) {
         }
         p.reflexCooldown -= dt
         p.swatTime -= dt
-        p.glitchTime -= dt
+        p.camoTime -= dt
         // VENT CRAWL's head start only runs down once you're out where they could see you.
         if (p.unseenTime > 0f && (p.state == PlayerState.NORMAL || p.state == PlayerState.BOX)) p.unseenTime -= dt
         if (p.weapon != null) {
@@ -1053,7 +1059,7 @@ class World(val config: RunConfig) {
         val p = player
         val boxed = p.state == PlayerState.BOX
         val speed = when {
-            boxed -> if (stacks(Perk.GHOST_BOX) > 0) 3.6f else 1.3f
+            boxed -> if (stacks(Perk.GHOST_BOX) > 0) 3.6f else if (hero.boxPro) 2.2f else 1.3f
             else -> runSpeed
         }
         val target = moveAxis * speed
@@ -1111,7 +1117,16 @@ class World(val config: RunConfig) {
         val reach = 0.55f + 0.3f * stacks(Perk.CQC)
         for (e in enemies) {
             if (!here(e) || !e.alive || e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
-            if (e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET) continue
+            if (e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET) {
+                // SABOTAGE: reach up and pull the plug, as long as it isn't drawing a bead on you.
+                if (hero.sabotage && e.state != EnemyState.AIM && abs(e.x - p.x) <= reach + e.halfWidth &&
+                    (p.state == PlayerState.NORMAL || p.state == PlayerState.BOX)
+                ) {
+                    unplug(e, if (e.x >= p.x) 1 else -1)
+                    return
+                }
+                continue
+            }
             val dx = e.x - p.x
             val fromDir = if (dx > 0f) 1 else -1
             // Magnetic: pushing toward a guard within a hair lunges into the choke.
@@ -1173,6 +1188,26 @@ class World(val config: RunConfig) {
         shake = max(shake, 0.3f)
         fx.text(Popup.FLATTENED, e.x, Geo.groundY(e.floor) - 1.9f, TextStyle.TAKEDOWN, 0.8f)
         fx.burst(ParticleKind.DUST, e.x, Geo.groundY(e.floor) - 0.1f, 10, 3f, 0.5f, 0.14f, upBias = 0.3f)
+        afterTakedown(e)
+    }
+
+    /** VIPER's SABOTAGE: a drone or turret unplugged by hand. A takedown, so it's quiet in SILENT. */
+    private fun unplug(e: Enemy, dir: Int) {
+        val p = player
+        if (p.state == PlayerState.BOX) {
+            p.state = PlayerState.NORMAL
+            p.stateTime = 0f
+        }
+        takedowns++
+        stats.unplugged++
+        events += GameEvent.Takedown
+        p.swatTime = SWAT_TIME
+        p.facing = dir
+        kill(e, KillMethod.TAKEDOWN, dir)
+        e.deathVx = dir * 1.5f
+        e.deathVz = 0f
+        hitStop = max(hitStop, 0.04f)
+        fx.text(Popup.UNPLUGGED, e.x, Geo.groundY(e.floor) - e.z - e.height - 0.8f, TextStyle.TAKEDOWN, 0.8f)
         afterTakedown(e)
     }
 
@@ -1548,11 +1583,11 @@ class World(val config: RunConfig) {
             }
         }
         quietBlast = false
-        // EMP: a grenade also fries everyone's wiring in the hallway, near or far.
-        val emp = stacks(Perk.EMP)
+        // CHAFF: a grenade also bursts into foil that dazes everyone in the hallway, near or far.
+        val emp = stacks(Perk.CHAFF)
         if (grenade && emp > 0) {
             fx.ring(x, y, Geo.FLOOR_W * 0.5f, 0.6f)
-            for (e in enemies) if (e.floor == floor && e.hall == hall && e.alive) stun(e, if (emp >= 2) EMP_STUN_2 else EMP_STUN)
+            for (e in enemies) if (e.floor == floor && e.hall == hall && e.alive) stun(e, if (emp >= 2) CHAFF_STUN_2 else CHAFF_STUN)
         }
         // A GHOST BOX ambush goes off in your arms: it leaves the ceiling alone rather than drop a light on you.
         if (!byGhost) hall(floor, hall)?.let { hs ->
@@ -1591,7 +1626,7 @@ class World(val config: RunConfig) {
         e.stateTime = 0f
         // SILENT: no gunfire to home in on, so it takes them a beat longer to get a bead on you.
         val quiet = if (silent) SILENT_REACTION else 1f
-        e.timer = Heat.reaction(floors[e.floor]?.plan?.heat ?: 0f) * quiet * reactionScale * rng.range(0.8f, 1.2f)
+        e.timer = Heat.reaction(floors[e.floor]?.plan?.heat ?: 0f) * quiet * reactionScale(e) * rng.range(0.8f, 1.2f)
         // Just through a door or out of a car: a beat to take in the new hallway first.
         if (here(e)) e.timer += max(0f, ARRIVAL_GRACE - hallTime)
         if (e.asleep) {
@@ -1612,7 +1647,7 @@ class World(val config: RunConfig) {
     private fun seesBoxMove(e: Enemy, dx: Float, range: Float): Boolean {
         val p = player
         return p.state == PlayerState.BOX && here(e) && !e.asleep && LevelGen.canNap(e.kind) &&
-            abs(p.vx) > BOX_SUSPICIOUS_SPEED && p.stateTime > 0.25f && stacks(Perk.GHOST_BOX) == 0 &&
+            abs(p.vx) > BOX_SUSPICIOUS_SPEED && p.stateTime > 0.25f && !boxPro &&
             sign(dx).toInt() == e.facing && abs(dx) < range && abs(dx) > 0.9f
     }
 
@@ -1636,9 +1671,7 @@ class World(val config: RunConfig) {
 
     private fun damageEnemy(e: Enemy, dmg: Int, method: KillMethod, dir: Int) {
         if (!e.alive) return
-        // OVERRIDE: machines fold at the first touch.
-        val hacked = stacks(Perk.OVERRIDE) > 0 && (e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET)
-        e.hp -= if (hacked) e.hp else dmg
+        e.hp -= dmg
         e.hurtFlash = 0.12f
         val y = Geo.groundY(e.floor) - e.targetZ
         if (e.hp <= 0) {
@@ -1749,15 +1782,14 @@ class World(val config: RunConfig) {
         if (p.state == PlayerState.DOOR || p.state == PlayerState.STASH || p.state == PlayerState.PASSAGE || p.state == PlayerState.TAKEDOWN) return
         val hurt = Hurt(cause, by, p.floor, zone, hallTime, ambush, hazard)
         val y = Geo.groundY(p.floorF) - p.z - 0.9f
-        // GLITCH: 1 in 4 (1 in 3 at LV 2) phases right through you, before anything else gets a say.
-        val glitch = stacks(Perk.GLITCH)
-        if (glitch > 0 && glitchRng.nextInt(if (glitch >= 2) 3 else 4) == 0) {
-            p.invuln = GLITCH_INVULN
-            p.glitchTime = GLITCH_SHOW
-            stats.glitches++
+        // CAMO: 1 in 4 (1 in 3 at LV 2) misses you, before anything else gets a say.
+        val camo = stacks(Perk.CAMO)
+        if (camo > 0 && camoRng.nextInt(if (camo >= 2) 3 else 4) == 0) {
+            p.invuln = CAMO_INVULN
+            p.camoTime = CAMO_SHOW
+            stats.camoMisses++
             events += GameEvent.ShieldBlock
-            fx.text(Popup.GLITCH, p.x, y - 1.3f, TextStyle.WARN, 0.8f)
-            fx.burst(ParticleKind.SPARK, p.x, y, 10, 5f, 0.25f, 0.07f)
+            fx.text(Popup.MISSED, p.x, y - 1.3f, TextStyle.WARN, 0.8f)
             return
         }
         spotted(p.floor)
@@ -1870,7 +1902,7 @@ class World(val config: RunConfig) {
             // Pitch black (a BLACKOUT floor, or every lamp shot out): nobody sees past
             // arm's length, sensors included. "They can't see you either."
             val pitchBlack = hs.darkness >= 1f
-            val range = if (pitchBlack) BLACKOUT_SIGHT else (if (silent) SILENT_SIGHT_RANGE else SIGHT_RANGE) - 4.3f * hs.darkness
+            val range = if (pitchBlack) BLACKOUT_SIGHT else (if (silent) SILENT_SIGHT_RANGE * hero.sneakSight else SIGHT_RANGE) - 4.3f * hs.darkness
             val omni = e.kind == EnemyKind.TURRET || e.kind == EnemyKind.DRONE
             val boxedNearby = player.state == PlayerState.BOX && here(e) && dist < 1.8f &&
                 (e.state == EnemyState.ALERT || e.state == EnemyState.AIM)
@@ -2590,14 +2622,14 @@ class World(val config: RunConfig) {
         const val VENT_CRAWL_SCALE = 0.5f
         /** ...and nobody can see you for this long once you're out in the open. */
         const val VENT_UNSEEN_TIME = 1.5f
-        /** EMP: a grenade dazes the whole hallway this long (LV 2: [EMP_STUN_2]). */
-        const val EMP_STUN = 2f
-        const val EMP_STUN_2 = 3.5f
-        /** GLITCH: a phased hit leaves you untouchable this long (so a laser can't just re-roll)... */
-        const val GLITCH_INVULN = 0.5f
-        /** ...and flickers this long ([Player.glitchTime]). */
-        const val GLITCH_SHOW = 0.4f
-        private const val GLITCH_KEY = 0x6717C4L
+        /** CHAFF: a grenade dazes the whole hallway this long (LV 2: [CHAFF_STUN_2]). */
+        const val CHAFF_STUN = 2f
+        const val CHAFF_STUN_2 = 3.5f
+        /** CAMO: a missed hit leaves you untouchable this long (so a laser can't just re-roll)... */
+        const val CAMO_INVULN = 0.5f
+        /** ...and shimmers this long ([Player.camoTime]). */
+        const val CAMO_SHOW = 0.4f
+        private const val CAMO_KEY = 0x6717C4L
         /** HARDY's second wind: back up on one heart, untouchable this long. */
         const val SECOND_WIND_INVULN = 2f
 

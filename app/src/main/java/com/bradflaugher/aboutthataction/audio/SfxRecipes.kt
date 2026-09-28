@@ -878,7 +878,7 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                     attack = 0.002f; decay = 2f; gain = 0.12f; reverb = 0.45f; delay = 1.1f + k * 0.42f; priority = 4f
                 }
             }
-            Hero.VOLT -> {
+            Hero.VIPER -> {
                 // Chip power-down: a falling arpeggio that crunches and sags to nothing.
                 for (k in POWER_DOWN.indices) voice {
                     val s = POWER_DOWN[k]

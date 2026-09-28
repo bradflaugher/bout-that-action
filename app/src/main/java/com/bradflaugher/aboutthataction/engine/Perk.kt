@@ -45,17 +45,14 @@ enum class Perk(
     VENT_CRAWL("VENT CRAWL", "Passages twice as quick; arrive unseen", 1, "Now I know what a TV dinner feels like.", Hero.HARDY),
     ADRENALINE("ADRENALINE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "Welcome to the party, pal.", Hero.HARDY),
 
-    // ---- VOLT
-    OVERRIDE("OVERRIDE", "Drones and turrets drop to a single hit", 1, "sudo explode.", Hero.VOLT),
-    EMP("EMP", "Grenades daze the whole hallway (LV 2: longer)", 2, "Unplugged.", Hero.VOLT),
-    GLITCH("GLITCH", "1 in 4 hits phase through you (LV 2: 1 in 3)", 2, "Lag, but for bullets.", Hero.VOLT),
+    // ---- VIPER
+    JAMMER("JAMMER", "Drones and turrets take twice as long to react", 1, "Static on every channel.", Hero.VIPER),
+    CHAFF("CHAFF", "Grenades daze the whole hallway (LV 2: longer)", 2, "Shiny. Confusing. Effective.", Hero.VIPER),
+    CAMO("CAMO", "1 in 4 hits miss you (LV 2: 1 in 3)", 2, "Just a very tall fern.", Hero.VIPER),
     ;
 
-    /**
-     * Can [who] find this in a STASH? Everyone's perks, plus their own three; a hero with a
-     * double jump built in (VOLT) never gets DOUBLE JUMP.
-     */
-    fun offeredTo(who: Hero): Boolean = (hero == null || hero == who) && !(this == DOUBLE_JUMP && who.doubleJump)
+    /** Can [who] find this in a STASH? Everyone's perks, plus their own three. */
+    fun offeredTo(who: Hero): Boolean = hero == null || hero == who
 }
 
 /** Short-lived pickups dropped by enemies and found in the building. */

@@ -46,9 +46,11 @@ object Popup {
     const val FLATTENED = "FLATTENED"
     /** HARDY's once-a-run shrug-off of a fatal hit. */
     const val SECOND_WIND = "SECOND WIND"
-    /** VOLT's GLITCH: a hit phased right through. */
-    const val GLITCH = "GLITCH"
-    /** Guards stunned by an EMP, a BEAST QUAKE or a YIPPEE blast. */
+    /** VIPER's SABOTAGE: a drone or turret unplugged by hand. */
+    const val UNPLUGGED = "UNPLUGGED"
+    /** VIPER's CAMO: a hit that missed him. */
+    const val MISSED = "MISSED"
+    /** Guards stunned by CHAFF, a BEAST QUAKE or a YIPPEE blast. */
     const val DAZED = "DAZED"
 }
 

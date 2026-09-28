@@ -581,9 +581,9 @@ internal object HeroSongs {
                 themeBase("hardy-theme", 132f, 50, IONIAN, tri(IONIAN, 0, 4, 5, 0, 0, 4, 3, 4), tri(IONIAN, 5, 3, 0, 4), 1988),
                 t, "hardy-theme", hardyHook,
             )
-            Hero.VOLT -> voltHot(
-                themeBase("volt-theme", 142f, 54, AEOLIAN, tri(AEOLIAN, 0, 5, 2, 6), tri(AEOLIAN, 3, 5, 6, 0), 8088),
-                t, "volt-theme", voltHook,
+            Hero.VIPER -> voltHot(
+                themeBase("viper-theme", 142f, 54, AEOLIAN, tri(AEOLIAN, 0, 5, 2, 6), tri(AEOLIAN, 3, 5, 6, 0), 8088),
+                t, "viper-theme", voltHook,
             )
         }.derive(gain = trim, fixedIntensity = 0.85f)
     }
@@ -598,7 +598,7 @@ internal object HeroSongs {
             Hero.BEAST -> if (silent) beastSneak(base, t, name) else beastHot(base, t, name)
             Hero.ACE -> if (silent) aceSneak(base, t, name) else aceHot(base, t, name)
             Hero.HARDY -> if (silent) hardySneak(base, t, name) else hardyHot(base, t, name)
-            Hero.VOLT -> if (silent) voltSneak(base, t, name) else voltHot(base, t, name)
+            Hero.VIPER -> if (silent) voltSneak(base, t, name) else voltHot(base, t, name)
         }
         return spec.derive(gain = (if (silent) SNEAK_TRIM else HOT_TRIM)[h.ordinal][z.ordinal])
     }

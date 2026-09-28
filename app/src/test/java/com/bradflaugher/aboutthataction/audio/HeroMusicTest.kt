@@ -126,10 +126,10 @@ class HeroMusicTest {
         assertEquals("a new zone still waits for the bar", "tower-ace", e.songName)
         render(e, 5f)
         assertEquals("labs-ace", e.songName)
-        e.setHero(Hero.VOLT)
+        e.setHero(Hero.VIPER)
         e.setZone(Zone.LABS)
         render(e, 6f)
-        assertEquals("labs-volt", e.songName)
+        assertEquals("labs-viper", e.songName)
         e.setHero(null)
         e.setZone(Zone.LABS)
         render(e, 6f)
@@ -173,7 +173,7 @@ class HeroMusicTest {
         // playHeroTheme also picks the hero for the run.
         e.setZone(Zone.ROOFTOP)
         render(e, 8f)
-        assertEquals("rooftop-volt", e.songName)
+        assertEquals("rooftop-viper", e.songName)
     }
 
     @Test

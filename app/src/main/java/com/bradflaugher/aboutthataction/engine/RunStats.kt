@@ -52,8 +52,10 @@ class RunStats {
     var stiffArms = 0
     /** HARDY: fatal hits shrugged off (one a run at most). */
     var secondWinds = 0
-    /** GLITCH: hits that phased right through. */
-    var glitches = 0
+    /** SABOTAGE: drones and turrets unplugged by hand. */
+    var unplugged = 0
+    /** CAMO: hits that missed. */
+    var camoMisses = 0
     /** Guards dazed by an EMP, a BEAST QUAKE or a YIPPEE blast. */
     var dazed = 0
     var hurts = 0

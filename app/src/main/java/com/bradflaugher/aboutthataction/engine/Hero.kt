@@ -31,8 +31,12 @@ enum class Hero(
     val secondWind: Boolean = false,
     /** Grenades on top of the usual start and carry limit. */
     val extraGrenades: Int = 0,
-    /** A second jump mid-air, no perk needed. */
-    val doubleJump: Boolean = false,
+    /** The box is quick and never looks suspicious moving (GHOST BOX's glide, without the pop). */
+    val boxPro: Boolean = false,
+    /** In SILENT, how far guards can see you, as a multiple of [World.SILENT_SIGHT_RANGE]. */
+    val sneakSight: Float = 1f,
+    /** Drones and turrets can be unplugged by hand, like a takedown (not while they're aiming at you). */
+    val sabotage: Boolean = false,
     /** Reload time, as a multiple. */
     val reloadScale: Float = 1f,
     /** Time between pistol shots, as a multiple. */
@@ -59,11 +63,11 @@ enum class Hero(
         0xFFFF7A3C.toInt(),
         secondWind = true, extraGrenades = 1,
     ),
-    /** Neon courier-hacker on skates. Quick, floaty, fries machines. */
-    VOLT(
-        "VOLT", "Hacker courier. Wheels on.",
-        "Double jump, fast skates, quick reloads", "Have you tried turning it off?",
-        0xFF3CF0FF.toInt(),
-        doubleJump = true, reloadScale = 0.75f, runSpeed = 1.08f,
+    /** Jungle commando in a bandana. Lives in the box, unplugs the robots, never makes a sound. */
+    VIPER(
+        "VIPER", "Jungle commando. Bandana on.",
+        "Sneaks unseen, unplugs robots by hand, sly box", "A box is a lifestyle.",
+        0xFFE8413A.toInt(),
+        boxPro = true, sabotage = true, sneakSight = 0.75f, reloadScale = 0.75f,
     ),
 }
