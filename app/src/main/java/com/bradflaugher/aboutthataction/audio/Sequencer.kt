@@ -22,6 +22,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private val wind = Wind(sr)
     private val rotor = Rotor(sr)
     private val crowd = Crowd(sr)
+    private val jungle = Jungle(sr)
     private val rng = Rng(0x5eed + id.toLong())
 
     var spec: SongSpec? = null; private set
@@ -402,6 +403,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         ambL.fill(0f, 0, n); ambR.fill(0f, 0, n)
         wind.render(ambL, ambR, n, sp.wind)
         rotor.render(ambL, ambR, n, sp.rotor, 0.6f * Dsp.sin01((time * 0.05).toFloat()))
+        jungle.render(ambL, ambR, n, sp.jungle)
         if (sp.crowd > 0f) {
             val i = if (sp.fixedIntensity >= 0f) sp.fixedIntensity else intensity
             crowdSwell *= crowdDecay.pow(n)

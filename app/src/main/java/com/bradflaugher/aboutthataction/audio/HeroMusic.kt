@@ -30,7 +30,7 @@ import kotlin.math.sqrt
  *  - VIPER: 80s action-movie / tactical-espionage score. Military snare cadences and rolls,
  *    taiko-like war toms, log drums and a shaker, a low pulsing stealth bassline, dark synth
  *    pads, brass stabs and a heroic minor-key French horn call. His sneak mix is pure
- *    tension: a ticking clock, a low drone, a distant war drum and sparse plucks. (HARDY is
+ *    tension: a ticking clock, a low drone, a distant war drum, sparse plucks and crickets. (HARDY is
  *    the rock band — guitars, gated snare, sleigh bells; VIPER is the orchestra and drums.)
  *
  * All of it is built once (at [SoundEngine] construction) and never allocates while playing.
@@ -514,6 +514,7 @@ internal object HeroSongs {
         ),
         lead = frenchHorn.copyish(cutoff = 800f, gain = 0.13f),
         mix = scaled(base.mix, pad = 0.5f, bass = 1.2f, arp = 3.5f, drums = 0.88f, arpDelay = 0.7f),
+        jungle = 0.08f,
     )
 
     // ---- Themes (hero picker) --------------------------------------------------------------
@@ -677,6 +678,7 @@ internal fun SongSpec.derive(
     leadThreshold: Float = this.leadThreshold,
     padPower: Boolean = this.padPower,
     crowd: Float = this.crowd,
+    jungle: Float = this.jungle,
     signature: Motif? = this.signature,
     answer: Motif? = this.answer,
     gain: Float = this.gain,
@@ -691,6 +693,6 @@ internal fun SongSpec.derive(
     fixedIntensity = fixedIntensity, kickThreshold = kickThreshold, arpThreshold = arpThreshold,
     leadThreshold = leadThreshold, sections = sections, delayBeats = delayBeats,
     padRhythmB = padRhythmB ?: if (padRhythm == this.padRhythm) this.padRhythmB else padRhythm,
-    padPower = padPower, crowd = crowd, signature = signature,
+    padPower = padPower, crowd = crowd, jungle = jungle, signature = signature,
     answer = answer, gain = gain,
 )

@@ -457,6 +457,26 @@ class HeroInstrumentsTest {
         assertTrue("the crowd should roar", acc / 179 > 0.02)
     }
 
+    @Test
+    fun theJungleChirpsHighAndOnlyWhenAsked() {
+        val j = Jungle(sr)
+        val n = 256
+        val l = FloatArray(n)
+        val r = FloatArray(n)
+        j.render(l, r, n, 0f)
+        assertEquals(0.0, rms(l), 0.0)
+        val out = FloatArray(sr * 2)
+        for (b in 0 until out.size / n) {
+            l.fill(0f); r.fill(0f)
+            j.render(l, r, n, 1f)
+            System.arraycopy(l, 0, out, b * n, n)
+        }
+        val high = AudioTestUtil.bandShare(AudioTestUtil.spectrum(out, 2048), 3500.0, 9000.0)
+        println("jungle rms %.3f, 3.5-9 kHz share %.2f".format(rms(out), high))
+        assertTrue(rms(out) > 0.02 && AudioTestUtil.peak(out) < 1f)
+        assertTrue("crickets should chirp high ($high)", high > 0.5)
+    }
+
     /** BEAST's drumline rolls put a second stroke inside the step, and everything else still lands. */
     @Test
     fun snareRollsAddStrokesWithinTheStep() {

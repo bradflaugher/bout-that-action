@@ -84,6 +84,7 @@ class HeroWavExportTest {
             ),
             crowd = if (which == "amb") spec.crowd else 0f,
             wind = if (which == "amb") spec.wind else 0f, rotor = if (which == "amb") spec.rotor else 0f,
+            jungle = if (which == "amb") spec.jungle else 0f,
         )
         val d = MusicDirector(48000)
         d.intensity = intensity

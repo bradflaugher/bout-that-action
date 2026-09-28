@@ -113,6 +113,8 @@ internal class SongSpec(
     val padPower: Boolean = false,
     /** Stadium crowd roar level; it swells into every phrase's fill and on the crash. */
     val crowd: Float = 0f,
+    /** Night-jungle ambience (crickets and cicadas) level. */
+    val jungle: Float = 0f,
     /** Hand-picked signature motif (replaces the generated one) and answer motif. */
     val signature: Motif? = null,
     val answer: Motif? = null,

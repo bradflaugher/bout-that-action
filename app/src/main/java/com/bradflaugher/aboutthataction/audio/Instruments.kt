@@ -388,3 +388,42 @@ internal class Crowd(private val sr: Int) {
         }
     }
 }
+
+/**
+ * Night jungle: a cricket on each side (chirp trains of a pure ~4.4 kHz tone) over a thin
+ * cicada hiss that breathes slowly. Quiet by design; it sits under a sneak mix.
+ */
+internal class Jungle(private val sr: Int) {
+    private val noise = Noise(8086)
+    private val hiss = Svf().apply { setHz(6500f, 3f, sr) }
+    private var t = 0.0
+    private var pl = 0f
+    private var pr = 0f
+
+    fun render(l: FloatArray, r: FloatArray, n: Int, level: Float) {
+        if (level <= 0f) return
+        val inv = 1f / sr
+        for (i in 0 until n) {
+            t += inv
+            val tf = t.toFloat()
+            // Chirps: 4 pulses at 30 Hz, bursts every ~0.9 s (the right cricket answers late).
+            val cl = chirp(tf)
+            val cr = chirp(tf + 0.41f) * (0.6f + 0.4f * Dsp.sin01(tf * 0.05f))
+            pl += 4400f * inv; if (pl >= 1f) pl -= 1f
+            pr += 4650f * inv; if (pr >= 1f) pr -= 1f
+            val breath = 0.5f + 0.5f * Dsp.sin01(tf * 0.13f)
+            val h = hiss.bp(noise.next()) * 0.35f * breath
+            l[i] += (Dsp.sin01(pl) * cl * 0.25f + h) * level
+            r[i] += (Dsp.sin01(pr) * cr * 0.25f + h) * level
+        }
+    }
+
+    private fun chirp(x: Float): Float {
+        val burst = x / 0.9f
+        val inBurst = (burst - burst.toInt()) * 0.9f // seconds into this burst
+        if (inBurst > 0.13f) return 0f
+        val p = inBurst * 30f
+        val ph = p - p.toInt()
+        return if (ph < 0.5f) Dsp.sin01(ph) else 0f
+    }
+}
