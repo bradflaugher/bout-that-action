@@ -75,9 +75,9 @@ them. The game leans on a few:
   nickname).
 - ACE's joke riffs on James Bond, HARDY's on *Die Hard* and VIPER on
   *Metal Gear Solid*.
-
-- The murals in the halls say BEAST MODE (Lynch's own trademark) and
-  SKITTLES (Mars's), and store screenshots count as listing metadata.
+- Wall text (murals, graffiti, neon, departure boards in `EnvWalls`) is
+  all original: no brands, slogans or trademarks. Store screenshots count as
+  listing metadata, so keep it that way.
 
 The Play listing text itself names no other game or brand: the README keeps
 the Elevator Action and Metal Gear Solid homage, but Play's metadata policy
@@ -85,7 +85,7 @@ forbids other people's trademarks in the title and descriptions, so keep them
 out of `fastlane/`.
 
 The parodies are gentle and there are no real names or logos, but the
-BEAST's colours and number, the BEAST MODE murals and the title are the
+BEAST's colours and number plus the title are the
 riskiest part. Change them if review pushes back.
 
 ## Refreshing the store screenshots

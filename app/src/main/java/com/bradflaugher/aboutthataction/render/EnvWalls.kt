@@ -36,11 +36,21 @@ internal class EnvWalls(private val f: Frame) {
         private val ART_TOP = intArrayOf(0xFF9A2A6A.toInt(), 0xFF1E6A78.toInt(), 0xFFB0502A.toInt(), 0xFFD8CCB8.toInt())
         private val ART_BOT = intArrayOf(0xFF2A1A5A.toInt(), 0xFF0E2238.toInt(), 0xFF3A0E1A.toInt(), 0xFF8A7A68.toInt())
         private val BOOKS = intArrayOf(0xFF6A2A3A.toInt(), 0xFF2A4A6A.toInt(), 0xFF8A6A3A.toInt(), 0xFF3A5A3A.toInt(), 0xFF5A3A6A.toInt(), 0xFFB0A080.toInt())
-        private val TAGS = arrayOf("BEAST", "SKITTLES", "RUN IT", "YEAH", "#24")
+        /** Metro graffiti. Eleven, so every slot's hash reaches every tag. */
+        private val TAGS = arrayOf("RUN IT", "YEAH", "DUCK!", "HI MOM", "ALL GAS", "BOX GANG", "ZOOM", "404", "B-99", "WHY?", "GG")
         private val TOWER_TINTS = intArrayOf(0, 0x1CFF3D9A, 0x1C2C8CFF, 0x162CF0C8, 0x18FFA040)
         private val LAB_TINTS = intArrayOf(0, 0x14FFFFFF, 0x142C8CFF, 0x10A0FF40)
-        private val MURALS = arrayOf("BEAST MODE", "SKITTLES", "'BOUT THAT", "RUN IT BACK")
-        private val ARRIVALS = arrayOf("NEXT  2 MIN", "DELAYED", "NO SERVICE", "EXPRESS  B-99")
+        private val MURALS = arrayOf(
+            "'BOUT THAT", "ACTION!", "RUN IT BACK", "GOING DOWN", "NO STAIRS",
+            "FULL SEND", "BOX GANG", "DEEPER", "HIDE & SEEK", "KEEP FALLING",
+        )
+        private val ARRIVALS = arrayOf(
+            "NEXT  2 MIN", "DELAYED", "NO SERVICE", "EXPRESS  B-99",
+            "DOWN ONLY", "UP: NEVER", "NEXT  ?? MIN", "LAST CALL",
+        )
+        /** Office neon (five letters at most, to fit the box). */
+        private val OFFICE_NEON = arrayOf("NEXUS", "SYNC", "HYPE", "ZEN", "PIVOT", "MEMO", "OPEN")
+        private val VOID_NEON = arrayOf("NULL", "VOID", "NaN", "EOF", "???", "404")
     }
 
     // ================================================================ materials
@@ -504,7 +514,7 @@ internal class EnvWalls(private val f: Frame) {
             Zone.TOWER, Zone.ROOFTOP -> when (kind) {
                 0 -> { plant(pal, sx - 0.2f, gy); art(pal, sx + 0.1f, rt + 0.72f, v) }
                 1 -> { cooler(pal, sx, gy); neonSign(pal, sx, rt + 0.62f, "24/7") }
-                2 -> { desk(pal, sx, gy); neonSign(pal, sx, rt + 0.62f, if (v % 3 == 0) "NEXUS" else "SYNC") }
+                2 -> { desk(pal, sx, gy); neonSign(pal, sx, rt + 0.62f, OFFICE_NEON[(v / 8) % OFFICE_NEON.size]) }
                 3 -> { art(pal, sx, rt + 0.72f, v); plant(pal, sx + 0.3f, gy) }
                 4 -> { bookshelf(pal, sx, gy, v) }
                 5 -> { floorLamp(pal, sx + 0.25f, gy); lounge(pal, sx - 0.1f, gy) }
@@ -561,7 +571,7 @@ internal class EnvWalls(private val f: Frame) {
                 6 -> { bones(pal, sx, gy, v); sconce(pal, sx + 0.3f, rt + 1.25f) }
                 else -> { maiden(pal, sx, gy) }
             }
-            Zone.VOID -> neonSign(pal, sx, rt + 1.1f, "NULL")
+            Zone.VOID -> neonSign(pal, sx, rt + 1.1f, VOID_NEON[(v / 8) % VOID_NEON.size])
         }
     }
 
