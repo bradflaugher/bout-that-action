@@ -113,10 +113,6 @@ internal class SongSpec(
     val padPower: Boolean = false,
     /** Stadium crowd roar level; it swells into every phrase's fill and on the crash. */
     val crowd: Float = 0f,
-    /** Per-step chance of a glitch stutter (a half-step hat/snare repeat). */
-    val stutter: Float = 0f,
-    /** Scales VOID's random tempo jumps (a hero's tempo nudge survives them). */
-    val tempoScale: Float = 1f,
     /** Hand-picked signature motif (replaces the generated one) and answer motif. */
     val signature: Motif? = null,
     val answer: Motif? = null,

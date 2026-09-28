@@ -27,8 +27,11 @@ import kotlin.math.sqrt
  *    sleigh bells, palm-muted power chords, tubular bells and an overdriven guitar lead
  *    whose hook is Beethoven's "Ode to Joy" (public domain); his sneak mix tiptoes on
  *    pizzicato under the "Shchedryk" bell ostinato (Leontovych, public domain).
- *  - VOLT: chiptune cyberpunk. Pulse-wave everything, fast arps, bit-crushed drums, glitch
- *    stutters, a hard sidechain pump and a tempo nudge up.
+ *  - VIPER: 80s action-movie / tactical-espionage score. Military snare cadences and rolls,
+ *    taiko-like war toms, log drums and a shaker, a low pulsing stealth bassline, dark synth
+ *    pads, brass stabs and a heroic minor-key French horn call. His sneak mix is pure
+ *    tension: a ticking clock, a low drone, a distant war drum and sparse plucks. (HARDY is
+ *    the rock band — guitars, gated snare, sleigh bells; VIPER is the orchestra and drums.)
  *
  * All of it is built once (at [SoundEngine] construction) and never allocates while playing.
  */
@@ -125,9 +128,9 @@ internal object HeroSongs {
     /** HARDY sneaking: the four-note "Shchedryk" bell ostinato (Leontovych, 1916), twice. */
     private val hardyBells = Motif("2:2 1:1 2:1 0:2 2:2 1:1 2:1 0:2 .:4")
 
-    /** VOLT: a chip arpeggio up to the octave, a flick past it and a bounce down. */
-    private val voltSig = Motif("0:1 2:1 4:1 7:1 .:2 7:1 9:1 7:2 4:2 5:2 4:2")
-    private val voltAns = Motif("7:1 6:1 4:1 2:1 4:2 .:2 2:1 1:1 0:2 .:4")
+    /** VIPER: a horn call — the root twice, a leap to the fifth held, and a turn back to the third. */
+    private val viperSig = Motif("0:3 0:1 4:6 3:1 2:1 1:2 2:2")
+    private val viperAns = Motif("4:2 5:2 4:2 2:2 0:4 .:4")
 
     // ---- Loudness trims (measured: each arrangement matches its zone's own track) ----------
 
@@ -136,15 +139,15 @@ internal object HeroSongs {
         floatArrayOf(1.06f, 1.00f, 0.94f, 0.98f, 1.00f, 1.01f, 1.11f, 0.98f), // BEAST
         floatArrayOf(0.97f, 0.87f, 0.89f, 0.85f, 0.85f, 0.88f, 0.90f, 0.82f), // ACE
         floatArrayOf(1.12f, 1.05f, 1.02f, 1.04f, 1.04f, 1.05f, 1.12f, 1.00f), // HARDY
-        floatArrayOf(1.11f, 1.04f, 1.11f, 1.10f, 1.12f, 1.15f, 1.19f, 1.05f), // VOLT
+        floatArrayOf(0.89f, 0.83f, 0.79f, 0.84f, 0.85f, 0.87f, 0.94f, 0.85f), // VIPER
     )
     private val SNEAK_TRIM = arrayOf(
         floatArrayOf(0.99f, 0.97f, 0.98f, 0.98f, 1.00f, 0.97f, 0.97f, 0.98f), // BEAST
         floatArrayOf(0.97f, 0.95f, 1.00f, 0.94f, 1.07f, 0.97f, 1.01f, 0.95f), // ACE
         floatArrayOf(1.01f, 0.99f, 0.98f, 1.01f, 1.01f, 0.99f, 0.99f, 1.02f), // HARDY
-        floatArrayOf(0.93f, 0.93f, 0.90f, 0.89f, 0.99f, 0.93f, 0.92f, 0.94f), // VOLT
+        floatArrayOf(1.01f, 1.01f, 1.01f, 1.03f, 1.03f, 1.01f, 1.00f, 1.06f), // VIPER
     )
-    private val THEME_TRIM = floatArrayOf(1.06f, 0.85f, 1.03f, 1.04f)
+    private val THEME_TRIM = floatArrayOf(1.06f, 0.85f, 1.03f, 0.9f)
 
     // ---- BEAST -----------------------------------------------------------------------------
 
@@ -415,87 +418,102 @@ internal object HeroSongs {
         ),
     )
 
-    // ---- VOLT ------------------------------------------------------------------------------
+    // ---- VIPER -----------------------------------------------------------------------------
 
-    private const val VOLT_TEMPO = 1.06f
+    /**
+     * War drums tuned to the zone's tonic (C2..B2): the low and high drums (a fourth under,
+     * a fifth over) land on the key's fifth, so the toms never fight the harmony.
+     */
+    private fun warDrum(base: SongSpec): Float = Dsp.midiToHz((36 + Math.floorMod(base.tonic, 12)).toFloat())
 
-    private fun voltKit(base: SongSpec, t: Tint) = DrumTuning(
-        kickHi = 200f, kickLo = 50f, kickPitchDecay = 0.025f, kickDecay = boom(base, 1f, 0.45f), kickClick = 0.6f,
-        snareTone = 260f, snareNoiseHz = 7000f, snareDecay = 0.12f, snareToneMix = 0.35f,
-        hatTone = 1.3f, hatDecay = 0.03f, hatLevel = 0.3f,
-        percHz = 1800f, percRatio = 2f, percDecay = 0.04f, percFm = 3f, percNoise = 0f, percLevel = 0.22f,
-        drive = maxOf(0.2f, t.drive), crush = maxOf(3, t.crush),
-    )
-
-    private val chipBass = Patch(
-        wave1 = Wave.PULSE, wave2 = Wave.SQUARE, pw = 0.25f, osc2Semi = -12f, osc2Level = 0.4f, detune = 0f, cutoff = 2200f,
-        q = 0.8f, envAmt = 0.8f, a = 0.001f, d = 0.2f, s = 0.8f, r = 0.04f, gain = 0.2f, crush = 2, bright = 0.5f,
-    )
-    private val pwmPad = Patch(
-        wave1 = Wave.PULSE, wave2 = Wave.PULSE, pw = 0.35f, pwm = 0.2f, osc2Level = 0.6f, detune = 0.12f, cutoff = 1600f,
-        q = 0.8f, envAmt = 0.6f, a = 0.02f, d = 0.8f, s = 0.7f, r = 0.3f, gain = 0.1f,
-    )
-    private val chipArp = Patch(
-        wave1 = Wave.PULSE, pw = 0.125f, cutoff = 5000f, q = 0.7f, a = 0.001f, d = 0.12f, s = 0.5f, r = 0.03f,
-        gain = 0.13f, crush = 3, bright = 0.3f,
-    )
-    private val chipLead = Patch(
-        wave1 = Wave.SQUARE, wave2 = Wave.PULSE, pw = 0.25f, osc2Semi = 12f, osc2Level = 0.25f, detune = 0f, cutoff = 4500f,
-        q = 0.7f, a = 0.002f, d = 0.3f, s = 0.75f, r = 0.1f, glide = 0.025f, vibrato = 0.3f, vibRate = 7.5f,
-        gain = 0.13f, crush = 2, bright = 0.4f,
+    private fun viperKit(base: SongSpec, t: Tint) = DrumTuning(
+        kickHi = 120f, kickLo = 42f, kickPitchDecay = 0.05f, kickDecay = boom(base, 1.3f, 0.6f), kickClick = 0.3f,
+        kickDrive = 0.3f, snareTone = 210f, snareNoiseHz = 5200f, snareDecay = 0.14f, snareToneMix = 0.35f,
+        snareLevel = 0.7f, snareVerb = 0.4f, hatTone = 0.9f, hatDecay = 0.03f, hatLevel = 0.18f,
+        tomHz = warDrum(base), tomLevel = 0.95f,
+        percHz = 330f, percRatio = 1.5f, percDecay = 0.12f, percFm = 0.6f, percNoise = 0.05f, percLevel = 0.35f,
+        jingleHz = 7000f, jingleDecay = 0.06f, jingleNoise = 0.95f, jingleLevel = 0.16f,
+        crashLevel = 0.32f, crashDecay = 2.4f, drive = t.drive, crush = t.crush,
     )
 
-    private fun voltHot(base: SongSpec, t: Tint, name: String, hook: Melody? = null): SongSpec {
+    private val stealthBass = Patch(
+        wave1 = Wave.SAW, wave2 = Wave.SINE, osc2Semi = -12f, osc2Level = 0.5f, sub = 0.4f, cutoff = 260f, q = 1.2f,
+        envAmt = 2f, keyTrack = 0.4f, a = 0.002f, d = 0.18f, s = 0.35f, r = 0.06f, fd = 0.1f, drive = 0.2f,
+        gain = 0.32f, bright = 0.5f,
+    )
+    private val darkPad = Patch(
+        wave1 = Wave.SAW, supersaw = true, detune = 0.12f, cutoff = 750f, q = 0.8f, envAmt = 0.8f, keyTrack = 0.1f,
+        a = 0.8f, d = 1.5f, s = 0.85f, r = 1.2f, fa = 1f, fd = 2f, fs = 0.4f, fr = 1f, gain = 0.13f, bright = 0.6f,
+    )
+    private val hornStab = Patch(
+        wave1 = Wave.SAW, wave2 = Wave.SAW, osc2Level = 0.7f, detune = 0.1f, cutoff = 600f, q = 0.9f, envAmt = 2.6f,
+        keyTrack = 0.3f, a = 0.01f, d = 0.3f, s = 0.4f, r = 0.2f, fa = 0.03f, fd = 0.25f, fs = 0.2f,
+        gain = 0.16f, bright = 0.6f,
+    )
+    private val frenchHorn = Patch(
+        wave1 = Wave.SAW, wave2 = Wave.TRIANGLE, osc2Level = 0.6f, detune = 0.05f, cutoff = 1100f, q = 0.8f, envAmt = 1.2f,
+        keyTrack = 0.4f, a = 0.045f, d = 0.5f, s = 0.85f, r = 0.3f, fa = 0.08f, fd = 0.5f, fs = 0.4f, glide = 0.03f,
+        vibrato = 0.2f, vibRate = 5f, drive = 0.1f, gain = 0.19f, bright = 0.5f,
+    )
+
+    private fun viperHot(base: SongSpec, t: Tint, name: String, hook: Melody? = null): SongSpec {
         val hell = base === Songs.hell
         return base.derive(
-            name = name, bpm = base.bpm * VOLT_TEMPO, tempoScale = VOLT_TEMPO,
+            name = name,
             drumsA = DrumPattern(
-                kick = base.drumsA.kick, snare = if (hell) base.drumsA.snare else "....X.......X...",
-                hat = "xoxoxoxoxoxoxoxo", perc = "..x.....x.x.....",
+                kick = base.drumsA.kick, snare = if (hell) base.drumsA.snare else "....X..r..r.X.rr",
+                hat = "..x...x...x...x.", tom = "1.....1.......2.", perc = "..x..x....x..x..",
+                jingle = "o.o.o.o.o.o.o.o.",
             ),
             drumsB = DrumPattern(
-                kick = base.drumsB.kick, snare = if (hell) base.drumsB.snare else "....X..x....X.x.",
-                hat = "XoxoXoxoXoxoXoxo", perc = "x..x..x..x..x.x.",
+                kick = base.drumsB.kick, snare = if (hell) base.drumsB.snare else "r.rrX.r.r.rrX.rr",
+                tom = "1..1..2.1..1.3.2", perc = "x..x..x...x..x..", jingle = "oooooooooooooooo",
             ),
-            fill = DrumPattern(kick = "X.X.X.X.X.X.XXXX", snare = "....X...rrrrrrrr", hat = "xoxoxoxoxoxoxoxo"),
-            kit = voltKit(base, t),
-            bassA = "R.O.R.O.R.O.R.O.", bassB = "R.OrR.OrR.OrR.Or",
-            arpA = "0240240240240240", arpB = "5420542054205421", arpGate = 0.6f, arpCenter = base.arpCenter + 5,
+            fill = DrumPattern(kick = "X.......X.......", snare = "rrrrrrrrrrrrXXXX", tom = "1...1...2.2.3.31"),
+            kit = viperKit(base, t),
+            bassA = "R..rR..rR..rR.dr", bassB = "R.rRr.rRR.rRr.dO",
+            arpA = "0...........2.4.", arpB = "4.2.0.......2.4.", arpGate = 0.8f,
             padRhythm = "x...............",
-            leadOctave = leadOctave(base, 62),
-            leadTemplates = arrayOf(voltSig.rhythm, "x.xx.x.xx.x.x...", "x..x.xx..x.x.x.."),
-            motifSeed = base.motifSeed + 53, hook = hook, signature = voltSig, answer = voltAns,
-            pad = pwmPad.tinted(t, 0.2f), bass = chipBass.tinted(t, 0.2f), arp = chipArp, lead = chipLead.tinted(t, 0.2f),
+            leadOctave = leadOctave(base, 55),
+            leadTemplates = arrayOf(viperSig.rhythm, "x...x.x.x.......", "x..x..x.x...x..."),
+            motifSeed = base.motifSeed + 53, hook = hook, signature = viperSig, answer = viperAns,
+            pad = darkPad.tinted(t, 0.1f), bass = stealthBass.tinted(t, 0.2f), arp = hornStab.tinted(t, 0.2f),
+            lead = frenchHorn.tinted(t, 0.2f),
             mix = Mix(
-                pad = 0.72f, bass = 0.8f, arp = 1f, lead = 0.9f, drums = 0.55f * zoneDrums(base), padVerb = 0.2f,
-                arpDelay = 0.35f, arpVerb = 0.1f, leadDelay = 0.25f, leadVerb = 0.15f, padDuck = if (hell) 0.4f else 0.85f, bassDuck = if (hell) 0.3f else 0.6f,
-                arpDuck = if (hell) 0.2f else 0.45f, arpPan = 0.3f,
+                pad = 0.95f, bass = 1.5f, arp = 2.1f, lead = 0.8f, drums = 0.5f * zoneDrums(base), padVerb = 0.4f,
+                arpDelay = 0.15f, arpVerb = 0.4f, leadDelay = 0.2f, leadVerb = 0.4f, padDuck = 0.35f, bassDuck = 0.3f,
+                arpDuck = 0.1f, arpPan = 0.25f,
             ),
-            stutter = 0.04f,
         )
     }
 
-    private fun voltSneak(base: SongSpec, t: Tint, name: String) = base.derive(
-        name = name, bpm = base.bpm * VOLT_TEMPO, tempoScale = VOLT_TEMPO,
-        drumsA = DrumPattern(kick = base.drumsA.kick, hat = "x...o...x...o...", perc = "......x.......x."),
-        drumsB = DrumPattern(kick = base.drumsB.kick, snare = "....o.......x...", hat = "x.o.x.o.x.o.x.o.", perc = "..x...x...x..xx."),
-        fill = DrumPattern(kick = base.fill.kick, snare = "..........o.o.or", hat = "x.o.x.o.x.o.oooo"),
-        kit = DrumTuning(
-            kickHi = 130f, kickLo = 48f, kickPitchDecay = 0.04f, kickDecay = 0.3f, kickClick = 0.2f, kickDrive = 0.2f,
-            snareTone = 240f, snareNoiseHz = 6000f, snareDecay = 0.1f, snareLevel = 0.4f, snareVerb = 0.5f,
-            hatTone = 1.3f, hatDecay = 0.025f, hatLevel = 0.16f,
-            percHz = 2100f, percRatio = 2f, percDecay = 0.035f, percFm = 2f, percNoise = 0f, percLevel = 0.2f,
-            crush = maxOf(4, t.crush),
+    private fun viperSneak(base: SongSpec, t: Tint, name: String) = base.derive(
+        name = name,
+        drumsA = DrumPattern(kick = base.drumsA.kick, hat = "x.x.x.x.x.x.x.x.", tom = "..............1.", perc = "...x..........x."),
+        drumsB = DrumPattern(
+            kick = base.drumsB.kick, snare = "............o...", hat = "x.x.x.x.x.x.x.x.", tom = "1.......1.......",
+            perc = "...x......x...x.", jingle = "..o...o...o...o.",
         ),
-        arpA = "..2...4...2...5.", arpB = "..3.......1...4.", arpGate = 1f,
-        leadTemplates = arrayOf(voltSig.rhythm, "x.......x.......", "x...........x..."),
-        signature = voltSig, answer = voltAns, leadOctave = leadOctave(base, 62),
-        pad = Patch(wave1 = Wave.PULSE, pw = 0.4f, pwm = 0.25f, cutoff = 700f, a = 1.5f, d = 1f, s = 0.9f, r = 1.8f, gain = 0.1f, bright = 0.2f),
-        bass = Patch(wave1 = Wave.PULSE, pw = 0.3f, pwm = 0.2f, sub = 0.6f, cutoff = 300f, a = 0.6f, d = 1f, s = 1f, r = 1.2f, gain = 0.2f, bright = 0.2f),
-        arp = Patch(wave1 = Wave.TRIANGLE, cutoff = 5000f, a = 0.001f, d = 0.5f, s = 0f, r = 0.4f, gain = 0.16f, crush = 4, bright = 0.1f),
-        lead = Patch(wave1 = Wave.TRIANGLE, cutoff = 5000f, a = 0.01f, d = 0.4f, s = 0.8f, r = 0.3f, glide = 0.03f, vibrato = 0.3f, vibRate = 6.5f, gain = 0.18f, crush = 2, bright = 0.2f),
-        mix = scaled(base.mix, pad = 0.35f, arp = 1.6f, arpDelay = 0.7f, padDuck = 0.6f, bassDuck = 0.4f, arpDuck = 0.2f),
-        stutter = 0.015f,
+        fill = DrumPattern(kick = base.fill.kick, snare = "........rrrrrrrr", hat = "x.x.x.x.x.x.x.x.", tom = "1.......1...1.1."),
+        kit = DrumTuning(
+            kickHi = 110f, kickLo = 45f, kickPitchDecay = 0.05f, kickDecay = 0.4f, kickClick = 0.08f, kickDrive = 0.15f,
+            snareTone = 200f, snareNoiseHz = 4500f, snareDecay = 0.1f, snareLevel = 0.35f, snareVerb = 0.5f,
+            hatTone = 1.4f, hatDecay = 0.012f, hatLevel = 0.2f, tomHz = warDrum(base), tomLevel = 0.5f,
+            percHz = 900f, percRatio = 1.5f, percDecay = 0.04f, percFm = 0.5f, percNoise = 0.1f, percLevel = 0.25f,
+            jingleHz = 7000f, jingleDecay = 0.05f, jingleNoise = 0.95f, jingleLevel = 0.1f,
+            drive = t.drive * 0.5f, crush = t.crush,
+        ),
+        arpA = "......2.........", arpB = "..3.........1...", arpGate = 2f,
+        leadTemplates = arrayOf(viperSig.rhythm, "x.......x.......", "x...........x..."),
+        signature = viperSig, answer = viperAns, leadOctave = leadOctave(base, 55),
+        pad = darkPad.copyish(cutoff = 500f, a = 2.5f, r = 2.4f, gain = 0.1f).tinted(t, 0f),
+        bass = Patch(wave1 = Wave.SAW, sub = 0.8f, cutoff = 200f, q = 1f, a = 1f, d = 1f, s = 1f, r = 1.5f, gain = 0.26f, bright = 0.2f),
+        arp = Patch(
+            wave1 = Wave.SAW, wave2 = Wave.TRIANGLE, osc2Semi = 12f, osc2Level = 0.4f, cutoff = 900f, q = 1.4f, envAmt = 2.5f,
+            a = 0.001f, d = 0.18f, s = 0f, r = 0.15f, fd = 0.08f, gain = 0.2f, bright = 0.1f,
+        ),
+        lead = frenchHorn.copyish(cutoff = 800f, gain = 0.13f),
+        mix = scaled(base.mix, pad = 0.5f, bass = 1.2f, arp = 3.5f, drums = 0.88f, arpDelay = 0.7f),
     )
 
     // ---- Themes (hero picker) --------------------------------------------------------------
@@ -551,17 +569,17 @@ internal object HeroSongs {
         ),
     )
 
-    /** "Have You Tried Turning It Off": F# minor chip anthem, i–VI–III–VII. */
-    private val voltHook = Melody(
+    /** "Into the Green": a heroic G minor horn call over a war-drum march, i–VI–VII–i. */
+    private val viperHook = Melody(
         arrayOf(
-            "F#4:1 A4:1 C#5:1 F#5:1 -:2 F#5:1 A5:1 F#5:2 C#5:2 D5:2 C#5:2",
-            "D4:1 F#4:1 A4:1 D5:1 -:2 D5:1 F#5:1 D5:2 A4:2 B4:2 A4:2",
-            "E4:1 A4:1 C#5:1 E5:1 -:2 E5:1 A5:1 E5:2 C#5:2 D5:2 E5:2",
-            "B4:2 E5:2 G#5:4 F#5:1 E5:1 D5:1 C#5:1 B4:4",
-            "F#4:1 A4:1 C#5:1 F#5:1 -:2 F#5:1 A5:1 F#5:2 C#5:2 D5:2 C#5:2",
-            "D4:1 F#4:1 A4:1 D5:1 -:2 D5:1 F#5:1 D5:2 A4:2 B4:2 A4:2",
-            "E4:1 A4:1 C#5:1 E5:1 -:2 E5:1 A5:1 E5:2 C#5:2 D5:2 E5:2",
-            "E5:1 D5:1 C#5:1 B4:1 C#5:4 E5:2 G#5:2 F#5:4",
+            "G4:3 D4:1 G4:4 Bb4:2 A4:2 G4:2 A4:2",
+            "Bb4:6 G4:2 Eb5:4 D5:2 C5:2",
+            "C5:3 A4:1 F5:4 Eb5:2 D5:2 C5:2 D5:2",
+            "D5:8 -:4 D4:2 D4:2",
+            "G4:3 D4:1 G4:4 Bb4:2 A4:2 G4:2 A4:2",
+            "Bb4:6 C5:2 Eb5:4 F5:2 G5:2",
+            "F5:4 Eb5:2 D5:2 C5:4 A4:2 C5:2",
+            "D5:2 Bb4:2 G4:12",
         ),
     )
 
@@ -581,9 +599,9 @@ internal object HeroSongs {
                 themeBase("hardy-theme", 132f, 50, IONIAN, tri(IONIAN, 0, 4, 5, 0, 0, 4, 3, 4), tri(IONIAN, 5, 3, 0, 4), 1988),
                 t, "hardy-theme", hardyHook,
             )
-            Hero.VOLT -> voltHot(
-                themeBase("volt-theme", 142f, 54, AEOLIAN, tri(AEOLIAN, 0, 5, 2, 6), tri(AEOLIAN, 3, 5, 6, 0), 8088),
-                t, "volt-theme", voltHook,
+            Hero.VIPER -> viperHot(
+                themeBase("viper-theme", 108f, 55, AEOLIAN, tri(AEOLIAN, 0, 5, 6, 0), tri(AEOLIAN, 3, 5, 2, 6), 3161),
+                t, "viper-theme", viperHook,
             )
         }.derive(gain = trim, fixedIntensity = 0.85f)
     }
@@ -598,7 +616,7 @@ internal object HeroSongs {
             Hero.BEAST -> if (silent) beastSneak(base, t, name) else beastHot(base, t, name)
             Hero.ACE -> if (silent) aceSneak(base, t, name) else aceHot(base, t, name)
             Hero.HARDY -> if (silent) hardySneak(base, t, name) else hardyHot(base, t, name)
-            Hero.VOLT -> if (silent) voltSneak(base, t, name) else voltHot(base, t, name)
+            Hero.VIPER -> if (silent) viperSneak(base, t, name) else viperHot(base, t, name)
         }
         return spec.derive(gain = (if (silent) SNEAK_TRIM else HOT_TRIM)[h.ordinal][z.ordinal])
     }
@@ -659,8 +677,6 @@ internal fun SongSpec.derive(
     leadThreshold: Float = this.leadThreshold,
     padPower: Boolean = this.padPower,
     crowd: Float = this.crowd,
-    stutter: Float = this.stutter,
-    tempoScale: Float = this.tempoScale,
     signature: Motif? = this.signature,
     answer: Motif? = this.answer,
     gain: Float = this.gain,
@@ -675,6 +691,6 @@ internal fun SongSpec.derive(
     fixedIntensity = fixedIntensity, kickThreshold = kickThreshold, arpThreshold = arpThreshold,
     leadThreshold = leadThreshold, sections = sections, delayBeats = delayBeats,
     padRhythmB = padRhythmB ?: if (padRhythm == this.padRhythm) this.padRhythmB else padRhythm,
-    padPower = padPower, crowd = crowd, stutter = stutter, tempoScale = tempoScale, signature = signature,
+    padPower = padPower, crowd = crowd, signature = signature,
     answer = answer, gain = gain,
 )

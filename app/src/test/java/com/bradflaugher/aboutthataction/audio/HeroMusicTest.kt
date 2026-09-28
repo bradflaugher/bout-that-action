@@ -93,6 +93,25 @@ class HeroMusicTest {
         return sorted.last() / sorted[sorted.size / 2].coerceAtLeast(1e-6)
     }
 
+    /**
+     * Both action-movie heroes, told apart: HARDY is the bright rock band (guitars, gated
+     * snare, sleigh bells), VIPER the dark orchestra (horns, pads, war drums).
+     */
+    @Test
+    fun viperIsTheOrchestraAndHardyIsTheBand() {
+        for (z in Zone.entries) {
+            val hardy = AudioTestUtil.centroid(AudioTestUtil.spectrum(AudioTestUtil.mono(take(Hero.HARDY, z, false))))
+            val viper = AudioTestUtil.centroid(AudioTestUtil.spectrum(AudioTestUtil.mono(take(Hero.VIPER, z, false))))
+            println("$z centroid: HARDY %.0f Hz, VIPER %.0f Hz".format(hardy, viper))
+            assertTrue("$z: VIPER ($viper Hz) should sit darker than HARDY ($hardy Hz)", viper < hardy * 0.92)
+        }
+        val h = HeroSongs.forZone(Hero.HARDY, Zone.TOWER, false)
+        val v = HeroSongs.forZone(Hero.VIPER, Zone.TOWER, false)
+        assertTrue(h.padPower && !v.padPower)
+        assertTrue(h.kit.snareGate > 0f && v.kit.snareGate == 0f)
+        assertTrue(v.drumsB.tom.count { it != '.' } >= 6)
+    }
+
     @Test
     fun everyHerosSneakMixKeepsTheHeartbeat() {
         for (h in Hero.entries) for (z in Zone.entries) {
@@ -126,10 +145,10 @@ class HeroMusicTest {
         assertEquals("a new zone still waits for the bar", "tower-ace", e.songName)
         render(e, 5f)
         assertEquals("labs-ace", e.songName)
-        e.setHero(Hero.VOLT)
+        e.setHero(Hero.VIPER)
         e.setZone(Zone.LABS)
         render(e, 6f)
-        assertEquals("labs-volt", e.songName)
+        assertEquals("labs-viper", e.songName)
         e.setHero(null)
         e.setZone(Zone.LABS)
         render(e, 6f)
@@ -173,7 +192,7 @@ class HeroMusicTest {
         // playHeroTheme also picks the hero for the run.
         e.setZone(Zone.ROOFTOP)
         render(e, 8f)
-        assertEquals("rooftop-volt", e.songName)
+        assertEquals("rooftop-viper", e.songName)
     }
 
     @Test

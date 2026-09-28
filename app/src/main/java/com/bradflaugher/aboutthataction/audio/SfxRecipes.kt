@@ -878,17 +878,20 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                     attack = 0.002f; decay = 2f; gain = 0.12f; reverb = 0.45f; delay = 1.1f + k * 0.42f; priority = 4f
                 }
             }
-            Hero.VOLT -> {
-                // Chip power-down: a falling arpeggio that crunches and sags to nothing.
-                for (k in POWER_DOWN.indices) voice {
-                    val s = POWER_DOWN[k]
-                    wave = Wave.PULSE; pw = 0.25f; f0 = 587.3f * Dsp.semis(s.toFloat()); f1 = f0 * 0.94f; sweep = 0.08f
-                    attack = 0.001f; hold = 0.05f; decay = 0.1f; crush = 3; gain = 0.07f; pan = if (k % 2 == 0) -0.3f else 0.3f
-                    reverb = 0.1f; delay = 0.75f + k * 0.07f; priority = 4f
+            Hero.VIPER -> {
+                // Two war drums in the distance, and a lone horn falling to rest.
+                for (k in 0 until 2) voice {
+                    wave = Wave.SINE; f0 = 82f; f1 = 52f; sweep = 0.25f; attack = 0.002f; decay = 0.9f; noise = 0.15f
+                    filter = FilterMode.LOW; cut0 = 900f; cut1 = 200f; cutTime = 0.3f; gain = 0.14f - k * 0.05f; reverb = 0.5f
+                    delay = 0.8f + k * 0.45f; priority = 4f
                 }
-                voice {
-                    wave = Wave.SQUARE; f0 = 146.8f; f1 = 30f; sweep = 0.9f; attack = 0.002f; hold = 0.5f; decay = 0.4f
-                    crush = 4; gain = 0.08f; reverb = 0.1f; delay = 1.35f; priority = 4f
+                for (k in VIPER_EXIT.indices) voice {
+                    val s = VIPER_EXIT[k]
+                    val last = k == VIPER_EXIT.size - 1
+                    wave = Wave.SAW; wave2 = Wave.TRIANGLE; level2 = 0.6f; f0 = 146.8f * Dsp.semis(s.toFloat()); f1 = f0
+                    filter = FilterMode.LOW; cut0 = 500f; cut1 = 1100f; cutTime = 0.15f; attack = 0.05f
+                    hold = if (last) 0.8f else 0.25f; decay = if (last) 1.2f else 0.15f; vibRate = 5f; vibDepth = 0.006f
+                    gain = 0.1f; reverb = 0.5f; delay = 1.5f + k * 0.42f; priority = 4f
                 }
             }
             null -> {}
@@ -925,7 +928,8 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         /** Dm9 (D F A C E), rolled up. */
         private val ACE_EXIT = intArrayOf(0, 3, 7, 10, 14)
         private val HO_HO_NO = intArrayOf(7, 3, -5)
-        private val POWER_DOWN = intArrayOf(12, 7, 3, 0, -5, -9, -12, -17)
+        /** D minor horn: A, F, then down to D. */
+        private val VIPER_EXIT = intArrayOf(7, 3, 0)
         private val FIFTHS = intArrayOf(0, 7, 12, 19)
         private val ROOT_SHIFT = intArrayOf(0, 2, -3, 5)
         /** Semitones above A1 for each zone's impact "braam". */

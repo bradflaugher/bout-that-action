@@ -378,11 +378,10 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
 
         if (sp.rotor > 0f) rotor.trigger(if (s % 4 == 0) 1f else if (s % 2 == 0) 0.7f else 0.5f)
         if (sp.glitch) glitchStep(bar, s)
-        if (sp.stutter > 0f && rng.chance(sp.stutter)) stutterPending = true
     }
 
     private fun glitchPhrase(bar: Int) {
-        if (bar > 0 && bar % 16 == 0) bpm = VOID_BPMS[rng.nextInt(VOID_BPMS.size)] * (spec?.tempoScale ?: 1f)
+        if (bar > 0 && bar % 16 == 0) bpm = VOID_BPMS[rng.nextInt(VOID_BPMS.size)]
         crushOn = bar > 0 && rng.chance(0.3f)
     }
 
