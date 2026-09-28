@@ -128,8 +128,9 @@ internal class Composer(private val spec: SongSpec) {
         val r = motifRng.also { it.reseed(seed) }
         val t = spec.leadTemplates
         val main = t[0]
-        // The signature motif always comes from the song seed alone.
-        motif(r, main, MOTIF_MAIN, end = END_ANY)
+        // The signature motif always comes from the song seed alone (or is hand-picked).
+        val sig = spec.signature
+        if (sig != null) copy(sig, MOTIF_MAIN) else motif(r, main, MOTIF_MAIN, end = END_ANY)
         val rv = varRng.also { it.reseed(seed * 31 + variant) }
         // Variation: signature head, new tail.
         motif(rv, main, MOTIF_VAR, end = END_ANY)
@@ -137,7 +138,14 @@ internal class Composer(private val spec: SongSpec) {
             deg[MOTIF_VAR][i] = deg[MOTIF_MAIN][i]; len[MOTIF_VAR][i] = len[MOTIF_MAIN][i]
         }
         motif(rv, t[(1 + variant) % t.size].let { if (it == main && t.size > 1) t[1] else it }, MOTIF_ANSWER, end = END_ANY)
+        // A hand-picked answer comes back every other cycle; the rest of the time it evolves.
+        val ans = spec.answer
+        if (ans != null && variant % 2 == 0) copy(ans, MOTIF_ANSWER)
         motif(rv, CADENCES[variant % CADENCES.size], MOTIF_CADENCE, end = END_ROOT)
+    }
+
+    private fun copy(src: Motif, m: Int) {
+        src.degrees.copyInto(deg[m]); src.lengths.copyInto(len[m])
     }
 
     /** Fill motif [m] from a rhythm [template] ("x" = onset). Degrees are relative to the chord root. */

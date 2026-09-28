@@ -36,6 +36,13 @@ internal class DrumTuning(
     val percLevel: Float = 0.35f,
     val crashLevel: Float = 0.3f,
     val snareVerb: Float = 0.3f,
+    /** > 0: an 80s gated-reverb snare, a dense noise tail held this long and then cut dead. */
+    val snareGate: Float = 0f,
+    /** Sleigh bells / tambourine: jingle pitch, ring time, how much of it is shaker noise. */
+    val jingleHz: Float = 5200f,
+    val jingleDecay: Float = 0.16f,
+    val jingleNoise: Float = 0.5f,
+    val jingleLevel: Float = 0.3f,
 )
 
 /** Base for one-shot drum voices rendering into stereo + reverb-send buffers. */
@@ -112,12 +119,23 @@ internal class Snare(sr: Int) : DrumVoice(sr) {
     private var tCoef = 0f
     private var nCoef = 0f
     private val pCoef = Dsp.decay60(0.05f, sr)
+    private val gHp = OnePole().apply { setHz(500f, sr) }
+    private val gLp = OnePole().apply { setHz(4500f, sr) }
+    private var gEnv = 0f
+    private var gHold = 0
+    private var gCoef = 1f
+    private val gCut = Dsp.decay60(0.03f, sr)
 
     override fun trigger(v: Float) {
         vel = v; tEnv = 1f; nEnv = 1f; pEnv = 1f; p1 = 0f; p2 = 0f; active = true
         tCoef = Dsp.decay60(0.11f, sr)
         nCoef = Dsp.decay60(t.snareDecay, sr)
         bp.setHz(t.snareNoiseHz, 0.9f, sr)
+        if (t.snareGate > 0f) {
+            gEnv = 0.6f; gHold = (t.snareGate * sr).toInt(); gCoef = Dsp.decay60(t.snareGate * 4f, sr)
+        } else {
+            gEnv = 0f; gHold = 0
+        }
     }
 
     override fun render(l: FloatArray, r: FloatArray, rev: FloatArray, n: Int, pitchMul: Float) {
@@ -130,11 +148,19 @@ internal class Snare(sr: Int) : DrumVoice(sr) {
             p2 += f * 1.62f * bend / sr; if (p2 >= 1f) p2 -= 1f
             val tone = (Dsp.sin01(p1) + 0.6f * Dsp.sin01(p2)) * tEnv * tm
             val nz = noise.next()
-            val wires = (lp.lp(hp.hp(nz)) * 0.8f + bp.bp(nz) * 0.9f) * nEnv
+            var wires = (lp.lp(hp.hp(nz)) * 0.8f + bp.bp(nz) * 0.9f) * nEnv
+            if (gEnv > 0f) {
+                wires += gLp.lp(gHp.hp(nz)) * gEnv
+                if (gHold > 0) {
+                    gHold--; gEnv *= gCoef
+                } else {
+                    gEnv *= gCut; if (gEnv < 1e-4f) gEnv = 0f
+                }
+            }
             out(l, r, rev, i, (tone + wires) * vel)
             tEnv *= tCoef; nEnv *= nCoef; pEnv *= pCoef
         }
-        if (nEnv < 1e-4f && tEnv < 1e-4f) active = false
+        if (nEnv < 1e-4f && tEnv < 1e-4f && gEnv <= 0f) active = false
     }
 }
 
@@ -276,6 +302,54 @@ internal class Perc(sr: Int) : DrumVoice(sr) {
     }
 }
 
+/**
+ * Sleigh bells (or a tambourine): four inharmonic metal partials plus shaker noise, struck
+ * as a quick rattle of jingles rather than one clean hit.
+ */
+internal class Jingle(sr: Int) : DrumVoice(sr) {
+    private val noise = Noise(99)
+    private val ph = FloatArray(4)
+    private val ratios = floatArrayOf(1f, 1.37f, 1.83f, 2.47f)
+    private val hp = Svf()
+    private var env = 0f
+    private var coef = 0f
+    private var time = 0
+    private var hit = 0
+    private val hitAt = intArrayOf((0.019f * sr).toInt(), (0.043f * sr).toInt(), (0.071f * sr).toInt())
+    private val hitAmp = floatArrayOf(0.7f, 0.5f, 0.3f)
+
+    override fun trigger(v: Float) {
+        vel = v; env = 1f; time = 0; hit = 0; active = true
+        coef = Dsp.decay60(t.jingleDecay, sr)
+        hp.setHz(t.jingleHz * 0.8f, 0.8f, sr)
+    }
+
+    override fun render(l: FloatArray, r: FloatArray, rev: FloatArray, n: Int, pitchMul: Float) {
+        if (!active) return
+        val base = t.jingleHz * pitchMul / sr
+        val nz = t.jingleNoise
+        val tone = 1f - nz
+        for (i in 0 until n) {
+            if (hit < hitAt.size && time == hitAt[hit]) {
+                if (env < hitAmp[hit]) env = hitAmp[hit]
+                hit++
+            }
+            time++
+            var m = 0f
+            for (k in 0 until 4) {
+                var p = ph[k] + base * ratios[k]
+                if (p >= 1f) p -= 1f
+                ph[k] = p
+                m += if (p < 0.5f) 1f else -1f
+            }
+            val x = hp.hp(m * 0.2f * tone + noise.next() * nz) * env
+            out(l, r, rev, i, x * vel)
+            env *= coef
+        }
+        if (hit >= hitAt.size && env < 1e-4f) active = false
+    }
+}
+
 /** Crash cymbal: dense metallic squares + noise, high-passed, long decay. */
 internal class Crash(sr: Int) : DrumVoice(sr) {
     private val noise = Noise(88)
@@ -321,7 +395,8 @@ internal class DrumKit(private val sr: Int) {
     private val percs = arrayOf(Perc(sr).apply { pan = -0.35f }, Perc(sr).apply { pan = 0.35f })
     private var percNext = 0
     val crash = Crash(sr).apply { pan = -0.2f }
-    private val all: Array<DrumVoice> = arrayOf(kick, snare, clap, hat, toms[0], toms[1], percs[0], percs[1], crash)
+    val jingle = Jingle(sr).apply { pan = -0.35f }
+    private val all: Array<DrumVoice> = arrayOf(kick, snare, clap, hat, toms[0], toms[1], percs[0], percs[1], crash, jingle)
     private var tuning = DrumTuning()
     private var held = 0f
     private var heldR = 0f
@@ -331,7 +406,7 @@ internal class DrumKit(private val sr: Int) {
         tuning = t
         for (v in all) v.t = t
         kick.level = t.kickLevel; snare.level = t.snareLevel; clap.level = t.clapLevel
-        hat.level = t.hatLevel; crash.level = t.crashLevel
+        hat.level = t.hatLevel; crash.level = t.crashLevel; jingle.level = t.jingleLevel; jingle.send = 0.12f
         toms.forEach { it.level = t.tomLevel; it.send = 0.25f }
         percs.forEach { it.level = t.percLevel; it.send = 0.3f }
         snare.send = t.snareVerb; clap.send = t.snareVerb * 0.8f; crash.send = 0.2f; hat.send = 0.04f

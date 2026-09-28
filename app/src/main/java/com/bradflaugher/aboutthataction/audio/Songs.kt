@@ -7,7 +7,8 @@ import com.bradflaugher.aboutthataction.audio.Scales.PHRYGIAN
 
 /**
  * One bar of drums, 16 steps per row. Velocity chars: 'X' accent, 'x' normal, 'o' ghost.
- * Tom rows use '1'..'3' for low/mid/high.
+ * Tom rows use '1'..'3' for low/mid/high. On the snare row 'r' is a soft roll: two quick
+ * strokes in one step (drumline buzz). [jingle] is sleigh bells / tambourine.
  */
 internal class DrumPattern(
     val kick: String = REST,
@@ -17,9 +18,10 @@ internal class DrumPattern(
     val open: String = REST,
     val tom: String = REST,
     val perc: String = REST,
+    val jingle: String = REST,
 ) {
     init {
-        for (row in arrayOf(kick, snare, clap, hat, open, tom, perc)) require(row.length == 16) { "Bad drum row '$row'" }
+        for (row in arrayOf(kick, snare, clap, hat, open, tom, perc, jingle)) require(row.length == 16) { "Bad drum row '$row'" }
     }
 
     companion object {
@@ -30,6 +32,7 @@ internal class DrumPattern(
             'X' -> 1f
             'x' -> 0.72f
             'o' -> 0.42f
+            'r' -> 0.5f
             '1', '2', '3' -> 0.8f
             else -> 0f
         }
@@ -56,9 +59,11 @@ internal class Mix(
 
 /**
  * A procedural track. Bass/arp/pad rows are 16-step strings (one bar):
- *  - bass: 'R' root, 'r' soft root, 'O'/'o' octave, 'F' fifth, 'T' third, '~' tie, '.' rest
+ *  - bass: 'R' root, 'r' soft root, 'O'/'o' octave, 'F' fifth, 'T' third, '~' tie, '.' rest;
+ *    walking tones: 'S'/'s' the scale step above the root, '7' the chord's (diatonic) seventh,
+ *    'D'/'d' the fifth below, 'A'/'a' a chromatic approach from below to the next bar's root
  *  - arp: digits = chord tone index climbing octaves (0 root, 1 third, 2 fifth, 3 root+8va...), '~' tie
- *  - pad: 'x' strike the chord, '-' release, '.' hold
+ *  - pad: 'x' strike the chord, '-' release, '.' hold ([padRhythmB] in B sections)
  */
 internal class SongSpec(
     val name: String,
@@ -102,14 +107,32 @@ internal class SongSpec(
     val leadThreshold: Float = 0.6f,
     val sections: Array<Section> = DEFAULT_SECTIONS,
     val delayBeats: Float = 0.75f,
+    /** The pad's rhythm in B sections (e.g. palm-muted chugs in A, open chords in B). */
+    val padRhythmB: String = padRhythm,
+    /** Pad plays power chords (root, fifth, octave) instead of the full chord. */
+    val padPower: Boolean = false,
+    /** Stadium crowd roar level; it swells into every phrase's fill and on the crash. */
+    val crowd: Float = 0f,
+    /** Per-step chance of a glitch stutter (a half-step hat/snare repeat). */
+    val stutter: Float = 0f,
+    /** Scales VOID's random tempo jumps (a hero's tempo nudge survives them). */
+    val tempoScale: Float = 1f,
+    /** Hand-picked signature motif (replaces the generated one) and answer motif. */
+    val signature: Motif? = null,
+    val answer: Motif? = null,
+    /** Output trim, for loudness matching arrangements of the same track. */
+    val gain: Float = 1f,
 ) {
     /** A single strike at step 0 means "sustain for the whole chord". */
-    val padSustain = padRhythm.count { it == 'x' } == 1 && padRhythm[0] == 'x'
+    val padSustain = sustains(padRhythm)
+    val padSustainB = sustains(padRhythmB)
 
     init {
-        for (row in arrayOf(bassA, bassB, arpA, arpB, padRhythm)) require(row.length == 16) { "$name: bad row '$row'" }
+        for (row in arrayOf(bassA, bassB, arpA, arpB, padRhythm, padRhythmB)) require(row.length == 16) { "$name: bad row '$row'" }
         for (t in leadTemplates) require(t.length == 16) { "$name: bad template '$t'" }
     }
+
+    private fun sustains(row: String) = row.count { it == 'x' } == 1 && row[0] == 'x'
 
     companion object {
         val DEFAULT_SECTIONS = arrayOf(Section.A, Section.A, Section.B, Section.A2, Section.BREAK, Section.B, Section.A2, Section.B2)
@@ -539,9 +562,11 @@ internal fun Patch.copyish(
     drive: Float = this.drive,
     glide: Float = this.glide,
     vibrato: Float = this.vibrato,
+    crush: Int = this.crush,
 ) = Patch(
     wave1 = wave1, wave2 = wave2, osc2Semi = osc2Semi, osc2Level = osc2Level, detune = detune,
     supersaw = supersaw, sub = sub, noise = noise, pw = pw, pwm = pwm, cutoff = cutoff, q = q,
     envAmt = envAmt, keyTrack = keyTrack, a = a, d = d, s = s, r = r, fa = fa, fd = fd, fs = fs, fr = fr,
     drive = drive, glide = glide, vibrato = vibrato, vibRate = vibRate, gain = gain, crush = crush, bright = bright,
+    trem = trem, tremRate = tremRate,
 )

@@ -7,6 +7,7 @@ internal object Scales {
     val PHRYGIAN = intArrayOf(0, 1, 3, 5, 7, 8, 10)
     val HARMONIC_MINOR = intArrayOf(0, 2, 3, 5, 7, 8, 11)
     val LOCRIAN = intArrayOf(0, 1, 3, 5, 6, 8, 10)
+    val IONIAN = intArrayOf(0, 2, 4, 5, 7, 9, 11)
 
     /** Semitone offset of scale [degree] (any integer; wraps by octaves). */
     fun note(scale: IntArray, degree: Int): Int {
@@ -107,5 +108,33 @@ internal class Melody(bars: Array<String>) {
             }
             require(step == 16) { "Melody bar $b has $step steps" }
         }
+    }
+}
+
+/**
+ * A one-bar motif in scale degrees above the chord root, as "degree:steps" tokens ("." is a
+ * rest), e.g. "2:2 2:2 3:2 4:2 4:2 3:2 2:2 1:2". A song's [SongSpec.signature] replaces its
+ * generated signature motif; the [Composer] still transposes it diatonically over the chords.
+ */
+internal class Motif(bar: String) {
+    val degrees = IntArray(16) { Composer.NONE }
+    val lengths = IntArray(16)
+
+    /** Onsets as a lead template ('x' = note). */
+    val rhythm: String
+
+    init {
+        var step = 0
+        for (tok in bar.trim().split(Regex("\\s+"))) {
+            val (d, len) = tok.split(':')
+            val l = len.toInt()
+            require(l >= 1 && step + l <= 16) { "Motif '$bar' overflows the bar" }
+            if (d != ".") {
+                degrees[step] = d.toInt(); lengths[step] = l
+            }
+            step += l
+        }
+        require(step == 16) { "Motif '$bar' has $step steps" }
+        rhythm = String(CharArray(16) { if (degrees[it] != Composer.NONE) 'x' else '.' })
     }
 }
