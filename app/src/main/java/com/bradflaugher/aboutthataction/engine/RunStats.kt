@@ -46,6 +46,16 @@ class RunStats {
     var stashes = 0
     /** Special floors (blackouts, nap time, payday) walked onto. */
     var floorEvents = 0
+    /** BEAST: Heavies taken down from the front. */
+    var tackles = 0
+    /** STIFF ARM: guards flattened on the run. */
+    var stiffArms = 0
+    /** HARDY: fatal hits shrugged off (one a run at most). */
+    var secondWinds = 0
+    /** GLITCH: hits that phased right through. */
+    var glitches = 0
+    /** Guards dazed by an EMP, a BEAST QUAKE or a YIPPEE blast. */
+    var dazed = 0
     var hurts = 0
     /** Every hit taken, oldest first (capped; a run rarely takes more than a dozen). */
     val hurtLog = ArrayList<Hurt>()

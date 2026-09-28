@@ -31,24 +31,31 @@ enum class Perk(
     SHOCKWAVE("SHOCKWAVE", "Landing a stomp blasts the whole corridor", 1, "Landings: legendary."),
 
     // ---- BEAST
-    STIFF_ARM("STIFF ARM", "Running into a guard knocks him flat", 1, "Get off me.", Hero.BEAST),
-    BEAST_QUAKE("BEAST QUAKE", "Takedowns stun everyone nearby", 2, "Registered on the seismograph.", Hero.BEAST),
-    CANDY_RAIN("CANDY RAIN", "Every 8th kill heals a heart", 2, "Taste the victory.", Hero.BEAST),
+    STIFF_ARM("STIFF ARM", "Run into guards to flatten them, even mid-swing", 1, "Get off me.", Hero.BEAST),
+    BEAST_QUAKE("BEAST QUAKE", "Takedowns daze everyone nearby (LV 2: wider)", 2, "Registered on the seismograph.", Hero.BEAST),
+    CANDY_RAIN("CANDY RAIN", "Every 8th kill heals a heart (LV 2: every 5th)", 2, "Taste the victory.", Hero.BEAST),
 
     // ---- ACE
-    DISGUISE("DISGUISE", "Guards take twice as long to spot you", 1, "Nice moustache, sir.", Hero.ACE),
-    LASER_WATCH("LASER WATCH", "Your shots cut lights; one swat kills them all", 1, "It also tells the time.", Hero.ACE),
-    DEAD_DROP("DEAD DROP", "Quiet kills drop loot twice as often", 2, "Leave it under the fern.", Hero.ACE),
+    DISGUISE("DISGUISE", "Guards take twice as long to react to you", 1, "Nice moustache, sir.", Hero.ACE),
+    LASER_WATCH("LASER WATCH", "Your shots cut lamps; one swat kills them all", 1, "It also tells the time.", Hero.ACE),
+    DEAD_DROP("DEAD DROP", "SILENT kills drop loot 2x as often (LV 2: 3x)", 2, "Leave it under the fern.", Hero.ACE),
 
     // ---- HARDY
-    YIPPEE("YIPPEE", "Your blasts can't hurt you and knock guards flat", 1, "Come out to the coast.", Hero.HARDY),
-    VENT_CRAWL("VENT CRAWL", "Passages are quicker and you arrive unseen", 1, "Now I know what a TV dinner feels like.", Hero.HARDY),
-    ADRENALINE("ADRENALINE", "On your last heart: shoot and run 30% faster", 2, "Welcome to the party, pal.", Hero.HARDY),
+    YIPPEE("YIPPEE", "Bigger blasts that knock survivors flat", 1, "Come out to the coast.", Hero.HARDY),
+    VENT_CRAWL("VENT CRAWL", "Passages twice as quick; arrive unseen", 1, "Now I know what a TV dinner feels like.", Hero.HARDY),
+    ADRENALINE("ADRENALINE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "Welcome to the party, pal.", Hero.HARDY),
 
     // ---- VOLT
-    OVERRIDE("OVERRIDE", "Drones and turrets die to any hit or stomp", 1, "sudo explode.", Hero.VOLT),
-    EMP("EMP", "Grenades also stun the whole hallway", 2, "Unplugged.", Hero.VOLT),
-    GLITCH("GLITCH", "1 in 4 hits phase right through you", 2, "Lag, but for bullets.", Hero.VOLT),
+    OVERRIDE("OVERRIDE", "Drones and turrets drop to a single hit", 1, "sudo explode.", Hero.VOLT),
+    EMP("EMP", "Grenades daze the whole hallway (LV 2: longer)", 2, "Unplugged.", Hero.VOLT),
+    GLITCH("GLITCH", "1 in 4 hits phase through you (LV 2: 1 in 3)", 2, "Lag, but for bullets.", Hero.VOLT),
+    ;
+
+    /**
+     * Can [who] find this in a STASH? Everyone's perks, plus their own three; a hero with a
+     * double jump built in (VOLT) never gets DOUBLE JUMP.
+     */
+    fun offeredTo(who: Hero): Boolean = (hero == null || hero == who) && !(this == DOUBLE_JUMP && who.doubleJump)
 }
 
 /** Short-lived pickups dropped by enemies and found in the building. */

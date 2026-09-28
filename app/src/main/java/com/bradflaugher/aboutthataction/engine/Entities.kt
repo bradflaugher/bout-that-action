@@ -91,6 +91,13 @@ class Player {
     var holdAxis = 0
     /** Seconds since a bullet that had you was dodged in the grace window ("CLOSE!"). */
     var sinceCloseCall = 9f
+    /**
+     * VENT CRAWL: seconds left of arriving unseen out of a passage (guards can't see you; it
+     * counts down only while you're out in the open, and firing ends it).
+     */
+    var unseenTime = 0f
+    /** GLITCH: seconds since a hit phased through you is shown (counts down from [World.GLITCH_SHOW]). */
+    var glitchTime = 0f
 
     val floor: Int get() = kotlin.math.floor(floorF + 0.001f).toInt()
     val grounded: Boolean get() = z <= 0f && vz == 0f
@@ -153,6 +160,8 @@ class Enemy(
     var emergedAt = -1f
     /** Dozing at his post (a NAP TIME floor, or the roof): blind, deaf to footsteps, woken by noise. */
     var asleep = false
+    /** How long a STUNNED spell lasts (knocked flat, EMP'd, quaked); he comes up alert. */
+    var stunFor = 1.5f
 
     val alive: Boolean get() = state != EnemyState.DEAD && state != EnemyState.CHOKED
     val ducking: Boolean get() = state == EnemyState.AIM && aimLow && kind != EnemyKind.DRONE && kind != EnemyKind.TURRET
@@ -202,6 +211,8 @@ class Bullet(
 ) {
     var dead = false
     var life = 0f
+    /** LASER WATCH: this shot already sliced its lamp. */
+    var cutLamp = false
     val hitIds = HashSet<Int>(2)
     /**
      * Enemy bullets only: seconds since it touched the player (it hangs there

@@ -24,12 +24,13 @@ class BotPlaythroughTest {
         var silentKills = 0
         var kills = 0
         var perks = 0
+        var heroPerks = 0
         var score = 0L
         val depths = ArrayList<Int>()
     }
 
-    private fun play(seed: Long, difficulty: Difficulty, silent: Boolean, seconds: Float, t: Tally) {
-        val w = World(RunConfig(seed, difficulty, silent = silent))
+    private fun play(seed: Long, difficulty: Difficulty, silent: Boolean, seconds: Float, t: Tally, hero: Hero = Hero.BEAST) {
+        val w = World(RunConfig(seed, difficulty, silent = silent, hero = hero))
         val bot = Autopilot(seed)
         val met = HashSet<Int>()
         var time = 0f
@@ -58,6 +59,7 @@ class BotPlaythroughTest {
         t.silentKills += w.silentKills
         t.kills += w.kills
         t.perks += w.perks.values.sum()
+        t.heroPerks += w.perks.filterKeys { it.hero != null }.values.sum()
         t.score += w.score
     }
 
@@ -87,7 +89,39 @@ class BotPlaythroughTest {
         assertTrue("CHILL bot should get somewhere (avg $chillAverage)", chillAverage >= 6.0)
         for (silent in listOf(false, true)) {
             assertTrue("SILENT is viable too", (depthByPreset["CHILL$silent"] ?: 0.0) >= 6.0)
+            // The presets stay in order for the default hero: CHILL < AGENT < BRUTAL < STRAIGHT TO HELL.
+            val depths = Difficulty.Preset.entries.map { depthByPreset[it.name + silent] ?: 0.0 }
+            assertTrue("preset order (silent=$silent): $depths", depths.zipWithNext().all { (a, b) -> a > b })
         }
+    }
+
+    /**
+     * Every hero on the AGENT preset, both modes: nobody should be wildly better than the rest.
+     * Fewer runs than the preset report (it's a comparison, not a pacing read) to keep it quick.
+     */
+    @Test
+    fun heroesAreRoughlyBalanced() {
+        val report = StringBuilder()
+        val off = ArrayList<String>()
+        report.append("hero/mode (AGENT)   floors avg  max  kills  quiet  perks  hero perks  hits  deaths/8  score/run\n")
+        for (silent in listOf(false, true)) {
+            val avg = HashMap<Hero, Double>()
+            for (hero in Hero.entries) {
+                val t = Tally()
+                for (i in 1L..8L) play(i * 1013, Difficulty.Preset.AGENT.difficulty, silent, 360f, t, hero)
+                avg[hero] = t.depths.average()
+                report.append(
+                    "%-19s %10.1f %4d %6d %6d %6d %11d %5d %9d %10d%n".format(
+                        hero.name + if (silent) " SILENT" else " HOT", avg[hero], t.depths.max(), t.kills, t.silentKills,
+                        t.perks, t.heroPerks, t.hits, t.deaths, t.score / 8,
+                    ),
+                )
+            }
+            val mean = avg.values.average()
+            for ((hero, a) in avg) if (a !in mean * 0.6..mean * 1.5) off += "$hero silent=$silent: $a floors vs a mean of $mean"
+        }
+        println(report)
+        assertTrue("a hero is way off the pack: $off", off.isEmpty())
     }
 
     // ------------------------------------------------------------ the pacing report

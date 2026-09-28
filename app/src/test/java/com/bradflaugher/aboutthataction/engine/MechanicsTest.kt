@@ -12,8 +12,10 @@ class MechanicsTest {
     private val dt = 1f / 120f
 
     /** A world past its intro drop, on [floor], hallway A, with the hallway cleared. SILENT unless [silent] = false. */
-    private fun world(floor: Int = 3, seed: Long = 11L, difficulty: Difficulty = Difficulty(startFloor = floor), silent: Boolean = true): World {
-        val w = World(RunConfig(seed, difficulty, silent = silent))
+    private fun world(
+        floor: Int = 3, seed: Long = 11L, difficulty: Difficulty = Difficulty(startFloor = floor), silent: Boolean = true, hero: Hero = Hero.BEAST,
+    ): World {
+        val w = World(RunConfig(seed, difficulty, silent = silent, hero = hero))
         run(w, 1.5f)
         w.enemies.clear()
         w.bullets.clear()
@@ -80,7 +82,8 @@ class MechanicsTest {
 
     @Test
     fun heavyCanOnlyBeChokedFromBehind() {
-        val w = world()
+        // (The BEAST tackles them head-on: see HeroTest.)
+        val w = world(hero = Hero.ACE)
         w.player.x = 3f
         val front = enemy(w, EnemyKind.HEAVY, 4.5f, facing = -1)
         run(w, 0.8f) { it.moveAxis = 1 }
@@ -832,7 +835,8 @@ class MechanicsTest {
 
     @Test
     fun dyingEndsTheRun() {
-        val w = world(difficulty = Difficulty(hearts = 1, startFloor = 3))
+        // ACE: no extra heart, no second wind.
+        val w = world(difficulty = Difficulty(hearts = 1, startFloor = 3), hero = Hero.ACE)
         w.player.x = 5f
         bullet(w, 8f, Body.HIGH, -9f)
         run(w, 4f)
