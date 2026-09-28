@@ -1320,15 +1320,24 @@ internal class ActorCast(
      */
     private fun heavy(e: Enemy, dir: Int, zone: Zone, pal: Palette, armed: Boolean) {
         val z = if (zone == Zone.ROOFTOP || zone == Zone.VOID) Zone.TOWER else zone
-        val acc = pal.enemyAccent
+        // The visor is the one emissive; Magma's is a gold heat shield.
+        val acc = if (z == Zone.MAGMA) 0xFFFFC040.toInt() else pal.enemyAccent
         val hot = Col.lerp(acc, 0xFFFFFFFF.toInt(), 0.65f)
         val shell = when (z) {
             Zone.TOWER -> 0xFF383846.toInt()
-            Zone.LABS -> 0xFFD6DCDA.toInt()
+            Zone.LABS -> 0xFFDCE2E0.toInt()
             Zone.METRO -> 0xFF2C3E5C.toInt()
             Zone.MINES -> 0xFF56616A.toInt()
-            Zone.MAGMA -> 0xFFC4BEB4.toInt()
-            else -> 0xFF4A3036.toInt()
+            Zone.MAGMA -> 0xFFC8BCA8.toInt()
+            else -> 0xFF3E3438.toInt()
+        }
+        // The costume's one accent, a mid value that never outshines the visor.
+        val trim = when (z) {
+            Zone.TOWER -> Col.lerp(pal.enemyAccent, shell, 0.35f)
+            Zone.LABS -> Col.lerp(pal.enemyAccent, 0xFF2A6A48.toInt(), 0.45f)
+            Zone.METRO -> Col.lerp(shell, 0xFFE8ECF0.toInt(), 0.5f)
+            Zone.MAGMA -> 0xFFB08A3E.toInt()
+            else -> 0
         }
         // Value steps between the masses: torso, then legs a step down, helmet a step up.
         val legC = Col.lerp(shell, 0xFF0C0C12.toInt(), 0.3f)
@@ -1337,7 +1346,7 @@ internal class ActorCast(
         val L = look
         L.torso = shell; L.torsoLit = shell; L.legs = legC; L.legsFar = Col.mul(legC, 0.62f)
         L.arms = shell; L.armsFar = Col.mul(shell, 0.55f); L.boots = 0xFF0C0C12.toInt(); L.gloves = 0xFF16161E.toInt(); L.skin = shell
-        L.rim = rimOf(pal, 0.5f); L.legW = 1.1f; L.armW = 1.0f
+        L.rim = rimOf(pal, 0.75f); L.legW = 1.1f; L.armW = 1.0f
         val hx = k.headX
         val hy = k.headY + k.headR * 0.3f
         val r = k.headR
@@ -1352,8 +1361,8 @@ internal class ActorCast(
             p.bone(k.armB.ax, k.armB.ay, k.armB.jx, k.armB.jy, aw * 1.25f, aw * 1.05f, L.armsFar, lit = false)
             p.bone(k.armB.jx, k.armB.jy, k.armB.ex, k.armB.ey, aw * 1.15f, aw * 1.0f, L.armsFar, lit = false)
             body.handAt(k.armB.ex, k.armB.ey, Col.mul(L.gloves, 0.8f))
-            pillarLeg(k.legB, lw, L.legsFar, false)
-            pillarLeg(k.legF, lw, legC, true)
+            pillarLeg(k.legB, lw, L.legsFar, false, 0)
+            pillarLeg(k.legF, lw, legC, true, L.rim)
             // The near upper arm tucks in behind the chest.
             p.bone(k.armF.ax, k.armF.ay, k.armF.jx, k.armF.jy, aw * 1.3f, aw * 1.1f, Col.mul(shell, 0.8f))
             // Belt: a band of dark undersuit between the legs and the shell.
@@ -1378,10 +1387,34 @@ internal class ActorCast(
                 .add(body.ptX(0.08f, w * 0.64f), body.ptY(0.08f, w * 0.64f))
                 .shapeLit(shell, body.ptX(1.22f, c * 0.55f), body.ptY(1.22f, c * 0.55f), body.ptX(0.15f, -w * 0.5f), body.ptY(0.15f, -w * 0.5f), mid = 0.38f)
             if (p.shading) {
-                // One seam where the chest plate meets the belly, a hard specular across the chest.
+                // One seam where the chest plate meets the belly.
                 p.detail(body.ptX(0.5f, -c * 0.66f), body.ptY(0.5f, -c * 0.66f), body.ptX(0.6f, c * 0.76f), body.ptY(0.6f, c * 0.76f), 0.02f, ActorPaint.shade(ActorPaint.shade(shell)))
-                p.detail(body.ptX(1.08f, c * 0.2f), body.ptY(1.08f, c * 0.2f), body.ptX(0.95f, c * 0.72f), body.ptY(0.95f, c * 0.72f), 0.024f, Col.alpha(0xFFFFFFFF.toInt(), 0.75f))
-                p.detail(body.ptX(1.2f, -c * 0.6f), body.ptY(1.2f, -c * 0.6f), body.ptX(1.24f, c * 0.2f), body.ptY(1.24f, c * 0.2f), 0.02f, Col.alpha(ActorPaint.light(ActorPaint.light(shell)), 0.8f))
+                // Two broad soft highlights: the shoulder dome and the swell of the chest.
+                val hi = Col.alpha(0xFFFFFFFF.toInt(), 0.34f)
+                val lo = Col.alpha(0xFFFFFFFF.toInt(), 0f)
+                p.begin()
+                    .add(body.ptX(1.2f, -c * 0.62f), body.ptY(1.2f, -c * 0.62f))
+                    .add(body.ptX(1.25f, -c * 0.3f), body.ptY(1.25f, -c * 0.3f))
+                    .add(body.ptX(1.23f, c * 0.28f), body.ptY(1.23f, c * 0.28f))
+                    .add(body.ptX(1.08f, c * 0.2f), body.ptY(1.08f, c * 0.2f))
+                    .add(body.ptX(1.06f, -c * 0.5f), body.ptY(1.06f, -c * 0.5f))
+                    .shapeGradDetail(hi, lo, body.ptX(1.25f, 0f), body.ptY(1.25f, 0f), body.ptX(1.04f, 0f), body.ptY(1.04f, 0f))
+                p.begin()
+                    .add(body.ptX(1.1f, c * 0.6f), body.ptY(1.1f, c * 0.6f))
+                    .add(body.ptX(0.92f, c * 0.83f), body.ptY(0.92f, c * 0.83f))
+                    .add(body.ptX(0.74f, c * 0.8f), body.ptY(0.74f, c * 0.8f))
+                    .add(body.ptX(0.84f, c * 0.5f), body.ptY(0.84f, c * 0.5f))
+                    .add(body.ptX(1.02f, c * 0.42f), body.ptY(1.02f, c * 0.42f))
+                    .shapeGradDetail(hi, lo, body.ptX(1.02f, c * 0.8f), body.ptY(1.02f, c * 0.8f), body.ptX(0.8f, c * 0.5f), body.ptY(0.8f, c * 0.5f))
+            }
+            if (!p.ink && L.rim != 0) {
+                // Neon rim down the back contour.
+                g.blend(Gfx.Blend.ADD)
+                val rw = ActorPaint.RIM_W
+                p.detail(body.ptX(0.12f, -w * 0.6f), body.ptY(0.12f, -w * 0.6f), body.ptX(0.5f, -c * 0.7f), body.ptY(0.5f, -c * 0.7f), rw, L.rim)
+                p.detail(body.ptX(0.5f, -c * 0.7f), body.ptY(0.5f, -c * 0.7f), body.ptX(0.92f, -c * 0.86f), body.ptY(0.92f, -c * 0.86f), rw, L.rim)
+                p.detail(body.ptX(0.92f, -c * 0.86f), body.ptY(0.92f, -c * 0.86f), body.ptX(1.16f, -c * 0.74f), body.ptY(1.16f, -c * 0.74f), rw, L.rim)
+                g.blend(Gfx.Blend.NORMAL)
             }
             if (!p.ink) {
                 when (z) {
@@ -1393,7 +1426,11 @@ internal class ActorCast(
                             .add(body.ptX(0.6f, c * 0.78f), body.ptY(0.6f, c * 0.78f))
                             .add(body.ptX(0.64f, c * 0.62f), body.ptY(0.64f, c * 0.62f))
                             .add(body.ptX(0.92f, c * 0.66f), body.ptY(0.92f, c * 0.66f))
-                            .shapeGradDetail(ActorPaint.light(acc), ActorPaint.shade(acc), body.ptX(1.1f, c * 0.7f), body.ptY(1.1f, c * 0.7f), body.ptX(0.6f, c * 0.7f), body.ptY(0.6f, c * 0.7f))
+                            .shapeGradDetail(ActorPaint.light(trim), ActorPaint.shade(trim), body.ptX(1.1f, c * 0.7f), body.ptY(1.1f, c * 0.7f), body.ptX(0.6f, c * 0.7f), body.ptY(0.6f, c * 0.7f))
+                    }
+                    Zone.LABS, Zone.MAGMA -> {
+                        // Trim along the rim of the yoke: lab green, or heat-shield brass.
+                        p.detail(body.ptX(1.2f, -c * 0.6f), body.ptY(1.2f, -c * 0.6f), body.ptX(1.12f, c * 0.62f), body.ptY(1.12f, c * 0.62f), 0.034f, trim)
                     }
                     Zone.METRO -> {
                         // Riot stripe round the chest.
@@ -1402,7 +1439,7 @@ internal class ActorCast(
                             .add(body.ptX(0.98f, c * 0.84f), body.ptY(0.98f, c * 0.84f))
                             .add(body.ptX(0.86f, c * 0.86f), body.ptY(0.86f, c * 0.86f))
                             .add(body.ptX(0.74f, -c * 0.8f), body.ptY(0.74f, -c * 0.8f))
-                            .shapeDetail(0xFFE8ECF0.toInt())
+                            .shapeDetail(trim)
                     }
                     else -> Unit
                 }
@@ -1416,6 +1453,7 @@ internal class ActorCast(
             p.lightFrom(dir)
             // The near forearm and a big gauntlet on the cannon.
             p.bone(k.armF.jx, k.armF.jy, k.armF.ex, k.armF.ey, aw * 1.25f, aw * 1.15f, Col.lerp(shell, 0xFFFFFFFF.toInt(), 0.1f), sep = true)
+            if (L.rim != 0) p.boneRim(k.armF.jx, k.armF.jy, k.armF.ex, k.armF.ey, aw * 1.25f, aw * 1.15f, body.rimX, body.rimY, L.rim)
             val gx = k.armF.ex
             val gy = k.armF.ey
             p.ball(gx, gy, aw * 0.62f, L.gloves)
@@ -1423,35 +1461,34 @@ internal class ActorCast(
         if (e.state == EnemyState.AIM && armed) f.glowDot(body.muzzleX, body.muzzleY, 0.04f, pal.laser, p.alphaMul)
     }
 
-    /** A pillar of a leg: thick armoured thigh and shin, one knee seam, a block boot. */
-    private fun pillarLeg(l: Limb, lw: Float, color: Int, near: Boolean) {
-        p.bone(l.ax, l.ay, l.jx, l.jy, lw * 1.75f, lw * 1.5f, color, near, lit = near)
-        p.bone(l.jx, l.jy, l.ex, l.ey, lw * 1.55f, lw * 1.35f, color, near, lit = near)
+    /** A pillar of a leg: armoured thigh tapering into the knee, a plated shin, a big block boot. */
+    private fun pillarLeg(l: Limb, lw: Float, color: Int, near: Boolean, rim: Int) {
+        p.bone(l.ax, l.ay, l.jx, l.jy, lw * 1.95f, lw * 1.2f, color, near, lit = near)
+        p.bone(l.jx, l.jy, l.ex, l.ey, lw * 1.35f, lw * 1.2f, color, near, bulge = lw * 1.45f, lit = near)
+        if (rim != 0) p.boneRim(l.ax, l.ay, l.jx, l.jy, lw * 1.95f, lw * 1.2f, body.rimX, body.rimY, rim)
         if (near && p.shading) {
-            // The knee: the shin plate's top edge lit, a seam under it.
+            // The knee: one seam across the top of the shin plate.
             val dx = l.ex - l.jx
             val dy = l.ey - l.jy
             val len = sqrt(dx * dx + dy * dy).coerceAtLeast(1e-4f)
-            val nx = -dy / len * lw * 0.62f
-            val ny = dx / len * lw * 0.62f
-            val cx = l.jx + dx * 0.12f
-            val cy = l.jy + dy * 0.12f
+            val nx = -dy / len * lw * 0.6f
+            val ny = dx / len * lw * 0.6f
+            val cx = l.jx + dx * 0.14f
+            val cy = l.jy + dy * 0.14f
             p.detail(cx - nx, cy - ny, cx + nx, cy + ny, 0.02f, ActorPaint.shade(ActorPaint.shade(color)))
-            p.detail(cx - nx + dx * 0.05f, cy - ny + dy * 0.05f, cx + nx + dx * 0.05f, cy + ny + dy * 0.05f, 0.014f, ActorPaint.light(ActorPaint.light(color)))
         }
-        // Block boot: a slab of sole under the ankle.
+        // Block boot: a big slab of sole under the ankle.
         val d = k.dir.toFloat()
-        val s = k.hs
+        val s = k.hs * 1.3f
         val bx = l.ex
-        val by = l.ey + 0.045f * s
+        val by = l.ey + 0.045f * k.hs
         p.begin()
-            .add(bx - 0.11f * s * d, by)
-            .add(bx - 0.11f * s * d, by - 0.1f * s)
-            .add(bx + 0.06f * s * d, by - 0.12f * s)
-            .add(bx + 0.2f * s * d, by - 0.05f * s)
-            .add(bx + 0.21f * s * d, by)
-            .shapeLit(if (near) 0xFF1C1C26.toInt() else 0xFF101018.toInt(), bx, by - 0.12f * s, bx, by, sep = near)
-        if (near && p.shading) p.detail(bx - 0.1f * s * d, by - 0.012f, bx + 0.2f * s * d, by - 0.012f, 0.022f, 0xFF3A3A48.toInt())
+            .add(bx - 0.1f * s * d, by)
+            .add(bx - 0.1f * s * d, by - 0.1f * s)
+            .add(bx + 0.05f * s * d, by - 0.12f * s)
+            .add(bx + 0.18f * s * d, by - 0.06f * s)
+            .add(bx + 0.2f * s * d, by)
+            .shapeLit(if (near) 0xFF22222E.toInt() else 0xFF121218.toInt(), bx, by - 0.12f * s, bx, by, sep = near)
     }
 
     /** The heavy's helmet: a small rounded dome sunk in the yoke, one slot visor glowing in the accent. */
@@ -1459,18 +1496,9 @@ internal class ActorCast(
         val d = dir.toFloat()
         val R = r * 1.14f
         if (z == Zone.HELL) {
-            // Bone horns bolted to the helm, sweeping back and up.
-            val bone = 0xFFE8D8C0.toInt()
-            p.begin()
-                .add(hx + R * 0.3f * d, hy - R * 0.6f).add(hx - R * 0.25f * d, hy - R * 0.75f)
-                .add(hx - R * 0.65f * d, hy - R * 1.45f).add(hx - R * 0.4f * d, hy - R * 2.25f)
-                .add(hx - R * 0.02f * d, hy - R * 1.3f)
-                .shapeLit(bone, hx, hy - R * 2f, hx - R * 0.6f * d, hy - R)
-            p.begin()
-                .add(hx - R * 0.55f * d, hy - R * 0.3f).add(hx - R * 0.8f * d, hy - R * 0.55f)
-                .add(hx - R * 1.55f * d, hy - R * 1.05f).add(hx - R * 2.2f * d, hy - R * 0.95f)
-                .add(hx - R * 1.2f * d, hy - R * 0.55f)
-                .shape(Col.mul(bone, 0.78f))
+            // Thick curved horns of dark bone bolted to the helm, their tips glowing warm.
+            demonHorn(hx - R * 0.05f * d, hy + R * 0.25f, R * 0.95f, -d, 0xFF3E3430.toInt(), false, 0xFFFF7A30.toInt(), 1.7f)
+            demonHorn(hx - R * 0.1f * d, hy + R * 0.2f, R * 1.05f, d, 0xFF5E5048.toInt(), true, 0xFFFF8A40.toInt(), 1.7f)
         }
         p.begin()
             .add(hx - R * 0.9f * d, hy + R * 0.55f)
@@ -1502,7 +1530,6 @@ internal class ActorCast(
             }
         }
         if (!p.ink) {
-            if (p.shading && z != Zone.MINES) p.detail(hx - R * 0.35f * d, hy - R * 0.78f, hx + R * 0.4f * d, hy - R * 0.84f, 0.022f, Col.alpha(0xFFFFFFFF.toInt(), 0.6f))
             // Slot visor: a narrow recessed black slot, the accent burning in it.
             p.begin()
                 .add(hx + R * 0.12f * d, hy - R * 0.3f)
@@ -1515,8 +1542,8 @@ internal class ActorCast(
         }
     }
 
-    private val tailX = FloatArray(12)
-    private val tailY = FloatArray(12)
+    private val tailX = FloatArray(16)
+    private val tailY = FloatArray(16)
 
     /**
      * A ribbon through tailX/Y[from until from + n]: [w0] wide at the root tapering to a point,
@@ -1572,64 +1599,82 @@ internal class ActorCast(
      * wrapped shins and forearms, an empty lacquered scabbard on the back and the katana.
      */
     private fun ninja(e: Enemy, dir: Int, zone: Zone, pal: Palette, armed: Boolean) {
-        val main = 0xFF1E1E30.toInt()
-        val lit = 0xFF56567C.toInt()
-        val far = 0xFF0A0A12.toInt()
-        val band = if (zone == Zone.HELL) 0xFFFFB020.toInt() else pal.enemyAccent
-        val wrap = 0xFF2C2C42.toInt()
+        // Indigo-black cloth with the full lamp-to-violet range, so he isn't a flat black stick.
+        val main = 0xFF32324E.toInt()
+        val lit = 0xFF6A6A98.toInt()
+        val far = 0xFF141422.toInt()
+        // The one accent: the zone colour, a notch dimmer than anything that glows.
+        val band = Col.lerp(if (zone == Zone.HELL) 0xFFFFB020.toInt() else pal.enemyAccent, main, 0.18f)
+        val wrap = 0xFF44446A.toInt()
         val L = look
-        L.torso = main; L.torsoLit = lit; L.legs = main; L.legsFar = far
-        L.arms = main; L.armsFar = far; L.boots = 0xFF14141E.toInt(); L.gloves = 0xFF14141E.toInt(); L.skin = 0xFFE8C8A8.toInt()
-        L.rim = 0; L.legW = 0.86f; L.armW = 0.86f
+        // Jacket a step lighter than the trousers, so the wedge of the torso reads.
+        L.torso = main; L.torsoLit = lit; L.legs = 0xFF1C1C2E.toInt(); L.legsFar = far
+        L.arms = main; L.armsFar = far; L.boots = 0xFF14141E.toInt(); L.gloves = 0xFF1A1A28.toInt(); L.skin = 0xFFE8C8A8.toInt()
+        L.rim = rimOf(pal, 0.8f); L.legW = 0.86f; L.armW = 0.86f
         val hx = k.headX
         val hy = k.headY
         val r = k.headR
         val d = dir.toFloat()
+        val w = k.waistD
+        val c = k.chestD * 1.08f
         val speed = min(1f, abs(e.vx) / 3f)
-        streamTail(0, 4, hx - r * 0.9f * d, hy - r * 0.5f, 0.08f, dir, speed, e.id.toFloat(), 0.7f)
-        streamTail(4, 4, hx - r * 0.9f * d, hy - r * 0.45f, 0.065f, dir, speed, e.id + 2.2f, 0.4f)
-        streamTail(8, 3, body.ptX(0.02f, -k.waistD * 0.5f), body.ptY(0.02f, -k.waistD * 0.5f), 0.1f, dir, speed, e.id + 4.1f, 0.2f)
+        // Two thin headband ribbons trailing back and down, a little apart; the sash end hanging at the hip.
+        streamTail(0, 5, hx - r * 0.9f * d, hy - r * 0.52f, 0.07f, dir, speed, e.id.toFloat(), 0.95f)
+        streamTail(5, 5, hx - r * 0.88f * d, hy - r * 0.42f, 0.064f, dir, speed, e.id + 2.2f, 0.62f)
+        streamTail(10, 3, body.ptX(0.08f, w * 0.3f), body.ptY(0.08f, w * 0.3f), 0.075f, dir, speed * 0.5f, e.id + 4.1f, 0.12f)
         p.lightFrom(dir)
         p.twoPass {
-            ribbon(4, 4, 0.036f, Col.mul(band, 0.7f))
-            ribbon(0, 4, 0.044f, band)
+            ribbon(5, 5, 0.026f, Col.mul(band, 0.72f))
+            ribbon(0, 5, 0.03f, band)
             body.arm(k.armB, L, far = true)
+            // The far arm swings out past the back: it carries the rim there.
+            if (L.rim != 0) p.boneRim(k.armB.ax, k.armB.ay, k.armB.jx, k.armB.jy, k.limbW * 0.93f, k.limbW * 0.67f, body.rimX, body.rimY, Col.fade(L.rim, 0.7f))
             body.leg(k.legB, L, far = true)
-            // Empty scabbard across the back: black lacquer, a lit edge, an accent chape.
-            val s0x = body.ptX(0.12f, -k.waistD * 0.75f); val s0y = body.ptY(0.12f, -k.waistD * 0.75f)
-            val s1x = body.ptX(1.08f, -k.chestD * 0.25f); val s1y = body.ptY(1.08f, -k.chestD * 0.25f)
-            p.seg(s0x, s0y, s1x, s1y, 0.05f, 0xFF120C12.toInt())
-            if (!p.ink) {
-                if (p.shading) p.detail(mixf(s0x, s1x, 0.15f), mixf(s0y, s1y, 0.15f) - 0.01f, mixf(s0x, s1x, 0.9f), mixf(s0y, s1y, 0.9f) - 0.01f, 0.012f, 0xFF5A4A5A.toInt())
-            }
-            ribbon(8, 3, 0.05f, Col.mul(band, 0.85f))
+            // The near leg sits inside the silhouette: no rim, or it reads as a stripe.
+            val rim = L.rim
+            L.rim = 0
             body.leg(k.legF, L, far = false)
+            L.rim = rim
             if (p.shading) wraps(k.legF, wrap)
-            body.torso(L, chest = 0.94f)
+            // Wedge torso: broad shoulders and lats, the waist cinched by the sash.
+            p.begin()
+                .add(body.ptX(-0.1f, -w * 0.46f), body.ptY(-0.1f, -w * 0.46f))
+                .add(body.ptX(-0.1f, w * 0.44f), body.ptY(-0.1f, w * 0.44f))
+                .add(body.ptX(0.3f, w * 0.36f), body.ptY(0.3f, w * 0.36f))
+                .add(body.ptX(0.72f, c * 0.54f), body.ptY(0.72f, c * 0.54f))
+                .add(body.ptX(1.0f, c * 0.4f), body.ptY(1.0f, c * 0.4f))
+                .add(body.ptX(1.07f, -c * 0.1f), body.ptY(1.07f, -c * 0.1f))
+                .add(body.ptX(0.98f, -c * 0.5f), body.ptY(0.98f, -c * 0.5f))
+                .add(body.ptX(0.66f, -c * 0.62f), body.ptY(0.66f, -c * 0.62f))
+                .add(body.ptX(0.3f, -w * 0.38f), body.ptY(0.3f, -w * 0.38f))
+                .shapeLit(main, body.ptX(1.05f, c * 0.5f), body.ptY(1.05f, c * 0.5f), body.ptX(0.2f, -w * 0.5f), body.ptY(0.2f, -w * 0.5f), mid = 0.4f)
             if (!p.ink) {
-                val c = k.chestD * 0.94f
-                val w = k.waistD
-                // Crossed jacket: the lapel running from the far shoulder down to the sash.
+                // Crossed jacket: the lapel from the shoulder down to the sash, lit.
                 if (p.shading) {
                     p.begin()
-                        .add(body.ptX(1.0f, c * 0.05f), body.ptY(1.0f, c * 0.05f))
+                        .add(body.ptX(1.04f, -c * 0.02f), body.ptY(1.04f, -c * 0.02f))
                         .add(body.ptX(1.0f, c * 0.3f), body.ptY(1.0f, c * 0.3f))
-                        .add(body.ptX(0.3f, w * 0.52f), body.ptY(0.3f, w * 0.52f))
-                        .add(body.ptX(0.3f, w * 0.3f), body.ptY(0.3f, w * 0.3f))
-                        .shapeDetail(Col.alpha(lit, 0.6f))
+                        .add(body.ptX(0.3f, w * 0.36f), body.ptY(0.3f, w * 0.36f))
+                        .add(body.ptX(0.3f, w * 0.12f), body.ptY(0.3f, w * 0.12f))
+                        .shapeDetail(Col.alpha(lit, 0.55f))
                 }
-                // Sash: a wide band of the accent, its knot and a shadow fold.
+                // Sash cinching the waist, its knot at the front hip.
                 p.begin()
-                    .add(body.ptX(0.18f, -w * 0.54f), body.ptY(0.18f, -w * 0.54f))
-                    .add(body.ptX(0.2f, w * 0.54f), body.ptY(0.2f, w * 0.54f))
-                    .add(body.ptX(0.02f, w * 0.52f), body.ptY(0.02f, w * 0.52f))
-                    .add(body.ptX(0.0f, -w * 0.52f), body.ptY(0.0f, -w * 0.52f))
-                    .shapeDetail(band)
-                if (p.shading) {
-                    p.detail(body.ptX(0.17f, -w * 0.5f), body.ptY(0.17f, -w * 0.5f), body.ptX(0.19f, w * 0.5f), body.ptY(0.19f, w * 0.5f), 0.014f, ActorPaint.light(band))
-                    p.detail(body.ptX(0.03f, -w * 0.48f), body.ptY(0.03f, -w * 0.48f), body.ptX(0.05f, w * 0.48f), body.ptY(0.05f, w * 0.48f), 0.02f, ActorPaint.shade(band))
+                    .add(body.ptX(0.26f, -w * 0.42f), body.ptY(0.26f, -w * 0.42f))
+                    .add(body.ptX(0.27f, w * 0.4f), body.ptY(0.27f, w * 0.4f))
+                    .add(body.ptX(0.06f, w * 0.44f), body.ptY(0.06f, w * 0.44f))
+                    .add(body.ptX(0.04f, -w * 0.46f), body.ptY(0.04f, -w * 0.46f))
+                    .shapeGradDetail(ActorPaint.light(band), ActorPaint.shade(band), body.ptX(0.27f, 0f), body.ptY(0.27f, 0f), body.ptX(0.04f, 0f), body.ptY(0.04f, 0f))
+                if (L.rim != 0) {
+                    // Neon rim down the back contour of the wedge.
+                    g.blend(Gfx.Blend.ADD)
+                    p.detail(body.ptX(0.72f, -c * 0.61f), body.ptY(0.72f, -c * 0.61f), body.ptX(0.98f, -c * 0.5f), body.ptY(0.98f, -c * 0.5f), ActorPaint.RIM_W, L.rim)
+                    p.detail(body.ptX(0.98f, -c * 0.5f), body.ptY(0.98f, -c * 0.5f), body.ptX(1.07f, -c * 0.1f), body.ptY(1.07f, -c * 0.1f), ActorPaint.RIM_W, L.rim)
+                    g.blend(Gfx.Blend.NORMAL)
                 }
             }
+            ribbon(10, 3, 0.034f, Col.mul(band, 0.85f))
+            p.disc(body.ptX(0.16f, w * 0.34f), body.ptY(0.16f, w * 0.34f), 0.03f, band)
             body.neck(main)
             // Hood and the mask's jaw.
             p.ball(hx, hy, r, main)
@@ -1646,14 +1691,10 @@ internal class ActorCast(
                 p.begin()
                     .add(hx + r * 0.42f * d, hy - r * 0.8f).add(hx + r * 0.9f * d, hy - r * 0.8f)
                     .add(hx + r * 0.98f * d, hy - r * 0.44f).add(hx + r * 0.46f * d, hy - r * 0.42f)
-                    .shapeDetail(0xFF9AA4B8.toInt())
-                if (p.shading) {
-                    p.detail(hx + r * 0.48f * d, hy - r * 0.74f, hx + r * 0.86f * d, hy - r * 0.74f, 0.014f, 0xFFFFFFFF.toInt())
-                    // The hood's crown in the lamp.
-                    p.detail(hx - r * 0.55f * d, hy - r * 0.78f, hx + r * 0.25f * d, hy - r * 0.93f, 0.028f, lit)
-                }
+                    .shapeGradDetail(0xFFC8D0DC.toInt(), 0xFF5A6274.toInt(), hx + r * 0.7f * d, hy - r * 0.8f, hx + r * 0.7f * d, hy - r * 0.42f)
             }
         }
+        body.headRim(hx, hy, r, L.rim)
         eyesAt(hx + r * 0.7f * d, hy - r * 0.1f)
         p.twoPass {
             if (armed && bladeA < 90f) katana(k.armF.ex, k.armF.ey, dir, bladeA, band)
@@ -1737,20 +1778,17 @@ internal class ActorCast(
             bladeAt(bx, by, dx, dy, nx, ny, len, t, 0.018f - 0.004f * t)
             p.add(bladePts[0], bladePts[1])
         }
-        p.shape(0xFF6A7488.toInt())
+        p.shape(0xFF7A8498.toInt())
         if (!p.ink) {
-            // The flat of the blade in the lamp, the temper line and the bright edge.
-            for (i in 0 until 4) {
-                val t0 = i / 4f
-                val t1 = (i + 1) / 4f
-                bladeAt(bx, by, dx, dy, nx, ny, len, t0, 0.004f)
-                val x0 = bladePts[0]; val y0 = bladePts[1]
-                bladeAt(bx, by, dx, dy, nx, ny, len, t1 * 0.97f, 0.004f)
-                p.detail(x0, y0, bladePts[0], bladePts[1], 0.016f, 0xFFB8C4D8.toInt())
-                bladeAt(bx, by, dx, dy, nx, ny, len, t0, 0.014f)
-                val e0x = bladePts[0]; val e0y = bladePts[1]
-                bladeAt(bx, by, dx, dy, nx, ny, len, t1 * 0.97f, 0.013f)
-                p.detail(e0x, e0y, bladePts[0], bladePts[1], 0.006f, 0xFFFFFFFF.toInt())
+            // One bright edge along the whole blade, catching the lamp.
+            bladeAt(bx, by, dx, dy, nx, ny, len, 0f, 0.011f)
+            var ex0 = bladePts[0]
+            var ey0 = bladePts[1]
+            for (i in 1..4) {
+                bladeAt(bx, by, dx, dy, nx, ny, len, i / 4f * 0.96f, 0.011f - 0.003f * i / 4f)
+                p.detail(ex0, ey0, bladePts[0], bladePts[1], 0.011f, 0xFFF4F8FF.toInt())
+                ex0 = bladePts[0]
+                ey0 = bladePts[1]
             }
             // The habaki collar.
             p.detail(bx - nx * 0.018f, by - ny * 0.018f, bx + nx * 0.018f, by + ny * 0.018f, 0.022f, 0xFFE0C060.toInt())
@@ -1762,20 +1800,41 @@ internal class ActorCast(
         }
     }
 
-    /** A line of cracked hide: molten and glowing outside Hell, a dark sculpted groove in it. */
-    private fun crack(x1: Float, y1: Float, x2: Float, y2: Float, w: Float, lava: Boolean, glow: Int, hot: Int, groove: Int) {
+    /**
+     * A split in the hide at (x, y) along the spine: an irregular, pointed rift, molten and
+     * glowing outside Hell (a hot core, a soft bloom), a dark sculpted groove in it.
+     */
+    private fun lavaWound(x: Float, y: Float, lava: Boolean, glow: Int, hot: Int, groove: Int) {
         if (p.ink) return
-        // A kink a third of the way along, so it splits like rock rather than runs like a seam.
-        val dx = x2 - x1
-        val dy = y2 - y1
-        val mx = x1 + dx * 0.4f - dy * 0.22f
-        val my = y1 + dy * 0.4f + dx * 0.22f
+        val ux = k.ux
+        val uy = k.uy
+        val nx = k.nx
+        val ny = k.ny
+        val s = k.hs * 1.5f
+        fun wx(a: Float, b: Float) = x + (ux * a + nx * b) * s
+        fun wy(a: Float, b: Float) = y + (uy * a + ny * b) * s
+        if (lava && p.shading) {
+            g.blend(Gfx.Blend.ADD)
+            g.glow(x, y, 0.16f * s, p.c(Col.alpha(glow, 0.35f)))
+            g.blend(Gfx.Blend.NORMAL)
+        }
+        p.begin()
+            .add(wx(0.15f, 0.02f), wy(0.15f, 0.02f))
+            .add(wx(0.06f, 0.035f), wy(0.06f, 0.035f))
+            .add(wx(0.0f, 0.02f), wy(0.0f, 0.02f))
+            .add(wx(-0.07f, 0.04f), wy(-0.07f, 0.04f))
+            .add(wx(-0.14f, -0.01f), wy(-0.14f, -0.01f))
+            .add(wx(-0.05f, -0.02f), wy(-0.05f, -0.02f))
+            .add(wx(0.03f, -0.035f), wy(0.03f, -0.035f))
+            .add(wx(0.09f, -0.015f), wy(0.09f, -0.015f))
+            .shapeDetail(if (lava) glow else groove)
         if (lava) {
-            emissive(x1, y1, mx, my, w, glow, hot, 2.2f)
-            emissive(mx, my, x2, y2, w * 0.7f, glow, hot, 2.2f)
-        } else if (p.shading) {
-            p.detail(x1, y1, mx, my, w, groove)
-            p.detail(mx, my, x2, y2, w * 0.8f, groove)
+            p.begin()
+                .add(wx(0.1f, 0.01f), wy(0.1f, 0.01f))
+                .add(wx(0.0f, 0.012f), wy(0.0f, 0.012f))
+                .add(wx(-0.09f, 0.01f), wy(-0.09f, 0.01f))
+                .add(wx(0.0f, -0.014f), wy(0.0f, -0.014f))
+                .shapeDetail(hot)
         }
     }
 
@@ -1799,7 +1858,7 @@ internal class ActorCast(
         L.torso = main; L.torsoLit = lit; L.legs = main; L.legsFar = Col.lerp(main, dark, 0.35f)
         L.arms = main; L.armsFar = Col.lerp(main, dark, 0.55f); L.boots = dark; L.gloves = main; L.skin = main
         // A warm ember rim, not the cool neon: he's lit by his own fire.
-        L.rim = Col.alpha(0xFFFF8A40.toInt(), 0.6f); L.legW = 1.05f; L.armW = 1.08f
+        L.rim = Col.alpha(0xFFFF9A50.toInt(), 0.9f); L.legW = 1.05f; L.armW = 1.08f
         val hx = k.headX
         val hy = k.headY
         val r = k.headR * 1.12f
@@ -1822,6 +1881,7 @@ internal class ActorCast(
         p.twoPass {
             for (i in 0 until 5) {
                 p.bone(tailX[i], tailY[i], tailX[i + 1], tailY[i + 1], 0.085f - i * 0.012f, 0.073f - i * 0.012f, L.legsFar)
+                p.boneRim(tailX[i], tailY[i], tailX[i + 1], tailY[i + 1], 0.085f - i * 0.012f, 0.073f - i * 0.012f, body.rimX, body.rimY, L.rim)
             }
             // The spade.
             val ux0 = tailX[5] - tailX[4]
@@ -1843,17 +1903,25 @@ internal class ActorCast(
             claws(k.armB, dir, Col.mul(bone, 0.75f))
             hoofLeg(k.legB, 1, L.legsFar, false)
             hoofLeg(k.legF, 0, L.legs, true)
-            // Spines down the back, growing toward the shoulders.
+            // Three big spines of dark bone down the back, growing toward the shoulders.
+            val spine = if (hell) 0xFF4A2A26.toInt() else 0xFF6A5A50.toInt()
             for (i in 0 until 3) {
-                val a = 0.38f + i * 0.24f
-                val sz = 0.07f + i * 0.025f
-                val bx = body.ptX(a, -c * 0.46f)
-                val by = body.ptY(a, -c * 0.46f)
+                val a = 0.36f + i * 0.26f
+                val sz = 0.11f + i * 0.035f
+                val bx = body.ptX(a, -c * 0.44f)
+                val by = body.ptY(a, -c * 0.44f)
+                val tx = bx - k.nx * sz * 1.35f + k.ux * sz * 0.45f
+                val ty = by - k.ny * sz * 1.35f + k.uy * sz * 0.45f
                 p.begin()
-                    .add(bx + k.ux * sz * 0.55f, by + k.uy * sz * 0.55f)
-                    .add(bx - k.nx * sz * 1.3f + k.ux * sz * 0.2f, by - k.ny * sz * 1.3f + k.uy * sz * 0.2f)
-                    .add(bx - k.ux * sz * 0.55f, by - k.uy * sz * 0.55f)
-                    .shape(bone)
+                    .add(bx + k.ux * sz * 0.5f, by + k.uy * sz * 0.5f)
+                    .add(tx, ty)
+                    .add(bx - k.ux * sz * 0.5f, by - k.uy * sz * 0.5f)
+                    .shapeLit(spine, bx + k.ux * sz * 0.5f, by + k.uy * sz * 0.5f, bx - k.ux * sz * 0.5f, by - k.uy * sz * 0.5f)
+                if (!p.ink && L.rim != 0 && p.shading) {
+                    g.blend(Gfx.Blend.ADD)
+                    p.detail(bx + k.ux * sz * 0.5f, by + k.uy * sz * 0.5f, tx, ty, ActorPaint.RIM_W * 0.8f, Col.fade(L.rim, 0.6f))
+                    g.blend(Gfx.Blend.NORMAL)
+                }
             }
             body.torso(L, chest = 1.2f)
             if (p.shading) {
@@ -1873,16 +1941,16 @@ internal class ActorCast(
                     .shapeShade(main)
                 p.detail(body.ptX(0.66f, c * 0.52f), body.ptY(0.66f, c * 0.52f), body.ptX(0.6f, c * 0.18f), body.ptY(0.6f, c * 0.18f), 0.022f, dark)
             }
-            if (armed) {
-                // One bold molten fault split across the chest.
-                crack(body.ptX(0.18f, w * 0.34f), body.ptY(0.18f, w * 0.34f), body.ptX(0.86f, -c * 0.3f), body.ptY(0.86f, -c * 0.3f), 0.036f, lava, glow, hot, groove)
-            }
             // The hump of the shoulders the head juts forward from.
             p.ball(body.ptX(0.98f, -c * 0.18f), body.ptY(0.98f, -c * 0.18f), c * 0.5f, main)
+            body.headRim(body.ptX(0.98f, -c * 0.18f), body.ptY(0.98f, -c * 0.18f), c * 0.5f, L.rim)
+            // One molten wound split open in the ribs, glowing through the hide.
+            if (armed) lavaWound(body.ptX(0.55f, -c * 0.08f), body.ptY(0.55f, -c * 0.08f), lava, glow, hot, groove)
             if (p.shading) p.detail(body.ptX(1.12f, -c * 0.5f), body.ptY(1.12f, -c * 0.5f), body.ptX(1.2f, -c * 0.02f), body.ptY(1.2f, -c * 0.02f), 0.03f, lit)
             p.seg(k.neckX, k.neckY + 0.04f, mixf(k.neckX, hx, 0.7f), mixf(k.neckY, hy, 0.7f), 0.13f * k.hs, main)
             demonHead(e, hx, hy, r, d, main, lit, dark, glow, hot, bone)
         }
+        body.headRim(hx - r * 0.1f * d, hy, r * 0.9f, L.rim)
         eyesAt(hx + r * 0.78f * d, hy - r * 0.26f)
         p.twoPass {
             p.lightFrom(dir)
@@ -1908,7 +1976,7 @@ internal class ActorCast(
     private val hornW = floatArrayOf(0.3f, 0.25f, 0.19f, 0.13f, 0.07f, 0f)
 
     /** One horn from its root at (x, y): swept back over the shoulders, the tip hooking up. */
-    private fun demonHorn(x: Float, y: Float, r: Float, d: Float, color: Int, rings: Boolean) {
+    private fun demonHorn(x: Float, y: Float, r: Float, d: Float, color: Int, rings: Boolean, tip: Int = 0, wide: Float = 1f) {
         val n = hornU.size
         p.begin()
         for (side in 0..1) {
@@ -1920,13 +1988,23 @@ internal class ActorCast(
                 val tv = hornV[a] - hornV[b]
                 val tl = sqrt(tu * tu + tv * tv)
                 val sgn = if (side == 0) 1f else -1f
-                val ou = -tv / tl * hornW[i] * sgn
-                val ov = tu / tl * hornW[i] * sgn
+                val ou = -tv / tl * hornW[i] * sgn * wide
+                val ov = tu / tl * hornW[i] * sgn * wide
                 if (side == 1 && i == n - 1) continue
                 p.add(x + (hornU[i] + ou) * r * d, y + (hornV[i] + ov) * r)
             }
         }
-        p.shape(color)
+        p.shapeLit(color, x, y - r * 2.4f, x + hornU[2] * r * d, y + (hornV[2] + 0.4f) * r)
+        if (tip != 0 && !p.ink) {
+            // Warm tips: the last third of the horn heats toward the point.
+            for (i in 3 until n - 1) {
+                val t = (i - 2f) / (n - 2f)
+                p.detail(
+                    x + hornU[i] * r * d, y + hornV[i] * r, x + hornU[i + 1] * r * d, y + hornV[i + 1] * r,
+                    max(hornW[i] * r * 1.4f, 0.012f), Col.lerp(color, tip, 0.35f + t * 0.5f),
+                )
+            }
+        }
         if (!rings || !p.shading) return
         // Underside in shadow, a lit ridge along the top, growth rings, a darkened tip.
         for (i in 0 until n - 2) {
@@ -1938,7 +2016,7 @@ internal class ActorCast(
             p.detail(
                 x + (hornU[i] + 0.04f) * r * d, y + (hornV[i] - hornW[i] * 0.5f) * r,
                 x + (hornU[i + 1] + 0.04f) * r * d, y + (hornV[i + 1] - hornW[i + 1] * 0.5f) * r,
-                0.014f, 0xFFFFF6E8.toInt(),
+                0.014f, ActorPaint.light(ActorPaint.light(color)),
             )
         }
         for (i in 1 until 4) {
@@ -1954,7 +2032,7 @@ internal class ActorCast(
                 0.012f, Col.mul(color, 0.7f),
             )
         }
-        p.detail(x + hornU[4] * r * d, y + hornV[4] * r, x + hornU[5] * r * d, y + hornV[5] * r, 0.03f, Col.mul(color, 0.5f))
+        if (tip == 0) p.detail(x + hornU[4] * r * d, y + hornV[4] * r, x + hornU[5] * r * d, y + hornV[5] * r, 0.03f, Col.mul(color, 0.5f))
     }
 
     /** Skull, jaw, brow and eyes; the near horn over them. */
@@ -2001,6 +2079,12 @@ internal class ActorCast(
                 p.detail(hx - r * 0.05f * d, hy - r * 0.84f, hx + r * 1.0f * d, hy - r * 0.5f, 0.03f, lit)
                 p.detail(hx + r * 1.0f * d, hy - r * 0.08f, hx + r * 1.48f * d, hy + r * 0.04f, 0.024f, lit)
             }
+            // Jaw notch: the hinge cut deep behind the mouth.
+            p.begin()
+                .add(hx + r * 0.3f * d, hy + r * 0.4f)
+                .add(hx + r * 0.72f * d, hy + r * 0.42f)
+                .add(hx + r * 0.42f * d, hy + r * 0.66f)
+                .shapeDetail(dark)
             // Maw: a lit throat in the gap, one fang.
             val mouth = Col.lerp(glow, dark, 0.35f)
             p.begin()
@@ -2015,9 +2099,9 @@ internal class ActorCast(
             )
             // Burning eye slit, angled down toward the muzzle.
             if (e.alive) {
-                emissive(hx + r * 0.52f * d, hy - r * 0.34f, hx + r * 0.94f * d, hy - r * 0.2f, 0.03f, glow, hot)
+                emissive(hx + r * 0.55f * d, hy - r * 0.28f, hx + r * 0.98f * d, hy - r * 0.2f, 0.032f, glow, hot)
             } else {
-                p.detail(hx + r * 0.52f * d, hy - r * 0.34f, hx + r * 0.94f * d, hy - r * 0.2f, 0.024f, dark)
+                p.detail(hx + r * 0.55f * d, hy - r * 0.28f, hx + r * 0.98f * d, hy - r * 0.2f, 0.024f, dark)
             }
             // A swept-back pointed ear.
             p.begin()
@@ -2026,6 +2110,15 @@ internal class ActorCast(
                 .add(hx - r * 0.25f * d, hy + r * 0.12f)
                 .shapeDetail(if (p.shading) ActorPaint.shade(main) else main)
         }
+        // The brow ridge: a heavy shelf jutting over the eye, its own slab.
+        p.begin()
+            .add(hx + r * 0.1f * d, hy - r * 0.62f)
+            .add(hx + r * 0.7f * d, hy - r * 0.72f)
+            .add(hx + r * 1.24f * d, hy - r * 0.5f)
+            .add(hx + r * 1.18f * d, hy - r * 0.32f)
+            .add(hx + r * 0.62f * d, hy - r * 0.4f)
+            .add(hx + r * 0.2f * d, hy - r * 0.38f)
+            .shapeLit(Col.lerp(main, lit, 0.35f), hx + r * 0.7f * d, hy - r * 0.75f, hx + r * 0.7f * d, hy - r * 0.34f, sep = true)
         demonHorn(hx, hy, r * 0.85f, d, bone, true)
     }
 
