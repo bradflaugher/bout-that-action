@@ -45,6 +45,7 @@ class CastScreenshotTest {
         val rows = ArrayList<BufferedImage>()
         for ((_, floor) in zones) rows += stageCrop(lineup(floor), 3.1f)
         rows += heroRow()
+        rows += propsRow()
         val sheet = stack(rows)
         outDir.mkdirs()
         ImageIO.write(sheet, "png", File(outDir, "cast.png"))
@@ -134,17 +135,48 @@ class CastScreenshotTest {
         return join(crops)
     }
 
+    /** The hardware up close: the box (idle, peeking, waddling, spotted), every gun firing, the machines aiming. */
+    private fun propsRow(): BufferedImage {
+        val crops = ArrayList<BufferedImage>()
+        fun hero(time: Float, pose: (World) -> Unit) {
+            val w = world(9)
+            w.player.x = 7f
+            w.player.facing = 1
+            pose(w)
+            crops += stageCrop(w, time, 7f)
+        }
+        val box: (World) -> Unit = { it.player.state = PlayerState.BOX; it.player.stateTime = 1f }
+        hero(1.3f, box)
+        hero(2.95f) { box(it) }
+        hero(1.3f) { box(it); it.player.vx = 2f }
+        hero(1.3f) { box(it); it.put(EnemyKind.AGENT, 5.2f, 1, EnemyState.ALERT) }
+        hero(1.3f) { it.player.sinceShot = 0.3f }
+        hero(1.3f) { it.player.weapon = PickupKind.SHOTGUN; it.player.sinceShot = 0.03f }
+        hero(1.3f) { it.player.weapon = PickupKind.MINIGUN; it.player.sinceShot = 0.03f }
+        val w = world(9)
+        w.player.x = 1f
+        w.put(EnemyKind.HEAVY, 3f, -1, EnemyState.AIM, 0.2f).vx = 0f
+        w.put(EnemyKind.DRONE, 6f, 1, EnemyState.PATROL).vx = 0f
+        w.put(EnemyKind.DRONE, 9f, -1, EnemyState.ALERT)
+        w.put(EnemyKind.TURRET, 12f, -1, EnemyState.PATROL)
+        crops += stageCrop(w, 1.3f, 2.6f)
+        crops += stageCrop(w, 1.3f, 5.6f)
+        crops += stageCrop(w, 1.3f, 8.6f)
+        crops += stageCrop(w, 1.3f, 11.6f, lift = 0.6f)
+        return join(crops)
+    }
+
     // ------------------------------------------------------------ cropping
 
     /** Renders [w] at phone resolution and crops the player's floor (optionally around [cx]). */
-    private fun stageCrop(w: World, time: Float, cx: Float? = null): BufferedImage {
+    private fun stageCrop(w: World, time: Float, cx: Float? = null, lift: Float = 0f): BufferedImage {
         val img = BufferedImage(1080, 2400, BufferedImage.TYPE_INT_ARGB)
         val r = Renderer()
         r.render(AwtGfx(img), w, time, 80f, 48f, showHud = false)
         val ff = Renderer::class.java.getDeclaredField("f").also { it.isAccessible = true }.get(r) as Frame
         val gy = Geo.groundY(w.player.floor)
-        val top = ((gy - Geo.FLOOR_H + 0.5f - ff.camY) * ff.s + ff.shakeY).toInt().coerceIn(0, 2399)
-        val bot = ((gy + 0.15f - ff.camY) * ff.s + ff.shakeY).toInt().coerceIn(top + 1, 2400)
+        val top = ((gy - Geo.FLOOR_H + 0.5f - lift - ff.camY) * ff.s + ff.shakeY).toInt().coerceIn(0, 2399)
+        val bot = ((gy + 0.15f - lift - ff.camY) * ff.s + ff.shakeY).toInt().coerceIn(top + 1, 2400)
         val (l, rr) = if (cx == null) 0 to 1080 else {
             val px = ((cx + 0.6f) * ff.s).toInt()
             (px - 110).coerceAtLeast(0) to (px + 110).coerceAtMost(1080)

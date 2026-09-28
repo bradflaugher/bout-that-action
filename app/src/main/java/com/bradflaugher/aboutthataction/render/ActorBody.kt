@@ -224,6 +224,10 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
     /**
      * A gun held at (hx, hy), barrel [up] radians above horizontal, facing k.dir.
      * [kind]: 0 pistol, 1 shotgun, 2 minigun, 3 heavy cannon. [trim] accent colour.
+     *
+     * Machined gunmetal: every part a lit plate (the ceiling lamp on its top edge, cool shadow
+     * underneath), one silhouette per kind (a boxy slide, a long pump gun with a wooden stock, a
+     * carry-handled rotary, a drum-fed cannon), a single accent trim line and a specular glint.
      */
     fun gun(kind: Int, hx: Float, hy: Float, up: Float, trim: Int, spin: Float = 0f, scale: Float = 1f) {
         val g = p.g
@@ -231,72 +235,197 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
         g.translate(hx, hy)
         g.scale(k.dir * scale, scale)
         g.rotate(-Math.toDegrees(up.toDouble()).toFloat())
-        val body = 0xFF15161E.toInt()
-        val metal = 0xFF2C2E3A.toInt()
-        val lit = 0xFF4A4E60.toInt()
         when (kind) {
             0 -> {
-                // Compact pistol: slide over the hand, grip in it.
-                // One silhouette: slide and grip as a single outline, a trim light along the slide.
-                p.begin().add(-0.065f, -0.09f).add(0.21f, -0.09f).add(0.21f, -0.028f).add(0.03f, -0.024f)
-                    .add(0.0f, 0.07f).add(-0.065f, 0.065f).shape(metal)
-                p.detail(-0.03f, -0.066f, 0.17f, -0.066f, 0.022f, trim)
-                if (p.shading) {
-                    // Slide serrations, the lamp on the slide's top edge, a shadowed grip.
-                    p.detail(-0.055f, -0.086f, 0.2f, -0.086f, 0.01f, lit)
-                    p.begin().add(0.03f, -0.024f).add(0.0f, 0.07f).add(-0.03f, 0.068f).add(-0.01f, -0.026f).shapeDetail(body)
-                }
+                pistol(trim)
                 muzzleAt(hx, hy, 0.21f * scale, -0.055f * scale, up)
             }
             1 -> {
-                // Pump shotgun: long barrel, pump grip, stock under the arm.
-                p.begin().add(0.03f, -0.03f).add(0.0f, 0.06f).add(-0.06f, 0.06f).add(-0.05f, 0.02f)
-                    .add(-0.27f, 0.07f).add(-0.26f, 0.0f).add(-0.05f, -0.035f).shape(0xFF3A2418.toInt())
-                p.seg(-0.04f, -0.06f, 0.5f, -0.06f, 0.06f, metal)
-                p.seg(0.14f, -0.015f, 0.3f, -0.015f, 0.06f, 0xFF4A3020.toInt())
-                p.detail(0.0f, -0.07f, 0.46f, -0.07f, 0.02f, trim)
-                if (p.shading) {
-                    p.detail(-0.02f, -0.043f, 0.5f, -0.043f, 0.012f, body)
-                    p.detail(-0.24f, 0.04f, -0.07f, 0.015f, 0.01f, 0xFF7A5038.toInt())
-                }
+                shotgun(trim)
                 muzzleAt(hx, hy, 0.52f * scale, -0.06f * scale, up)
             }
             2 -> {
-                // Hand minigun: drum body, spinning barrel cluster.
-                p.begin().add(-0.12f, -0.13f).add(0.1f, -0.13f).add(0.12f, 0.0f).add(0.0f, 0.06f)
-                    .add(-0.06f, 0.06f).add(-0.1f, 0.02f).shape(metal)
-                // The barrel cluster as one fat stroke, with a spinning glint.
-                p.seg(0.1f, -0.06f, 0.52f, -0.06f, 0.11f, body)
-                val sp = sin(spin) * 0.03f
-                p.detail(0.12f, -0.06f + sp, 0.5f, -0.06f + sp, 0.02f, lit)
-                if (p.shading) {
-                    // Three barrels in the cluster, and a clamp ring near the muzzle.
-                    p.detail(0.12f, -0.093f, 0.5f, -0.093f, 0.012f, metal)
-                    p.detail(0.12f, -0.027f, 0.5f, -0.027f, 0.012f, metal)
-                    p.detail(0.42f, -0.11f, 0.42f, -0.01f, 0.025f, metal)
-                    p.detail(-0.1f, -0.12f, 0.09f, -0.12f, 0.01f, lit)
-                }
-                p.detail(-0.08f, -0.1f, 0.06f, -0.1f, 0.022f, trim)
+                minigun(trim, spin)
                 muzzleAt(hx, hy, 0.54f * scale, -0.06f * scale, up)
             }
             else -> {
-                // Heavy rotary cannon with an ammo drum.
-                p.begin().add(-0.2f, -0.1f).add(0.16f, -0.12f).add(0.18f, 0.06f).add(-0.18f, 0.07f).shape(metal)
-                p.ball(-0.1f, 0.1f, 0.09f, metal, gloss = 0.25f)
-                p.seg(0.14f, -0.02f, 0.6f, -0.02f, 0.15f, body)
-                val sp = sin(spin) * 0.04f
-                p.detail(0.16f, -0.02f + sp, 0.58f, -0.02f + sp, 0.025f, lit)
-                p.detail(-0.16f, -0.08f, 0.1f, -0.09f, 0.03f, trim)
-                if (p.shading) {
-                    p.detail(0.16f, -0.075f, 0.58f, -0.075f, 0.016f, metal)
-                    p.detail(0.16f, 0.035f, 0.58f, 0.035f, 0.016f, metal)
-                    p.detail(0.5f, -0.1f, 0.5f, 0.06f, 0.03f, metal)
-                    p.detail(-0.19f, -0.095f, 0.15f, -0.115f, 0.012f, lit)
-                }
+                cannon(trim, spin)
                 muzzleAt(hx, hy, 0.62f * scale, -0.02f * scale, up)
             }
         }
         g.restore()
+    }
+
+    /** A lit gunmetal (or wood) plate from the polygon just built, lamp on [top], shadow at [bot]. */
+    private fun plate(color: Int, top: Float, bot: Float) = p.shapeLit(color, 0f, top, 0f, bot, mid = 0.4f)
+
+    /** A thin additive glint along a machined top edge. */
+    private fun glint(x1: Float, y1: Float, x2: Float, y2: Float, w: Float, a: Float) {
+        if (!p.shading) return
+        p.g.blend(Gfx.Blend.ADD)
+        p.g.line(x1, y1, x2, y2, w, p.c(Col.alpha(0xFFFFFFFF.toInt(), a)))
+        p.g.blend(Gfx.Blend.NORMAL)
+    }
+
+    /** The accent trim: one clean line, a touch brighter than the costume's accent. */
+    private fun trimLine(x1: Float, y1: Float, x2: Float, y2: Float, w: Float, trim: Int) {
+        p.detail(x1, y1, x2, y2, w, trim)
+        if (p.shading) {
+            p.g.blend(Gfx.Blend.ADD)
+            p.g.line(x1, y1, x2, y2, w * 0.4f, p.c(Col.alpha(trim, 0.6f)))
+            p.g.blend(Gfx.Blend.NORMAL)
+        }
+    }
+
+    /**
+     * Barrels in a rotating cluster seen side-on: [n] barrels around y = [cy] with radius [r],
+     * from x0 to x1; the ones turned toward the viewer are lit, the far ones drawn first, darker.
+     */
+    private fun barrels(n: Int, x0: Float, x1: Float, cy: Float, r: Float, w: Float, spin: Float) {
+        if (p.ink) return
+        val step = (2.0 * Math.PI / n).toFloat()
+        for (pass in 0..1) {
+            for (i in 0 until n) {
+                val a = spin + i * step
+                val front = cos(a)
+                if ((front >= 0f) != (pass == 1)) continue
+                val y = cy + sin(a) * r
+                val t = (front + 1f) * 0.5f
+                p.detail(x0, y, x1, y, w, Col.lerp(GUN_DEEP, GUN_LIT, t * 0.85f))
+                if (pass == 1 && p.shading) p.detail(x0, y - w * 0.28f, x1, y - w * 0.28f, w * 0.26f, Col.lerp(GUN_LIT, 0xFFB8BECC.toInt(), t))
+            }
+        }
+    }
+
+    private fun pistol(trim: Int) {
+        // One silhouette: a square-nosed slide, the frame with its trigger guard, a raked grip.
+        p.begin()
+            .add(-0.075f, -0.092f).add(0.2f, -0.092f).add(0.216f, -0.08f).add(0.216f, -0.03f)
+            .add(0.15f, -0.026f).add(0.15f, -0.012f).add(0.09f, -0.012f).add(0.075f, 0.026f)
+            .add(0.03f, 0.03f).add(0.024f, -0.004f).add(0.004f, 0.076f).add(-0.066f, 0.07f)
+            .add(-0.052f, -0.022f).add(-0.078f, -0.04f)
+        plate(GUN, -0.092f, 0.07f)
+        if (p.ink) return
+        if (p.shading) {
+            // The slide sits proud of the frame: a shadow seam under it, a darker polymer grip.
+            p.begin().add(-0.05f, -0.024f).add(0.024f, -0.004f).add(0.004f, 0.076f).add(-0.066f, 0.07f).add(-0.052f, -0.022f)
+                .shapeGradDetail(0xFF262A36.toInt(), 0xFF0E0F16.toInt(), 0f, -0.02f, 0f, 0.07f)
+            p.begin().add(0.15f, -0.03f).add(0.15f, -0.012f).add(0.09f, -0.012f).add(0.075f, 0.026f).add(0.03f, 0.03f).add(0.024f, -0.004f).add(-0.05f, -0.024f).add(-0.05f, -0.03f)
+                .shapeGradDetail(GUN_DARK, GUN_DEEP, 0f, -0.03f, 0f, 0.03f)
+            p.detail(-0.06f, -0.03f, 0.2f, -0.03f, 0.009f, GUN_DEEP)
+            // The ejection port, and the lamp catching the flat top of the slide.
+            p.detail(0.06f, -0.078f, 0.12f, -0.078f, 0.014f, GUN_DEEP)
+            glint(-0.06f, -0.086f, 0.196f, -0.086f, 0.008f, 0.45f)
+        }
+        trimLine(-0.045f, -0.052f, 0.18f, -0.052f, 0.014f, trim)
+    }
+
+    private fun shotgun(trim: Int) {
+        // Walnut stock swept down under the arm, butt pad at the back.
+        p.begin()
+            .add(-0.05f, -0.075f).add(-0.27f, -0.03f).add(-0.3f, -0.026f).add(-0.302f, 0.07f)
+            .add(-0.272f, 0.08f).add(-0.05f, 0.012f)
+        plate(WALNUT, -0.075f, 0.08f)
+        if (!p.ink && p.shading) {
+            p.begin().add(-0.302f, -0.026f).add(-0.284f, -0.028f).add(-0.286f, 0.076f).add(-0.302f, 0.07f).shapeDetail(0xFF101016.toInt())
+            p.detail(-0.26f, -0.02f, -0.08f, -0.06f, 0.008f, ActorPaint.light(WALNUT))
+        }
+        // Receiver with its trigger guard.
+        p.begin()
+            .add(-0.07f, -0.088f).add(0.09f, -0.088f).add(0.1f, -0.078f).add(0.1f, -0.004f)
+            .add(0.04f, 0.0f).add(0.03f, 0.036f).add(-0.012f, 0.038f).add(-0.02f, 0.0f).add(-0.07f, 0.008f)
+        plate(GUN, -0.088f, 0.038f)
+        // Magazine tube under the barrel, then the barrel.
+        p.begin().add(0.09f, -0.037f).add(0.455f, -0.037f).add(0.468f, -0.03f).add(0.468f, -0.012f).add(0.455f, -0.006f).add(0.09f, -0.006f)
+        plate(GUN_DARK, -0.037f, -0.006f)
+        p.begin().add(0.08f, -0.083f).add(0.526f, -0.083f).add(0.53f, -0.078f).add(0.53f, -0.042f).add(0.526f, -0.038f).add(0.08f, -0.038f)
+        plate(GUN, -0.083f, -0.038f)
+        // The pump: a ribbed walnut forend.
+        p.begin()
+            .add(0.15f, -0.046f).add(0.33f, -0.046f).add(0.345f, -0.034f).add(0.345f, 0.006f)
+            .add(0.33f, 0.018f).add(0.15f, 0.018f).add(0.138f, 0.004f).add(0.138f, -0.034f)
+        plate(WALNUT, -0.046f, 0.018f)
+        if (p.ink) return
+        if (p.shading) {
+            p.detail(0.165f, -0.018f, 0.32f, -0.018f, 0.007f, ActorPaint.shade(WALNUT))
+            p.detail(0.165f, 0.0f, 0.32f, 0.0f, 0.007f, ActorPaint.shade(WALNUT))
+            // Muzzle collar and the lamp down the length of the barrel.
+            p.detail(0.515f, -0.08f, 0.515f, -0.041f, 0.012f, GUN_DEEP)
+            glint(0.1f, -0.076f, 0.51f, -0.076f, 0.008f, 0.4f)
+            glint(-0.055f, -0.082f, 0.085f, -0.082f, 0.007f, 0.35f)
+        }
+        trimLine(-0.055f, -0.05f, 0.085f, -0.05f, 0.014f, trim)
+    }
+
+    private fun minigun(trim: Int, spin: Float) {
+        // Carry handle arching over the motor housing: a strong, unmistakable top line.
+        p.begin()
+            .add(-0.09f, -0.118f).add(-0.068f, -0.19f).add(0.07f, -0.19f).add(0.092f, -0.122f)
+            .add(0.06f, -0.122f).add(0.046f, -0.162f).add(-0.044f, -0.162f).add(-0.058f, -0.118f)
+        plate(GUN, -0.19f, -0.12f)
+        // Motor housing and grip.
+        p.begin()
+            .add(-0.14f, -0.1f).add(-0.11f, -0.13f).add(0.1f, -0.132f).add(0.135f, -0.1f)
+            .add(0.14f, -0.01f).add(0.1f, 0.026f).add(0.03f, 0.03f).add(0.01f, 0.074f)
+            .add(-0.06f, 0.07f).add(-0.075f, 0.02f).add(-0.13f, 0.01f).add(-0.145f, -0.03f)
+        plate(GUN, -0.132f, 0.07f)
+        // The barrel cluster: rear clamp, barrels, front clamp, a flared muzzle ring.
+        p.begin()
+            .add(0.12f, -0.118f).add(0.17f, -0.118f).add(0.17f, -0.098f).add(0.43f, -0.094f)
+            .add(0.43f, -0.11f).add(0.47f, -0.11f).add(0.47f, -0.094f).add(0.5f, -0.094f)
+            .add(0.5f, -0.106f).add(0.545f, -0.106f).add(0.545f, -0.014f).add(0.5f, -0.014f)
+            .add(0.5f, -0.026f).add(0.47f, -0.026f).add(0.47f, -0.01f).add(0.43f, -0.01f)
+            .add(0.43f, -0.026f).add(0.17f, -0.022f).add(0.17f, -0.002f).add(0.12f, -0.002f)
+        plate(GUN_DARK, -0.118f, -0.002f)
+        if (p.ink) return
+        if (p.shading) {
+            // Between the clamps the cluster is open: a dark core with the barrels spinning in it.
+            p.begin().add(0.17f, -0.092f).add(0.43f, -0.088f).add(0.43f, -0.032f).add(0.17f, -0.028f).shapeDetail(0xFF08090E.toInt())
+            barrels(6, 0.17f, 0.43f, -0.06f, 0.024f, 0.016f, spin)
+            p.begin().add(0.5f, -0.1f).add(0.54f, -0.1f).add(0.54f, -0.02f).add(0.5f, -0.02f).shapeGradDetail(GUN_LIT, GUN_DEEP, 0f, -0.1f, 0f, -0.02f)
+            p.detail(0.543f, -0.098f, 0.543f, -0.022f, 0.008f, 0xFF08090E.toInt())
+            glint(-0.1f, -0.124f, 0.1f, -0.126f, 0.008f, 0.4f)
+            glint(-0.055f, -0.184f, 0.06f, -0.184f, 0.007f, 0.35f)
+            p.detail(-0.04f, 0.024f, 0.03f, 0.03f, 0.01f, GUN_DEEP)
+        } else {
+            p.detail(0.17f, -0.06f, 0.43f, -0.06f, 0.02f, GUN_LIT)
+        }
+        trimLine(-0.115f, -0.07f, 0.115f, -0.072f, 0.018f, trim)
+    }
+
+    private fun cannon(trim: Int, spin: Float) {
+        // Ammo drum slung under the breech.
+        p.begin()
+            .add(-0.2f, 0.04f).add(0.0f, 0.04f).add(0.024f, 0.066f).add(0.024f, 0.166f)
+            .add(0.0f, 0.192f).add(-0.2f, 0.192f).add(-0.224f, 0.166f).add(-0.224f, 0.066f)
+        plate(GUN_DARK, 0.04f, 0.192f)
+        // The receiver, with a sight block riding on top.
+        p.begin()
+            .add(-0.24f, -0.06f).add(-0.2f, -0.105f).add(-0.06f, -0.115f).add(-0.05f, -0.16f)
+            .add(0.08f, -0.16f).add(0.09f, -0.12f).add(0.14f, -0.12f).add(0.19f, -0.09f)
+            .add(0.2f, 0.05f).add(0.15f, 0.082f).add(-0.2f, 0.08f).add(-0.245f, 0.03f)
+        plate(GUN, -0.16f, 0.082f)
+        // The barrel shroud and a heavy flared muzzle ring.
+        p.begin()
+            .add(0.18f, -0.098f).add(0.51f, -0.094f).add(0.51f, -0.118f).add(0.632f, -0.118f)
+            .add(0.632f, 0.078f).add(0.51f, 0.078f).add(0.51f, 0.054f).add(0.18f, 0.058f)
+        plate(GUN_DARK, -0.118f, 0.078f)
+        if (p.ink) return
+        if (p.shading) {
+            // Drum ribs, the open shroud with six barrels turning inside, the ring's machined face.
+            p.detail(-0.21f, 0.09f, 0.01f, 0.09f, 0.01f, GUN_DEEP)
+            p.detail(-0.21f, 0.145f, 0.01f, 0.145f, 0.01f, GUN_DEEP)
+            p.begin().add(0.24f, -0.07f).add(0.47f, -0.066f).add(0.47f, 0.028f).add(0.24f, 0.032f).shapeDetail(0xFF08090E.toInt())
+            barrels(6, 0.24f, 0.47f, -0.02f, 0.034f, 0.024f, spin)
+            p.begin().add(0.52f, -0.108f).add(0.625f, -0.108f).add(0.625f, 0.068f).add(0.52f, 0.068f).shapeGradDetail(GUN_LIT, GUN_DEEP, 0f, -0.108f, 0f, 0.068f)
+            p.detail(0.628f, -0.1f, 0.628f, 0.06f, 0.01f, 0xFF08090E.toInt())
+            glint(-0.19f, -0.1f, 0.18f, -0.114f, 0.012f, 0.35f)
+            glint(0.19f, -0.09f, 0.5f, -0.088f, 0.01f, 0.3f)
+            glint(0.53f, -0.11f, 0.62f, -0.11f, 0.01f, 0.4f)
+        } else {
+            p.detail(0.24f, -0.02f, 0.47f, -0.02f, 0.04f, GUN_LIT)
+        }
+        trimLine(-0.2f, -0.05f, 0.17f, -0.06f, 0.026f, trim)
     }
 
     /** Muzzle flash at the last muzzle, [size] world units, flickering between two shapes by [seed]. */
@@ -308,14 +437,32 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
         g.rotate(-Math.toDegrees(up.toDouble()).toFloat())
         val s = size
         val alt = seed % 2 == 0
-        g.fillCircle(s * 0.3f, 0f, s * 1.1f, p.c(0x40FFC860))
-        val long = if (alt) 2.0f else 1.6f
-        p.tri(0f, -s * 0.32f, s * long, 0f, 0f, s * 0.32f, p.c(0xFFFFB030.toInt()))
-        p.tri(s * 0.1f, -s * 0.2f, s * long * 0.8f, 0f, s * 0.1f, s * 0.2f, p.c(0xFFFFF0B0.toInt()))
-        val sp = if (alt) 0.75f else 0.55f
-        p.tri(s * 0.15f, 0f, s * 0.55f, -s * sp, s * 0.4f, 0f, p.c(0xFFFFC040.toInt()))
-        p.tri(s * 0.15f, 0f, s * 0.55f, s * sp, s * 0.4f, 0f, p.c(0xFFFFC040.toInt()))
-        g.fillCircle(s * 0.12f, 0f, s * 0.3f, p.c(0xFFFFFFFF.toInt()))
+        g.blend(Gfx.Blend.ADD)
+        // The bloom: a hot halo lighting the air (and the gun) around the muzzle.
+        g.glow(s * 0.5f, 0f, s * 2.2f, p.c(0x90FFA040.toInt()))
+        g.blend(Gfx.Blend.NORMAL)
+        // A long spear of flame and two side jets off the muzzle brake, flickering between shapes.
+        val long = if (alt) 2.1f else 1.6f
+        val wide = if (alt) 0.28f else 0.36f
+        p.begin().add(0f, -s * wide).add(s * 0.5f, -s * wide * 0.7f).add(s * long, 0f).add(s * 0.5f, s * wide * 0.7f).add(0f, s * wide)
+        p.shapeDetail(0xFFFF9A28.toInt())
+        val sp = if (alt) 0.8f else 0.6f
+        p.tri(s * 0.1f, -s * 0.08f, s * (0.45f + 0.1f * sp), -s * sp, s * 0.34f, 0f, p.c(0xFFFFB84A.toInt()))
+        p.tri(s * 0.1f, s * 0.08f, s * (0.45f + 0.1f * sp), s * sp, s * 0.34f, 0f, p.c(0xFFFFB84A.toInt()))
+        p.begin().add(0f, -s * 0.16f).add(s * long * 0.72f, 0f).add(0f, s * 0.16f).shapeDetail(0xFFFFF2C0.toInt())
+        g.blend(Gfx.Blend.ADD)
+        g.glow(s * 0.2f, 0f, s * 0.7f, p.c(0xFFFFF6D8.toInt()))
+        g.blend(Gfx.Blend.NORMAL)
+        g.fillCircle(s * 0.1f, 0f, s * 0.2f, p.c(0xFFFFFFFF.toInt()))
         g.restore()
+    }
+
+    private companion object {
+        /** Gunmetal: a cool blue-grey that paints into a lamp-lit top and a violet shadow. */
+        const val GUN = 0xFF3C4254.toInt()
+        const val GUN_DARK = 0xFF2A2E3C.toInt()
+        const val GUN_DEEP = 0xFF12131B.toInt()
+        const val GUN_LIT = 0xFF6C7488.toInt()
+        const val WALNUT = 0xFF6A3E24.toInt()
     }
 }
