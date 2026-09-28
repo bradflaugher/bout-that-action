@@ -866,8 +866,8 @@ internal class ActorCast(
             Zone.METRO -> 1.04f
             else -> 1f
         }
-        // A bright steel edge on every gun: the weapon reads right after head and hands.
-        val gunTrim = 0xFFC8D0E0.toInt()
+        // A steel edge on every gun, mid-value: the weapon reads right after head and hands, never before.
+        val gunTrim = 0xFF8890A4.toInt()
         p.twoPass {
             if (robe) sleeve(k.armB, L, far = true) else body.arm(k.armB, L, far = true)
             if (z == Zone.MAGMA) gauntlet(k.armB, Col.mul(L.gloves, 0.8f))

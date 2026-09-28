@@ -256,8 +256,15 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
         g.restore()
     }
 
-    /** A lit gunmetal (or wood) plate from the polygon just built, lamp on [top], shadow at [bot]. */
-    private fun plate(color: Int, top: Float, bot: Float) = p.shapeLit(color, 0f, top, 0f, bot, mid = 0.4f)
+    /**
+     * A gunmetal (or wood) plate from the polygon just built: dark and machined, the lamp only
+     * lifting its top edge a little ([top]) before it falls into a cool shadow at [bot]. Guns
+     * stay darker than the faces and hands holding them.
+     */
+    private fun plate(color: Int, top: Float, bot: Float) {
+        p.shape(color)
+        p.shapeGradDetail(Col.lerp(color, ActorPaint.light(color), 0.4f), ActorPaint.shade(color), 0f, top, 0f, bot)
+    }
 
     /** A thin additive glint along a machined top edge. */
     private fun glint(x1: Float, y1: Float, x2: Float, y2: Float, w: Float, a: Float) {
@@ -267,14 +274,9 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
         p.g.blend(Gfx.Blend.NORMAL)
     }
 
-    /** The accent trim: one clean line, a touch brighter than the costume's accent. */
+    /** The accent trim: one clean, mid-value line, knocked back into the metal so it never glows. */
     private fun trimLine(x1: Float, y1: Float, x2: Float, y2: Float, w: Float, trim: Int) {
-        p.detail(x1, y1, x2, y2, w, trim)
-        if (p.shading) {
-            p.g.blend(Gfx.Blend.ADD)
-            p.g.line(x1, y1, x2, y2, w * 0.4f, p.c(Col.alpha(trim, 0.6f)))
-            p.g.blend(Gfx.Blend.NORMAL)
-        }
+        p.detail(x1, y1, x2, y2, w * 0.8f, Col.lerp(trim, GUN_DARK, 0.4f))
     }
 
     /**
@@ -320,7 +322,7 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
             p.detail(-0.06f, -0.03f, 0.2f, -0.03f, 0.009f, GUN_DEEP)
             // The ejection port, and the lamp catching the flat top of the slide.
             p.detail(0.06f, -0.078f, 0.12f, -0.078f, 0.014f, GUN_DEEP)
-            glint(-0.06f, -0.086f, 0.196f, -0.086f, 0.008f, 0.45f)
+            glint(0.1f, -0.086f, 0.17f, -0.086f, 0.008f, 0.5f)
         }
         trimLine(-0.045f, -0.052f, 0.18f, -0.052f, 0.014f, trim)
     }
@@ -356,8 +358,7 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
             p.detail(0.165f, 0.0f, 0.32f, 0.0f, 0.007f, ActorPaint.shade(WALNUT))
             // Muzzle collar and the lamp down the length of the barrel.
             p.detail(0.515f, -0.08f, 0.515f, -0.041f, 0.012f, GUN_DEEP)
-            glint(0.1f, -0.076f, 0.51f, -0.076f, 0.008f, 0.4f)
-            glint(-0.055f, -0.082f, 0.085f, -0.082f, 0.007f, 0.35f)
+            glint(0.34f, -0.076f, 0.46f, -0.076f, 0.008f, 0.5f)
         }
         trimLine(-0.055f, -0.05f, 0.085f, -0.05f, 0.014f, trim)
     }
@@ -389,8 +390,7 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
             barrels(6, 0.17f, 0.43f, -0.06f, 0.024f, 0.016f, spin)
             p.begin().add(0.5f, -0.1f).add(0.54f, -0.1f).add(0.54f, -0.02f).add(0.5f, -0.02f).shapeGradDetail(GUN_LIT, GUN_DEEP, 0f, -0.1f, 0f, -0.02f)
             p.detail(0.543f, -0.098f, 0.543f, -0.022f, 0.008f, 0xFF08090E.toInt())
-            glint(-0.1f, -0.124f, 0.1f, -0.126f, 0.008f, 0.4f)
-            glint(-0.055f, -0.184f, 0.06f, -0.184f, 0.007f, 0.35f)
+            glint(-0.03f, -0.184f, 0.04f, -0.184f, 0.008f, 0.5f)
             p.detail(-0.04f, 0.024f, 0.03f, 0.03f, 0.01f, GUN_DEEP)
         } else {
             p.detail(0.17f, -0.06f, 0.43f, -0.06f, 0.02f, GUN_LIT)
@@ -424,9 +424,7 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
             barrels(6, 0.24f, 0.47f, -0.02f, 0.034f, 0.024f, spin)
             p.begin().add(0.52f, -0.108f).add(0.625f, -0.108f).add(0.625f, 0.068f).add(0.52f, 0.068f).shapeGradDetail(GUN_LIT, GUN_DEEP, 0f, -0.108f, 0f, 0.068f)
             p.detail(0.628f, -0.1f, 0.628f, 0.06f, 0.01f, 0xFF08090E.toInt())
-            glint(-0.19f, -0.1f, 0.18f, -0.114f, 0.012f, 0.35f)
-            glint(0.19f, -0.09f, 0.5f, -0.088f, 0.01f, 0.3f)
-            glint(0.53f, -0.11f, 0.62f, -0.11f, 0.01f, 0.4f)
+            glint(0.54f, -0.11f, 0.61f, -0.11f, 0.012f, 0.5f)
         } else {
             p.detail(0.24f, -0.02f, 0.47f, -0.02f, 0.04f, GUN_LIT)
         }
@@ -464,10 +462,10 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
 
     private companion object {
         /** Gunmetal: a cool blue-grey that paints into a lamp-lit top and a violet shadow. */
-        const val GUN = 0xFF3C4254.toInt()
-        const val GUN_DARK = 0xFF2A2E3C.toInt()
+        const val GUN = 0xFF2C313F.toInt()
+        const val GUN_DARK = 0xFF1E212B.toInt()
         const val GUN_DEEP = 0xFF12131B.toInt()
-        const val GUN_LIT = 0xFF6C7488.toInt()
+        const val GUN_LIT = 0xFF565D70.toInt()
         const val WALNUT = 0xFF6A3E24.toInt()
     }
 }
