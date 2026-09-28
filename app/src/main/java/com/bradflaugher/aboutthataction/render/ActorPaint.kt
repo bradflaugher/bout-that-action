@@ -169,11 +169,19 @@ internal class ActorPaint(private val f: Frame) {
      * Every painted gradient goes through here. The tint is applied as a flat overlay rather
      * than baked into the gradient's colours, so a hit flash or an emerging silhouette doesn't
      * mint a new cached shader each frame; the fade rides on alpha, which the backends keep out
-     * of their shader keys. For opaque colours the overlay equals [c]'s lerp exactly.
+     * of their shader keys. For opaque colours the overlay equals [c]'s lerp exactly; translucent
+     * ones take the tint in their stops instead.
      */
     private fun grad(q: FloatArray, x0: Float, y0: Float, x1: Float, y1: Float, c0: Int, c1: Int, c2: Int, mid: Float) {
+        if (flatAmt > 0f && (alphaMul < 1f || Col.a(c0) < 255 || Col.a(c1) < 255 || Col.a(c2) < 255)) {
+            // Translucent and tinted (a fading death): an overlay would stack a second alpha on
+            // top, so bake the tint into the stops. The tint holds still while the body fades,
+            // and the backends keep a whole-shape fade out of their shader keys.
+            g.fillPolygonGradient(q, x0, y0, x1, y1, c(c0), c(c1), c(c2), mid)
+            return
+        }
         g.fillPolygonGradient(q, x0, y0, x1, y1, fade(c0), fade(c1), fade(c2), mid)
-        if (flatAmt > 0f) g.fillPolygon(q, Col.alpha(flat, flatAmt * alphaMul * (Col.a(c1) / 255f)))
+        if (flatAmt > 0f) g.fillPolygon(q, Col.alpha(flat, flatAmt))
     }
 
     private fun fade(color: Int): Int = if (alphaMul >= 1f) color else Col.fade(color, alphaMul)
