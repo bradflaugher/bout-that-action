@@ -157,11 +157,18 @@ you back. The building will still be there.
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/menu-title.png" alt="Title screen with the neon logo over a live demo run"><p><em><b>Title</b>: a neon sign over a live autopilot run</em></p></td>
-    <td align="center" width="33%"><img src="docs/screenshots/menu-settings.png" alt="Settings with the custom heat curve"><p><em><b>Settings</b>: shape your own heat curve</em></p></td>
-    <td align="center" width="33%"><img src="docs/screenshots/menu-gameover.png" alt="Game over with a new deepest floor"><p><em><b>Game over</b>: the depth counts down the building</em></p></td>
+    <td align="center" width="25%"><img src="docs/screenshots/menu-title.png" alt="Title screen with the neon logo over a live demo run"><p><em><b>Title</b>: a neon sign over a live autopilot run</em></p></td>
+    <td align="center" width="25%"><img src="docs/screenshots/menu-heroes.png" alt="The hero picker"><p><em><b>Heroes</b>: swipe through all four</em></p></td>
+    <td align="center" width="25%"><img src="docs/screenshots/menu-settings.png" alt="Settings with the custom heat curve"><p><em><b>Settings</b>: shape your own heat curve</em></p></td>
+    <td align="center" width="25%"><img src="docs/screenshots/menu-gameover.png" alt="Game over with a new deepest floor"><p><em><b>Game over</b>: the depth counts down the building</em></p></td>
   </tr>
 </table>
+
+The title screen shows who you're playing as; **DROP IN** is still one tap.
+Tap the hero bar to open the picker: swipe (or tap the roster) through all
+four heroes, each on their own stage with their theme playing, and see their
+trait and three hero-only perks. The pick sticks between runs, and the demo
+behind the title stars them.
 
 ## Difficulty and seeds
 

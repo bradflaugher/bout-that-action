@@ -144,8 +144,8 @@ fun GameOverScreen(
                         String.format(Locale.US, "%d:%02d", it / 60, it % 60)
                     }
                 }
-                // The seed rides along as the grid's last cell (filling an odd row's gap).
-                Highlights(run.highlights + ("SEED" to run.seedLabel), Modifier.padding(top = Space.xs).reveal(1000, 6.dp))
+                // The hero and seed ride along as the grid's last cells (filling an odd row's gap).
+                Highlights(run.highlights + ("HERO" to run.hero.title) + ("SEED" to run.seedLabel), run.hero.tint, Modifier.padding(top = Space.xs).reveal(1000, 6.dp))
             }
 
             NeonButton("RETRY SEED", Neon.magenta, Modifier.fillMaxWidth().padding(top = Space.xxs).reveal(700, 16.dp),
@@ -160,14 +160,18 @@ fun GameOverScreen(
 
 /** The run's highlights, two to a row: label on the left, value on the right. */
 @Composable
-private fun Highlights(items: List<Pair<String, String>>, modifier: Modifier = Modifier) {
+private fun Highlights(items: List<Pair<String, String>>, heroColor: Color, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         for (pair in items.chunked(2)) {
             Row(horizontalArrangement = Arrangement.spacedBy(Space.s)) {
                 for ((label, value) in pair) {
                     Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                         Kicker(label, Neon.dim, Modifier.weight(1f))
-                        NeonText(value, size = Type.small, color = if (label == "SEED") Neon.soft else Color.White, glow = 0.2f, maxLines = 1)
+                        NeonText(value, size = Type.small, color = when (label) {
+                            "SEED" -> Neon.soft
+                            "HERO" -> heroColor
+                            else -> Color.White
+                        }, glow = if (label == "HERO") 0.5f else 0.2f, maxLines = 1)
                     }
                 }
                 if (pair.size == 1) Box(Modifier.weight(1f))

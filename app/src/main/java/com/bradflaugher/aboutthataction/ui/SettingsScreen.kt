@@ -202,6 +202,7 @@ fun HowToPlay() {
         "ARRIVING" to "In SILENT you step into each new hallway hidden in the doorway. Tap or swipe ↑ to step out.",
         "MODE" to "The button under pause: GUNS HOT auto-fires at threats; SILENT never fires and quiet kills score double.",
         "GHOST" to "Leave a floor without anyone spotting you for a bonus. Double in SILENT.",
+        "HEROES" to "Four of them, all free. Tap the hero bar on the title to swap. Each has a trait and three perks of their own.",
         "DOWN" to "Only elevators go down, and only some hallways have one. Find it. Keep going, or take a break. It'll wait.",
     )
     Column(verticalArrangement = Arrangement.spacedBy(Space.s)) {

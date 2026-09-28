@@ -29,6 +29,7 @@ import com.bradflaugher.aboutthataction.SeedMode
 import com.bradflaugher.aboutthataction.Settings
 import com.bradflaugher.aboutthataction.engine.Autopilot
 import com.bradflaugher.aboutthataction.engine.Difficulty
+import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.RunConfig
 import com.bradflaugher.aboutthataction.engine.World
 import com.bradflaugher.aboutthataction.engine.Zone
@@ -80,10 +81,18 @@ class MenuShotsTest {
             RuntimeEnvironment.setQualifiers(qualifiers)
             val s = Settings()
             shot("$device-title", 1800, world()) {
-                TitleScreen(s, records, insets, {}, {}, {})
+                TitleScreen(s, records, insets, {}, {}, {}, {})
             }
             shot("$device-title-intro", 450, world()) {
-                TitleScreen(s, Records(), insets, {}, {}, {})
+                TitleScreen(s, Records(), insets, {}, {}, {}, {})
+            }
+            shot("$device-title-volt", 1800, world(Hero.VOLT)) {
+                TitleScreen(s.copy(hero = Hero.VOLT), records, insets, {}, {}, {}, {})
+            }
+            for (hero in Hero.entries) {
+                shot("$device-heroes-${hero.name.lowercase()}", 1200, world(hero)) {
+                    HeroPickerScreen(hero, insets, {}, {}, {})
+                }
             }
             shot("$device-settings", 900, world()) {
                 SettingsScreen(s, insets, {}, {})
@@ -92,7 +101,7 @@ class MenuShotsTest {
                 SettingsScreen(s.copy(preset = null, seedMode = SeedMode.CUSTOM, seedText = "BEASTMODE"), insets, {}, {})
             }
             shot("$device-pause", 700, world()) {
-                PauseScreen(s, "48213377", insets, {}, {}, {}, {})
+                PauseScreen(s, "48213377", Hero.ACE, insets, {}, {}, {}, {})
             }
             shot("$device-gameover", 3500, world()) {
                 GameOverScreen(run, insets, {}, {}, {}, records)
@@ -109,9 +118,9 @@ class MenuShotsTest {
         }
     }
 
-    private fun world(): World {
+    private fun world(hero: Hero = Hero.BEAST): World {
         val seed = 7L
-        val w = World(RunConfig(seed, Difficulty.Preset.AGENT.difficulty))
+        val w = World(RunConfig(seed, Difficulty.Preset.AGENT.difficulty, hero = hero))
         val pilot = Autopilot(seed)
         repeat(120 * 9) {
             pilot.act(w, 1f / 120f)
@@ -136,7 +145,7 @@ class MenuShotsTest {
         val gfx = AndroidGfx(activity)
         gfx.begin(Canvas(bg))
         val density = dm.density
-        val hud = !name.contains("title") && !name.contains("settings")
+        val hud = !name.contains("title") && !name.contains("settings") && !name.contains("heroes")
         Renderer().render(gfx, world, world.time, 32 * density, 16 * density, showHud = hud)
         // Drive Compose from our own frame clock. Robolectric's Choreographer hands
         // out frames without advancing time, so infinite animations never let idle end.
@@ -200,6 +209,7 @@ class MenuShotsTest {
             "phone-title" to "menu-title",
             "phone-gameover-best" to "menu-gameover",
             "phone-settings-custom" to "menu-settings",
+            "phone-heroes-beast" to "menu-heroes",
         )
     }
 }
