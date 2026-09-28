@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -85,11 +88,30 @@ fun SettingsScreen(settings: Settings, insets: PaddingValues, onChange: (Setting
                     HowToPlay()
                 }
                 NeonButton("DONE", Neon.cyan, groupMod, onClick = onBack)
+                PrivacyLink()
                 Spacer(Modifier.height(Space.xs))
             }
         }
     }
 }
+
+/** The Play privacy policy, opened in the browser (the game itself has no network access). */
+@Composable
+private fun PrivacyLink() {
+    val uri = LocalUriHandler.current
+    NeonText(
+        "PRIVACY POLICY",
+        size = Type.micro,
+        color = Neon.dim,
+        glow = 0f,
+        letterSpacing = 2.sp,
+        modifier = Modifier
+            .clickable(role = Role.Button) { uri.openUri(PRIVACY_POLICY_URL) }
+            .padding(Space.s),
+    )
+}
+
+const val PRIVACY_POLICY_URL = "https://bradflaugher.com/privacy/bout-that-action/"
 
 @Composable
 private fun DifficultyGroup(s: Settings, onChange: (Settings) -> Unit) {
