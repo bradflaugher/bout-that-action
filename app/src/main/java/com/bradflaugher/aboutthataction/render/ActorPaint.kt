@@ -51,6 +51,8 @@ internal class ActorPaint(private val f: Frame) {
         noInk = false
         ink = false
         hi = true
+        lightX = 0f
+        lightY = -1f
         out = (OUT_PX / f.s).coerceIn(OUT, OUT_MAX)
     }
 

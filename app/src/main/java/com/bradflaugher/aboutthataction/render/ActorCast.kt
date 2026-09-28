@@ -1494,6 +1494,8 @@ internal class ActorCast(
         if (dead) ang = 110f + sin(f.t * 3f) * 6f
         val housing = 0xFF3A3E54.toInt()
         val lit = 0xFF626884.toInt()
+        // Its own key light, never the one the last humanoid left in the pen.
+        p.lightFrom(if (e.facing >= 0) 1 else -1)
         p.twoPass {
             p.seg(x, rt, x, y - 0.2f, 0.14f, 0xFF22222C.toInt())
             p.begin().add(x - 0.32f, rt).add(x + 0.32f, rt).add(x + 0.26f, rt + 0.1f).add(x - 0.26f, rt + 0.1f).shape(0xFF3A3A46.toInt())

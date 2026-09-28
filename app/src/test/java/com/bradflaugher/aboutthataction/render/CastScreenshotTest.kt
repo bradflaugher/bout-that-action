@@ -85,6 +85,7 @@ class CastScreenshotTest {
         e.timer = 5f
         e.walkPhase = (nextId % 7).toFloat()
         if (kind == EnemyKind.DRONE) e.z = Body.DRONE_Z
+        if (kind == EnemyKind.TURRET) e.z = Body.TURRET_Z
         if (state == EnemyState.PATROL) e.vx = facing * 0.7f
         enemies += e
         return e
@@ -103,6 +104,7 @@ class CastScreenshotTest {
         w.put(EnemyKind.NINJA, 9.0f, -1, EnemyState.PATROL)
         w.put(EnemyKind.DEMON, 10.9f, -1, EnemyState.PATROL)
         w.put(EnemyKind.DRONE, 12.8f, -1, EnemyState.PATROL)
+        w.put(EnemyKind.TURRET, 8.0f, -1, EnemyState.PATROL)
         return w
     }
 
