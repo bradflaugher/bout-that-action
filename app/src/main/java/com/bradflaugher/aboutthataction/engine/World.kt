@@ -1454,7 +1454,7 @@ class World(val config: RunConfig) {
             else -> {
                 shoot(aimZ, aimVz)
                 if (stacks(Perk.SPLIT_SHOT) > 0) shoot(if (aimZ > 0.8f) 0.4f else 1.1f, aimVz)
-                cooldown = GUN_COOLDOWN
+                cooldown = GUN_COOLDOWN * hero.fireScale
             }
         }
         afterShot(f, h, ground, aimZ, cooldown * Math.pow(0.8, stacks(Perk.RAPID_FIRE).toDouble()).toFloat())

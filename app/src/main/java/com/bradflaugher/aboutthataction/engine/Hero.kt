@@ -35,6 +35,8 @@ enum class Hero(
     val doubleJump: Boolean = false,
     /** Reload time, as a multiple. */
     val reloadScale: Float = 1f,
+    /** Time between pistol shots, as a multiple. */
+    val fireScale: Float = 1f,
 ) {
     /** Running back in full pads. Tough, fast, bulldozes. */
     BEAST(
@@ -46,9 +48,9 @@ enum class Hero(
     /** The gentleman spy in a tux. Smooth, quiet, deadly. */
     ACE(
         "ACE", "Gentleman spy. Tux pressed.",
-        "8-round mag; guards are slow to react to you", "Licensed to chill.",
+        "8-round mag, quick trigger; guards are slow to react", "Licensed to chill.",
         0xFFE8C872.toInt(),
-        magSize = 8, reactionScale = 1.35f,
+        magSize = 8, reactionScale = 1.35f, fireScale = 0.85f,
     ),
     /** Barefoot cop in a tank top, having the worst holiday ever. */
     HARDY(
@@ -60,8 +62,8 @@ enum class Hero(
     /** Neon courier-hacker on skates. Quick, floaty, fries machines. */
     VOLT(
         "VOLT", "Hacker courier. Wheels on.",
-        "Double jump built in; reloads faster", "Have you tried turning it off?",
+        "Double jump, fast skates, quick reloads", "Have you tried turning it off?",
         0xFF3CF0FF.toInt(),
-        doubleJump = true, reloadScale = 0.75f,
+        doubleJump = true, reloadScale = 0.75f, runSpeed = 1.08f,
     ),
 }

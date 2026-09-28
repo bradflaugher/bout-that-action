@@ -141,7 +141,8 @@ class HeroTest {
             val beast = hero == Hero.BEAST
             assertEquals(if (beast) 4 else 3, w.player.maxHp)
             assertEquals(w.player.maxHp, w.player.hp)
-            assertEquals(World.RUN_SPEED * if (beast) 1.1f else 1f, w.runSpeed, 1e-4f)
+            assertEquals(World.RUN_SPEED * hero.runSpeed, w.runSpeed, 1e-4f)
+            assertEquals(if (beast) 1.1f else if (hero == Hero.VOLT) 1.08f else 1f, hero.runSpeed)
         }
         val w = world(Hero.BEAST)
         w.player.x = 2f
@@ -267,6 +268,30 @@ class HeroTest {
             assertTrue(reloaded)
             assertEquals("$hero", w.player.magSize, shots)
         }
+    }
+
+    @Test
+    fun aceHasAQuickTrigger() {
+        val gaps = HashMap<Hero, Float>()
+        for (hero in listOf(Hero.ACE, Hero.BEAST)) {
+            val w = world(hero, silent = false)
+            w.player.x = 1f
+            w.player.facing = 1
+            val e = enemy(w, EnemyKind.HEAVY, 7.5f, facing = -1)
+            e.state = EnemyState.ALERT
+            e.hp = 99
+            val times = ArrayList<Float>()
+            run(w, 2f) {
+                it.player.hp = it.player.maxHp
+                e.fireCooldown = 99f
+                for (ev in it.events) if (ev is GameEvent.Shot && ev.byPlayer) times += it.time
+                it.events.clear()
+            }
+            assertTrue("$hero fired twice", times.size >= 2)
+            gaps[hero] = times[1] - times[0]
+        }
+        assertEquals(World.GUN_COOLDOWN, gaps.getValue(Hero.BEAST), 2 * dt)
+        assertEquals(World.GUN_COOLDOWN * 0.85f, gaps.getValue(Hero.ACE), 2 * dt)
     }
 
     /** How long a guard takes to react once he spots [hero], as a multiple of the heat's reaction time. */

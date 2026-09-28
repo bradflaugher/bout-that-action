@@ -131,9 +131,9 @@ music.
 | Hero | Who | Trait (always on) |
 |---|---|---|
 | **BEAST** | A running back in full pads. Tough, fast, bulldozes. | +1 heart, runs 10% faster, tackles Heavies head-on (no bouncing off the armor) |
-| **ACE** | A gentleman spy in a pressed tux. | An 8-round magazine (instead of 6); guards take 35% longer to react once they spot him |
+| **ACE** | A gentleman spy in a pressed tux. | An 8-round magazine (instead of 6) and a 15% quicker trigger; guards take 35% longer to react once they spot him |
 | **HARDY** | A barefoot cop in a tank top, in the wrong building on the wrong night. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
-| **VOLT** | A neon hacker-courier on skates. | Double jump built in (so no Double Jump perk for Volt); reloads 25% faster |
+| **VOLT** | A neon hacker-courier on skates. | Double jump built in (so no Double Jump perk for Volt); skates 8% faster; reloads 25% faster |
 
 Their perks:
 
