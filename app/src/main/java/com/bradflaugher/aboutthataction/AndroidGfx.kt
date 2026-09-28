@@ -131,19 +131,27 @@ class AndroidGfx(context: Context) : Gfx {
 
     // Three-stop gradients, cached by colours in an open-addressed table (no boxed keys): each
     // shader is a unit gradient along x drawn through a canvas transform, so its matrix never
-    // changes and HWUI never rebuilds it. Alpha stays out of the key: it rides on the paint.
+    // changes and HWUI never rebuilds it. The strongest stop's alpha rides on the paint and the
+    // stops keep their alpha relative to it, so a stop fading to clear still fades, while a
+    // whole-shape fade (a death, a doorway) reuses the same shader.
     private val triKeys = LongArray(TRI_SLOTS)
     private val triShaders = arrayOfNulls<LinearGradient>(TRI_SLOTS)
     private var triCount = 0
     private val triStops = FloatArray(3)
     private val triColors = IntArray(3)
 
-    /** 15 bits of an opaque colour for a cache key: 5-5-5 RGB (close enough to share a shader). */
-    private fun q(c: Int): Long = ((((c shr 19) and 0x1F) shl 10) or (((c shr 11) and 0x1F) shl 5) or ((c shr 3) and 0x1F)).toLong()
+    /** 19 bits of a colour for a cache key: 4 bits of alpha and 5-5-5 RGB (close enough to share a shader). */
+    private fun q(c: Int): Long = (((c ushr 28) shl 15) or (((c shr 19) and 0x1F) shl 10) or (((c shr 11) and 0x1F) shl 5) or ((c shr 3) and 0x1F)).toLong()
+
+    /** [c] with its alpha rescaled so that alpha [top] becomes fully opaque. */
+    private fun lift(c: Int, top: Int): Int {
+        val a = ((c ushr 24) * 255 + top / 2) / top
+        return (a.coerceAtMost(255) shl 24) or (c and 0xFFFFFF)
+    }
 
     private fun triShader(c0: Int, c1: Int, c2: Int, m: Int): LinearGradient {
-        // Never 0, the empty slot.
-        val key = (1L shl 62) or (q(c0) shl 37) or (q(c1) shl 22) or (q(c2) shl 7) or m.toLong()
+        // The sign bit is always set, so a key is never 0, the empty slot.
+        val key = Long.MIN_VALUE or (q(c0) shl 44) or (q(c1) shl 25) or (q(c2) shl 6) or m.toLong()
         var i = ((key xor (key ushr 29)) * -0x61c8864680b583ebL ushr 54).toInt() and (TRI_SLOTS - 1)
         while (true) {
             val k = triKeys[i]
@@ -157,8 +165,8 @@ class AndroidGfx(context: Context) : Gfx {
             triCount = 0
             return triShader(c0, c1, c2, m)
         }
-        triColors[0] = c0 or OPAQUE; triColors[1] = c1 or OPAQUE; triColors[2] = c2 or OPAQUE
-        triStops[0] = 0f; triStops[1] = m / 127f; triStops[2] = 1f
+        triColors[0] = c0; triColors[1] = c1; triColors[2] = c2
+        triStops[0] = 0f; triStops[1] = m / 63f; triStops[2] = 1f
         val sh = LinearGradient(0f, 0f, 1f, 0f, triColors, triStops, Shader.TileMode.CLAMP)
         triKeys[i] = key
         triShaders[i] = sh
@@ -175,9 +183,11 @@ class AndroidGfx(context: Context) : Gfx {
             fillPolygon(xy, c1)
             return
         }
-        val m = (mid.coerceIn(0.02f, 0.98f) * 127f).toInt()
-        shaderPaint.shader = triShader(c0, c1, c2, m)
-        shaderPaint.alpha = c1 ushr 24
+        val m = (mid.coerceIn(0.02f, 0.98f) * 63f).toInt().coerceIn(1, 62)
+        val top = maxOf(c0 ushr 24, c1 ushr 24, c2 ushr 24)
+        if (top == 0) return
+        shaderPaint.shader = triShader(lift(c0, top), lift(c1, top), lift(c2, top), m)
+        shaderPaint.alpha = top
         // The polygon in the gradient's own frame: u along (x0,y0)->(x1,y1), v across, both in
         // units of its length; the canvas transform maps it back.
         val inv = 1f / len2
@@ -318,6 +328,5 @@ class AndroidGfx(context: Context) : Gfx {
 
     private companion object {
         const val TRI_SLOTS = 1024
-        const val OPAQUE = 0xFF000000.toInt()
     }
 }
