@@ -307,6 +307,31 @@ class StealthAndEventsTest {
     }
 
     @Test
+    fun aGhostBoxAmbushGoesPopQuietly() {
+        val w = world()
+        w.perks[Perk.GHOST_BOX] = 1
+        w.player.x = 3f
+        val guard = enemy(w, EnemyKind.AGENT, 5f, facing = -1)
+        guard.patrolA = guard.x
+        guard.patrolB = guard.x
+        // A second guard in the blast, and a sleeper just outside it.
+        val near = enemy(w, EnemyKind.AGENT, 6.2f, facing = 1)
+        near.patrolA = near.x
+        near.patrolB = near.x
+        val sleeper = enemy(w, EnemyKind.AGENT, 11f, facing = 1)
+        sleeper.asleep = true
+        w.commands += Command.SWIPE_DOWN
+        run(w, 0.5f)
+        assertEquals(PlayerState.BOX, w.player.state)
+        run(w, 1.5f) { it.moveAxis = 1 }
+        assertFalse(guard.alive)
+        assertEquals(1, w.stats.boxAmbushes)
+        assertFalse("the pop takes out the guard beside him", near.alive)
+        assertEquals("...and it counts as a quiet kill in SILENT", 2, w.silentKills)
+        assertTrue("the sleeper sleeps on", sleeper.asleep)
+    }
+
+    @Test
     fun aNinjaWhoComesToCheckKicksTheBoxOff() {
         val w = world()
         w.player.x = 3f

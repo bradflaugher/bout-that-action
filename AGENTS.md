@@ -100,6 +100,8 @@ the JVM.
   1080x2400 resolution, for iterating on the look. `-Pata.scene=cast` renders
   the cast sheet instead (`CastScreenshotTest`): every archetype in every zone
   and the agent's key poses, cropped from real frames at 2x, for character art.
+  `-Pata.scene=icons` renders the icon sheet (`IconScreenshotTest`): every perk
+  and pickup icon, the heart and the badges at chip, pill and card sizes.
 
 ## Invariants
 

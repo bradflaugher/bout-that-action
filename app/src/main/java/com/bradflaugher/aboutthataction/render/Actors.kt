@@ -1475,38 +1475,17 @@ internal class Actors(private val f: Frame) {
         f.worldText("$", x + 0.3f + sin(ph * 6f) * 0.08f, cy - 0.35f - ph * 0.9f, 0.26f, Col.alpha(0xFFFFD24A.toInt(), a), Gfx.Font.TITLE)
     }
 
+    /**
+     * A pickup's icon in the world: the very same pictogram as its HUD pill, so what you see on
+     * the floor is what the HUD says you picked up. (Cash spells its $ in world text.)
+     */
     fun pickupIcon(kind: PickupKind, x: Float, y: Float, col: Int, s: Float = 1f) {
-        when (kind) {
-            PickupKind.MEDKIT -> {
-                g.fillRect(x - 0.05f * s, y - 0.14f * s, x + 0.05f * s, y + 0.14f * s, col)
-                g.fillRect(x - 0.14f * s, y - 0.05f * s, x + 0.14f * s, y + 0.05f * s, col)
-            }
-            PickupKind.SHOTGUN -> {
-                g.line(x - 0.14f * s, y + 0.03f * s, x + 0.15f * s, y - 0.02f * s, 0.06f * s, col)
-                g.line(x - 0.14f * s, y + 0.03f * s, x - 0.16f * s, y + 0.12f * s, 0.06f * s, col)
-                g.line(x - 0.02f * s, y + 0.06f * s, x + 0.1f * s, y + 0.05f * s, 0.04f * s, col)
-            }
-            PickupKind.MINIGUN -> {
-                for (i in -1..1) g.line(x - 0.08f * s, y + i * 0.05f * s, x + 0.16f * s, y + i * 0.05f * s, 0.03f * s, col)
-                g.fillRect(x - 0.16f * s, y - 0.09f * s, x - 0.06f * s, y + 0.09f * s, col)
-            }
-            PickupKind.SHIELD -> {
-                poly.begin().add(x - 0.13f * s, y - 0.12f * s).add(x + 0.13f * s, y - 0.12f * s).add(x + 0.12f * s, y + 0.02f * s).add(x, y + 0.15f * s).add(x - 0.12f * s, y + 0.02f * s).fill(g, col)
-            }
-            PickupKind.SLOWMO -> {
-                g.strokeCircle(x, y, 0.13f * s, 0.035f * s, col)
-                g.line(x, y, x, y - 0.09f * s, 0.03f * s, col)
-                g.line(x, y, x + 0.07f * s, y + 0.03f * s, 0.03f * s, col)
-            }
-            PickupKind.GRENADE -> {
-                g.fillCircle(x, y + 0.03f * s, 0.11f * s, col)
-                g.fillRect(x - 0.04f * s, y - 0.13f * s, x + 0.04f * s, y - 0.06f * s, col)
-                g.strokeCircle(x + 0.07f * s, y - 0.12f * s, 0.035f * s, 0.02f * s, col)
-            }
-            PickupKind.CASH -> {
-                f.worldText("$", x, y + 0.11f * s, 0.32f * s, col, Gfx.Font.TITLE)
-            }
+        if (kind == PickupKind.CASH) {
+            g.strokeCircle(x, y, 0.15f * s, 0.03f * s, col)
+            f.worldText("$", x, y + 0.075f * s, 0.2f * s, col, Gfx.Font.TITLE)
+            return
         }
+        HudIcons.pickup(g, kind, x, y, 0.36f * s, col)
     }
 
     private fun grenade(x: Float, y: Float, fuse: Float) {

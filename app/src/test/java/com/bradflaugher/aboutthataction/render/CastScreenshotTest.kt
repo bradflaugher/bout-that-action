@@ -46,6 +46,7 @@ class CastScreenshotTest {
         for ((_, floor) in zones) rows += stageCrop(lineup(floor), 3.1f)
         rows += heroRow()
         rows += propsRow()
+        rows += pickupsRow()
         val sheet = stack(rows)
         outDir.mkdirs()
         ImageIO.write(sheet, "png", File(outDir, "cast.png"))
@@ -136,6 +137,20 @@ class CastScreenshotTest {
     }
 
     /** The hardware up close: the box (idle, peeking, waddling, spotted), every gun firing, the machines aiming. */
+    /** Every pickup lying on a floor, left to right in PickupKind order. */
+    private fun pickupsRow(): BufferedImage {
+        val w = world(9)
+        w.player.x = 0.8f
+        w.player.state = com.bradflaugher.aboutthataction.engine.PlayerState.DOOR
+        val kinds = PickupKind.entries
+        for ((i, k) in kinds.withIndex()) {
+            w.pickups += com.bradflaugher.aboutthataction.engine.Pickup(k, 2.2f + i * 1.7f, w.player.floor, w.player.hall).also {
+                it.life = 60f; it.z = 0.35f; it.vz = 0f
+            }
+        }
+        return stageCrop(w, 1.3f)
+    }
+
     private fun propsRow(): BufferedImage {
         val crops = ArrayList<BufferedImage>()
         fun hero(time: Float, cx: Float = 7f, half: Int = 110, pose: (World) -> Unit) {
