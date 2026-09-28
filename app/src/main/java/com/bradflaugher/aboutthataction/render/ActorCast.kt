@@ -721,19 +721,31 @@ internal class ActorCast(
 
     /**
      * The key read at the collar, above where the front arm swings: a crisp white shirt collar
-     * and the tie knot for the suits, a pale shirt collar for the cops.
+     * and the tie knot for the suits, a pale shirt collar for the cops, the miner's bandana.
      */
     private fun collar(z: Zone, acc: Int) {
-        if (p.ink || (z != Zone.TOWER && z != Zone.METRO)) return
+        if (p.ink || (z != Zone.TOWER && z != Zone.METRO && z != Zone.MINES)) return
         val c = k.chestD
-        val white = if (z == Zone.TOWER) 0xFFF4F2FA.toInt() else 0xFFB8C8E0.toInt()
-        p.begin()
-        tp(1.0f, -c * 0.16f); tp(1.1f, -c * 0.08f); tp(1.1f, c * 0.2f); tp(1.0f, c * 0.4f); tp(0.9f, c * 0.3f); tp(0.97f, c * 0.1f)
-        p.shapeGradDetail(white, Col.lerp(white, ActorPaint.shade(white), 0.5f), body.ptX(1.1f, c * 0.1f), body.ptY(1.1f, c * 0.1f), body.ptX(0.9f, c * 0.2f), body.ptY(0.9f, c * 0.2f))
+        if (z != Zone.MINES) {
+            val white = if (z == Zone.TOWER) 0xFFF4F2FA.toInt() else 0xFFB8C8E0.toInt()
+            p.begin()
+            tp(1.0f, -c * 0.16f); tp(1.1f, -c * 0.08f); tp(1.1f, c * 0.2f); tp(1.0f, c * 0.4f); tp(0.9f, c * 0.3f); tp(0.97f, c * 0.1f)
+            p.shapeGradDetail(white, Col.lerp(white, ActorPaint.shade(white), 0.5f), body.ptX(1.1f, c * 0.1f), body.ptY(1.1f, c * 0.1f), body.ptX(0.9f, c * 0.2f), body.ptY(0.9f, c * 0.2f))
+        }
         if (z == Zone.TOWER) {
             p.begin()
             tp(1.0f, c * 0.24f); tp(1.0f, c * 0.38f); tp(0.9f, c * 0.4f); tp(0.9f, c * 0.26f)
-            p.shapeGradDetail(ActorPaint.light(acc), ActorPaint.shade(acc), body.ptX(1f, c * 0.3f), body.ptY(1f, c * 0.3f), body.ptX(0.9f, c * 0.33f), body.ptY(0.9f, c * 0.33f))
+            val tie = Col.mul(acc, 0.82f)
+            p.shapeGradDetail(ActorPaint.light(tie), ActorPaint.shade(tie), body.ptX(1f, c * 0.3f), body.ptY(1f, c * 0.3f), body.ptX(0.9f, c * 0.33f), body.ptY(0.9f, c * 0.33f))
+        }
+        if (z == Zone.MINES) {
+            // The bandana, pulled down round the neck: knotted cloth hanging to a point on the chest.
+            val cloth = 0xFF6A7EA6.toInt()
+            p.begin()
+            tp(1.08f, -c * 0.4f); tp(1.1f, c * 0.4f); tp(0.76f, c * 0.54f); tp(0.88f, c * 0.1f); tp(0.95f, -c * 0.42f)
+            p.shapeGradDetail(ActorPaint.light(cloth), ActorPaint.shade(cloth), body.ptX(1.1f, c * 0.2f), body.ptY(1.1f, c * 0.2f), body.ptX(0.86f, c * 0.3f), body.ptY(0.86f, c * 0.3f))
+            if (p.shading) p.detail(body.ptX(1.05f, c * 0.24f), body.ptY(1.05f, c * 0.24f), body.ptX(0.82f, c * 0.46f), body.ptY(0.82f, c * 0.46f), 0.014f * k.hs, ActorPaint.shade(cloth))
+            p.dot(body.ptX(1.02f, -c * 0.42f), body.ptY(1.02f, -c * 0.42f), 0.03f * k.hs, ActorPaint.shade(cloth))
         }
     }
 
@@ -798,67 +810,80 @@ internal class ActorCast(
         val main = pal.enemyMain
         val acc = pal.enemyAccent
         val skin = pal.enemySkin
-        val rim = rimOf(pal, 0.6f)
         val z = if (zone == Zone.ROOFTOP || zone == Zone.VOID) Zone.TOWER else zone
         val L = look
-        L.legW = 1f; L.armW = 1f; L.rim = rim
+        // No inset piping from the shared parts: the neon rim is drawn ON the back contour below.
+        L.legW = 1f; L.armW = 1f; L.rim = 0
+        val rim = rimOf(pal, 0.9f)
+        rimC = rim
         when (z) {
             Zone.LABS -> {
                 // A baggy white hazmat suit, sea-green rubber gloves and boots.
                 L.torso = main; L.torsoLit = 0xFFFFFFFF.toInt(); L.legs = Col.mul(main, 0.94f); L.legsFar = Col.mul(main, 0.66f)
-                L.arms = main; L.armsFar = Col.mul(main, 0.68f); L.boots = 0xFF1E3A34.toInt(); L.gloves = 0xFF2E6A58.toInt(); L.skin = skin
+                L.arms = main; L.armsFar = Col.mul(main, 0.68f); L.boots = 0xFF1E3A34.toInt(); L.gloves = 0xFF4E8A76.toInt(); L.skin = skin
                 L.legW = 1.24f; L.armW = 1.2f
             }
             Zone.METRO -> {
-                // Steel-blue uniform shirt under a navy duty vest, navy trousers.
+                // Steel-blue uniform shirt under a navy duty vest, navy trousers, bare hands.
                 val navy = Col.lerp(main, 0xFF40598A.toInt(), 0.45f)
                 val shirt = 0xFF55709C.toInt()
                 L.torso = shirt; L.torsoLit = Col.lerp(shirt, 0xFFFFFFFF.toInt(), 0.3f); L.legs = Col.mul(navy, 0.8f); L.legsFar = Col.mul(navy, 0.56f)
-                L.arms = shirt; L.armsFar = Col.mul(shirt, 0.6f); L.boots = 0xFF0A0A0E.toInt(); L.gloves = 0xFF141418.toInt(); L.skin = skin
+                L.arms = shirt; L.armsFar = Col.mul(shirt, 0.6f); L.boots = 0xFF0A0A0E.toInt(); L.gloves = skin; L.skin = skin
                 L.legW = 1.04f; L.armW = 1.04f
             }
             Zone.MINES -> {
-                // Denim overalls over a rust work shirt, rolled to the elbow.
+                // Denim overalls over a khaki work shirt, tan leather gloves, sturdy legs.
                 L.torso = main; L.torsoLit = Col.lerp(main, 0xFFFFFFFF.toInt(), 0.3f); L.legs = main; L.legsFar = Col.mul(main, 0.6f)
-                L.arms = 0xFF8A4A30.toInt(); L.armsFar = 0xFF55301F.toInt(); L.boots = 0xFF2E1C10.toInt(); L.gloves = 0xFF6E4E30.toInt(); L.skin = skin
-                L.legW = 1.06f
+                L.arms = 0xFF6E6A52.toInt(); L.armsFar = 0xFF45432F.toInt(); L.boots = 0xFF2E1C10.toInt(); L.gloves = 0xFFA27C52.toInt(); L.skin = skin
+                L.legW = 1.24f; L.armW = 1.08f
             }
             Zone.MAGMA -> {
-                // Aluminised proximity suit: bulky, mirror-bright, charcoal gauntlets and boots.
-                L.torso = Col.lerp(main, 0xFFDCD8D2.toInt(), 0.35f); L.torsoLit = 0xFFFFFCF4.toInt()
-                L.legs = Col.mul(L.torso, 0.9f); L.legsFar = Col.mul(L.torso, 0.62f)
-                L.arms = L.torso; L.armsFar = Col.mul(L.torso, 0.64f); L.boots = 0xFF26221E.toInt(); L.gloves = 0xFF3A322C.toInt(); L.skin = skin
+                // Aluminised heat suit: a silver-gold metallic, bulky, with oversized gauntlets.
+                L.torso = 0xFFBEB49C.toInt(); L.torsoLit = 0xFFFFF4D8.toInt()
+                L.legs = Col.mul(L.torso, 0.92f); L.legsFar = Col.mul(L.torso, 0.6f)
+                L.arms = L.torso; L.armsFar = Col.mul(L.torso, 0.62f); L.boots = 0xFF26221E.toInt(); L.gloves = 0xFF34302C.toInt(); L.skin = skin
                 L.legW = 1.3f; L.armW = 1.26f
             }
             Zone.HELL -> {
                 val robe = Col.lerp(main, 0xFF9A2030.toInt(), 0.45f)
                 L.torso = robe; L.torsoLit = Col.lerp(robe, 0xFFFF6040.toInt(), 0.35f); L.legs = Col.mul(main, 0.6f); L.legsFar = Col.mul(main, 0.45f)
-                L.arms = robe; L.armsFar = Col.mul(robe, 0.6f); L.boots = 0xFF140406.toInt(); L.gloves = 0xFF857472.toInt(); L.skin = 0xFF857472.toInt()
+                L.arms = robe; L.armsFar = Col.mul(robe, 0.62f); L.boots = 0xFF140406.toInt(); L.gloves = 0xFFC4B0A8.toInt(); L.skin = 0xFFC4B0A8.toInt()
                 L.armW = 1.3f
             }
             else -> {
-                // A sharp charcoal-violet suit.
-                val suit = Col.lerp(main, 0xFF4C4A66.toInt(), 0.58f)
-                L.torso = suit; L.torsoLit = Col.lerp(suit, 0xFFFFFFFF.toInt(), 0.22f); L.legs = Col.mul(suit, 0.92f); L.legsFar = Col.mul(suit, 0.6f)
-                L.arms = suit; L.armsFar = Col.mul(suit, 0.6f); L.boots = 0xFF050508.toInt(); L.gloves = skin; L.skin = skin
+                // A sharp charcoal-violet suit, light enough to carry a full lit-to-shadow range.
+                val suit = Col.lerp(main, 0xFF585670.toInt(), 0.64f)
+                L.torso = suit; L.torsoLit = Col.lerp(suit, 0xFFFFFFFF.toInt(), 0.28f); L.legs = Col.mul(suit, 0.9f); L.legsFar = Col.mul(suit, 0.58f)
+                L.arms = suit; L.armsFar = Col.mul(suit, 0.58f); L.boots = 0xFF050508.toInt(); L.gloves = skin; L.skin = skin
                 L.legW = 0.92f; L.armW = 0.95f
             }
         }
         val robe = z == Zone.HELL
-        val gunTrim = if (robe) acc else if (z == Zone.TOWER) 0xFF30303C.toInt() else 0xFF3A3E4A.toInt()
+        val chest = when (z) {
+            Zone.TOWER -> 1.08f
+            Zone.LABS -> 1.1f
+            Zone.MAGMA -> 1.14f
+            Zone.METRO -> 1.04f
+            else -> 1f
+        }
+        // A bright steel edge on every gun: the weapon reads right after head and hands.
+        val gunTrim = 0xFFC8D0E0.toInt()
         p.twoPass {
-            body.arm(k.armB, L, far = true)
+            if (robe) sleeve(k.armB, L, far = true) else body.arm(k.armB, L, far = true)
+            if (z == Zone.MAGMA) gauntlet(k.armB, Col.mul(L.gloves, 0.8f))
             if (!robe) body.leg(k.legB, L, far = true) else robeFeet(L)
             backKit(z, acc)
             if (!robe) {
                 body.leg(k.legF, L, far = false)
                 when (z) {
-                    Zone.METRO -> stripe(k.legF, 0.024f * k.hs, Col.alpha(acc, 0.85f))
+                    Zone.METRO -> stripe(k.legF, 0.02f * k.hs, Col.mul(L.legs, 0.7f))
                     Zone.MAGMA -> quilt(k.legF, L.legs, L.legW)
                     else -> Unit
                 }
+                limbRim(k.legF.ax, k.legF.ay, k.legF.jx, k.legF.jy, k.limbW * L.legW * 1.34f, k.limbW * L.legW * 0.94f, rim)
                 if (z == Zone.TOWER) body.hem(L.torso, 0.2f, 0.035f)
-                body.torso(L, chest = when (z) { Zone.TOWER -> 1.08f; Zone.LABS -> 1.1f; Zone.MAGMA -> 1.14f; Zone.METRO -> 1.04f; else -> 1f })
+                body.torso(L, chest = chest)
+                torsoRim(chest, if (z == Zone.LABS || z == Zone.MAGMA) 0.62f else 0.96f, rim)
             } else {
                 robeBody(L, Col.lerp(acc, ActorPaint.shade(L.torso), 0.5f))
             }
@@ -870,17 +895,16 @@ internal class ActorCast(
         p.twoPass {
             weapon(armed, gunTrim)
             if (robe) {
-                sleeveArm(L)
+                sleeve(k.armF, L, far = false)
             } else {
                 body.arm(k.armF, L, far = false)
                 when (z) {
                     // Crisp white shirt cuff, the one spark of white on the arm.
                     Zone.TOWER -> band(k.armF, 0.84f, 0.1f, k.limbW * 0.62f, 0xFFF0F0F8.toInt())
                     Zone.LABS -> band(k.armF, 0.8f, 0.14f, k.limbW * 0.78f, L.gloves)
-                    Zone.MINES -> band(k.armF, -0.05f, 0.12f, k.limbW * 0.9f, Col.mul(L.arms, 0.72f))
                     Zone.MAGMA -> {
                         quilt(k.armF, L.arms, L.armW)
-                        band(k.armF, 0.74f, 0.2f, k.limbW * 0.95f, L.gloves)
+                        gauntlet(k.armF, L.gloves)
                     }
                     else -> Unit
                 }
@@ -891,13 +915,149 @@ internal class ActorCast(
         }
     }
 
+    /** This guard's rim colour (the zone neon), for the parts drawn below. */
+    private var rimC = 0
+
+    /** The rim's weight: a crisp ~1.5 px line at any camera distance. */
+    private val rimW get() = p.out * 0.62f
+
+    /**
+     * The zone-neon rim ON a limb's back contour (the side turned away from the camera light,
+     * toward the neon behind), sitting on the outline rather than inset like piping.
+     */
+    private fun limbRim(x1: Float, y1: Float, x2: Float, y2: Float, w1: Float, w2: Float, color: Int) {
+        if (p.ink || !p.hi || color == 0) return
+        val dx = x2 - x1
+        val dy = y2 - y1
+        val len = sqrt(dx * dx + dy * dy)
+        if (len < 1e-4f) return
+        var px = -dy / len
+        var py = dx / len
+        val rx = body.rimX
+        val ry = body.rimY
+        if (px * rx + py * ry < 0f) {
+            px = -px; py = -py
+        }
+        val facing = px * rx + py * ry
+        if (facing < 0.2f) return
+        val o = p.out * 0.1f
+        val a = w1 * 0.5f + o
+        val b = w2 * 0.5f + o
+        g.blend(Gfx.Blend.ADD)
+        p.detail(x1 + dx * 0.1f + px * a, y1 + dy * 0.1f + py * a, x1 + dx * 0.9f + px * b, y1 + dy * 0.9f + py * b, rimW,
+            Col.fade(color, ((facing - 0.2f) / 0.4f).coerceIn(0f, 1f)))
+        g.blend(Gfx.Blend.NORMAL)
+    }
+
+    /** The rim along the torso's back contour, from the seat up to [top] of the spine. */
+    private fun torsoRim(chest: Float, top: Float, color: Int) {
+        if (p.ink || !p.hi || color == 0) return
+        val w = k.waistD
+        val c = k.chestD * chest
+        val o = p.out * 0.1f
+        g.blend(Gfx.Blend.ADD)
+        val ax = body.ptX(0.08f, -w * 0.5f - o); val ay = body.ptY(0.08f, -w * 0.5f - o)
+        val bx = body.ptX(0.34f, -w * 0.52f - o); val by = body.ptY(0.34f, -w * 0.52f - o)
+        val t = ((top - 0.34f) / 0.46f).coerceIn(0f, 1f)
+        val cx = body.ptX(0.34f + 0.46f * t, -(w * 0.52f + (c * 0.5f - w * 0.52f) * t) - o)
+        val cy = body.ptY(0.34f + 0.46f * t, -(w * 0.52f + (c * 0.5f - w * 0.52f) * t) - o)
+        p.detail(ax, ay, bx, by, rimW, color)
+        p.detail(bx, by, cx, cy, rimW, color)
+        if (top > 0.8f) p.detail(cx, cy, body.ptX(top, -c * 0.36f - o), body.ptY(top, -c * 0.36f - o), rimW, color)
+        g.blend(Gfx.Blend.NORMAL)
+    }
+
+    /**
+     * The rim on a head's back contour: an arc on the outline from [from] degrees (facing right;
+     * 180 = straight back, 270 = the crown) through [sweep], mirrored for the other facing.
+     */
+    private fun headContour(cx: Float, cy: Float, r: Float, color: Int, from: Float = 170f, sweep: Float = 90f) {
+        if (p.ink || !p.hi || color == 0) return
+        val start = if (k.dir > 0) from else 180f - from - sweep
+        g.blend(Gfx.Blend.ADD)
+        g.strokeArc(cx, cy, r + p.out * 0.1f, start, sweep, rimW, p.c(color))
+        g.blend(Gfx.Blend.NORMAL)
+    }
+
+    /**
+     * A bell sleeve as one flowing shape continuing the robe: narrow at the shoulder, widening
+     * past the elbow to a mouth whose lower edge droops, a pale hand peeking out to grip.
+     */
+    private fun sleeve(l: Limb, L: Look, far: Boolean) {
+        val aw = k.limbW * L.armW
+        val col = if (far) L.armsFar else L.arms
+        val d1x = l.jx - l.ax
+        val d1y = l.jy - l.ay
+        val n1 = sqrt(d1x * d1x + d1y * d1y).coerceAtLeast(1e-4f)
+        val d2x = l.ex - l.jx
+        val d2y = l.ey - l.jy
+        val n2 = sqrt(d2x * d2x + d2y * d2y).coerceAtLeast(1e-4f)
+        // Normals of the upper arm and forearm, and their mean at the elbow.
+        val p1x = -d1y / n1; val p1y = d1x / n1
+        val p2x = -d2y / n2; val p2y = d2x / n2
+        var pjx = p1x + p2x
+        var pjy = p1y + p2y
+        val nj = sqrt(pjx * pjx + pjy * pjy).coerceAtLeast(1e-4f)
+        pjx /= nj; pjy /= nj
+        val mx = l.jx + d2x * 0.8f
+        val my = l.jy + d2y * 0.8f
+        val wa = aw * 0.56f
+        val wj = aw * 0.66f
+        val wm = aw * 0.98f
+        // The mouth's lower edge droops toward the floor.
+        val droop = aw * 0.4f
+        val dA = if (p2y > 0f) droop else 0f
+        val dB = droop - dA
+        p.lightFrom(k.dir)
+        p.begin()
+            .add(l.ax + p1x * wa, l.ay + p1y * wa)
+            .add(l.jx + pjx * wj, l.jy + pjy * wj)
+            .add(mx + p2x * wm, my + p2y * wm + dA)
+            .add(mx - p2x * wm, my - p2y * wm + dB)
+            .add(l.jx - pjx * wj, l.jy - pjy * wj)
+            .add(l.ax - p1x * wa, l.ay - p1y * wa)
+        p.shapeLit(col, l.ax, l.ay - aw, l.jx, l.jy + aw * 1.5f, sep = !far)
+        if (!p.ink) {
+            // The mouth's shadow, where the hand comes out.
+            p.dot(mx, my, wm * 0.46f, 0xFF120204.toInt())
+            if (!far && p.shading) {
+                // One fold down the sleeve.
+                p.detail(l.jx - pjx * wj * 0.2f, l.jy - pjy * wj * 0.2f, mx - p2x * wm * 0.3f, my - p2y * wm * 0.3f + droop * 0.3f, aw * 0.1f, ActorPaint.shade(col))
+            }
+        }
+        body.glove(l, if (far) Col.mul(L.gloves, 0.75f) else L.gloves)
+    }
+
+    /** An oversized heat gauntlet: a flared cuff over the forearm and a big mitt. */
+    private fun gauntlet(l: Limb, color: Int) {
+        val aw = k.limbW * 1.1f
+        val dx = l.ex - l.jx
+        val dy = l.ey - l.jy
+        val n = sqrt(dx * dx + dy * dy).coerceAtLeast(1e-4f)
+        val px = -dy / n
+        val py = dx / n
+        val ax = l.jx + dx * 0.5f
+        val ay = l.jy + dy * 0.5f
+        val bx = l.jx + dx * 0.98f
+        val by = l.jy + dy * 0.98f
+        p.lightFrom(k.dir)
+        p.begin()
+            .add(ax + px * aw * 0.46f, ay + py * aw * 0.46f)
+            .add(bx + px * aw * 0.72f, by + py * aw * 0.72f)
+            .add(bx - px * aw * 0.72f, by - py * aw * 0.72f)
+            .add(ax - px * aw * 0.46f, ay - py * aw * 0.46f)
+        p.shapeLit(color, ax, ay - aw, bx, by + aw, sep = true)
+        p.ball(l.ex + dx / n * 0.03f * k.hs, l.ey + dy / n * 0.03f * k.hs, 0.07f * k.hs, color)
+        if (!p.ink && p.shading) p.detail(ax + px * aw * 0.4f, ay + py * aw * 0.4f, bx + px * aw * 0.64f, by + py * aw * 0.64f, aw * 0.08f, ActorPaint.light(color))
+    }
+
     /** Kit worn on the back, drawn behind the torso: air tanks, the radio. */
     private fun backKit(z: Zone, acc: Int) {
         when (z) {
             Zone.LABS, Zone.MAGMA -> {
                 val tx1 = body.ptX(0.3f, -k.waistD * 0.66f); val ty1 = body.ptY(0.3f, -k.waistD * 0.66f)
                 val tx2 = body.ptX(0.86f, -k.chestD * 0.66f); val ty2 = body.ptY(0.86f, -k.chestD * 0.66f)
-                val metal = if (z == Zone.LABS) 0xFFA8B4B4.toInt() else 0xFFD8702A.toInt()
+                val metal = if (z == Zone.LABS) 0xFFA8B4B4.toInt() else 0xFF6A5C48.toInt()
                 val tw = (if (z == Zone.LABS) 0.17f else 0.2f) * k.hs
                 p.lightFrom(k.dir)
                 p.bone(tx1, ty1, tx2, ty2, tw, tw, metal)
@@ -967,28 +1127,13 @@ internal class ActorCast(
             val tx = body.ptX(0.1f, k.waistD * 0.35f)
             val ty = body.ptY(0.1f, k.waistD * 0.35f)
             p.detail(tx, ty, tx + 0.02f * k.dir, ty + 0.22f * k.hs + sin(f.t * 4f) * 0.01f, 0.022f * k.hs, trim)
-            if (L.rim != 0) {
+            if (rimC != 0 && p.hi) {
                 g.blend(Gfx.Blend.ADD)
-                p.detail(back - 0.14f * k.dir, gnd - 0.24f * k.hs, body.ptX(0.45f, -c * 0.6f), body.ptY(0.45f, -c * 0.6f), ActorPaint.RIM_W, L.rim)
-                p.detail(body.ptX(0.45f, -c * 0.6f), body.ptY(0.45f, -c * 0.6f), body.ptX(0.98f, -c * 0.28f), body.ptY(0.98f, -c * 0.28f), ActorPaint.RIM_W, L.rim)
+                p.detail(back - 0.14f * k.dir, gnd - 0.24f * k.hs, body.ptX(0.45f, -c * 0.6f), body.ptY(0.45f, -c * 0.6f), rimW, rimC)
+                p.detail(body.ptX(0.45f, -c * 0.6f), body.ptY(0.45f, -c * 0.6f), body.ptX(0.98f, -c * 0.28f), body.ptY(0.98f, -c * 0.28f), rimW, rimC)
                 g.blend(Gfx.Blend.NORMAL)
             }
         }
-    }
-
-    private fun sleeveArm(L: Look) {
-        val l = k.armF
-        val aw = k.limbW * L.armW
-        p.lightFrom(k.dir)
-        p.bone(l.ax, l.ay, l.jx, l.jy, aw, aw * 0.95f, L.arms, true)
-        // Bell sleeve widening toward the wrist and stopping short of it, so an ashen hand
-        // grips the gun out of the sleeve's dark mouth.
-        val mx = l.jx + (l.ex - l.jx) * 0.72f
-        val my = l.jy + (l.ey - l.jy) * 0.72f
-        p.bone(l.jx, l.jy, mx, my, aw * 0.95f, aw * 1.4f, L.arms, true)
-        if (!p.ink) p.dot(mx, my, aw * 0.5f, 0xFF140204.toInt())
-        p.seg(mx, my, l.ex, l.ey, aw * 0.5f, Col.mul(L.gloves, 0.8f))
-        body.glove(l, L.gloves)
     }
 
     private fun guardDetails(z: Zone, dir: Int, L: Look, acc: Int) {
@@ -998,17 +1143,25 @@ internal class ActorCast(
         val s = k.hs
         when (z) {
             Zone.TOWER -> {
+                // The lamp across the shoulders and upper chest: a dark suit with real range.
+                if (p.shading) {
+                    p.begin()
+                    tp(1.03f, -c * 0.3f); tp(1.0f, c * 0.3f); tp(0.74f, c * 0.53f); tp(0.6f, c * 0.1f); tp(0.78f, -c * 0.5f)
+                    p.shapeGradDetail(Col.alpha(ActorPaint.light(ActorPaint.light(L.torso)), 0.7f), Col.alpha(L.torso, 0f),
+                        body.ptX(1.02f, c * 0.1f), body.ptY(1.02f, c * 0.1f), body.ptX(0.64f, 0f), body.ptY(0.64f, 0f))
+                }
                 // White shirt front, a knotted tie, and a notched lapel rolling to the button.
                 val shirt = 0xFFF0EEF6.toInt()
+                val tie = Col.mul(acc, 0.82f)
                 p.begin()
                 tp(1.01f, c * 0.36f); tp(0.99f, -c * 0.02f); tp(0.54f, c * 0.5f); tp(0.76f, c * 0.56f)
                 p.shapeGradDetail(shirt, 0xFFA8A4C0.toInt(), body.ptX(1f, c * 0.3f), body.ptY(1f, c * 0.3f), body.ptX(0.6f, c * 0.5f), body.ptY(0.6f, c * 0.5f))
                 p.begin()
                 tp(0.99f, c * 0.2f); tp(0.99f, c * 0.34f); tp(0.9f, c * 0.36f); tp(0.9f, c * 0.24f)
-                p.shapeDetail(ActorPaint.shade(acc))
+                p.shapeDetail(ActorPaint.shade(tie))
                 p.begin()
                 tp(0.91f, c * 0.24f); tp(0.91f, c * 0.36f); tp(0.62f, c * 0.56f); tp(0.56f, c * 0.5f)
-                p.shapeGradDetail(ActorPaint.light(acc), ActorPaint.shade(acc), body.ptX(0.9f, c * 0.3f), body.ptY(0.9f, c * 0.3f), body.ptX(0.58f, c * 0.53f), body.ptY(0.58f, c * 0.53f))
+                p.shapeGradDetail(ActorPaint.light(tie), ActorPaint.shade(tie), body.ptX(0.9f, c * 0.3f), body.ptY(0.9f, c * 0.3f), body.ptX(0.58f, c * 0.53f), body.ptY(0.58f, c * 0.53f))
                 p.begin()
                 tp(0.99f, -c * 0.02f); tp(0.54f, c * 0.5f); tp(0.6f, c * 0.3f); tp(0.78f, -c * 0.04f)
                 tp(0.84f, -c * 0.16f); tp(0.97f, -c * 0.16f)
@@ -1027,10 +1180,6 @@ internal class ActorCast(
                 p.detail(body.ptX(0.12f, -w * 0.56f), body.ptY(0.12f, -w * 0.56f), body.ptX(0.12f, w * 0.56f), body.ptY(0.12f, w * 0.56f), 0.05f * s, 0xFF3A4A48.toInt())
                 // The tank's one strap, over the shoulder.
                 p.detail(body.ptX(0.98f, -c * 0.3f), body.ptY(0.98f, -c * 0.3f), body.ptX(0.55f, c * 0.2f), body.ptY(0.55f, c * 0.2f), 0.05f * s, 0xFF3A4A48.toInt())
-                // A hazard patch on the chest in the zone accent.
-                p.begin()
-                tp(0.74f, c * 0.1f); tp(0.74f, c * 0.34f); tp(0.6f, c * 0.36f); tp(0.6f, c * 0.12f)
-                p.shapeGradDetail(ActorPaint.light(acc), acc, body.ptX(0.74f, c * 0.2f), body.ptY(0.74f, c * 0.2f), body.ptX(0.6f, c * 0.2f), body.ptY(0.6f, c * 0.2f))
             }
             Zone.METRO -> {
                 // The duty vest: one dark shape over the shirt, lit across the chest.
@@ -1052,7 +1201,6 @@ internal class ActorCast(
                 val rx = body.ptX(0.92f, -c * 0.34f); val ry = body.ptY(0.92f, -c * 0.34f)
                 p.detail(rx, ry - 0.02f * s, rx, ry + 0.06f * s, 0.055f * s, 0xFF101116.toInt())
                 p.detail(rx - 0.012f * dir * s, ry - 0.02f * s, rx - 0.012f * dir * s, ry - 0.1f * s, 0.012f * s, 0xFF101116.toInt())
-                if (p.shading) p.dot(rx + 0.012f * dir * s, ry, 0.009f * s, acc)
             }
             Zone.MINES -> {
                 // Overall bib and a strap over the shoulder, a brass button, a hi-vis chest band.
@@ -1096,7 +1244,7 @@ internal class ActorCast(
         when (z) {
             Zone.TOWER -> towerHead(L, pal)
             Zone.LABS -> labsHead(L, acc)
-            Zone.METRO -> metroHead(L, acc)
+            Zone.METRO -> metroHead(L)
             Zone.MINES -> minesHead(e, L, acc)
             Zone.MAGMA -> magmaHead(L)
             else -> hellHead(L)
@@ -1130,7 +1278,7 @@ internal class ActorCast(
             // Earpiece: a clear coil from the ear into the collar.
             if (p.shading) p.detail(hpx(-0.26f), hpy(0.24f), hpx(-0.46f), hpy(1.4f), hcr * 0.07f, Col.alpha(0xFFD8E4F4.toInt(), 0.55f))
         }
-        body.headRim(hcx, hcy, hcr, look.rim)
+        headContour(hpx(-0.06f), hcy, hcr * 1.1f, rimC)
         eyesAt(hpx(0.66f), hpy(-0.12f))
     }
 
@@ -1157,14 +1305,18 @@ internal class ActorCast(
         if (!p.ink) {
             p.dot(hpx(0.9f), hpy(0.68f), hcr * 0.22f, acc)
         }
-        body.headRim(hpx(-0.1f), hpy(0.0f), hcr * 1.36f, look.rim)
+        headContour(hpx(-0.1f), hpy(0.0f), hcr * 1.36f, rimC)
         eyesAt(hpx(0.72f), hpy(-0.1f))
     }
 
     /** A peaked cap with a glossy brim, the badge, the cap band in the accent. */
-    private fun metroHead(L: Look, acc: Int) {
+    private fun metroHead(L: Look) {
         face(L.skin)
         if (!p.ink && p.hi) p.dot(hpx(0.7f), hpy(-0.04f), hcr * 0.13f, 0xFF0C0A12.toInt())
+        // Short dark hair under the cap.
+        p.begin()
+        hp(-1.02f, -0.42f); hp(-0.2f, -0.44f); hp(-0.3f, 0.02f); hp(-0.62f, 0.36f); hp(-0.98f, 0.2f)
+        p.shapeLit(0xFF2A2220.toInt(), hpx(-0.4f), hpy(-0.5f), hpx(-0.8f), hpy(0.3f))
         val cap = 0xFF182238.toInt()
         // Crown flaring up and forward, like a real peaked cap.
         p.begin()
@@ -1173,7 +1325,7 @@ internal class ActorCast(
         if (!p.ink) {
             p.begin()
             hp(-1.0f, -0.32f); hp(-1.02f, -0.62f); hp(0.99f, -0.72f); hp(0.96f, -0.44f)
-            p.shapeGradDetail(acc, ActorPaint.shade(acc), hpx(0.5f), hpy(-0.7f), hpx(-0.8f), hpy(-0.4f))
+            p.shapeDetail(0xFF0C1018.toInt())
             // Cap badge.
             p.begin()
             hp(0.62f, -1.18f); hp(0.82f, -1.08f); hp(0.78f, -0.8f); hp(0.62f, -0.76f); hp(0.5f, -0.9f)
@@ -1184,7 +1336,7 @@ internal class ActorCast(
         hp(0.3f, -0.5f); hp(1.0f, -0.54f); hp(1.46f, -0.3f); hp(1.38f, -0.2f); hp(0.86f, -0.3f)
         p.shape(0xFF08080C.toInt(), sep = true)
         glint(0.9f, -0.46f, 1.34f, -0.3f, 0.07f, 0.55f)
-        body.headRim(hcx, hcy, hcr, look.rim)
+        headContour(hcx, hcy, hcr * 1.0f, rimC, from = 150f, sweep = 45f)
         eyesAt(hpx(0.7f), hpy(-0.06f))
     }
 
@@ -1192,37 +1344,35 @@ internal class ActorCast(
     private fun minesHead(e: Enemy, L: Look, acc: Int) {
         face(L.skin)
         eye(0xFF3A2416.toInt())
-        // Bandana: a faded-denim cloth triangle over the nose, its point on the chest, knotted
-        // behind. Cool and pale against warm skin, so it reads as cloth, not as a face.
-        val cloth = 0xFF6A7EA6.toInt()
+        // Short dark hair and a sideburn under the hat.
         p.begin()
-        hp(-0.6f, 0.28f); hp(0.55f, 0.22f); hp(1.29f, 0.3f); hp(1.18f, 0.76f); hp(0.72f, 1.36f); hp(0.1f, 1.1f); hp(-0.46f, 0.72f)
-        p.shapeLit(cloth, hpx(1.0f), hpy(0.1f), hpx(0.1f), hpy(1.2f), sep = true)
-        p.disc(hpx(-0.82f), hpy(0.4f), hcr * 0.2f, Col.mul(cloth, 0.8f))
-        p.seg(hpx(-0.88f), hpy(0.46f), hpx(-1.3f), hpy(0.9f), hcr * 0.18f, Col.mul(cloth, 0.72f))
-        if (p.shading) {
-            // One fold from the nose bridge down to the point.
-            p.detail(hpx(0.95f), hpy(0.44f), hpx(0.64f), hpy(1.18f), hcr * 0.1f, ActorPaint.shade(cloth))
-        }
+        hp(-1.02f, -0.42f); hp(0.1f, -0.44f); hp(-0.12f, 0.1f); hp(-0.34f, 0.12f); hp(-0.62f, 0.36f); hp(-0.98f, 0.2f)
+        p.shapeLit(0xFF2E2218.toInt(), hpx(-0.4f), hpy(-0.5f), hpx(-0.8f), hpy(0.3f))
         // Hard hat: a lit dome, a ridge down the crown, a full brim.
         p.begin()
         hp(-1.02f, -0.38f); hp(-0.95f, -0.86f); hp(-0.5f, -1.28f); hp(0.15f, -1.4f); hp(0.72f, -1.2f); hp(1.02f, -0.74f); hp(1.06f, -0.4f)
-        p.shapeLit(acc, hpx(0.4f), hpy(-1.4f), hpx(-0.8f), hpy(-0.4f), mid = 0.4f)
-        if (p.shading) p.detail(hpx(-0.6f), hpy(-1.12f), hpx(0.5f), hpy(-1.3f), hcr * 0.13f, ActorPaint.light(ActorPaint.light(acc)))
-        p.seg(hpx(-1.24f), hpy(-0.38f), hpx(1.4f), hpy(-0.36f), hcr * 0.2f, ActorPaint.shade(acc))
+        val hat = Col.mul(acc, 0.8f)
+        p.shapeLit(hat, hpx(0.4f), hpy(-1.4f), hpx(-0.8f), hpy(-0.4f), mid = 0.4f)
+        if (p.shading) p.detail(hpx(-0.6f), hpy(-1.12f), hpx(0.5f), hpy(-1.3f), hcr * 0.13f, ActorPaint.light(hat))
+        p.seg(hpx(-1.24f), hpy(-0.38f), hpx(1.4f), hpy(-0.36f), hcr * 0.2f, ActorPaint.shade(hat))
         // Lamp housing on the front of the dome.
         val lx = hpx(0.98f)
         val ly = hpy(-0.8f)
         p.disc(lx, ly, hcr * 0.26f, 0xFF2A2A30.toInt())
         if (!p.ink) {
             if (e.alive) {
-                f.glowDot(lx + hcr * 0.08f * hcd, ly, hcr * 0.17f, 0xFFFFF4C0.toInt(), p.alphaMul * (1f - p.flatAmt))
-                p.quad(lx, ly - 0.03f, lx, ly + 0.03f, lx + 2.2f * hcd, ly + 0.9f, lx + 2.2f * hcd, ly - 0.35f, p.c(0x1AFFF4C0))
+                // The brightest thing on him: a white-hot lens in a warm halo.
+                val a = p.alphaMul * (1f - p.flatAmt)
+                g.blend(Gfx.Blend.ADD)
+                g.glow(lx + hcr * 0.1f * hcd, ly, hcr * 0.9f, Col.alpha(0xFFFFF0C0.toInt(), 0.7f * a))
+                g.blend(Gfx.Blend.NORMAL)
+                f.glowDot(lx + hcr * 0.08f * hcd, ly, hcr * 0.18f, 0xFFFFFFF6.toInt(), a)
+                p.quad(lx, ly - 0.03f, lx, ly + 0.03f, lx + 2.2f * hcd, ly + 0.9f, lx + 2.2f * hcd, ly - 0.35f, p.c(0x22FFF4C0))
             } else {
                 p.dot(lx + hcr * 0.08f * hcd, ly, hcr * 0.15f, 0xFF6A6450.toInt())
             }
         }
-        body.headRim(hcx, hcy, hcr, look.rim)
+        headContour(hcx, hcy, hcr * 1.0f, rimC, from = 150f, sweep = 45f)
         eyesAt(hpx(0.7f), hpy(-0.06f))
     }
 
@@ -1233,28 +1383,37 @@ internal class ActorCast(
         // A boxy, flat-crowned proximity hood whose cape squares off over the shoulders.
         p.begin()
         hp(-0.9f, -1.3f); hp(0.8f, -1.32f); hp(1.3f, -0.9f); hp(1.34f, 0.8f)
-        tp(0.74f, c * 0.8f); tp(0.66f, c * 0.84f); tp(0.64f, -c * 0.86f); tp(0.72f, -c * 0.82f)
+        tp(0.74f, c * 0.84f); tp(0.6f, c * 1.02f); tp(0.58f, -c * 1.04f); tp(0.72f, -c * 0.86f)
         hp(-1.36f, 0.4f); hp(-1.34f, -0.95f)
-        p.shapeLit(L.torso, hpx(0.4f), hpy(-1.3f), body.ptX(0.66f, -c * 0.8f), body.ptY(0.66f, -c * 0.8f), mid = 0.35f)
+        p.shapeLit(L.torso, hpx(0.4f), hpy(-1.3f), body.ptX(0.6f, -c * 1.0f), body.ptY(0.6f, -c * 1.0f), mid = 0.35f)
         if (p.shading) {
-            // One quilted seam where the hood meets the cape.
+            // One quilted seam where the hood meets the cape, and the metal's mirror sheen:
+            // a dark reflected band under a bright one, down the cape's front.
             p.detail(hpx(-1.3f), hpy(0.75f), hpx(1.3f), hpy(1.1f), hcr * 0.1f, ActorPaint.shade(L.torso))
+            p.begin()
+            hp(-0.62f, -1.3f); hp(-0.3f, -1.3f); tp(0.62f, -c * 0.1f); tp(0.6f, -c * 0.5f)
+            p.shapeGradDetail(Col.alpha(ActorPaint.shade(L.torso), 0.95f), Col.alpha(ActorPaint.shade(L.torso), 0f), hpx(-0.5f), hpy(-1.3f), body.ptX(0.6f, -c * 0.3f), body.ptY(0.6f, -c * 0.3f))
+            g.blend(Gfx.Blend.ADD)
+            p.begin()
+            hp(-0.3f, -1.3f); hp(-0.05f, -1.31f); tp(0.62f, c * 0.2f); tp(0.62f, -c * 0.1f)
+            p.shapeGradDetail(Col.alpha(0xFFFFF4D0.toInt(), 0.55f * (1f - p.flatAmt)), 0x00FFF4D0, hpx(-0.2f), hpy(-1.3f), body.ptX(0.62f, 0f), body.ptY(0.62f, 0f))
+            g.blend(Gfx.Blend.NORMAL)
         }
         // The visor: a framed pane of gold glass.
         p.begin()
-        hp(-0.05f, -0.86f); hp(1.0f, -0.84f); hp(1.36f, -0.4f); hp(1.36f, 0.46f); hp(1.1f, 0.66f); hp(0.06f, 0.62f)
+        hp(-0.16f, -0.96f); hp(1.12f, -0.96f); hp(1.44f, -0.62f); hp(1.44f, 0.62f); hp(1.2f, 0.8f); hp(-0.12f, 0.76f)
         p.shape(0xFF3A322C.toInt(), sep = true)
         p.begin()
-        hp(0.05f, -0.74f); hp(0.95f, -0.72f); hp(1.25f, -0.34f); hp(1.25f, 0.4f); hp(1.04f, 0.54f); hp(0.14f, 0.52f)
-        p.shapeGradDetail(0xFFFFE890.toInt(), 0xFFA04E06.toInt(), hpx(0.6f), hpy(-0.66f), hpx(0.6f), hpy(0.5f))
+        hp(-0.05f, -0.85f); hp(1.06f, -0.85f); hp(1.33f, -0.56f); hp(1.33f, 0.56f); hp(1.13f, 0.68f); hp(-0.02f, 0.64f)
+        p.shapeGradDetail(0xFFFFE890.toInt(), 0xFFA04E06.toInt(), hpx(0.6f), hpy(-0.85f), hpx(0.6f), hpy(0.66f))
         if (p.shading) {
             // The lava below, caught in the bottom of the visor.
             p.begin()
-            hp(0.14f, 0.22f); hp(1.25f, 0.16f); hp(1.25f, 0.4f); hp(1.04f, 0.54f); hp(0.14f, 0.52f)
+            hp(-0.03f, 0.3f); hp(1.33f, 0.24f); hp(1.33f, 0.56f); hp(1.13f, 0.68f); hp(-0.02f, 0.64f)
             p.shapeDetail(Col.alpha(0xFFFF6A10.toInt(), 0.55f))
         }
-        gloss(0.2f, -0.64f, 0.56f, -0.66f, 0.4f, 0.4f, 0.2f, 0.42f, 0.55f)
-        body.headRim(hcx, hcy, hcr * 1.3f, look.rim)
+        gloss(0.12f, -0.74f, 0.52f, -0.76f, 0.34f, 0.46f, 0.1f, 0.5f, 0.55f)
+        headContour(hcx, hcy, hcr * 1.3f, rimC)
         eyesAt(hpx(0.7f), hpy(-0.1f))
     }
 
@@ -1283,11 +1442,11 @@ internal class ActorCast(
             val k2 = p.alphaMul * (1f - p.flatAmt)
             f.glowDot(hpx(0.78f), hpy(-0.05f), hcr * 0.13f, eye, k2)
             f.glowDot(hpx(0.44f), hpy(-0.03f), hcr * 0.11f, eye, k2 * 0.8f)
-            if (L.rim != 0) {
+            if (rimC != 0 && p.hi) {
                 g.blend(Gfx.Blend.ADD)
-                p.detail(hpx(-1.16f), hpy(0.8f), hpx(-1.18f), hpy(-0.3f), ActorPaint.RIM_W, L.rim)
-                p.detail(hpx(-1.18f), hpy(-0.3f), hpx(-1.1f), hpy(-1.2f), ActorPaint.RIM_W, L.rim)
-                p.detail(hpx(-1.1f), hpy(-1.2f), hpx(-1.6f), hpy(-2.0f), ActorPaint.RIM_W, L.rim)
+                p.detail(hpx(-1.16f), hpy(0.8f), hpx(-1.18f), hpy(-0.3f), rimW, rimC)
+                p.detail(hpx(-1.18f), hpy(-0.3f), hpx(-1.1f), hpy(-1.2f), rimW, rimC)
+                p.detail(hpx(-1.1f), hpy(-1.2f), hpx(-1.6f), hpy(-2.0f), rimW, rimC)
                 g.blend(Gfx.Blend.NORMAL)
             }
         }
