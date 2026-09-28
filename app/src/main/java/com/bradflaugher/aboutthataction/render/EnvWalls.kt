@@ -612,6 +612,11 @@ internal class EnvWalls(private val f: Frame) {
         g.fillRect(x + 0.14f, gy - 0.72f, x + 0.42f, gy - 0.3f, 0xFF1C1530.toInt())
     }
 
+    /** The one neon sign on a Void room's back wall (Void floors skip the slot dressing). */
+    fun voidSign(pal: Palette, fi: Int, rt: Float, gy: Float) {
+        neonSign(pal, W / 2f, rt + (gy - rt) * 0.24f + 0.34f, VOID_NEON[(hash(fi, 121) * VOID_NEON.size).toInt()])
+    }
+
     private fun neonSign(pal: Palette, x: Float, y: Float, text: String) {
         val flick = if (hash((f.t * 6f).toInt(), text.length) > 0.96f) 0.35f else 1f
         g.fillRoundRect(x - 0.46f, y - 0.24f, x + 0.46f, y + 0.24f, 0.07f, 0x66000000)
