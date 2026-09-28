@@ -62,6 +62,11 @@ internal class Rig {
     var limbW = 0f
     var chestD = 0f
     var waistD = 0f
+    /** How far the head sits ahead of the neck (in [hs]), and how much of the lean it follows. */
+    var headFwd = HEAD_FWD
+    var headLean = HEAD_LEAN
+    /** Standing hip height, as a share of the leg's length (1 = locked straight). */
+    var standHip = STAND_HIP
 
     /** Sets proportions. [bulk] widens the torso and limbs (heavies). */
     fun setup(dir: Int, ground: Float, hs: Float, bulk: Float = 1f) {
@@ -79,6 +84,9 @@ internal class Rig {
         chestD = 0.29f * hs * bulk
         waistD = 0.22f * hs * bulk
         legF.pitch = 0f; legB.pitch = 0f; armF.pitch = 0f; armB.pitch = 0f
+        headFwd = HEAD_FWD
+        headLean = HEAD_LEAN
+        standHip = STAND_HIP
     }
 
     fun hip(x: Float, y: Float) {
@@ -97,9 +105,9 @@ internal class Rig {
         ny = ux * dir
         neckX = hipX + ux * spineLen
         neckY = hipY + uy * spineLen
-        val hl = lean * 0.45f + nod
+        val hl = lean * headLean + nod
         val hd = neckLen + headR
-        headX = neckX + sin(hl) * hd * dir + 0.018f * dir * hs
+        headX = neckX + sin(hl) * hd * dir + headFwd * dir * hs
         headY = neckY - cos(hl) * hd
         // Shoulders sit just under the neck; the far one a touch back and up.
         val sx = neckX - ux * 0.055f * hs
@@ -195,7 +203,7 @@ internal class Rig {
     /** Stand with both feet planted around [x]; [drop] bends the knees (world units). */
     fun stand(x: Float, drop: Float, stanceF: Float = 0.1f, stanceB: Float = -0.13f) {
         val legLen = legF.len1 + legF.len2
-        hip(x, ground - legLen * 0.965f + drop)
+        hip(x, ground - legLen * standHip + drop)
         ik(legF, x + stanceF * dir * hs, ground, true)
         ik(legB, x + stanceB * dir * hs, ground, true)
         legF.pitch = 0f
@@ -204,6 +212,9 @@ internal class Rig {
 
     companion object {
         const val TAU = (2.0 * PI).toFloat()
+        const val HEAD_FWD = 0.018f
+        const val HEAD_LEAN = 0.45f
+        const val STAND_HIP = 0.965f
 
         // Eight keys per cycle for the near leg; the far leg runs half a cycle later.
         // contact, recoil, passing, push, toe-off, kick, swing, reach

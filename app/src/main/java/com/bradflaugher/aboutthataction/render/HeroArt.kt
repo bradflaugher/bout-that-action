@@ -41,6 +41,11 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
     fun setup(dir: Int, foot: Float) {
         k.setup(dir, foot - 0.045f * HS, HS, kit.bulk)
         k.headR *= kit.head
+        // Heads up, stacked over the spine: no jutting chin.
+        k.headFwd = -0.015f
+        k.headLean = 0.15f
+        // Standing tall: knees nearly straight.
+        k.standHip = 0.985f
     }
 
     /** The full figure. [skipFrontArm] leaves the near arm (and what goes over it) for a grapple. */
@@ -153,6 +158,10 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
         const val HS = 1.12f
         /** The crisp rim on the back contour (~1.5 px on a phone). */
         const val RIM_PX = 0.02f
+        /** Above this far up the spine, the back of the torso slopes down toward the shoulder... */
+        const val BACK_TOP = 0.8f
+        /** ...by this share of the height it would have had. */
+        const val BACK_SLOPE = 0.7f
     }
 }
 
@@ -211,10 +220,18 @@ internal abstract class HeroKit(val a: HeroArt) {
 
     // ------------------------------------------------------------ helpers
 
-    protected fun tx(a: Float, s: Float) = body.ptX(a, s)
-    protected fun ty(a: Float, s: Float) = body.ptY(a, s)
+    // Torso points, with the upper back sloped down from the collar like a trapezius, so the
+    // shoulders sit under the head instead of humping up behind it.
+    protected fun tx(a: Float, s: Float) = body.ptX(upright(a, s), s)
+    protected fun ty(a: Float, s: Float) = body.ptY(upright(a, s), s)
     protected fun tp(a: Float, s: Float) {
-        p.add(body.ptX(a, s), body.ptY(a, s))
+        p.add(tx(a, s), ty(a, s))
+    }
+
+    private fun upright(a: Float, s: Float): Float {
+        if (a <= HeroArt.BACK_TOP || s >= 0f) return a
+        val t = (-s / (0.3f * k.chestD)).coerceIn(0f, 1f)
+        return a - (a - HeroArt.BACK_TOP) * HeroArt.BACK_SLOPE * t * t * (3f - 2f * t)
     }
 
     /** A torso contour: triples (along, side, 1 = chest units / 0 = waist units). */

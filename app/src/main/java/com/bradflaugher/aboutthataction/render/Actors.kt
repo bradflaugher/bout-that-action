@@ -427,9 +427,9 @@ internal class Actors(private val f: Frame) {
                 val land = if (landT < 0.22f) (1f - landT / 0.22f) else 0f
                 val squash = land * land * (0.1f + 0.08f * landHard)
                 val wide = if (shooting && !lowAim) 1f - lower else 0f
-                k.stand(x, 0.035f + breathe * 0.006f + squash, Rig.mix(0.1f, 0.17f, wide), Rig.mix(-0.13f, -0.2f, wide))
-                lean = 0.05f + breathe * 0.01f + squash * 1.2f
-                k.spine(lean, 0f)
+                k.stand(x, 0.015f + breathe * 0.006f + squash, Rig.mix(0.1f, 0.17f, wide), Rig.mix(-0.13f, -0.2f, wide))
+                lean = -0.01f + breathe * 0.01f + squash * 1.2f
+                k.spine(lean, -0.04f)
                 k.armFK(k.armB, -0.12f - breathe * 0.02f, 0.3f)
                 k.armFK(k.armF, 0.25f, 0.5f)
             }

@@ -71,8 +71,8 @@ object HeroPortrait {
     private fun pose(dir: Int, time: Float) {
         art.setup(dir, 0f)
         val breathe = sin(time * 2.4f)
-        k.stand(0f, 0.035f + breathe * 0.006f, 0.1f, -0.13f)
-        k.spine(0.05f + breathe * 0.01f, 0f)
+        k.stand(0f, 0.015f + breathe * 0.006f, 0.1f, -0.13f)
+        k.spine(-0.01f + breathe * 0.01f, -0.04f)
         k.armFK(k.armB, -0.12f - breathe * 0.02f, 0.3f)
         k.armFK(k.armF, 0.25f, 0.5f)
         art.gunKind = 0
