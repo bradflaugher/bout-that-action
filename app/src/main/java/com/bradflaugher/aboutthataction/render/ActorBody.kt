@@ -305,7 +305,12 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
             .add(0.03f, 0.03f).add(0.024f, -0.004f).add(0.004f, 0.076f).add(-0.066f, 0.07f)
             .add(-0.052f, -0.022f).add(-0.078f, -0.04f)
         plate(GUN, -0.092f, 0.07f)
+        // Front and rear sights: two nubs that make the slide read as a pistol at a glance.
+        p.begin().add(0.176f, -0.09f).add(0.182f, -0.112f).add(0.198f, -0.112f).add(0.2f, -0.09f).shape(GUN_DARK)
+        p.begin().add(-0.066f, -0.09f).add(-0.064f, -0.108f).add(-0.036f, -0.108f).add(-0.034f, -0.09f).shape(GUN_DARK)
         if (p.ink) return
+        // The trigger guard is open: dark through the loop.
+        p.begin().add(0.07f, -0.008f).add(0.062f, 0.016f).add(0.036f, 0.02f).add(0.032f, -0.004f).shapeDetail(0xFF0A0B10.toInt())
         if (p.shading) {
             // The slide sits proud of the frame: a shadow seam under it, a darker polymer grip.
             p.begin().add(-0.05f, -0.024f).add(0.024f, -0.004f).add(0.004f, 0.076f).add(-0.066f, 0.07f).add(-0.052f, -0.022f)

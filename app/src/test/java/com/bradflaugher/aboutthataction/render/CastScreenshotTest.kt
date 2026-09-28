@@ -138,18 +138,19 @@ class CastScreenshotTest {
     /** The hardware up close: the box (idle, peeking, waddling, spotted), every gun firing, the machines aiming. */
     private fun propsRow(): BufferedImage {
         val crops = ArrayList<BufferedImage>()
-        fun hero(time: Float, pose: (World) -> Unit) {
+        fun hero(time: Float, cx: Float = 7f, half: Int = 110, pose: (World) -> Unit) {
             val w = world(9)
             w.player.x = 7f
             w.player.facing = 1
             pose(w)
-            crops += stageCrop(w, time, 7f)
+            crops += stageCrop(w, time, cx, half = half)
         }
         val box: (World) -> Unit = { it.player.state = PlayerState.BOX; it.player.stateTime = 1f }
-        hero(1.3f, box)
+        hero(1.3f, pose = box)
         hero(2.95f) { box(it) }
         hero(1.3f) { box(it); it.player.vx = 2f }
-        hero(1.3f) { box(it); it.put(EnemyKind.AGENT, 5.2f, 1, EnemyState.ALERT) }
+        // Spotted: the guard who's onto the box is in the frame too.
+        hero(1.3f, cx = 5.9f, half = 190) { box(it); it.put(EnemyKind.AGENT, 5.4f, 1, EnemyState.ALERT) }
         hero(1.3f) { it.player.sinceShot = 0.3f }
         hero(1.3f) { it.player.weapon = PickupKind.SHOTGUN; it.player.sinceShot = 0.03f }
         hero(1.3f) { it.player.weapon = PickupKind.MINIGUN; it.player.sinceShot = 0.03f }
@@ -169,7 +170,7 @@ class CastScreenshotTest {
     // ------------------------------------------------------------ cropping
 
     /** Renders [w] at phone resolution and crops the player's floor (optionally around [cx]). */
-    private fun stageCrop(w: World, time: Float, cx: Float? = null, lift: Float = 0f): BufferedImage {
+    private fun stageCrop(w: World, time: Float, cx: Float? = null, lift: Float = 0f, half: Int = 110): BufferedImage {
         val img = BufferedImage(1080, 2400, BufferedImage.TYPE_INT_ARGB)
         val r = Renderer()
         r.render(AwtGfx(img), w, time, 80f, 48f, showHud = false)
@@ -179,7 +180,7 @@ class CastScreenshotTest {
         val bot = ((gy + 0.15f - lift - ff.camY) * ff.s + ff.shakeY).toInt().coerceIn(top + 1, 2400)
         val (l, rr) = if (cx == null) 0 to 1080 else {
             val px = ((cx + 0.6f) * ff.s).toInt()
-            (px - 110).coerceAtLeast(0) to (px + 110).coerceAtMost(1080)
+            (px - half).coerceAtLeast(0) to (px + half).coerceAtMost(1080)
         }
         return scale2(img.getSubimage(l, top, rr - l, bot - top))
     }

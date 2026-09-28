@@ -880,15 +880,15 @@ internal class Actors(private val f: Frame) {
                 f.glowDot(ex + 0.05f, peek * 0.35f, 0.022f, VISOR, 0.9f * p.alphaMul)
             }
         }
-        val d = 0.09f // depth offset of the receding top/side
+        val d = 0.1f // depth offset of the receding top/side
         val rs = -dir.toFloat() // the receding side face is on the trailing side
         val fl = 0.06f * sin(f.t * 1.3f)
         p.twoPass {
             // Side face, lid, the two flaps, the front face: each painted like lamp-lit board.
-            p.begin().add(hw * rs, -h).add(hw * rs + d * 0.6f * rs, -h - d).add(hw * rs + d * 0.6f * rs, -d * 0.6f).add(hw * rs, 0f)
+            p.begin().add(hw * rs, -h).add(hw * rs + d * 0.8f * rs, -h - d).add(hw * rs + d * 0.8f * rs, -d * 0.8f).add(hw * rs, 0f)
             p.shape(BoxArt.BOX_SIDE)
             p.shapeGradDetail(BoxArt.BOX_SIDE, ActorPaint.shade(BoxArt.BOX_SIDE), 0f, -h, 0f, 0f)
-            p.begin().add(-hw, -h).add(hw, -h).add(hw + d * 0.6f * rs, -h - d).add(-hw + d * 0.6f * rs, -h - d)
+            p.begin().add(-hw, -h).add(hw, -h).add(hw + d * 0.8f * rs, -h - d).add(-hw + d * 0.8f * rs, -h - d)
             p.shape(BoxArt.BOX_TOP)
             p.begin().add(-hw, -h).add(-hw + 0.34f, -h).add(-hw + 0.24f, -h - 0.13f - fl).add(-hw - 0.08f, -h - 0.1f)
             p.shape(BoxArt.BOX_FLAP)
@@ -910,9 +910,9 @@ internal class Actors(private val f: Frame) {
             p.detail(-hw, -h - 0.004f, hw, -h - 0.004f, 0.012f, BoxArt.BOX_CUT)
             // The front corner, rounded over into the side face.
             p.detail(hw * rs - 0.014f * rs, -h + 0.02f, hw * rs - 0.014f * rs, -0.02f, 0.016f, Col.alpha(ActorPaint.light(BoxArt.BOX_FRONT), 0.7f))
-            // A soft dent near the leading bottom corner: board that's been bumped around.
-            p.begin().add(-rs * 0.3f, -0.1f).add(-rs * 0.46f, -0.2f).add(-rs * 0.44f, -0.05f)
-            p.shapeGradDetail(Col.alpha(ActorPaint.shade(BoxArt.BOX_FRONT), 0.0f), Col.alpha(ActorPaint.shade(BoxArt.BOX_FRONT), 0.55f), -rs * 0.3f, -0.1f, -rs * 0.45f, -0.12f)
+            // The face turns away from the lamp toward the trailing corner.
+            p.begin().add(hw * rs, -h).add(hw * rs - 0.16f * rs, -h).add(hw * rs - 0.16f * rs, 0f).add(hw * rs, 0f)
+            p.shapeGradDetail(0x3A140A18, 0x00140A18, hw * rs, 0f, hw * rs - 0.16f * rs, 0f)
             // The board bows out a little over the agent inside: a broad soft sheen on the lamp side.
             for (side in 0..1) {
                 val edge = if (side == 0) 0.02f else 0.36f
@@ -924,14 +924,14 @@ internal class Actors(private val f: Frame) {
             p.shapeGradDetail(0x00140A18, 0x70140A18, 0f, -0.16f, 0f, 0f)
             // The zone's neon catching the back edge.
             g.blend(Gfx.Blend.ADD)
-            val bx = hw * rs + d * 0.6f * rs
-            g.line(bx, -h - d + 0.02f, bx, -d * 0.6f - 0.02f, 0.02f, p.c(Col.alpha(RIM, 0.35f)))
+            val bx = hw * rs + d * 0.8f * rs
+            g.line(bx, -h - d + 0.02f, bx, -d * 0.8f - 0.02f, 0.02f, p.c(Col.alpha(RIM, 0.35f)))
             g.blend(Gfx.Blend.NORMAL)
         }
         // Packing tape: over the lid seam and down the front, a glossy strip with a torn end.
         val tw = 0.065f
         val te = -h + 0.3f
-        p.begin().add(-tw + d * 0.6f * rs, -h - d).add(tw + d * 0.6f * rs, -h - d).add(tw, -h).add(tw, te).add(tw * 0.5f, te + 0.025f)
+        p.begin().add(-tw + d * 0.8f * rs, -h - d).add(tw + d * 0.8f * rs, -h - d).add(tw, -h).add(tw, te).add(tw * 0.5f, te + 0.025f)
             .add(0f, te - 0.004f).add(-tw * 0.5f, te + 0.028f).add(-tw, te).add(-tw, -h)
         p.shapeDetail(BoxArt.BOX_TAPE)
         if (p.shading) {
@@ -945,7 +945,7 @@ internal class Actors(private val f: Frame) {
         val px = 0.27f * rs
         Glyphs.arrow(g, px - 0.07f, -0.28f, 0.11f, 0f, -1f, 0.036f, p.c(BoxArt.BOX_PRINT))
         Glyphs.arrow(g, px + 0.07f, -0.28f, 0.11f, 0f, -1f, 0.036f, p.c(BoxArt.BOX_PRINT))
-        p.detail(px - 0.14f, -0.13f, px + 0.14f, -0.13f, 0.014f, BoxArt.BOX_PRINT)
+        g.strokeRect(px - 0.145f, -0.425f, px + 0.145f, -0.13f, 0.014f, p.c(BoxArt.BOX_PRINT))
         // A red FRAGILE stamp, inked on a slant, on the leading half.
         val stx = -0.25f * rs
         g.save()
@@ -1021,7 +1021,7 @@ internal class Actors(private val f: Frame) {
         const val BOX_FLAP = 0xFFD09A62.toInt()
         const val BOX_FLAP_FAR = 0xFFB07A46.toInt()
         const val BOX_CUT = 0xFFEED2A0.toInt()
-        const val BOX_TAPE = 0xC8E6CC98.toInt()
+        const val BOX_TAPE = 0xE0ECD4A2.toInt()
         const val BOX_PRINT = 0xD04E3018.toInt()
         const val BOX_STAMP = 0xC0B0301E.toInt()
     }
