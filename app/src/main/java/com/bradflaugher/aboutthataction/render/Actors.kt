@@ -234,7 +234,9 @@ internal class Actors(private val f: Frame) {
                         p.alphaMul = keepA; p.flatAmt = keepF; p.flat = keepC
                         poseHero(pl.x, foot, dir)
                     }
-                    p.twoPass { body.arm(k.armF, look, far = false) }
+                    // The front arm over the victim, in full kit: pad, tape and all.
+                    p.twoPass { frontArm() }
+                    if (!p.ink) heroStrips()
                 } else {
                     drawHero(ghost = false)
                 }
@@ -599,6 +601,13 @@ internal class Actors(private val f: Frame) {
         look.armW = 0.94f
     }
 
+    /** The near arm and its kit: the sleeve, the taped wrist, the near shoulder pad. */
+    private fun frontArm() {
+        body.arm(k.armF, look, far = false, hand = true)
+        bracer(k.armF, far = false)
+        shoulderCap(k.armF, far = false)
+    }
+
     private fun drawHero(ghost: Boolean, skipFrontArm: Boolean = false) {
         heroLook(ghost)
         val dir = k.dir
@@ -627,9 +636,7 @@ internal class Actors(private val f: Frame) {
                 // A size up on the agent: GUNS HOT has to read against SILENT's empty hands.
                 body.gun(gunKind, gunX, gunY, gunUp, GREEN, spin = f.t * 60f, scale = if (gunKind == 0) 1.3f else 1.1f)
             }
-            body.arm(k.armF, look, far = false, hand = true)
-            bracer(k.armF, far = false)
-            shoulderCap(k.armF, far = false)
+            frontArm()
             // Over the pads: the locks hang down the back of them.
             heroDreads(dir)
         }
@@ -1115,7 +1122,7 @@ internal class Actors(private val f: Frame) {
         p.flat = 0xFFFF2030.toInt()
         p.flatAmt = max(0f, 0.5f - t * 0.8f)
         heroLook(ghost = false)
-        cast.ragdoll(x, gy, pl.z, dir, HS, fall, t, 0.55f, CastDeath.KNOCK, look, heroRagdollHead)
+        cast.ragdoll(x, gy, pl.z, dir, HS, fall, t, 0.55f, CastDeath.KNOCK, look, heroRagdollHead, bulk = BULK)
         p.flatAmt = 0f
     }
 

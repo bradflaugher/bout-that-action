@@ -641,8 +641,8 @@ internal class ActorCast(
     }
 
     /** Public ragdoll for the agent. */
-    fun ragdoll(x: Float, gy: Float, z: Float, dir: Int, hs: Float, fall: Int, t: Float, dur: Float, mode: CastDeath, look: Look, head: (Int) -> Unit) {
-        ragdollBegin(x, gy, z, dir, hs, 1f, fall, t * 0.42f / dur, mode)
+    fun ragdoll(x: Float, gy: Float, z: Float, dir: Int, hs: Float, fall: Int, t: Float, dur: Float, mode: CastDeath, look: Look, head: (Int) -> Unit, bulk: Float = 1f) {
+        ragdollBegin(x, gy, z, dir, hs, bulk, fall, t * 0.42f / dur, mode)
         p.twoPass {
             body.arm(k.armB, look, true)
             body.leg(k.legB, look, true)
