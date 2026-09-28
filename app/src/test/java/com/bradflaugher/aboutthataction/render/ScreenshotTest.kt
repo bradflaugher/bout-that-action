@@ -16,6 +16,7 @@ import com.bradflaugher.aboutthataction.engine.Geo
 import com.bradflaugher.aboutthataction.engine.HallPlan
 import com.bradflaugher.aboutthataction.engine.Hazard
 import com.bradflaugher.aboutthataction.engine.HazardKind
+import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.Heat
 import com.bradflaugher.aboutthataction.engine.LevelGen
 import com.bradflaugher.aboutthataction.engine.ParticleKind
@@ -102,6 +103,26 @@ class ScreenshotTest {
         }
     }
 
+    /** The README's hero lineup: all four as the picker draws them, named in their colours. */
+    @Test
+    fun heroLineup() {
+        val img = BufferedImage(1080, 600, BufferedImage.TYPE_INT_ARGB)
+        val g = AwtGfx(img)
+        g.fillRect(0f, 0f, 1080f, 600f, 0xFF0B0A14.toInt())
+        for ((i, hero) in Hero.entries.withIndex()) {
+            val cx = 135f + i * 270f
+            HeroPortrait.draw(g, hero, cx, 500f, 430f, 1.2f + i * 0.4f)
+            g.text(hero.title, cx, 570f, 44f, hero.color, Gfx.Font.TITLE, Gfx.Align.CENTER)
+        }
+        g.dispose()
+        val dir = outDir ?: return
+        val only = System.getProperty("ata.scene")
+        if (!only.isNullOrEmpty() && only != "lineup") return
+        dir.mkdirs()
+        ImageIO.write(img, "png", File(dir, "lineup.png"))
+        println("wrote ${File(dir, "lineup.png")}")
+    }
+
     @Test
     fun hitTestsMatchLayout() {
         val r = Renderer()
@@ -182,8 +203,8 @@ class ScreenshotTest {
             (start - 1..start + 5).sumOf { f -> LevelGen.shaftsOn(seed, f).size } * 10 + (seed - from).toInt()
         }!!
 
-    private fun newWorld(seed: Long, start: Int = 0, silent: Boolean = false): World =
-        World(RunConfig(seed, Difficulty(startFloor = start), silent = silent)).also { it.viewAspect = 2400f / 1080f }
+    private fun newWorld(seed: Long, start: Int = 0, silent: Boolean = false, hero: Hero = Hero.BEAST): World =
+        World(RunConfig(seed, Difficulty(startFloor = start), silent = silent, hero = hero)).also { it.viewAspect = 2400f / 1080f }
 
     private fun World.run(seconds: Float, hold: (World) -> Unit = {}) {
         var t = 0f
@@ -386,7 +407,7 @@ class ScreenshotTest {
     }
 
     private fun stash(): World {
-        val w = newWorld(5, 1)
+        val w = newWorld(5, 1, hero = Hero.ACE)
         w.run(1.6f)
         val f = w.player.floor
         val fs = w.floors[f]!!
@@ -440,7 +461,7 @@ class ScreenshotTest {
 
     /** SILENT: sneaking up behind a patrol while another guard looks the other way. */
     private fun silent(): World {
-        val w = newWorld(seedWithHalls(19, calmSeed(19, 1000), 3), 19, silent = true)
+        val w = newWorld(seedWithHalls(19, calmSeed(19, 1000), 3), 19, silent = true, hero = Hero.VIPER)
         w.run(1.6f)
         w.settle(X(3.2f), 2.0f)
         val f = w.player.floor
@@ -463,7 +484,7 @@ class ScreenshotTest {
     }
 
     private fun labs(): World {
-        val w = newWorld(calmSeed(32, 300), 32)
+        val w = newWorld(calmSeed(32, 300), 32, hero = Hero.ACE)
         w.run(1.6f)
         w.settle(X(2.2f), 2.2f)
         val f = w.player.floor
@@ -572,7 +593,7 @@ class ScreenshotTest {
     }
 
     private fun magma(): World {
-        val w = newWorld(calmSeed(108, 500), 108)
+        val w = newWorld(calmSeed(108, 500), 108, hero = Hero.HARDY)
         w.run(1.6f)
         w.settle(X(3.0f), 0.8f)
         val f = w.player.floor
@@ -604,7 +625,7 @@ class ScreenshotTest {
     }
 
     private fun hell(): World {
-        val w = newWorld(calmSeed(165, 600), 165)
+        val w = newWorld(calmSeed(165, 600), 165, hero = Hero.HARDY)
         w.run(1.6f)
         w.settle(X(3.2f), 2.4f)
         val f = w.player.floor
@@ -658,7 +679,7 @@ class ScreenshotTest {
     }
 
     private fun darkness(): World {
-        val w = newWorld(calmSeed(18, 800), 18, silent = true)
+        val w = newWorld(calmSeed(18, 800), 18, silent = true, hero = Hero.VIPER)
         w.run(1.6f)
         w.settle(X(4.2f), 2.2f)
         val f = w.player.floor

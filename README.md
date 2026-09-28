@@ -123,6 +123,8 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 
 ## Heroes
 
+<p align="center"><img src="docs/screenshots/lineup.png" alt="The four heroes: BEAST, ACE, HARDY and VIPER" width="720"></p>
+
 Pick who's going down on the title screen. Every hero plays the same
 building, but with a different body: an always-on trait, three perks only
 they find in a STASH, their own look and their own take on every zone's
