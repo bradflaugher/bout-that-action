@@ -285,6 +285,17 @@ class GestureInputTest {
     }
 
     @Test
+    fun aSloppyTapStillTapsIfTheRunningThumbLiftsFirst() {
+        g.down(0, 200f, 1800f, 0)
+        drag(0, 200f, 1800f, 300f, 1800f, 0)
+        g.down(1, 900f, 1700f, 100)
+        drag(1, 900f, 1700f, 942f, 1702f, 100, steps = 4) // 14 dp
+        g.up(0, 300f, 1800f, 135)
+        g.up(1, 942f, 1702f, 140)
+        assertEquals(listOf(Command.TAP), commands())
+    }
+
+    @Test
     fun theOtherThumbDriftingAfterItsJumpDoesntStealTheRun() {
         g.down(0, 200f, 1800f, 0)
         drag(0, 200f, 1800f, 300f, 1800f, 0)

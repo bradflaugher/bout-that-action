@@ -51,6 +51,8 @@ class GestureInput(density: Float) {
         var restX = downX
         /** Furthest the finger ever got from where it went down (for sloppy taps). */
         var maxTravel = 0f
+        /** Slid past the run slop but was held back by another finger's run (takeover gate). */
+        var gated = false
         var flickCooldownUntil = 0L
         /** After a flick, the thumb springing back must not count as the opposite flick. */
         var lastFlick = 0
@@ -132,10 +134,11 @@ class GestureInput(density: Float) {
                 val wdy = if (w != null) y - f.hy[w] else dy
                 if (abs(dy) > flickDist && abs(wdy) > flickDist && abs(dy) > abs(dx)) {
                     flick(f, dy, x, y, t)
-                } else if (abs(dx) > (if (moveAxis != 0) takeoverDist else slop) && abs(dx) >= abs(dy)) {
+                } else if (abs(dx) > slop && abs(dx) >= abs(dy)) {
                     // While another thumb is running, a new finger has to mean it to take
                     // over: a jump thumb that lands with a little sideways roll is a flick.
-                    startRun(f, if (dx > 0) 1 else -1, x)
+                    if (moveAxis == 0 || abs(dx) > takeoverDist) startRun(f, if (dx > 0) 1 else -1, x)
+                    else f.gated = true
                 } else if (abs(dy) > flickDist) {
                     // A slow vertical slide is a thumb settling, not a flick: it becomes
                     // a resting finger that can still flick or drag into a run.
@@ -194,9 +197,9 @@ class GestureInput(density: Float) {
                     flick(f, dy, x, y, t)
                     return
                 }
-                // A sideways roll past the slop that didn't take the run over (another
-                // thumb is running) is the same sloppy tap as below.
-                val roll = moveAxis != 0 && abs(dx) >= abs(dy) && sloppyTap(f, dx, dy, dt)
+                // A sideways roll past the slop that was held back from taking the run
+                // over is the same sloppy tap as below, even if the runner lifted first.
+                val roll = f.gated && abs(dx) >= abs(dy) && sloppyTap(f, dx, dy, dt)
                 if (abs(dx) <= slop && abs(dy) <= slop && dt < TAP_MS || roll) tap()
             }
             Mode.HELD -> {
