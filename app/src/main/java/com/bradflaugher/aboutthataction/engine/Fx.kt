@@ -52,7 +52,7 @@ object Popup {
     const val UNPLUGGED = "UNPLUGGED"
     /** VIPER's CAMO: a hit that missed him. */
     const val MISSED = "MISSED"
-    /** Guards stunned by CHAFF, a AFTERSHOCK or a YIPPEE blast. */
+    /** Guards stunned by CHAFF, an AFTERSHOCK or a KABOOM blast. */
     const val DAZED = "DAZED"
 }
 

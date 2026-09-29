@@ -877,7 +877,7 @@ class MechanicsTest {
     }
 
     @Test
-    fun kevlarComesBackThreeFloorsBelowWhereItStoppedAHit() {
+    fun vestComesBackThreeFloorsBelowWhereItStoppedAHit() {
         val (w, _) = atLanding()
         w.perks[Perk.ARMOR] = 1
         w.player.armorReady = true

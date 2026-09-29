@@ -398,10 +398,10 @@ class HeroTest {
     }
 
     @Test
-    fun yippeeBlastsReachFurtherAndKnockSurvivorsFlat() {
+    fun kaboomBlastsReachFurtherAndKnockSurvivorsFlat() {
         for (perk in listOf(true, false)) {
             val w = world(Hero.BADGER)
-            if (perk) w.perks[Perk.YIPPEE] = 1
+            if (perk) w.perks[Perk.KABOOM] = 1
             park(w)
             val edge = enemy(w, EnemyKind.AGENT, 7f + 2.7f)
             val tank = enemy(w, EnemyKind.HEAVY, 7.5f)
@@ -411,7 +411,7 @@ class HeroTest {
             if (perk) {
                 assertFalse("the bigger blast reaches him", edge.alive)
                 assertEquals(EnemyState.STUNNED, tank.state)
-                assertEquals(World.YIPPEE_STUN, tank.stunFor, 1e-4f)
+                assertEquals(World.KABOOM_STUN, tank.stunFor, 1e-4f)
                 assertEquals("twice the radius knocks you flat", EnemyState.STUNNED, bystander.state)
             } else {
                 assertTrue(edge.alive)

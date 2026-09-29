@@ -88,9 +88,9 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   drop them or lose them first), and they
   stack: Rapid Fire, Hollow Point, Pierce, Ricochet, Split Shot, Vitality,
   CQC Master, Ghost Box, Double Jump, Demolition, Magnet, Reflex (auto
-  bullet-time), Kevlar, Lucky and Shockwave stomps, plus three that only your
+  slow-mo), Vest, Lucky and Shockwave stomps, plus three that only your
   [hero](#heroes) ever finds. Enemies drop shotguns,
-  miniguns, shields, bullet time, grenades, medkits and cash. The gun perks
+  miniguns, shields, slow-mo, grenades, medkits and cash. The gun perks
   and gun drops only matter in GUNS HOT; SILENT never fires.
 - **Endless and seeded.** Any floor can be rebuilt from `(seed, floor)`, so
   the building never ends and never uses more memory. The same seed plus the
@@ -152,7 +152,7 @@ Their perks:
   *Laser Watch*: every shot slices the first lamp it passes under, and one
   jump-swat kills every lamp in the hallway. *Dead Drop* (2 levels): SILENT
   kills drop loot twice as often (three times at LV 2).
-- **BADGER.** *Yippee*: bigger blasts, and anyone within twice the blast who
+- **BADGER.** *Kaboom*: bigger blasts, and anyone within twice the blast who
   survives is knocked flat for 2.5 s. *Vent Crawl*: passages take half the
   time and nobody can see you for 1.5 s once you're out in the open (firing
   gives you away). *Adrenaline* (2 levels): on your last heart you shoot,
@@ -239,7 +239,7 @@ word or number you type.
 The soundtrack is synthesized live: band-limited oscillators, filters,
 drums, delay and reverb. Every zone gets its own procedural track, with its
 own key, tempo and motif-based melodies. The music gets more intense in a
-fight and pitches down in bullet time. SILENT gets its own sneak mix of every
+fight and pitches down in slow-mo. SILENT gets its own sneak mix of every
 zone: the same key and chords at a slow tempo over a heartbeat kick, a roomy
 snare, ticking hats and glassy bell notes in a long echo, with rim clicks
 creeping in as guards get suspicious. Flipping the mode crossfades between

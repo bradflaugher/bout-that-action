@@ -182,7 +182,7 @@ internal class Hud(private val f: Frame) {
             Perk.DEMOLITION -> "DM"
             Perk.MAGNET -> "MG"
             Perk.REFLEX -> "RX"
-            Perk.ARMOR -> "KV"
+            Perk.ARMOR -> "VS"
             Perk.LUCKY -> "LK"
             Perk.SHOCKWAVE -> "SW"
             Perk.STIFF_ARM -> "SA"
@@ -191,7 +191,7 @@ internal class Hud(private val f: Frame) {
             Perk.DISGUISE -> "DG"
             Perk.LASER_WATCH -> "LW"
             Perk.DEAD_DROP -> "DD"
-            Perk.YIPPEE -> "YP"
+            Perk.KABOOM -> "KB"
             Perk.VENT_CRAWL -> "VC"
             Perk.ADRENALINE -> "AD"
             Perk.JAMMER -> "JM"
@@ -210,7 +210,7 @@ internal class Hud(private val f: Frame) {
             // A hero's own perks wear the hero's colour.
             Perk.STIFF_ARM, Perk.AFTERSHOCK, Perk.CANDY_RAIN,
             Perk.DISGUISE, Perk.LASER_WATCH, Perk.DEAD_DROP,
-            Perk.YIPPEE, Perk.VENT_CRAWL, Perk.ADRENALINE,
+            Perk.KABOOM, Perk.VENT_CRAWL, Perk.ADRENALINE,
             Perk.JAMMER, Perk.CHAFF, Perk.CAMO,
             -> p.hero?.color ?: STASH_GOLD
         }
@@ -222,7 +222,7 @@ internal class Hud(private val f: Frame) {
             Perk.DEMOLITION, Perk.MAGNET, Perk.LUCKY -> "UTILITY"
             Perk.STIFF_ARM, Perk.AFTERSHOCK, Perk.CANDY_RAIN,
             Perk.DISGUISE, Perk.LASER_WATCH, Perk.DEAD_DROP,
-            Perk.YIPPEE, Perk.VENT_CRAWL, Perk.ADRENALINE,
+            Perk.KABOOM, Perk.VENT_CRAWL, Perk.ADRENALINE,
             Perk.JAMMER, Perk.CHAFF, Perk.CAMO,
             -> p.hero?.title ?: "HERO"
         }
@@ -821,7 +821,7 @@ internal class Hud(private val f: Frame) {
             y -= 8f * u
         }
         if (p.slowMoTime > 0f) {
-            timerPill(cx, y, u, "BULLET TIME", p.slowMoTime, PickupKind.SLOWMO.seconds, 0xFFB080FF.toInt(), PickupKind.SLOWMO)
+            timerPill(cx, y, u, "SLOW-MO", p.slowMoTime, PickupKind.SLOWMO.seconds, 0xFFB080FF.toInt(), PickupKind.SLOWMO)
         }
     }
 

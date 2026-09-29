@@ -75,8 +75,11 @@ them. The game leans on a few:
   quotes or names a real athlete: BULL is a generic bruiser in football pads
   and a plain blue uniform with no number, team colours, logo or name, and the
   sign-offs and perk names are all original. Keep it that way.
-- FOX's joke riffs on James Bond, BADGER's on *Die Hard* and VIPER on
-  *Metal Gear Solid*.
+- FOX (a spy in a tux), BADGER (a barefoot cop) and VIPER (a jungle
+  commando) are genre archetypes, not anyone's characters: no film or game
+  quotes, names or catchphrases in their text.
+- No third-party trademarks in game text either: armor is a VEST (not
+  Kevlar), the slow-motion pickup is SLOW-MO (not bullet time).
 - Wall text (murals, graffiti, neon, departure boards in `EnvWalls`) is
   all original: no brands, slogans or trademarks. Store screenshots count as
   listing metadata, so keep it that way.

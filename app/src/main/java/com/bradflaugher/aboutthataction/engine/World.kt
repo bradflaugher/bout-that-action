@@ -83,7 +83,7 @@ class World(val config: RunConfig) {
     var takedowns = 0
     /** Takedowns since CQC MASTER was picked: every second one heals. */
     private var cqcTakedowns = 0
-    /** The floor KEVLAR last took a hit on; it's back 3 floors further down. */
+    /** The floor VEST last took a hit on; it's back 3 floors further down. */
     private var armorSpentFloor = 0
     /** A GHOST BOX ambush is going off: its blast counts as a quiet kill and lets sleepers sleep. */
     private var quietBlast = false
@@ -1649,8 +1649,8 @@ class World(val config: RunConfig) {
 
     private fun explode(x: Float, z: Float, floor: Int, hall: Int, baseRadius: Float, byGhost: Boolean = false, grenade: Boolean = false) {
         val y = Geo.groundY(floor) - z
-        val yippee = stacks(Perk.YIPPEE) > 0
-        val radius = baseRadius + if (yippee) YIPPEE_RADIUS else 0f
+        val kaboom = stacks(Perk.KABOOM) > 0
+        val radius = baseRadius + if (kaboom) KABOOM_RADIUS else 0f
         events += GameEvent.Explosion(big = radius > 2.5f, pan = pan(x))
         shake = max(shake, if (byGhost) 0.5f else 0.9f)
         flash = Flash.WHITE
@@ -1663,10 +1663,10 @@ class World(val config: RunConfig) {
         for (e in enemies.toList()) {
             if (e.floor == floor && e.hall == hall && e.alive && abs(e.x - x) < radius) {
                 damageEnemy(e, 3, KillMethod.EXPLOSION, if (e.x >= x) 1 else -1)
-                // YIPPEE: whoever lives through it is on the floor for a bit.
-                if (yippee && e.alive) stun(e, YIPPEE_STUN)
-            } else if (yippee && e.floor == floor && e.hall == hall && e.alive && abs(e.x - x) < radius * 2f) {
-                stun(e, YIPPEE_STUN)
+                // KABOOM: whoever lives through it is on the floor for a bit.
+                if (kaboom && e.alive) stun(e, KABOOM_STUN)
+            } else if (kaboom && e.floor == floor && e.hall == hall && e.alive && abs(e.x - x) < radius * 2f) {
+                stun(e, KABOOM_STUN)
             } else if (e.floor == floor && e.hall == hall && e.asleep && e.alive && !byGhost) {
                 alert(e) // nobody sleeps through that (but a box going pop in a hug is only a pop)
             }
@@ -2699,7 +2699,7 @@ class World(val config: RunConfig) {
         const val BOX_SUSPICIOUS_SPEED = 0.5f
         /** GHOST: leaving a floor unseen pays this, plus a little per floor (double in SILENT). */
         const val GHOST_BONUS = 300
-        /** KEVLAR comes back this many floors below where it last stopped a hit. */
+        /** VEST comes back this many floors below where it last stopped a hit. */
         const val ARMOR_FLOORS = 3
         const val GHOST_BONUS_PER_FLOOR = 10
         /** Coach tips only show on the first this-many floors of a run from the roof... */
@@ -2723,9 +2723,9 @@ class World(val config: RunConfig) {
         /** CANDY RAIN: a heart back every this many kills (LV 2: [CANDY_EVERY_2]). */
         const val CANDY_EVERY = 8
         const val CANDY_EVERY_2 = 5
-        /** YIPPEE: blasts reach this much further, and knock survivors within twice the radius flat. */
-        const val YIPPEE_RADIUS = 0.8f
-        const val YIPPEE_STUN = 2.5f
+        /** KABOOM: blasts reach this much further, and knock survivors within twice the radius flat. */
+        const val KABOOM_RADIUS = 0.8f
+        const val KABOOM_STUN = 2.5f
         /** VENT CRAWL: passages take this fraction of [PASSAGE_TIME]... */
         const val VENT_CRAWL_SCALE = 0.5f
         /** ...and nobody can see you for this long once you're out in the open. */

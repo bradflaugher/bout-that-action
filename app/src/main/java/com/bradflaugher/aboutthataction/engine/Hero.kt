@@ -52,14 +52,14 @@ enum class Hero(
     /** The gentleman spy in a tux. Smooth, quiet, deadly. */
     FOX(
         "FOX", "Gentleman spy. Tux pressed.",
-        "8-round mag, quick trigger; guards are slow to react", "Licensed to chill.",
+        "8-round mag, quick trigger; guards are slow to react", "Pressed, never stressed.",
         0xFFE8413A.toInt(),
         magSize = 8, reactionScale = 1.35f, fireScale = 0.85f,
     ),
-    /** Barefoot cop in a tank top, having the worst holiday ever. */
+    /** Barefoot cop in a tank top, having the worst night ever. */
     BADGER(
         "BADGER", "Wrong building. Wrong night.",
-        "Shrugs off one fatal hit a run; +1 grenade", "Now I have a grenade. Ho ho ho.",
+        "Shrugs off one fatal hit a run; +1 grenade", "Shoes optional. Stubborn required.",
         0xFFFFD23C.toInt(),
         secondWind = true, extraGrenades = 1,
     ),

@@ -37,7 +37,7 @@ internal class EnvWalls(private val f: Frame) {
         private val ART_BOT = intArrayOf(0xFF2A1A5A.toInt(), 0xFF0E2238.toInt(), 0xFF3A0E1A.toInt(), 0xFF8A7A68.toInt())
         private val BOOKS = intArrayOf(0xFF6A2A3A.toInt(), 0xFF2A4A6A.toInt(), 0xFF8A6A3A.toInt(), 0xFF3A5A3A.toInt(), 0xFF5A3A6A.toInt(), 0xFFB0A080.toInt())
         /** Metro graffiti. Eleven, so every slot's hash reaches every tag. */
-        private val TAGS = arrayOf("RUN IT", "YEAH", "DUCK!", "HI MOM", "ALL GAS", "BOX GANG", "ZOOM", "404", "B-99", "WHY?", "GG")
+        private val TAGS = arrayOf("RUN IT", "NICE", "DUCK!", "HI MOM", "ALL GAS", "BOX GANG", "ZOOM", "404", "B-99", "WHY?", "GG")
         private val TOWER_TINTS = intArrayOf(0, 0x1CFF3D9A, 0x1C2C8CFF, 0x162CF0C8, 0x18FFA040)
         private val LAB_TINTS = intArrayOf(0, 0x14FFFFFF, 0x142C8CFF, 0x10A0FF40)
         private val MURALS = arrayOf(

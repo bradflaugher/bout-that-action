@@ -39,7 +39,7 @@ data class RunReport(
             Zone.ROOFTOP to "Nice view, though.",
             Zone.TOWER to "Corporate sends its regards.",
             Zone.LABS to "The lab coats are writing this down.",
-            Zone.METRO to "Mind the gap.",
+            Zone.METRO to "Please stand clear of the doors.",
             Zone.MINES to "Dig deep. You did.",
             Zone.MAGMA to "It's not the heat, it's the lava.",
             Zone.HELL to "Hell has a very strict door policy.",
@@ -50,7 +50,7 @@ data class RunReport(
         val HERO_QUIPS = mapOf(
             Hero.BULL to "Pads off. Good game.",
             Hero.FOX to "The tux survived. Mostly.",
-            Hero.BADGER to "Worst holiday ever. Again.",
+            Hero.BADGER to "Stubborn to the very end.",
             Hero.VIPER to "Back to the box.",
         )
 
@@ -129,7 +129,7 @@ data class RunReport(
                 s.shotKills >= 25 -> "TRIGGER HAPPY"
                 depth >= 100 -> "DEEP DIVER"
                 depth <= 1 -> "WARMING UP"
-                else -> "JUST 'BOUT THAT ACTION"
+                else -> "ALL ACTION"
             }
         }
 
