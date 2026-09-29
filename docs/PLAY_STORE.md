@@ -84,10 +84,9 @@ them. The game leans on a few:
   all original: no brands, slogans or trademarks. Store screenshots count as
   listing metadata, so keep it that way.
 
-The Play listing text itself names no other game or brand: the README keeps
-the Elevator Action and Metal Gear Solid homage, but Play's metadata policy
-forbids other people's trademarks in the title and descriptions, so keep them
-out of `fastlane/`.
+Neither the Play listing, the README nor the game names another game or
+brand, and Play's metadata policy forbids other people's trademarks in the
+title and descriptions, so keep it that way.
 
 The parodies are gentle and there are no real names or logos. If review
 pushes back, the title is the thing left to look at.

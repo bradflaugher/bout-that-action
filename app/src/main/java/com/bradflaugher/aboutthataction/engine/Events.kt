@@ -67,7 +67,7 @@ sealed interface GameEvent {
 enum class KillMethod { SHOT, TAKEDOWN, STOMP, LIGHT, EXPLOSION, HAZARD }
 
 /**
- * The hallway's alert status, MGS style, for the music: ALERT while anyone is onto you,
+ * The hallway's alert status, stealth-game style, for the music: ALERT while anyone is onto you,
  * CAUTION while a guard is checking something out and for a few seconds after you lose them,
  * then CALM.
  */

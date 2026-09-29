@@ -267,7 +267,7 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
     }
 
     /**
-     * The grab, and the guard's strangled grunt, MGS style: a catch in the throat, then a
+     * The grab, and the guard's strangled grunt: a catch in the throat, then a
      * choked "uuurgh" (a buzzing voice through two vowel formants, pitch sagging, gurgling
      * under a fast tremolo) with a rasp of breath. Every guard's voice sits a little apart.
      */

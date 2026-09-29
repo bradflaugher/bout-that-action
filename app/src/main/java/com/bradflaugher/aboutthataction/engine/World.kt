@@ -1512,7 +1512,7 @@ class World(val config: RunConfig) {
     /**
      * Jump + tap under a ceiling lamp: swat it out by hand. No gun and no ammo, in either mode.
      * The fixture drops a beat later (never onto you) and the crash of glass brings the
-     * guards nearby over to look: a lure, MGS style. Anyone standing right under it is out.
+     * guards nearby over to look: a lure. Anyone standing right under it is out.
      */
     private fun swatLight(): Boolean {
         val p = player
@@ -1730,7 +1730,7 @@ class World(val config: RunConfig) {
     }
 
     /**
-     * The MGS double-take: a box that moves while a walking guard is looking right at it. He
+     * The double-take: a box that moves while a walking guard is looking right at it. He
      * stops ("HUH?") and comes over to check, straight into your arms (BOX'D). GHOST BOX
      * boxes never raise an eyebrow; Heavies who come to check kick the box off.
      */
@@ -2011,7 +2011,7 @@ class World(val config: RunConfig) {
 
             when (e.state) {
                 EnemyState.EMERGING -> {
-                    // Elevator Action rule: whoever steps out of a door comes out looking for you.
+                    // Arcade rule: whoever steps out of a door comes out looking for you.
                     if (e.stateTime > 0.45f) {
                         if (sees || visible) {
                             alert(e)
@@ -2234,7 +2234,7 @@ class World(val config: RunConfig) {
             if (!b.dead && b.byPlayer) {
                 for (e in enemies) {
                     if (e.floor != b.floor || e.hall != b.hall || !e.alive || e.id in b.hitIds) continue
-                    // The Elevator Action duel: alert guards duck high shots and answer low.
+                    // The arcade duel: alert guards duck high shots and answer low.
                     if (e.kind == EnemyKind.AGENT && e.state == EnemyState.ALERT && b.z > 0.8f && b.vz == 0f &&
                         (e.x - b.x) * b.vx > 0f && abs(e.x - b.x) < 2.6f && b.duckRolled.add(e.id) &&
                         rng.chance(Heat.duckChance(floors[e.floor]?.plan?.heat ?: 0f))

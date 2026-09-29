@@ -68,7 +68,7 @@ enum class PickupKind(val title: String, val seconds: Float) {
 
 /** Enemy archetypes. Each zone reskins them; see the renderer. */
 enum class EnemyKind(val hp: Int, val score: Int) {
-    /** Suit with a pistol. The Elevator Action classic. */
+    /** Suit with a pistol. The arcade classic. */
     AGENT(1, 100),
     /** Armored, bursts; frontal takedowns bounce off. */
     HEAVY(4, 300),

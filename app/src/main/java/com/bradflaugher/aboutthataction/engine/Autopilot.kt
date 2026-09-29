@@ -177,7 +177,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
 
     /**
      * SILENT: deal with the guard between us and the goal. True if that took this step's input.
-     * The loop is the Metal Gear one: box up before a guard looking this way gets close, let
+     * The loop is the classic stealth one: box up before a guard looking this way gets close, let
      * him walk into the box (an ambush) or turn his back, then take him down from behind.
      */
     private fun sneak(w: World, enemies: List<Enemy>, dir: Int): Boolean {
