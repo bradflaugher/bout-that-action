@@ -34,6 +34,7 @@ class GestureInput(density: Float) {
     private val flickMidRunDist = FLICK_MID_RUN_DP * density
     private val reverseDist = REVERSE_DP * density
     private val restartDist = RESTART_DP * density
+    private val takeoverDist = TAKEOVER_DP * density
 
     private enum class Mode {
         /** Down, not yet classified: could still be a tap, a flick or a run. */
@@ -131,7 +132,9 @@ class GestureInput(density: Float) {
                 val wdy = if (w != null) y - f.hy[w] else dy
                 if (abs(dy) > flickDist && abs(wdy) > flickDist && abs(dy) > abs(dx)) {
                     flick(f, dy, x, y, t)
-                } else if (abs(dx) > slop && abs(dx) >= abs(dy)) {
+                } else if (abs(dx) > (if (moveAxis != 0) takeoverDist else slop) && abs(dx) >= abs(dy)) {
+                    // While another thumb is running, a new finger has to mean it to take
+                    // over: a jump thumb that lands with a little sideways roll is a flick.
                     startRun(f, if (dx > 0) 1 else -1, x)
                 } else if (abs(dy) > flickDist) {
                     // A slow vertical slide is a thumb settling, not a flick: it becomes
@@ -153,16 +156,16 @@ class GestureInput(density: Float) {
                     // Standing after a flick: a clear sideways drag starts a run.
                     val rx = x - f.restX
                     if (abs(rx) > restartDist && !vertical) startRun(f, if (rx > 0) 1 else -1, x)
-                } else {
+                } else if (vertical || f.dir * (x - f.extreme) > 0f) {
+                    // Track the furthest point. During a vertical stroke (a flick, its
+                    // follow-through, the thumb springing back or resettling) the mark
+                    // follows the thumb back too: that drift is forgiven, not saved up
+                    // to flip the run the moment the stroke stops.
+                    f.extreme = x
+                } else if (f.dir * (f.extreme - x) > reverseDist) {
                     // Instant reversal: back off the furthest point by a few dp.
-                    // A vertical stroke (a flick on its way) never reverses the run.
-                    if (f.dir > 0) {
-                        if (x > f.extreme) f.extreme = x
-                        if (x < f.extreme - reverseDist && !vertical) { f.dir = -1; f.extreme = x }
-                    } else {
-                        if (x < f.extreme) f.extreme = x
-                        if (x > f.extreme + reverseDist && !vertical) { f.dir = 1; f.extreme = x }
-                    }
+                    f.dir = -f.dir
+                    f.extreme = x
                 }
                 // A vertical flick while held: jump / hide without lifting.
                 if (t >= f.flickCooldownUntil && w != null) {
@@ -267,6 +270,8 @@ class GestureInput(density: Float) {
         const val REVERSE_DP = 12f
         /** Sideways drag that turns a standing (post-flick) finger into a run. */
         const val RESTART_DP = 14f
+        /** Sideways drag before a new finger takes the run over from one already running. */
+        const val TAKEOVER_DP = 22f
         const val TAP_MS = 300L
         private const val HISTORY = 64
     }

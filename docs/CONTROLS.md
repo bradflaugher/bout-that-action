@@ -52,7 +52,8 @@ horizontal is vertical (a flick). A shallower stroke is horizontal (a run).
 | Gesture | Threshold | Why |
 |---|---|---|
 | Run start | 10 dp sideways (`SLOP_DP`) | About 1.6 mm. That's enough to reject tap jitter and still feel instant. |
-| Run reverse | 12 dp back from the furthest point (`REVERSE_DP`) | Lets you turn around with no centre point to cross. Suppressed during a vertical stroke, so a flick that drifts backwards never flips the run. |
+| Run reverse | 12 dp back from the furthest point (`REVERSE_DP`) | Lets you turn around with no centre point to cross. During a vertical stroke (a flick, its follow-through, the thumb springing back or resettling) the furthest point follows the thumb back, so that drift is forgiven, not saved up: a jump that arcs backwards never flips the run when the thumb comes to rest. |
+| Run takeover | 22 dp sideways (`TAKEOVER_DP`) for a new finger while another is already running | The newest running finger steers, but a jump thumb that lands with a little sideways roll is a flick, not a turn. It needs to clear the flick distance before it can take the run over. |
 | Flick, fresh finger | 22 dp vertical (`FLICK_DP`), inside 150 ms (`FLICK_WINDOW_MS`) | The distance is forgiving for short thumb flicks. The time window is a speed gate (≥ ~150 dp/s), so a slow slide or a thumb settling never jumps. A slow vertical slide becomes a resting HELD finger instead. |
 | Flick, held finger | 26 dp inside 150 ms (`FLICK_MID_RUN_DP`); direction judged on the last 50 ms (`RECENT_MS`) | A running thumb wobbles more, so it needs a little more distance. Direction comes from the recent stroke only, so an L-shaped run-then-flick counts. |
 | Fast flick seen only at lift | 60% of `FLICK_DP` in < 220 ms | Flicks so fast the digitiser gives almost no move events. |
