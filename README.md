@@ -270,7 +270,8 @@ tablets and unfolded foldables too; a window that still isn't tall enough (a
 desktop or split-screen window) plays in a centred portrait column. A run pauses
 itself when the window loses focus (the notification shade, the other app in
 split screen), when a call or another app takes the audio, and when headphones
-are unplugged. Phones whose motor can't play crisp haptic primitives get the
+are unplugged. Back pauses a run (and resumes it from the pause menu); on the
+title it leaves the game. Phones whose motor can't play crisp haptic primitives get the
 closest standard click instead.
 
 ## Build and test
@@ -296,12 +297,13 @@ Kotlin behind small interfaces, so it's tested on the JVM:
 - `HeroTest`: every hero trait and every hero perk, and that a STASH only
   ever offers a hero their own three.
 - `StealthAndEventsTest`: napping guards, the box double-take and the kick,
-  GHOST, special floors, the arrival grace, coach tips, the run report.
+  guards who see you hide and come find you, locked stashes, GHOST, special
+  floors, the arrival grace, coach tips, the run report.
 - `LevelGenTest`: determinism, a reachable ride down from every hallway on
   24,000 floors, rides arriving in hallway A, passage pairs, door spacing,
   shaft consistency, zone order, the heat curve.
 - `GestureInputTest`: taps (never grenades), flicks mid-run, instant reversal,
-  two-thumb play.
+  two-thumb play, run takeovers, and jumps that never flip the run.
 - `BotPlaythroughTest`: an autopilot plays full runs on every preset in both
   modes and prints a balance report (floors, seconds and encounters per
   floor, deaths; every hero on AGENT, so no hero runs away with it) and a pacing report (seconds per floor and hallway,
