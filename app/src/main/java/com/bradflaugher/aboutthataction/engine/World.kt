@@ -22,7 +22,7 @@ data class RunConfig(
      */
     val coach: Boolean = true,
     /** Who's playing: a trait, three hero-only perks, a look and a soundtrack. */
-    val hero: Hero = Hero.BEAST,
+    val hero: Hero = Hero.BULL,
 )
 
 enum class Phase { PLAYING, PERK_CHOICE, DYING, OVER }
@@ -1228,7 +1228,7 @@ class World(val config: RunConfig) {
                 return
             }
             if (e.state == EnemyState.WINDUP) continue // mid-slash: it wins
-            // BEAST goes through a Heavy's front door (not from inside a box: he kicks those off).
+            // BULL goes through a Heavy's front door (not from inside a box: he kicks those off).
             val tackle = hero.tacklesHeavies && e.kind == EnemyKind.HEAVY && p.state == PlayerState.NORMAL && !e.chokeable(fromDir)
             // A napping guard can't resist from any side.
             if (!e.asleep && !e.chokeable(fromDir) && !tackle) {
@@ -1300,7 +1300,7 @@ class World(val config: RunConfig) {
         afterTakedown(e)
     }
 
-    /** Every takedown (a choke, a tackle, a STIFF ARM): CQC MASTER's heal and BEAST QUAKE's shake. */
+    /** Every takedown (a choke, a tackle, a STIFF ARM): CQC MASTER's heal and AFTERSHOCK's shake. */
     private fun afterTakedown(e: Enemy) {
         val p = player
         val y = Geo.groundY(e.floor) - 1.1f
@@ -1308,7 +1308,7 @@ class World(val config: RunConfig) {
             p.hp++
             fx.text("+♥", p.x, y - 1.4f, TextStyle.PICKUP)
         }
-        val quake = stacks(Perk.BEAST_QUAKE)
+        val quake = stacks(Perk.AFTERSHOCK)
         if (quake > 0) {
             val r = if (quake >= 2) QUAKE_RADIUS_2 else QUAKE_RADIUS
             shake = max(shake, 0.45f)
@@ -2716,7 +2716,7 @@ class World(val config: RunConfig) {
         // ---- Heroes and their perks ----
         /** STIFF ARM: a moment's cover after running through a guard. */
         const val STIFF_ARM_INVULN = 0.35f
-        /** BEAST QUAKE: takedowns daze everyone this close (LV 2: [QUAKE_RADIUS_2]) for [QUAKE_STUN] s. */
+        /** AFTERSHOCK: takedowns daze everyone this close (LV 2: [QUAKE_RADIUS_2]) for [QUAKE_STUN] s. */
         const val QUAKE_RADIUS = 3.5f
         const val QUAKE_RADIUS_2 = 6f
         const val QUAKE_STUN = 1.8f

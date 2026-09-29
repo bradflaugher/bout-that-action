@@ -220,7 +220,7 @@ fun HowToPlay() {
         "TAP" to "Use what you're next to: a green passage door, a gold STASH door (locked while anyone's hunting you), an elevator (tap a landing to call the car).",
         "MODE" to "The button under pause. GUNS HOT auto-fires at threats; SILENT never fires and quiet kills score double. Flip it any time; it sticks between runs.",
         "GRENADE" to "The lime button under the mode button throws one, in either mode. It shows how many you have.",
-        "WALK INTO" to "An enemy to choke him out instantly. Heavies only from behind (BEAST tackles them head-on). Nappers from anywhere.",
+        "WALK INTO" to "An enemy to choke him out instantly. Heavies only from behind (BULL tackles them head-on). Nappers from anywhere.",
         "THE BOX" to "Move it while a guard's looking and he comes over to check. Let him. (Heavies and ninjas kick it.)",
         "JUMP + TAP" to "Swat out the lamp overhead. The crash lures guards over to look; anyone right under it is out.",
         "ARRIVING" to "In SILENT you step into each new hallway hidden in the doorway. Tap or swipe ↑ to step out.",

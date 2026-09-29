@@ -197,7 +197,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
             w.moveAxis = if (blocker.state == EnemyState.AIM && d < 3f) 0 else toward
             return true
         }
-        // The BEAST takes a Heavy head-on, like anyone else.
+        // The BULL takes a Heavy head-on, like anyone else.
         when (if (blocker.kind == EnemyKind.HEAVY && w.hero.tacklesHeavies) EnemyKind.AGENT else blocker.kind) {
             EnemyKind.TURRET -> return false // run past it (a grenade goes first if there is one)
             EnemyKind.DRONE -> {

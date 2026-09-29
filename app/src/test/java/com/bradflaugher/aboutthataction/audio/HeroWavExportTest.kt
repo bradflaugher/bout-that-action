@@ -10,7 +10,7 @@ import java.io.File
  * Listening aid for the heroes' soundtracks, off by default. `ATA_HERO_WAV=<dir>` writes every
  * hero's theme and every zone (GUNS HOT ramping up in heat, then SILENT with tension creeping
  * in), next to the original soundtrack ("none"), and prints level/spectrum stats;
- * `ATA_HERO_ONLY=beast,none` limits it to some heroes. `ATA_HERO_STEMS=1` prints each
+ * `ATA_HERO_ONLY=bull,none` limits it to some heroes. `ATA_HERO_STEMS=1` prints each
  * arrangement's dry per-instrument levels next to its zone's own, for mixing.
  */
 class HeroWavExportTest {

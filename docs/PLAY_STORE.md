@@ -35,7 +35,8 @@ one and is always a valid next upload.
    1080×1920 `phoneScreenshots` and the same eight scenes rendered at tablet
    size in `sevenInchScreenshots` (1200×1920) and `tenInchScreenshots`
    (1600×2560), so the listing shows the game on large screens. Re-render
-   them with the commands below.
+   them with the commands below; the feature graphic is
+   `./gradlew :app:screenshots -x menuShots -Pata.scene=feature -Pata.shots=fastlane/metadata/android/en-US/images`.
 4. **What's new.** `changelogs/default.txt` is the release note `supply`
    uses for every versionCode (≤ 500 chars). Keep it short and silly.
 5. **Privacy policy.** The listing links
@@ -70,9 +71,10 @@ one and is always a valid next upload.
 Play review rejects apps that suggest a real person, team or brand endorses
 them. The game leans on a few:
 
-- The title is Marshawn Lynch's catchphrase, and BEAST is a running back in
-  Seattle green and navy wearing #24 (Lynch's number and "Beast Mode"
-  nickname).
+- The title, 'Bout That Action, is a common phrase. Nothing else in the game
+  quotes or names a real athlete: BULL is a generic bruiser in football pads
+  and a plain blue uniform with no number, team colours, logo or name, and the
+  sign-offs and perk names are all original. Keep it that way.
 - ACE's joke riffs on James Bond, HARDY's on *Die Hard* and VIPER on
   *Metal Gear Solid*.
 - Wall text (murals, graffiti, neon, departure boards in `EnvWalls`) is
@@ -84,9 +86,8 @@ the Elevator Action and Metal Gear Solid homage, but Play's metadata policy
 forbids other people's trademarks in the title and descriptions, so keep them
 out of `fastlane/`.
 
-The parodies are gentle and there are no real names or logos, but the
-BEAST's colours and number plus the title are the
-riskiest part. Change them if review pushes back.
+The parodies are gentle and there are no real names or logos. If review
+pushes back, the title is the thing left to look at.
 
 ## Refreshing the store screenshots
 

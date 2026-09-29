@@ -18,7 +18,7 @@ import kotlin.math.sqrt
  * motif (the hero's leitmotif, transposed over every zone's chords). Each zone also tints
  * the band: cold zones darken filters, the deep ones add grit, the mines crush the drums.
  *
- *  - BEAST: stadium marching-band funk. Drumline snare with rolls, claps, tambourine, a
+ *  - BULL: stadium marching-band funk. Drumline snare with rolls, claps, tambourine, a
  *    boomy 808 kick and bass, a brass section stabbing chords, a bell lyre, a trumpet
  *    shout for a hook and a crowd that roars into every fill.
  *  - ACE: spy jazz / surf. Swung ride and brushes, a walking upright bass, lush 7th/9th
@@ -113,9 +113,9 @@ internal object HeroSongs {
 
     // ---- Signatures (original, except HARDY's public-domain quotes) ------------------------
 
-    /** BEAST: a horn-section shout — octave hit, bounce, and a tumble down to the third. */
-    private val beastSig = Motif("7:2 .:1 7:1 4:2 6:1 7:1 .:2 4:2 3:2 2:2")
-    private val beastAns = Motif("4:1 4:1 .:2 2:2 4:2 .:2 0:2 2:4")
+    /** BULL: a horn-section shout — octave hit, bounce, and a tumble down to the third. */
+    private val bullSig = Motif("7:2 .:1 7:1 4:2 6:1 7:1 .:2 4:2 3:2 2:2")
+    private val bullAns = Motif("4:1 4:1 .:2 2:2 4:2 .:2 0:2 2:4")
 
     /** ACE: a slinky surf-spy descent from the fifth, a breath, and home. */
     private val aceSig = Motif("4:3 3:1 2:2 1:2 .:2 2:2 0:4")
@@ -136,22 +136,22 @@ internal object HeroSongs {
 
     // Zones in order: ROOFTOP, TOWER, LABS, METRO, MINES, MAGMA, HELL, VOID.
     private val HOT_TRIM = arrayOf(
-        floatArrayOf(1.06f, 1.00f, 0.94f, 0.98f, 1.00f, 1.01f, 1.11f, 0.98f), // BEAST
+        floatArrayOf(1.06f, 1.00f, 0.94f, 0.98f, 1.00f, 1.01f, 1.11f, 0.98f), // BULL
         floatArrayOf(0.97f, 0.87f, 0.89f, 0.85f, 0.85f, 0.88f, 0.90f, 0.82f), // ACE
         floatArrayOf(1.12f, 1.05f, 1.02f, 1.04f, 1.04f, 1.05f, 1.12f, 1.00f), // HARDY
         floatArrayOf(0.89f, 0.83f, 0.79f, 0.84f, 0.85f, 0.87f, 0.94f, 0.85f), // VIPER
     )
     private val SNEAK_TRIM = arrayOf(
-        floatArrayOf(0.99f, 0.97f, 0.98f, 0.98f, 1.00f, 0.97f, 0.97f, 0.98f), // BEAST
+        floatArrayOf(0.99f, 0.97f, 0.98f, 0.98f, 1.00f, 0.97f, 0.97f, 0.98f), // BULL
         floatArrayOf(0.97f, 0.95f, 1.00f, 0.94f, 1.07f, 0.97f, 1.01f, 0.95f), // ACE
         floatArrayOf(1.01f, 0.99f, 0.98f, 1.01f, 1.01f, 0.99f, 0.99f, 1.02f), // HARDY
         floatArrayOf(1.01f, 1.01f, 1.01f, 1.03f, 1.03f, 1.01f, 1.00f, 1.06f), // VIPER
     )
     private val THEME_TRIM = floatArrayOf(1.06f, 0.85f, 1.03f, 0.9f)
 
-    // ---- BEAST -----------------------------------------------------------------------------
+    // ---- BULL -----------------------------------------------------------------------------
 
-    private fun beastKit(base: SongSpec, t: Tint) = DrumTuning(
+    private fun bullKit(base: SongSpec, t: Tint) = DrumTuning(
         kickHi = 150f, kickLo = 40f, kickPitchDecay = 0.06f, kickDecay = boom(base, 1.4f, 0.65f), kickClick = 0.35f,
         kickDrive = 0.5f, snareTone = 240f, snareNoiseHz = 5600f, snareDecay = 0.13f, snareToneMix = 0.45f,
         snareLevel = 0.85f, snareVerb = 0.35f, clapHz = 1300f, clapDecay = 0.2f, clapLevel = 0.6f,
@@ -159,12 +159,12 @@ internal object HeroSongs {
         jingleLevel = 0.22f, crashLevel = 0.36f, drive = t.drive, crush = t.crush,
     )
 
-    private val beastBass = Patch(
+    private val bullBass = Patch(
         wave1 = Wave.SINE, wave2 = Wave.TRIANGLE, osc2Level = 0.35f, sub = 0.35f, cutoff = 1200f, q = 0.8f,
         envAmt = 1f, keyTrack = 0.3f, a = 0.002f, d = 0.6f, s = 0.6f, r = 0.12f, fd = 0.2f, drive = 0.9f,
         glide = 0.04f, gain = 0.36f, bright = 0.4f,
     )
-    private val beastBrass = Patch(
+    private val bullBrass = Patch(
         wave1 = Wave.SAW, supersaw = true, detune = 0.09f, cutoff = 700f, q = 0.9f, envAmt = 2.4f, keyTrack = 0.3f,
         a = 0.012f, d = 0.35f, s = 0.65f, r = 0.14f, fa = 0.035f, fd = 0.3f, fs = 0.35f, fr = 0.15f,
         drive = 0.25f, gain = 0.13f, bright = 0.6f,
@@ -179,7 +179,7 @@ internal object HeroSongs {
         glide = 0.02f, vibrato = 0.22f, vibRate = 5.2f, drive = 0.3f, gain = 0.17f, bright = 0.6f,
     )
 
-    private fun beastHot(base: SongSpec, t: Tint, name: String, hook: Melody? = null): SongSpec {
+    private fun bullHot(base: SongSpec, t: Tint, name: String, hook: Melody? = null): SongSpec {
         val hell = base === Songs.hell
         val zd = zoneDrums(base)
         return base.derive(
@@ -195,14 +195,14 @@ internal object HeroSongs {
                 jingle = "..x...x...x...x.",
             ),
             fill = DrumPattern(kick = "X.......X.......", snare = "rrrrXrrrXrXrXXXX", tom = "..3.2.1.....3.1."),
-            kit = beastKit(base, t),
+            kit = bullKit(base, t),
             bassA = "R..R..O.R.rR..F.", bassB = "R.rR..O.R.rRO.Fo",
             arpA = "0.2.4...2.4.5...", arpB = "5.4.3.2.4.3.2.1.", arpGate = 0.5f, arpCenter = base.arpCenter + 5,
             padRhythm = "x.-...x.-.x.-...", padRhythmB = "x.......x.-.x.-.",
             leadOctave = leadOctave(base, 58),
-            leadTemplates = arrayOf(beastSig.rhythm, "x.x...x.x.x...x.", "x..x..x...x.x..."),
-            motifSeed = base.motifSeed + 11, hook = hook, signature = beastSig, answer = beastAns,
-            pad = beastBrass.tinted(t, 0.3f), bass = beastBass.tinted(t, 0.4f), arp = bellLyre.tinted(t, 0f),
+            leadTemplates = arrayOf(bullSig.rhythm, "x.x...x.x.x...x.", "x..x..x...x.x..."),
+            motifSeed = base.motifSeed + 11, hook = hook, signature = bullSig, answer = bullAns,
+            pad = bullBrass.tinted(t, 0.3f), bass = bullBass.tinted(t, 0.4f), arp = bellLyre.tinted(t, 0f),
             lead = trumpet.tinted(t, 0.5f),
             mix = Mix(
                 pad = 1.6f, bass = 0.85f, arp = 1.35f, lead = 1.1f, drums = 0.43f * zd, padVerb = 0.2f, arpDelay = 0.3f,
@@ -212,7 +212,7 @@ internal object HeroSongs {
         )
     }
 
-    private fun beastSneak(base: SongSpec, t: Tint, name: String) = base.derive(
+    private fun bullSneak(base: SongSpec, t: Tint, name: String) = base.derive(
         name = name,
         drumsA = DrumPattern(kick = base.drumsA.kick, snare = "..............r.", hat = "x...x...x...x..."),
         drumsB = DrumPattern(kick = base.drumsB.kick, snare = "......o.......rr", hat = "x.o.x.o.x.o.x.o.", tom = "........1......."),
@@ -224,8 +224,8 @@ internal object HeroSongs {
             drive = t.drive * 0.5f, crush = t.crush,
         ),
         arpA = "2.0...........0.", arpB = "..3.2.......1...", arpGate = 1f,
-        leadTemplates = arrayOf(beastSig.rhythm, "x.......x.......", "x...........x..."),
-        signature = beastSig, answer = beastAns,
+        leadTemplates = arrayOf(bullSig.rhythm, "x.......x.......", "x...........x..."),
+        signature = bullSig, answer = bullAns,
         pad = Patch(
             wave1 = Wave.SAW, supersaw = true, detune = 0.07f, cutoff = 520f, q = 0.7f, envAmt = 0.8f, a = 1.2f, d = 1.5f,
             s = 0.85f, r = 1.6f, fa = 1.2f, fd = 2f, fs = 0.5f, gain = 0.1f, bright = 0.2f,
@@ -528,8 +528,8 @@ internal object HeroSongs {
             hook = null, bassCenter = 36 + Math.floorMod(tonic - 36, 12).coerceAtMost(6), padCenter = 62, arpCenter = 62,
         )
 
-    /** "Beast Quake": D minor stomp, i–VII–VI–VII with a horn-section shout. */
-    private val beastHook = Melody(
+    /** "Aftershock": D minor stomp, i–VII–VI–VII with a horn-section shout. */
+    private val bullHook = Melody(
         arrayOf(
             "D5:2 -:1 D5:1 A4:2 C5:1 D5:1 -:2 A4:2 G4:2 F4:2",
             "E5:2 -:1 E5:1 C5:2 D5:1 E5:1 -:2 G5:2 E5:2 C5:2",
@@ -588,9 +588,9 @@ internal object HeroSongs {
         val t = tint(null)
         val trim = THEME_TRIM[h.ordinal]
         return when (h) {
-            Hero.BEAST -> beastHot(
-                themeBase("beast-theme", 100f, 50, AEOLIAN, tri(AEOLIAN, 0, 6, 5, 6), arrayOf(Chord.diatonic(AEOLIAN, 3), Chord.diatonic(AEOLIAN, 0), Chord.diatonic(AEOLIAN, 5), Chord.of(AEOLIAN, 4, Quality.MAJ)), 2401),
-                t, "beast-theme", beastHook,
+            Hero.BULL -> bullHot(
+                themeBase("bull-theme", 100f, 50, AEOLIAN, tri(AEOLIAN, 0, 6, 5, 6), arrayOf(Chord.diatonic(AEOLIAN, 3), Chord.diatonic(AEOLIAN, 0), Chord.diatonic(AEOLIAN, 5), Chord.of(AEOLIAN, 4, Quality.MAJ)), 2401),
+                t, "bull-theme", bullHook,
             )
             Hero.ACE -> aceHot(
                 themeBase("ace-theme", 144f, 48, DORIAN, tri(DORIAN, 0, 3, 0, 3), tri(DORIAN, 2, 3, 4, 0), 7007),
@@ -614,7 +614,7 @@ internal object HeroSongs {
         val t = tint(z)
         val name = if (silent) "${Songs.forZone(z).name}-${h.name.lowercase()}-sneak" else "${base.name}-${h.name.lowercase()}"
         val spec = when (h) {
-            Hero.BEAST -> if (silent) beastSneak(base, t, name) else beastHot(base, t, name)
+            Hero.BULL -> if (silent) bullSneak(base, t, name) else bullHot(base, t, name)
             Hero.ACE -> if (silent) aceSneak(base, t, name) else aceHot(base, t, name)
             Hero.HARDY -> if (silent) hardySneak(base, t, name) else hardyHot(base, t, name)
             Hero.VIPER -> if (silent) viperSneak(base, t, name) else viperHot(base, t, name)

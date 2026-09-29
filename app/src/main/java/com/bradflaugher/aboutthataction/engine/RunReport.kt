@@ -10,7 +10,7 @@ data class RunReport(
     val title: String,
     /** What got you ("Steamed like a dumpling"). */
     val deathLine: String,
-    /** A sign-off, Marshawn-flavoured ("I'm just 'bout that action, boss."). */
+    /** A sign-off ("Cardboard remains undefeated."). */
     val quip: String,
     /** Label to value, only the non-zero ones, best first. */
     val highlights: List<Pair<String, String>>,
@@ -18,15 +18,15 @@ data class RunReport(
     companion object {
         const val STILL_STANDING = "Still 'bout that action"
 
-        /** Sign-offs. Some are his, some are ours; none of them ask you to come back. */
+        /** Sign-offs. None of them ask you to come back. */
         val QUIPS = listOf(
-            "I'm just 'bout that action, boss.",
-            "You know why I'm here.",
-            "I'm just here so I won't get fined.",
-            "Thank you for asking.",
-            "Yeah.",
+            "All action. No small talk.",
+            "The elevator music was a banger.",
+            "Ten out of ten, would fall again.",
+            "Somewhere, a box is proud of you.",
+            "Floors cleared. Snacks earned.",
             "The building will still be here later.",
-            "Go drink some water, boss.",
+            "Go drink some water.",
             "Cardboard remains undefeated.",
             "Good hustle. Stretch those thumbs.",
             "Somebody call the elevator.",
@@ -48,7 +48,7 @@ data class RunReport(
 
         /** Extra sign-offs for whoever was playing. */
         val HERO_QUIPS = mapOf(
-            Hero.BEAST to "Pads off. Good game, boss.",
+            Hero.BULL to "Pads off. Good game.",
             Hero.ACE to "The tux survived. Mostly.",
             Hero.HARDY to "Worst holiday ever. Again.",
             Hero.VIPER to "Back to the box.",

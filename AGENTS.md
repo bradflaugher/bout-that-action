@@ -1,6 +1,6 @@
 # Agent and contributor instructions
 
-'Bout That Action (a Marshawn Lynch reference) is an endless, portrait-only
+'Bout That Action is an endless, portrait-only
 Android action game: a stylized, hyper-modern take on Elevator Action with
 Metal Gear Solid box hiding. Sideloaded, and headed for Google Play
 (`docs/PLAY_STORE.md`). Read `README.md` for the
@@ -61,7 +61,7 @@ the JVM.
   instant reversal, flicks mid-drag, zero-latency taps; grenades are a HUD button, not a gesture).
 - `render/` — `Gfx.kt` is the tiny drawing interface; `Renderer` draws the
   world, HUD and overlays through it. `HeroArt` paints the player on one shared
-  rig, dressed by a `HeroKit` per hero (`HeroBeast`, `HeroAce`, `HeroHardy`,
+  rig, dressed by a `HeroKit` per hero (`HeroBull`, `HeroAce`, `HeroHardy`,
   `HeroViper`); `HeroPortrait` draws that same figure for the hero picker.
 - `audio/` — procedural synth, sequencer, songs per zone, SFX; `SoundEngine`
   is the API. `AudioOutput.kt` streams it to an `AudioTrack`.

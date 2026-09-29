@@ -1381,12 +1381,12 @@ internal class Building(private val f: Frame) {
         val bx = sx1 + 0.3f
         g.fillRoundRect(bx - 0.09f, gy - 1.41f, bx + 0.09f, gy - 1.09f, 0.03f, STEEL_LO)
         if (car?.called == 0) f.glowDot(bx, gy - 1.25f, 0.045f, LIFT_CYAN, 0.9f) else g.fillCircle(bx, gy - 1.25f, 0.04f, Col.alpha(LIFT_CYAN, 0.4f))
-        // Graffiti on the brick: the man himself.
+        // Graffiti on the brick.
         g.save()
         g.translate(x0 + 0.3f, top + 0.62f)
         g.rotate(-6f)
         g.scale(1f / f.s, 1f / f.s)
-        g.text("'bout that action, boss", 0f, 0f, 0.11f * f.s, 0x90E8E0FF.toInt(), Gfx.Font.HUD, Gfx.Align.LEFT)
+        g.text("going down?", 0f, 0f, 0.11f * f.s, 0x90E8E0FF.toInt(), Gfx.Font.HUD, Gfx.Align.LEFT)
         g.restore()
         // Antenna with a blinking beacon.
         val ax = x1 - 0.3f

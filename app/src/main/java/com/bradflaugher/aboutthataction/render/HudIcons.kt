@@ -170,7 +170,7 @@ internal object HudIcons {
                 g.line(hx + k * 0.7f, cy - k * 0.04f, hx + k * 1.12f, cy - k * 0.04f, sw * 0.9f, c)
                 g.line(hx + k * 0.66f, cy + k * 0.5f, hx + k * 0.94f, cy + k * 0.74f, sw * 0.9f, c)
             }
-            Perk.BEAST_QUAKE -> {
+            Perk.AFTERSHOCK -> {
                 // The seismograph needle jumping off the chart, over the ground line.
                 val xs = QUAKE_X
                 val ys = QUAKE_Y

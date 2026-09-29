@@ -74,7 +74,7 @@ class CastScreenshotTest {
 
     // --------------------------------------------------------------- scenes
 
-    private fun world(floor: Int, silent: Boolean = false, hero: Hero = Hero.BEAST): World {
+    private fun world(floor: Int, silent: Boolean = false, hero: Hero = Hero.BULL): World {
         val w = World(RunConfig(11, Difficulty(startFloor = floor), silent = silent, hero = hero))
         w.viewAspect = 2400f / 1080f
         var t = 0f

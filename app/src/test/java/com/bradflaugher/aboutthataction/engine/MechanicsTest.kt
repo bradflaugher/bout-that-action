@@ -13,7 +13,7 @@ class MechanicsTest {
 
     /** A world past its intro drop, on [floor], hallway A, with the hallway cleared. SILENT unless [silent] = false. */
     private fun world(
-        floor: Int = 3, seed: Long = 11L, difficulty: Difficulty = Difficulty(startFloor = floor), silent: Boolean = true, hero: Hero = Hero.BEAST,
+        floor: Int = 3, seed: Long = 11L, difficulty: Difficulty = Difficulty(startFloor = floor), silent: Boolean = true, hero: Hero = Hero.BULL,
     ): World {
         val w = World(RunConfig(seed, difficulty, silent = silent, hero = hero))
         run(w, 1.5f)
@@ -82,7 +82,7 @@ class MechanicsTest {
 
     @Test
     fun heavyCanOnlyBeChokedFromBehind() {
-        // (The BEAST tackles them head-on: see HeroTest.)
+        // (The BULL tackles them head-on: see HeroTest.)
         val w = world(hero = Hero.ACE)
         w.player.x = 3f
         val front = enemy(w, EnemyKind.HEAVY, 4.5f, facing = -1)

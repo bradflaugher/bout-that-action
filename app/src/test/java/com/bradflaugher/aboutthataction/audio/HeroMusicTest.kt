@@ -169,7 +169,7 @@ class HeroMusicTest {
         for (h in Hero.entries) {
             e.playHeroTheme(h)
             // Browsing: from the title it waits for the bar; from theme to theme it's immediate.
-            val x = render(e, if (h == Hero.BEAST) 6f else 0.1f)
+            val x = render(e, if (h == Hero.BULL) 6f else 0.1f)
             assertEquals("${h.name.lowercase()}-theme", e.songName)
             assertSane(x, "$h theme")
         }
@@ -477,7 +477,7 @@ class HeroInstrumentsTest {
         assertTrue("crickets should chirp high ($high)", high > 0.5)
     }
 
-    /** BEAST's drumline rolls put a second stroke inside the step, and everything else still lands. */
+    /** BULL's drumline rolls put a second stroke inside the step, and everything else still lands. */
     @Test
     fun snareRollsAddStrokesWithinTheStep() {
         fun snareHits(row: String): Int {

@@ -42,11 +42,11 @@ enum class Hero(
     /** Time between pistol shots, as a multiple. */
     val fireScale: Float = 1f,
 ) {
-    /** Running back in full pads. Tough, fast, bulldozes. */
-    BEAST(
-        "BEAST", "Running back. Pads on.",
-        "+1 heart, runs faster, tackles heavies head-on", "Just 'bout that action, boss.",
-        0xFF69BE28.toInt(),
+    /** A bruiser in full pads. Tough, fast, bulldozes. */
+    BULL(
+        "BULL", "Bruiser. Pads on.",
+        "+1 heart, runs faster, tackles heavies head-on", "Through, never around.",
+        0xFF4DA8FF.toInt(),
         extraHearts = 1, runSpeed = 1.1f, tacklesHeavies = true,
     ),
     /** The gentleman spy in a tux. Smooth, quiet, deadly. */

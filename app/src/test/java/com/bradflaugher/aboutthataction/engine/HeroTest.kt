@@ -91,7 +91,7 @@ class HeroTest {
             assertTrue("$hero gets a sign-off of his own sometimes", (0L..400L).any { RunReport.quip(it, 12, 3400, hero = hero) == line })
             assertTrue(Hero.entries.filter { it != hero }.none { other -> (0L..400L).any { RunReport.quip(it, 12, 3400, hero = hero) == RunReport.HERO_QUIPS[other] } })
         }
-        val w = world(Hero.BEAST)
+        val w = world(Hero.BULL)
         w.stats.tackles = 3
         w.stats.stiffArms = 3
         assertEquals("HUMAN BULLDOZER", RunReport.title(w))
@@ -119,29 +119,29 @@ class HeroTest {
     }
 
     @Test
-    fun theBeastHasAnExtraHeartAndRunsFaster() {
+    fun theBullHasAnExtraHeartAndRunsFaster() {
         for (hero in Hero.entries) {
             val w = World(RunConfig(1L, Difficulty(hearts = 3), hero = hero))
-            val beast = hero == Hero.BEAST
-            assertEquals(if (beast) 4 else 3, w.player.maxHp)
+            val bull = hero == Hero.BULL
+            assertEquals(if (bull) 4 else 3, w.player.maxHp)
             assertEquals(w.player.maxHp, w.player.hp)
             assertEquals(World.RUN_SPEED * hero.runSpeed, w.runSpeed, 1e-4f)
-            assertEquals(if (beast) 1.1f else 1f, hero.runSpeed)
+            assertEquals(if (bull) 1.1f else 1f, hero.runSpeed)
         }
-        val w = world(Hero.BEAST)
+        val w = world(Hero.BULL)
         w.player.x = 2f
         run(w, 0.5f) { it.moveAxis = 1 }
         assertEquals(World.RUN_SPEED * 1.1f, w.player.vx, 1e-3f)
     }
 
     @Test
-    fun theBeastTacklesAHeavyHeadOn() {
-        for (hero in listOf(Hero.BEAST, Hero.ACE)) {
+    fun theBullTacklesAHeavyHeadOn() {
+        for (hero in listOf(Hero.BULL, Hero.ACE)) {
             val w = world(hero)
             w.player.x = 3f
             val heavy = enemy(w, EnemyKind.HEAVY, 4.5f, facing = -1)
             run(w, 0.8f) { it.moveAxis = 1; it.player.hp = it.player.maxHp }
-            if (hero == Hero.BEAST) {
+            if (hero == Hero.BULL) {
                 assertFalse(heavy.alive)
                 assertEquals(KillMethod.TAKEDOWN, heavy.killedBy)
                 assertEquals(1, w.stats.tackles)
@@ -156,7 +156,7 @@ class HeroTest {
     @Test
     fun stiffArmFlattensAGuardMidSwingWithoutStopping() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.BEAST)
+            val w = world(Hero.BULL)
             if (perk) w.perks[Perk.STIFF_ARM] = 1
             w.player.x = 3f
             val hp = w.player.hp
@@ -185,10 +185,10 @@ class HeroTest {
     }
 
     @Test
-    fun beastQuakeDazesEveryoneNearATakedown() {
+    fun aftershockDazesEveryoneNearATakedown() {
         for (level in 1..2) {
-            val w = world(Hero.BEAST)
-            w.perks[Perk.BEAST_QUAKE] = level
+            val w = world(Hero.BULL)
+            w.perks[Perk.AFTERSHOCK] = level
             w.player.x = 3f
             enemy(w, EnemyKind.AGENT, 4.2f, facing = 1)
             val near = enemy(w, EnemyKind.AGENT, 4.2f + 2.3f, facing = 1)
@@ -212,7 +212,7 @@ class HeroTest {
     @Test
     fun candyRainHealsEveryEighthKillOrEveryFifthAtLevelTwo() {
         for ((level, every) in listOf(1 to World.CANDY_EVERY, 2 to World.CANDY_EVERY_2)) {
-            val w = world(Hero.BEAST)
+            val w = world(Hero.BULL)
             w.perks[Perk.CANDY_RAIN] = level
             w.player.hp = 1
             repeat(every - 1) { takedownKill(w) }
@@ -228,7 +228,7 @@ class HeroTest {
 
     @Test
     fun aceCarriesAnEightRoundMagazine() {
-        for (hero in listOf(Hero.ACE, Hero.BEAST)) {
+        for (hero in listOf(Hero.ACE, Hero.BULL)) {
             val w = world(hero, silent = false)
             assertEquals(if (hero == Hero.ACE) 8 else 6, w.player.magSize)
             assertEquals(w.player.magSize, w.player.ammo)
@@ -257,7 +257,7 @@ class HeroTest {
     @Test
     fun aceHasAQuickTrigger() {
         val gaps = HashMap<Hero, Float>()
-        for (hero in listOf(Hero.ACE, Hero.BEAST)) {
+        for (hero in listOf(Hero.ACE, Hero.BULL)) {
             val w = world(hero, silent = false)
             w.player.x = 1f
             w.player.facing = 1
@@ -274,7 +274,7 @@ class HeroTest {
             assertTrue("$hero fired twice", times.size >= 2)
             gaps[hero] = times[1] - times[0]
         }
-        assertEquals(World.GUN_COOLDOWN, gaps.getValue(Hero.BEAST), 2 * dt)
+        assertEquals(World.GUN_COOLDOWN, gaps.getValue(Hero.BULL), 2 * dt)
         assertEquals(World.GUN_COOLDOWN * 0.85f, gaps.getValue(Hero.ACE), 2 * dt)
     }
 
@@ -292,10 +292,10 @@ class HeroTest {
 
     @Test
     fun guardsAreSlowToReactToAceAndSlowerStillInDisguise() {
-        val beast = reaction(Hero.BEAST)
+        val bull = reaction(Hero.BULL)
         val ace = reaction(Hero.ACE)
         val disguised = reaction(Hero.ACE, disguise = true)
-        assertTrue("beast $beast", beast in 0.79f..1.21f)
+        assertTrue("bull $bull", bull in 0.79f..1.21f)
         assertTrue("ace $ace", ace in 1.35f * 0.79f..1.35f * 1.21f)
         assertTrue("disguised $disguised", disguised in 2.7f * 0.79f..2.7f * 1.21f)
         assertEquals(2.7f, world(Hero.ACE).also { it.perks[Perk.DISGUISE] = 1 }.reactionScale, 1e-4f)
@@ -476,7 +476,7 @@ class HeroTest {
 
     @Test
     fun viperGlidesInTheBoxUnsuspected() {
-        for (hero in listOf(Hero.VIPER, Hero.BEAST)) {
+        for (hero in listOf(Hero.VIPER, Hero.BULL)) {
             val w = world(hero)
             w.player.x = 3f
             w.player.state = PlayerState.BOX
@@ -496,7 +496,7 @@ class HeroTest {
     @Test
     fun viperUnplugsDronesAndTurretsByHandQuietly() {
         for (kind in listOf(EnemyKind.DRONE, EnemyKind.TURRET)) {
-            for (hero in listOf(Hero.VIPER, Hero.BEAST)) {
+            for (hero in listOf(Hero.VIPER, Hero.BULL)) {
                 val w = world(hero)
                 w.player.x = 4f
                 w.player.facing = 1
@@ -525,7 +525,7 @@ class HeroTest {
 
     @Test
     fun guardsSpotViperFromCloserInSilent() {
-        for (hero in listOf(Hero.VIPER, Hero.BEAST)) {
+        for (hero in listOf(Hero.VIPER, Hero.BULL)) {
             val w = world(hero, silent = true)
             w.floor(w.player.floor)!!.halls.forEach { it.lightAlive.fill(true) }
             w.player.x = 2f

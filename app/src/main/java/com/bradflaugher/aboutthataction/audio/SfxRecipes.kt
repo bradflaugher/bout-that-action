@@ -849,7 +849,7 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
     fun gameOverStinger(hero: Hero?) {
         gameOverStinger()
         when (hero) {
-            Hero.BEAST -> {
+            Hero.BULL -> {
                 // Sad trombone: three falling "wah"s and a long, wobbling fourth.
                 for (k in 0 until 4) voice {
                     val last = k == 3
