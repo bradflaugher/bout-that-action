@@ -1,8 +1,8 @@
 # <img src="docs/screenshots/icon.png" alt="" height="44" align="top"> 'Bout That Action
 
-An endless, portrait-only Android action game. It's a hyper-modern, neon-noir
-take on the arcade classic **Elevator Action**, with a little **Metal Gear
-Solid** cardboard box mixed in. A helicopter drops you on the roof of a
+An endless, portrait-only Android action game: a hyper-modern, neon-noir
+spy caper in the spirit of the 80s arcade, with a cardboard box to hide in.
+A helicopter drops you on the roof of a
 skyscraper. Then you go down, and down, and down: through the tower, under
 the city, through the Earth's crust and the magma core, into **Hell**, and
 past it into a Void where anything goes.

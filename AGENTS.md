@@ -1,8 +1,8 @@
 # Agent and contributor instructions
 
 'Bout That Action is an endless, portrait-only
-Android action game: a stylized, hyper-modern take on Elevator Action with
-Metal Gear Solid box hiding. Sideloaded, and headed for Google Play
+Android action game: a stylized, hyper-modern elevator spy caper with
+cardboard-box hiding. Sideloaded, and headed for Google Play
 (`docs/PLAY_STORE.md`). Read `README.md` for the
 player-facing overview and keep it in sync with any behavior you change.
 

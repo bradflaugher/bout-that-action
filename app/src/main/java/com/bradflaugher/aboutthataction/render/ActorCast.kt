@@ -311,7 +311,7 @@ internal class ActorCast(
         }
     }
 
-    /** Is [e] a guard coming over to check out the player's box (the MGS double-take)? */
+    /** Is [e] a guard coming over to check out the player's box (the double-take)? */
     private fun boxWatch(e: Enemy): Boolean {
         val pl = f.w.player
         if (pl.state != com.bradflaugher.aboutthataction.engine.PlayerState.BOX) return false
