@@ -198,9 +198,10 @@ class GestureInput(density: Float) {
                     return
                 }
                 // A sideways roll past the slop that was held back from taking the run
-                // over is the same sloppy tap as below, even if the runner lifted first.
-                val roll = f.gated && abs(dx) >= abs(dy) && sloppyTap(f, dx, dy, dt)
-                if (abs(dx) <= slop && abs(dy) <= slop && dt < TAP_MS || roll) tap()
+                // over is judged like one that became a run (the sloppy tap below), even
+                // if the runner lifted first or the finger came back.
+                val clean = abs(dx) <= slop && abs(dy) <= slop && dt < TAP_MS
+                if (if (f.gated) sloppyTap(f, dx, dy, dt) else clean) tap()
             }
             Mode.HELD -> {
                 // A quick jab that barely slid past the run slop was a tap with a

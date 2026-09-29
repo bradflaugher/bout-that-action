@@ -296,6 +296,20 @@ class GestureInputTest {
     }
 
     @Test
+    fun aHeldBackDragThatComesBackIsNotATap() {
+        // 19 dp sideways (gated, not a takeover), then back home and lifted: a
+        // repositioned thumb, not a door tap.
+        g.down(0, 200f, 1800f, 0)
+        drag(0, 200f, 1800f, 300f, 1800f, 0)
+        g.down(1, 900f, 1700f, 100)
+        val t = drag(1, 900f, 1700f, 957f, 1700f, 100, steps = 4)
+        drag(1, 957f, 1700f, 902f, 1700f, t, steps = 4)
+        g.up(1, 902f, 1700f, 180)
+        assertEquals(emptyList<Command>(), commands())
+        assertEquals(1, g.moveAxis)
+    }
+
+    @Test
     fun theOtherThumbDriftingAfterItsJumpDoesntStealTheRun() {
         g.down(0, 200f, 1800f, 0)
         drag(0, 200f, 1800f, 300f, 1800f, 0)
