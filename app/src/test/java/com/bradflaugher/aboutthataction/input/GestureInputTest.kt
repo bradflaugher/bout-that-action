@@ -206,6 +206,155 @@ class GestureInputTest {
     }
 
     @Test
+    fun flickUpAndBackwardsThenRestingDoesntReverseTheRun() {
+        // A thumb's jump arcs back toward the palm, then settles. The backward
+        // drift during the flick must not count once the thumb comes to rest.
+        g.down(0, 300f, 1500f, 0)
+        var t = drag(0, 300f, 1500f, 420f, 1500f, 0)
+        t = drag(0, 420f, 1500f, 330f, 1320f, t, steps = 10)
+        assertEquals(listOf(Command.SWIPE_UP), commands())
+        for (i in 1..10) { t += 8; g.move(0, 330f, 1320f, t) } // resting
+        assertEquals(1, g.moveAxis)
+        // A tiny sideways settle at the end of the stroke isn't a turn either.
+        for (i in 1..6) { t += 8; g.move(0, 330f - i * 2f, 1320f, t) }
+        assertEquals(1, g.moveAxis)
+    }
+
+    @Test
+    fun theThumbReturningFromAJumpDoesntReverseTheRun() {
+        // Up, then back down to where it rested, drifting backwards both ways.
+        g.down(0, 300f, 1500f, 0)
+        var t = drag(0, 300f, 1500f, 420f, 1500f, 0)
+        t = drag(0, 420f, 1500f, 390f, 1360f, t, steps = 6)
+        assertEquals(listOf(Command.SWIPE_UP), commands())
+        t = drag(0, 390f, 1360f, 360f, 1490f, t + 120, steps = 12)
+        for (i in 1..10) { t += 8; g.move(0, 360f, 1490f, t) }
+        assertEquals(emptyList<Command>(), commands())
+        assertEquals(1, g.moveAxis)
+    }
+
+    @Test
+    fun aSlowVerticalWobbleWhileRunningNeverReverses() {
+        // Resettling a held thumb up and back, too slow to flick: still running right.
+        g.down(0, 300f, 1500f, 0)
+        var t = drag(0, 300f, 1500f, 420f, 1500f, 0)
+        for (i in 1..30) { t += 16; g.move(0, 420f - i * 2f, 1500f - i * 3f, t) }
+        for (i in 1..10) { t += 8; g.move(0, 360f, 1410f, t) }
+        assertEquals(emptyList<Command>(), commands())
+        assertEquals(1, g.moveAxis)
+    }
+
+    @Test
+    fun aDeliberateTurnAfterAJumpStillReverses() {
+        g.down(0, 300f, 1500f, 0)
+        var t = drag(0, 300f, 1500f, 420f, 1500f, 0)
+        t = drag(0, 420f, 1500f, 425f, 1390f, t, steps = 6)
+        assertEquals(listOf(Command.SWIPE_UP), commands())
+        drag(0, 425f, 1390f, 370f, 1392f, t + 50, steps = 6)
+        assertEquals(-1, g.moveAxis)
+    }
+
+    @Test
+    fun jumpingWithTheOtherThumbNeverStealsTheRun() {
+        // Running right with one thumb; the other lands, rolls a little sideways
+        // (past the run slop) and flicks up. Its "run" was just the flick's
+        // wind-up: the first thumb keeps steering, in the air and after.
+        g.down(0, 200f, 1800f, 0)
+        drag(0, 200f, 1800f, 300f, 1800f, 0)
+        g.down(1, 900f, 1700f, 100)
+        var t = drag(1, 900f, 1700f, 860f, 1695f, 100, steps = 4)
+        t = drag(1, 860f, 1695f, 855f, 1560f, t, steps = 5)
+        assertEquals(listOf(Command.SWIPE_UP), commands())
+        assertEquals(1, g.moveAxis)
+        for (i in 1..10) { t += 8; g.move(1, 855f, 1560f, t) }
+        assertEquals(1, g.moveAxis)
+        g.up(1, 855f, 1560f, t + 8)
+        assertEquals(1, g.moveAxis)
+    }
+
+    @Test
+    fun aSloppyTapWhileTheOtherThumbRunsStillTaps() {
+        // Past the run slop but short of the takeover distance: still a tap.
+        g.down(0, 200f, 1800f, 0)
+        drag(0, 200f, 1800f, 300f, 1800f, 0)
+        g.down(1, 900f, 1700f, 100)
+        drag(1, 900f, 1700f, 942f, 1702f, 100, steps = 4) // 14 dp
+        g.up(1, 942f, 1702f, 140)
+        assertEquals(listOf(Command.TAP), commands())
+        assertEquals(1, g.moveAxis)
+    }
+
+    @Test
+    fun aSloppyTapStillTapsIfTheRunningThumbLiftsFirst() {
+        g.down(0, 200f, 1800f, 0)
+        drag(0, 200f, 1800f, 300f, 1800f, 0)
+        g.down(1, 900f, 1700f, 100)
+        drag(1, 900f, 1700f, 942f, 1702f, 100, steps = 4) // 14 dp
+        g.up(0, 300f, 1800f, 135)
+        g.up(1, 942f, 1702f, 140)
+        assertEquals(listOf(Command.TAP), commands())
+    }
+
+    @Test
+    fun aHeldBackDragThatComesBackIsNotATap() {
+        // 19 dp sideways (gated, not a takeover), then back home and lifted: a
+        // repositioned thumb, not a door tap.
+        g.down(0, 200f, 1800f, 0)
+        drag(0, 200f, 1800f, 300f, 1800f, 0)
+        g.down(1, 900f, 1700f, 100)
+        val t = drag(1, 900f, 1700f, 957f, 1700f, 100, steps = 4)
+        drag(1, 957f, 1700f, 902f, 1700f, t, steps = 4)
+        g.up(1, 902f, 1700f, 180)
+        assertEquals(emptyList<Command>(), commands())
+        assertEquals(1, g.moveAxis)
+    }
+
+    @Test
+    fun aHeldBackDragThatComesBackIsNotAFlickOnLift() {
+        // 19 dp sideways (held back), back home, then lifted with a 14 dp vertical
+        // slip: a repositioned thumb, not a jump.
+        g.down(0, 200f, 1800f, 0)
+        drag(0, 200f, 1800f, 300f, 1800f, 0)
+        g.down(1, 900f, 1700f, 100)
+        val t = drag(1, 900f, 1700f, 957f, 1700f, 100, steps = 4)
+        drag(1, 957f, 1700f, 902f, 1700f, t, steps = 4)
+        g.up(1, 902f, 1658f, 180)
+        assertEquals(emptyList<Command>(), commands())
+        assertEquals(1, g.moveAxis)
+    }
+
+    @Test
+    fun theOtherThumbDriftingAfterItsJumpDoesntStealTheRun() {
+        g.down(0, 200f, 1800f, 0)
+        drag(0, 200f, 1800f, 300f, 1800f, 0)
+        g.down(1, 900f, 1700f, 100)
+        var t = drag(1, 900f, 1700f, 902f, 1560f, 100, steps = 5)
+        assertEquals(listOf(Command.SWIPE_UP), commands())
+        // 18 dp sideways follow-through: past the restart distance, short of a takeover.
+        t = drag(1, 902f, 1560f, 848f, 1562f, t, steps = 6)
+        assertEquals(1, g.moveAxis)
+        // A real drag still takes over.
+        drag(1, 848f, 1562f, 780f, 1564f, t, steps = 6)
+        assertEquals(-1, g.moveAxis)
+    }
+
+    @Test
+    fun aShortQuickVerticalJabIsNotATap() {
+        // 12 dp down in 100 ms: short of a flick, but never a door tap either.
+        g.down(0, 500f, 1500f, 0)
+        g.move(0, 500f, 1518f, 50)
+        g.up(0, 500f, 1536f, 100)
+        assertEquals(emptyList<Command>(), commands())
+        // Same while another thumb is running.
+        g.down(1, 200f, 1800f, 200)
+        drag(1, 200f, 1800f, 300f, 1800f, 200)
+        g.down(0, 900f, 1500f, 300)
+        g.move(0, 900f, 1518f, 350)
+        g.up(0, 900f, 1536f, 400)
+        assertEquals(emptyList<Command>(), commands())
+    }
+
+    @Test
     fun aFingerThatFlickedCanDragIntoARun() {
         g.down(0, 500f, 1500f, 0)
         var t = drag(0, 500f, 1500f, 505f, 1380f, 0, steps = 5)

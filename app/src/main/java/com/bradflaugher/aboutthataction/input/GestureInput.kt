@@ -34,6 +34,7 @@ class GestureInput(density: Float) {
     private val flickMidRunDist = FLICK_MID_RUN_DP * density
     private val reverseDist = REVERSE_DP * density
     private val restartDist = RESTART_DP * density
+    private val takeoverDist = TAKEOVER_DP * density
 
     private enum class Mode {
         /** Down, not yet classified: could still be a tap, a flick or a run. */
@@ -132,7 +133,17 @@ class GestureInput(density: Float) {
                 if (abs(dy) > flickDist && abs(wdy) > flickDist && abs(dy) > abs(dx)) {
                     flick(f, dy, x, y, t)
                 } else if (abs(dx) > slop && abs(dx) >= abs(dy)) {
-                    startRun(f, if (dx > 0) 1 else -1, x)
+                    // While another thumb is running, a new finger has to mean it to take
+                    // over: a jump thumb that lands with a little sideways roll is a flick.
+                    // Short of that it rests (held, standing), like a thumb after a flick:
+                    // it can still flick, drag on into a takeover, or lift as a sloppy tap.
+                    if (moveAxis == 0 || abs(dx) > takeoverDist) {
+                        startRun(f, if (dx > 0) 1 else -1, x)
+                    } else {
+                        f.mode = Mode.HELD
+                        f.dir = 0
+                        f.restX = f.downX
+                    }
                 } else if (abs(dy) > flickDist) {
                     // A slow vertical slide is a thumb settling, not a flick: it becomes
                     // a resting finger that can still flick or drag into a run.
@@ -150,19 +161,21 @@ class GestureInput(density: Float) {
                 // Steeper than 45° right now: a vertical stroke.
                 val vertical = abs(rdy) > abs(rdx)
                 if (f.dir == 0) {
-                    // Standing after a flick: a clear sideways drag starts a run.
+                    // Standing after a flick: a clear sideways drag starts a run. While
+                    // another thumb is running, taking it over needs the takeover distance.
                     val rx = x - f.restX
-                    if (abs(rx) > restartDist && !vertical) startRun(f, if (rx > 0) 1 else -1, x)
-                } else {
+                    val need = if (moveAxis != 0) maxOf(restartDist, takeoverDist) else restartDist
+                    if (abs(rx) > need && !vertical) startRun(f, if (rx > 0) 1 else -1, x)
+                } else if (vertical || f.dir * (x - f.extreme) > 0f) {
+                    // Track the furthest point. During a vertical stroke (a flick, its
+                    // follow-through, the thumb springing back or resettling) the mark
+                    // follows the thumb back too: that drift is forgiven, not saved up
+                    // to flip the run the moment the stroke stops.
+                    f.extreme = x
+                } else if (f.dir * (f.extreme - x) > reverseDist) {
                     // Instant reversal: back off the furthest point by a few dp.
-                    // A vertical stroke (a flick on its way) never reverses the run.
-                    if (f.dir > 0) {
-                        if (x > f.extreme) f.extreme = x
-                        if (x < f.extreme - reverseDist && !vertical) { f.dir = -1; f.extreme = x }
-                    } else {
-                        if (x < f.extreme) f.extreme = x
-                        if (x > f.extreme + reverseDist && !vertical) { f.dir = 1; f.extreme = x }
-                    }
+                    f.dir = -f.dir
+                    f.extreme = x
                 }
                 // A vertical flick while held: jump / hide without lifting.
                 if (t >= f.flickCooldownUntil && w != null) {
@@ -192,10 +205,9 @@ class GestureInput(density: Float) {
                 if (abs(dx) <= slop && abs(dy) <= slop && dt < TAP_MS) tap()
             }
             Mode.HELD -> {
-                // A quick jab that barely slid past the run slop was a tap with a
-                // rolling thumb, not a deliberate step: a tap.
-                val travel = maxOf(f.maxTravel, abs(dx), abs(dy))
-                if (f.lastFlick == 0 && dt < SLOPPY_TAP_MS && travel <= sloppyTapDist) tap()
+                // A quick jab that barely slid past the run slop (into a run, or held
+                // back from taking one over) was a tap with a rolling thumb: a tap.
+                if (f.lastFlick == 0 && sloppyTap(f, dx, dy, dt)) tap()
             }
         }
     }
@@ -220,6 +232,9 @@ class GestureInput(density: Float) {
     fun drain(sink: (Command) -> Unit) {
         while (pending.isNotEmpty()) sink(pending.removeFirst())
     }
+
+    private fun sloppyTap(f: Finger, dx: Float, dy: Float, dt: Long) =
+        dt < SLOPPY_TAP_MS && maxOf(f.maxTravel, abs(dx), abs(dy)) <= sloppyTapDist
 
     private fun startRun(f: Finger, dir: Int, x: Float) {
         f.mode = Mode.HELD
@@ -267,6 +282,8 @@ class GestureInput(density: Float) {
         const val REVERSE_DP = 12f
         /** Sideways drag that turns a standing (post-flick) finger into a run. */
         const val RESTART_DP = 14f
+        /** Sideways drag before a new finger takes the run over from one already running. */
+        const val TAKEOVER_DP = 22f
         const val TAP_MS = 300L
         private const val HISTORY = 64
     }
