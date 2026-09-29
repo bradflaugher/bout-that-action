@@ -51,8 +51,6 @@ class GestureInput(density: Float) {
         var restX = downX
         /** Furthest the finger ever got from where it went down (for sloppy taps). */
         var maxTravel = 0f
-        /** Slid past the run slop but was held back by another finger's run (takeover gate). */
-        var gated = false
         var flickCooldownUntil = 0L
         /** After a flick, the thumb springing back must not count as the opposite flick. */
         var lastFlick = 0
@@ -137,8 +135,15 @@ class GestureInput(density: Float) {
                 } else if (abs(dx) > slop && abs(dx) >= abs(dy)) {
                     // While another thumb is running, a new finger has to mean it to take
                     // over: a jump thumb that lands with a little sideways roll is a flick.
-                    if (moveAxis == 0 || abs(dx) > takeoverDist) startRun(f, if (dx > 0) 1 else -1, x)
-                    else f.gated = true
+                    // Short of that it rests (held, standing), like a thumb after a flick:
+                    // it can still flick, drag on into a takeover, or lift as a sloppy tap.
+                    if (moveAxis == 0 || abs(dx) > takeoverDist) {
+                        startRun(f, if (dx > 0) 1 else -1, x)
+                    } else {
+                        f.mode = Mode.HELD
+                        f.dir = 0
+                        f.restX = f.downX
+                    }
                 } else if (abs(dy) > flickDist) {
                     // A slow vertical slide is a thumb settling, not a flick: it becomes
                     // a resting finger that can still flick or drag into a run.
@@ -197,15 +202,11 @@ class GestureInput(density: Float) {
                     flick(f, dy, x, y, t)
                     return
                 }
-                // A sideways roll past the slop that was held back from taking the run
-                // over is judged like one that became a run (the sloppy tap below), even
-                // if the runner lifted first or the finger came back.
-                val clean = abs(dx) <= slop && abs(dy) <= slop && dt < TAP_MS
-                if (if (f.gated) sloppyTap(f, dx, dy, dt) else clean) tap()
+                if (abs(dx) <= slop && abs(dy) <= slop && dt < TAP_MS) tap()
             }
             Mode.HELD -> {
-                // A quick jab that barely slid past the run slop was a tap with a
-                // rolling thumb, not a deliberate step: a tap.
+                // A quick jab that barely slid past the run slop (into a run, or held
+                // back from taking one over) was a tap with a rolling thumb: a tap.
                 if (f.lastFlick == 0 && sloppyTap(f, dx, dy, dt)) tap()
             }
         }

@@ -310,6 +310,20 @@ class GestureInputTest {
     }
 
     @Test
+    fun aHeldBackDragThatComesBackIsNotAFlickOnLift() {
+        // 19 dp sideways (held back), back home, then lifted with a 14 dp vertical
+        // slip: a repositioned thumb, not a jump.
+        g.down(0, 200f, 1800f, 0)
+        drag(0, 200f, 1800f, 300f, 1800f, 0)
+        g.down(1, 900f, 1700f, 100)
+        val t = drag(1, 900f, 1700f, 957f, 1700f, 100, steps = 4)
+        drag(1, 957f, 1700f, 902f, 1700f, t, steps = 4)
+        g.up(1, 902f, 1658f, 180)
+        assertEquals(emptyList<Command>(), commands())
+        assertEquals(1, g.moveAxis)
+    }
+
+    @Test
     fun theOtherThumbDriftingAfterItsJumpDoesntStealTheRun() {
         g.down(0, 200f, 1800f, 0)
         drag(0, 200f, 1800f, 300f, 1800f, 0)
