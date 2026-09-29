@@ -421,6 +421,67 @@ class StealthAndEventsTest {
         assertTrue(g.alive)
     }
 
+    /** Somewhere in the player's hallway with no doorway within [clear] u: swipe ↓ pops the box. */
+    private fun openFloor(w: World, clear: Float = 1.6f, room: Float = 0f): Float {
+        val doors = w.floor(w.player.floor)!!.hall(w.player.hall).plan.doors
+        return (10..130).map { it / 10f }.first { x -> x + room < Geo.FLOOR_W - 0.8f && doors.all { abs(it.x - x) > clear } }
+    }
+
+    /** A guard [gap] u to the right of the player, already on to him and looking (no warm-up run). */
+    private fun watching(w: World, kind: EnemyKind, gap: Float): Enemy {
+        val g = enemy(w, kind, w.player.x + gap, facing = -1)
+        g.patrolA = g.x
+        g.patrolB = g.x
+        g.state = EnemyState.ALERT
+        g.eyesOn = true
+        return g
+    }
+
+    @Test
+    fun boxingUpRightUnderAWatchingGuardsNoseIsNoAmbush() {
+        val w = world()
+        w.player.x = openFloor(w, room = 1f)
+        // Inside takedown reach: the box must not turn into a free BOX'D.
+        val g = watching(w, EnemyKind.AGENT, 0.75f)
+        w.commands += Command.SWIPE_DOWN
+        run(w, 0.5f) { it.player.invuln = 99f }
+        assertTrue(g.alive)
+        assertEquals(0, w.stats.boxAmbushes)
+        assertEquals(1, w.stats.foundHiding)
+        assertTrue(w.events.contains(GameEvent.BoxKicked))
+    }
+
+    @Test
+    fun aWatchingGuardJustOutOfReachFindsTheBoxInsteadOfAimingAtIt() {
+        val w = world()
+        w.player.x = openFloor(w, room = 1.5f)
+        // Past takedown reach but inside FIND_REACH: the box stays "seen", so no SEARCH ever comes.
+        val g = watching(w, EnemyKind.AGENT, 1.0f)
+        w.commands += Command.SWIPE_DOWN
+        run(w, 0.5f) { it.player.invuln = 99f }
+        assertTrue(g.alive)
+        assertEquals(1, w.stats.foundHiding)
+        assertFalse(w.player.hidden)
+    }
+
+    @Test
+    fun aSlowDroneThatWatchedYouHideFromAfarStillGetsThere() {
+        val w = world()
+        val door = normalDoor(w)
+        w.player.x = door.x
+        // As far off as a drone can see you: slow, but it doesn't give up on the way.
+        val gx = if (door.x < 7f) door.x + 9f else door.x - 9f
+        val d = enemy(w, EnemyKind.DRONE, gx, facing = if (gx > door.x) -1 else 1)
+        d.state = EnemyState.ALERT
+        d.eyesOn = true
+        w.commands += Command.SWIPE_DOWN
+        run(w, 0.05f) { it.player.invuln = 99f }
+        assertEquals(PlayerState.DOOR, w.player.state)
+        assertTrue(d.sawHide)
+        run(w, 30f) { it.player.invuln = 99f }
+        assertEquals(1, w.stats.foundHiding)
+    }
+
     @Test
     fun aGuardWhoNeverSawYouHideWalksRightPast() {
         val w = world()

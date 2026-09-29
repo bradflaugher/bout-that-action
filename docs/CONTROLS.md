@@ -212,11 +212,13 @@ look, sleepers included ("HUH?", a SEARCH at the lamp, not an alert): a lure.
 
 **Seen hiding.** A guard who is already on to you (ALERT or aiming) and has
 you in sight the moment you hide marks the spot (`sawHide`). He holds his
-alert, then searches his way over; within 1.1 u (`FIND_REACH`) he finds you:
-out of the doorway ("FOUND YOU!") or the box kicked off, and he's on you.
-Walking up to a box he saw you climb into, he never blunders into a BOX'D.
-Guards who didn't see you go are fooled as ever. Stepping out, or leaving the
-hallway, calls it off.
+alert, then searches his way over (however far, with no search time-out on
+the way); within 1.1 u (`FIND_REACH`), alert, aiming or searching, he finds
+you: out of the doorway ("FOUND YOU!") or the box kicked off, and you're
+shoved clear of his reach (`FOUND_SHOVE`), so there's no free choke. Even
+point-blank, a box he saw you climb into is never a BOX'D. Guards who didn't
+see you go are fooled as ever. Stepping out, or leaving the hallway, calls it
+off.
 
 **Locked stashes.** A STASH door is LOCKED (red plate, no glow, no tap chip)
 while any guard in your hallway is hunting or searching for you. A tap on it

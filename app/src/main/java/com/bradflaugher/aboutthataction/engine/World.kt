@@ -924,6 +924,11 @@ class World(val config: RunConfig) {
             fx.text(Popup.FOUND_YOU, e.x, Geo.groundY(e.floor) - e.height - 0.9f, TextStyle.WARN, 0.8f)
             alert(e)
         }
+        // Hauled out and shoved clear: no choking him out the instant he's found you.
+        val away = if (p.x >= e.x) 1 else -1
+        val clear = e.x + away * (FOUND_SHOVE + e.halfWidth + 0.3f * stacks(Perk.CQC))
+        if ((clear - p.x) * away > 0f) p.x = clear.coerceIn(0.35f, Geo.FLOOR_W - 0.35f)
+        p.vx = 0f
     }
 
     private fun stepOut() {
@@ -1217,9 +1222,13 @@ class World(val config: RunConfig) {
                 }
                 continue
             }
-            // A ninja who came over to check a suspicious box isn't falling for it, and nor is
-            // anyone who watched you climb in.
-            if (p.state == PlayerState.BOX && e.state == EnemyState.SEARCH && (e.kind == EnemyKind.NINJA || e.sawHide)) {
+            // Anyone who watched you climb in isn't walking into an ambush, however close he is.
+            if (p.state == PlayerState.BOX && e.sawHide) {
+                foundHiding(e)
+                return
+            }
+            // A ninja who came over to check a suspicious box isn't falling for it.
+            if (p.state == PlayerState.BOX && e.state == EnemyState.SEARCH && e.kind == EnemyKind.NINJA) {
                 kickBox(e)
                 return
             }
@@ -1969,6 +1978,13 @@ class World(val config: RunConfig) {
             e.eyesOn = sees
             // He saw you hide and you're still in there: he's coming. Once you're out (or gone), it's off.
             if (e.sawHide && !(player.hidden && here(e))) e.sawHide = false
+            // Close enough to the spot: he finds you, whatever he was doing (not mid-slash or dazed).
+            if (e.sawHide && dist < FIND_REACH &&
+                (e.state == EnemyState.ALERT || e.state == EnemyState.AIM || e.state == EnemyState.SEARCH)
+            ) {
+                foundHiding(e)
+                continue
+            }
             val speed = Heat.enemySpeed(heat)
 
             // Drones bob and drift to a comfortable firing distance.
@@ -2069,12 +2085,11 @@ class World(val config: RunConfig) {
                         e.vx = 0f
                         e.timer -= dt
                     }
-                    if (e.sawHide && dist < FIND_REACH) {
-                        foundHiding(e)
-                    } else if (sees) {
+                    if (sees) {
                         alert(e)
                         e.timer *= 0.5f
-                    } else if (e.timer <= 0f || e.stateTime > SEARCH_MAX) {
+                    } else if (e.timer <= 0f || e.stateTime > SEARCH_MAX && !e.sawHide) {
+                        // (He saw where you went: no giving up on the way, only once he's looked.)
                         e.sawHide = false
                         e.state = EnemyState.PATROL
                         e.stateTime = 0f
@@ -2639,6 +2654,8 @@ class World(val config: RunConfig) {
         const val SEARCH_LINGER = 3.5f
         /** A guard who saw you hide finds you once he's this close to the spot. */
         const val FIND_REACH = 1.1f
+        /** How far past his reach being found shoves you (more than the 0.55 u takedown reach). */
+        const val FOUND_SHOVE = 0.75f
         /** ...or after this long in all, however far he had to walk. */
         const val SEARCH_MAX = 9f
         /**
