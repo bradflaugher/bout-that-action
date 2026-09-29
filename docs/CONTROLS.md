@@ -211,14 +211,16 @@ The crash of glass brings every guard within 7 u (`LIGHT_LURE_RADIUS`) over to
 look, sleepers included ("HUH?", a SEARCH at the lamp, not an alert): a lure.
 
 **Seen hiding.** A guard who is already on to you (ALERT or aiming) and has
-you in sight the moment you hide marks the spot (`sawHide`). He holds his
-alert, then searches his way over (however far, with no search time-out on
-the way); within 1.1 u (`FIND_REACH`), alert, aiming or searching, he finds
-you: out of the doorway ("FOUND YOU!") or the box kicked off, and you're
-shoved clear of his reach (`FOUND_SHOVE`), so there's no free choke. Even
-point-blank, a box he saw you climb into is never a BOX'D. Guards who didn't
-see you go are fooled as ever. Stepping out, or leaving the hallway, calls it
-off.
+you in sight the moment you hide marks the spot (`sawHide`). He stops shooting
+at you, holds for 0.8 s (`SEEN_HIDE_HOLD`, your window to slip away), then
+walks straight over, however far, with no search time-out on the way. Once
+he's within 1.1 u (`FIND_REACH`) he finds you, checked first thing every step
+(`resolveSeenHides`), before any takedown: out of the doorway ("FOUND YOU!")
+or the box kicked off. While you're hidden he's never a takedown or SABOTAGE
+target, and being found leaves you clear of each other's reach (against a
+wall, he's the one who steps back), so there's no free choke. Guards who
+didn't see you go are fooled as ever. Stepping out, or leaving the hallway,
+calls it off.
 
 **Locked stashes.** A STASH door is LOCKED (red plate, no glow, no tap chip)
 while any guard in your hallway is hunting or searching for you. A tap on it

@@ -434,6 +434,8 @@ class StealthAndEventsTest {
         g.patrolB = g.x
         g.state = EnemyState.ALERT
         g.eyesOn = true
+        // Gun ready: if he were going to shoot at you, he would.
+        g.timer = 0f
         return g
     }
 
@@ -479,6 +481,75 @@ class StealthAndEventsTest {
         assertEquals(PlayerState.DOOR, w.player.state)
         assertTrue(d.sawHide)
         run(w, 30f) { it.player.invuln = 99f }
+        assertEquals(1, w.stats.foundHiding)
+    }
+
+    @Test
+    fun duckingIntoADoorwayRightUnderAWatchingGuardsNoseIsNoFreeChoke() {
+        val w = world()
+        val door = normalDoor(w)
+        w.player.x = door.x
+        val g = watching(w, EnemyKind.AGENT, if (door.x < 7f) 0.5f else -0.5f)
+        w.commands += Command.SWIPE_DOWN
+        run(w, 0.3f) { it.player.invuln = 99f }
+        assertTrue(g.alive)
+        assertEquals(1, w.stats.foundHiding)
+        assertFalse(w.player.hidden)
+    }
+
+    @Test
+    fun aWatchingGuardInTheBoxStillSeesRangeComesOverInsteadOfShootingTheBox() {
+        for (kind in listOf(EnemyKind.AGENT, EnemyKind.HEAVY)) {
+            val w = world()
+            w.player.x = openFloor(w, room = 2f)
+            // 1.1–1.8 u: inside the "still sees the box" range, outside FIND_REACH.
+            val g = watching(w, kind, 1.5f)
+            w.commands += Command.SWIPE_DOWN
+            // Shots at the box, i.e. before he finds you (after that he's fair game to shoot at you).
+            var shots = 0
+            run(w, 3f) {
+                it.player.invuln = 99f
+                if (it.stats.foundHiding == 0) shots = it.events.count { ev -> ev is GameEvent.Shot && !ev.byPlayer }
+            }
+            assertTrue("$kind", g.alive)
+            assertEquals("$kind finds you", 1, w.stats.foundHiding)
+            assertEquals("$kind never fires at the box", 0, shots)
+        }
+    }
+
+    @Test
+    fun foundAgainstTheWallYouStillEndUpClearOfHisReach() {
+        val w = world()
+        val doors = w.floor(w.player.floor)!!.hall(w.player.hall).plan.doors
+        // Whichever wall has no doorway beside it (so swipe ↓ pops the box).
+        val left = doors.all { it.x > 2.5f }
+        check(left || doors.all { it.x < Geo.FLOOR_W - 2.5f }) { "doorways by both walls" }
+        w.player.x = if (left) 0.35f else Geo.FLOOR_W - 0.35f
+        val g = enemy(w, EnemyKind.AGENT, if (left) 0.6f else Geo.FLOOR_W - 0.6f, facing = if (left) -1 else 1)
+        g.patrolA = g.x
+        g.patrolB = g.x
+        g.state = EnemyState.ALERT
+        g.eyesOn = true
+        w.commands += Command.SWIPE_DOWN
+        run(w, 0.05f) { it.player.invuln = 99f }
+        assertEquals(1, w.stats.foundHiding)
+        assertTrue("no free choke at the wall", g.alive)
+        assertTrue(abs(g.x - w.player.x) > 0.55f + g.halfWidth)
+    }
+
+    @Test
+    fun viperCantUnplugADroneThatWatchedHimBoxUp() {
+        val w = World(RunConfig(11L, Difficulty(startFloor = 3), silent = true, hero = Hero.VIPER))
+        run(w, 1.5f)
+        w.enemies.clear()
+        w.bullets.clear()
+        w.floor(w.player.floor)!!.halls.forEach { it.spawnTimer = 999f }
+        w.player.x = openFloor(w, room = 1f)
+        val d = watching(w, EnemyKind.DRONE, 0.5f)
+        w.commands += Command.SWIPE_DOWN
+        run(w, 0.3f) { it.player.invuln = 99f }
+        assertTrue(d.alive)
+        assertEquals(0, w.stats.unplugged)
         assertEquals(1, w.stats.foundHiding)
     }
 
