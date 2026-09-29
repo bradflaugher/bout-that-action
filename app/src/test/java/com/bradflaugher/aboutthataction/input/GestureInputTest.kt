@@ -285,6 +285,37 @@ class GestureInputTest {
     }
 
     @Test
+    fun theOtherThumbDriftingAfterItsJumpDoesntStealTheRun() {
+        g.down(0, 200f, 1800f, 0)
+        drag(0, 200f, 1800f, 300f, 1800f, 0)
+        g.down(1, 900f, 1700f, 100)
+        var t = drag(1, 900f, 1700f, 902f, 1560f, 100, steps = 5)
+        assertEquals(listOf(Command.SWIPE_UP), commands())
+        // 18 dp sideways follow-through: past the restart distance, short of a takeover.
+        t = drag(1, 902f, 1560f, 848f, 1562f, t, steps = 6)
+        assertEquals(1, g.moveAxis)
+        // A real drag still takes over.
+        drag(1, 848f, 1562f, 780f, 1564f, t, steps = 6)
+        assertEquals(-1, g.moveAxis)
+    }
+
+    @Test
+    fun aShortQuickVerticalJabIsNotATap() {
+        // 12 dp down in 100 ms: short of a flick, but never a door tap either.
+        g.down(0, 500f, 1500f, 0)
+        g.move(0, 500f, 1518f, 50)
+        g.up(0, 500f, 1536f, 100)
+        assertEquals(emptyList<Command>(), commands())
+        // Same while another thumb is running.
+        g.down(1, 200f, 1800f, 200)
+        drag(1, 200f, 1800f, 300f, 1800f, 200)
+        g.down(0, 900f, 1500f, 300)
+        g.move(0, 900f, 1518f, 350)
+        g.up(0, 900f, 1536f, 400)
+        assertEquals(emptyList<Command>(), commands())
+    }
+
+    @Test
     fun aFingerThatFlickedCanDragIntoARun() {
         g.down(0, 500f, 1500f, 0)
         var t = drag(0, 500f, 1500f, 505f, 1380f, 0, steps = 5)

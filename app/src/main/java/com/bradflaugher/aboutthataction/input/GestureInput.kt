@@ -153,9 +153,11 @@ class GestureInput(density: Float) {
                 // Steeper than 45° right now: a vertical stroke.
                 val vertical = abs(rdy) > abs(rdx)
                 if (f.dir == 0) {
-                    // Standing after a flick: a clear sideways drag starts a run.
+                    // Standing after a flick: a clear sideways drag starts a run. While
+                    // another thumb is running, taking it over needs the takeover distance.
                     val rx = x - f.restX
-                    if (abs(rx) > restartDist && !vertical) startRun(f, if (rx > 0) 1 else -1, x)
+                    val need = if (moveAxis != 0) maxOf(restartDist, takeoverDist) else restartDist
+                    if (abs(rx) > need && !vertical) startRun(f, if (rx > 0) 1 else -1, x)
                 } else if (vertical || f.dir * (x - f.extreme) > 0f) {
                     // Track the furthest point. During a vertical stroke (a flick, its
                     // follow-through, the thumb springing back or resettling) the mark
@@ -192,9 +194,10 @@ class GestureInput(density: Float) {
                     flick(f, dy, x, y, t)
                     return
                 }
-                // A rolling jab past the slop that didn't take the run over (another
+                // A sideways roll past the slop that didn't take the run over (another
                 // thumb is running) is the same sloppy tap as below.
-                if (abs(dx) <= slop && abs(dy) <= slop && dt < TAP_MS || sloppyTap(f, dx, dy, dt)) tap()
+                val roll = moveAxis != 0 && abs(dx) >= abs(dy) && sloppyTap(f, dx, dy, dt)
+                if (abs(dx) <= slop && abs(dy) <= slop && dt < TAP_MS || roll) tap()
             }
             Mode.HELD -> {
                 // A quick jab that barely slid past the run slop was a tap with a
