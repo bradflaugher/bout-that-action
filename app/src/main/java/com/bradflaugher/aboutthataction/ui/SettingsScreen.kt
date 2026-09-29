@@ -216,8 +216,8 @@ fun HowToPlay() {
     val rows = listOf(
         "DRAG ← →" to "Run. Hold to keep going; nudge back to turn. Lift to stop.",
         "SWIPE ↑" to "Jump. Clears low shots. Land on heads to stomp.",
-        "SWIPE ↓" to "Hide in a doorway or pop the cardboard box. Swipe ↓ again to stand up.",
-        "TAP" to "Use what you're next to: a green passage door, a gold STASH door, an elevator (tap a landing to call the car).",
+        "SWIPE ↓" to "Hide in a doorway or pop the cardboard box. Swipe ↓ again to stand up. Hide before they see you: a guard who watches you go comes and finds you.",
+        "TAP" to "Use what you're next to: a green passage door, a gold STASH door (locked while anyone's hunting you), an elevator (tap a landing to call the car).",
         "MODE" to "The button under pause. GUNS HOT auto-fires at threats; SILENT never fires and quiet kills score double. Flip it any time; it sticks between runs.",
         "GRENADE" to "The lime button under the mode button throws one, in either mode. It shows how many you have.",
         "WALK INTO" to "An enemy to choke him out instantly. Heavies only from behind (BEAST tackles them head-on). Nappers from anywhere.",

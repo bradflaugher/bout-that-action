@@ -77,7 +77,7 @@ internal class Effects(private val f: Frame) {
             }
             for (d in plan.doors.indices) {
                 val door = plan.doors[d]
-                if (door.kind != com.bradflaugher.aboutthataction.engine.DoorKind.STASH || fs.stashUsed[d]) continue
+                if (door.kind != com.bradflaugher.aboutthataction.engine.DoorKind.STASH || fs.stashUsed[d] || f.w.stashLocked(fs, d)) continue
                 val pulse = 0.8f + 0.2f * sin(f.t * 3f + d)
                 g.glow(door.x, gy - 1.15f, 1.35f, Col.alpha(0xFFFFB02E.toInt(), 0.1f * pulse))
             }

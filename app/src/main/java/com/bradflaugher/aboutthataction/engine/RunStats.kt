@@ -32,6 +32,10 @@ class RunStats {
     var napTakedowns = 0
     /** Guards who double-took at a box that moved. */
     var suspicions = 0
+    /** Times a guard who watched you hide came over and found you. */
+    var foundHiding = 0
+    /** Taps on a STASH door that was locked by the alert. */
+    var lockedStash = 0
     var stomps = 0
     var lightKills = 0
     var hazardKills = 0

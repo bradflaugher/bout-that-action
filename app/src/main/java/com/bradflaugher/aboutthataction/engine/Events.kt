@@ -58,6 +58,10 @@ sealed interface GameEvent {
     data class Snore(val pan: Float) : GameEvent
     /** A Heavy kicked your box off: busted. */
     data object BoxKicked : GameEvent
+    /** A guard who watched you hide in a doorway pulled you out of it. */
+    data object FoundHiding : GameEvent
+    /** Tapped a STASH door while your hallway is on alert: it won't budge. */
+    data object StashLocked : GameEvent
 }
 
 enum class KillMethod { SHOT, TAKEDOWN, STOMP, LIGHT, EXPLOSION, HAZARD }

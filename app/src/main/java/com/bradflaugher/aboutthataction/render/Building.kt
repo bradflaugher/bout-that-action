@@ -37,6 +37,7 @@ internal class Building(private val f: Frame) {
         /** The STASH: warm amber light and gold trim (a bonus, not a threat). */
         private const val STASH_GLOW = 0xFFFFA828.toInt()
         private const val STASH_GOLD = 0xFFFFD27A.toInt()
+        private const val STASH_LOCKED = 0xFFFF4A5E.toInt()
         /** Wayfinding green: passages to other hallways, and nothing else. */
         const val PASSAGE = 0xFF4CFFA8.toInt()
         /** The lift's cyan (HUD chip, map, plates). */
@@ -240,6 +241,9 @@ internal class Building(private val f: Frame) {
         val stash = d.kind == DoorKind.STASH
         val used = stash && fs.stashUsed[i]
         val live = stash && !used
+        // Locked while your hallway is on alert: the glow goes out and the plate turns red.
+        val locked = live && f.w.stashLocked(fs, i)
+        val lit = live && !locked
         val playerIn = f.playerHiddenInDoor(d.x) || (f.w.player.state == PlayerState.STASH && abs(f.w.player.anchorX - d.x) < 0.05f && f.w.player.floor == fi)
         val open = if (playerIn) 1f else fs.doorOpen[i]
         val pulse = 0.5f + 0.5f * sin(f.t * 3.2f)
@@ -259,7 +263,7 @@ internal class Building(private val f: Frame) {
         }
 
         // A live stash radiates warm gold: halo on the wall, a pool on the floor.
-        if (live) {
+        if (lit) {
             g.fillRadialGradient(d.x, y0 + 1.0f, 1.35f + 0.12f * pulse, 0x48FFA828, 0x00FFA828)
             g.save()
             g.translate(d.x, gy - 0.02f)
@@ -309,7 +313,7 @@ internal class Building(private val f: Frame) {
         }
 
         if (stash) {
-            if (live) {
+            if (lit) {
                 // Light leaking round the leaf and a gold-cored neon outline.
                 val core = 0xFFFFF4D8.toInt()
                 f.glowLine(x0 - 0.045f, y0 - 0.055f, x1 + 0.045f, y0 - 0.055f, 0.035f, STASH_GLOW, core)
@@ -319,15 +323,17 @@ internal class Building(private val f: Frame) {
             }
             // A gold star on the leaf (or floating in the doorway when open).
             val cx = if (lw > 0.5f) x0 + lw / 2f else d.x
-            stashStar(cx, y0 + 0.8f, 0.24f, if (used) 0xFF5A5448.toInt() else STASH_GOLD, live)
+            stashStar(cx, y0 + 0.8f, 0.24f, if (used) 0xFF5A5448.toInt() else if (locked) 0xFF8A6A3A.toInt() else STASH_GOLD, lit)
             // Nameplate.
-            val label = if (used) "EMPTY" else "STASH"
+            val label = if (used) "EMPTY" else if (locked) "LOCKED" else "STASH"
+            val plate = if (used) 0xFF3E3A34.toInt() else if (locked) Col.alpha(STASH_LOCKED, 0.8f) else Col.alpha(STASH_GOLD, 0.8f)
+            val ink = if (used) 0xFF6E685C.toInt() else if (locked) STASH_LOCKED else STASH_GLOW
             val py0 = y0 - 0.5f
             val py1 = y0 - 0.19f
             g.fillRoundRect(d.x - 0.44f, py0, d.x + 0.44f, py1, 0.05f, 0xF00E0C08.toInt())
-            g.strokeRoundRect(d.x - 0.44f, py0, d.x + 0.44f, py1, 0.05f, 0.02f, if (used) 0xFF3E3A34.toInt() else Col.alpha(STASH_GOLD, 0.8f))
-            if (live) f.worldText(label, d.x, py1 - 0.075f, 0.23f, Col.alpha(STASH_GLOW, 0.35f))
-            f.worldText(label, d.x, py1 - 0.08f, 0.21f, if (used) 0xFF6E685C.toInt() else STASH_GLOW)
+            g.strokeRoundRect(d.x - 0.44f, py0, d.x + 0.44f, py1, 0.05f, 0.02f, plate)
+            if (live) f.worldText(label, d.x, py1 - 0.075f, 0.23f, Col.alpha(ink, 0.35f))
+            f.worldText(label, d.x, py1 - 0.08f, if (locked) 0.19f else 0.21f, ink)
         } else {
             // Someone's room beyond: a line of light under some doors.
             if (far) return

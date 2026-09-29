@@ -29,6 +29,8 @@ class Particle(
 object Popup {
     const val HUH = "HUH?"
     const val HEY = "HEY!"
+    const val FOUND_YOU = "FOUND YOU!"
+    const val LOCKED = "LOCKED"
     const val WAKE = "?!"
     const val BONK = "BONK!"
     const val BOXD = "BOX'D!"

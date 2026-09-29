@@ -162,6 +162,10 @@ class Enemy(
     var asleep = false
     /** How long a STUNNED spell lasts (knocked flat, EMP'd, quaked); he comes up alert. */
     var stunFor = 1.5f
+    /** Had you in sight on his last update. */
+    var eyesOn = false
+    /** Watched you duck into a doorway or the box: he knows where you are and comes to get you. */
+    var sawHide = false
 
     val alive: Boolean get() = state != EnemyState.DEAD && state != EnemyState.CHOKED
     val ducking: Boolean get() = state == EnemyState.AIM && aimLow && kind != EnemyKind.DRONE && kind != EnemyKind.TURRET

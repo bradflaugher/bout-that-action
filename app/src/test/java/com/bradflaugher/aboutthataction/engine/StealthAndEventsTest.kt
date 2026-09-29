@@ -362,6 +362,111 @@ class StealthAndEventsTest {
         assertTrue(heavy.alive)
     }
 
+    // ------------------------------------------------------------ no magic hiding
+
+    /** A guard [gap] u from [x], facing it, already on to you. */
+    private fun hunter(w: World, x: Float, gap: Float = 4f): Enemy {
+        val gx = if (x + gap < Geo.FLOOR_W - 0.8f) x + gap else x - gap
+        val g = enemy(w, EnemyKind.AGENT, gx, facing = if (gx > x) -1 else 1)
+        g.patrolA = g.x
+        g.patrolB = g.x
+        run(w, 0.3f) { it.player.invuln = 99f }
+        assertEquals(EnemyState.ALERT, g.state)
+        return g
+    }
+
+    private fun normalDoor(w: World): Door =
+        w.floor(w.player.floor)!!.hall(w.player.hall).plan.doors.first { it.kind == DoorKind.NORMAL }
+
+    @Test
+    fun aGuardWhoWatchedYouDuckIntoADoorwayComesAndPullsYouOut() {
+        val w = world()
+        val door = normalDoor(w)
+        w.player.x = door.x
+        val g = hunter(w, door.x)
+        w.commands += Command.SWIPE_DOWN
+        run(w, 0.05f) { it.player.invuln = 99f }
+        assertEquals(PlayerState.DOOR, w.player.state)
+        assertTrue(g.sawHide)
+        var found = false
+        var said = false
+        run(w, 8f) {
+            it.player.invuln = 99f
+            if (it.events.contains(GameEvent.FoundHiding)) found = true
+            if (texts(it).contains(Popup.FOUND_YOU)) said = true
+        }
+        assertTrue("he walks over and finds you", found)
+        assertEquals(1, w.stats.foundHiding)
+        assertTrue(said)
+        assertFalse(w.player.hidden)
+        assertFalse(g.sawHide)
+    }
+
+    @Test
+    fun aGuardWhoWatchedYouBoxUpKicksItInsteadOfWalkingIntoTheAmbush() {
+        val w = world()
+        val doors = w.floor(w.player.floor)!!.hall(w.player.hall).plan.doors
+        // Somewhere with no doorway to slip into: swipe ↓ pops the box.
+        val x = (10..130).map { it / 10f }.first { x -> doors.all { abs(it.x - x) > 1.6f } }
+        w.player.x = x
+        val g = hunter(w, x)
+        w.commands += Command.SWIPE_DOWN
+        run(w, 0.05f) { it.player.invuln = 99f }
+        assertEquals(PlayerState.BOX, w.player.state)
+        assertTrue(g.sawHide)
+        run(w, 8f) { it.player.invuln = 99f }
+        assertTrue(w.events.contains(GameEvent.BoxKicked))
+        assertEquals(1, w.stats.foundHiding)
+        assertEquals(0, w.stats.boxAmbushes)
+        assertTrue(g.alive)
+    }
+
+    @Test
+    fun aGuardWhoNeverSawYouHideWalksRightPast() {
+        val w = world()
+        val door = normalDoor(w)
+        w.player.x = door.x
+        w.commands += Command.SWIPE_DOWN
+        run(w, 0.05f)
+        assertEquals(PlayerState.DOOR, w.player.state)
+        // On alert (a noise, a buddy's shout), but he didn't see where you went.
+        val g = enemy(w, EnemyKind.AGENT, if (door.x < 7f) door.x + 4f else door.x - 4f)
+        g.state = EnemyState.SEARCH
+        g.lastSeenX = door.x
+        g.timer = World.SEARCH_LINGER
+        run(w, 8f) { it.player.invuln = 99f }
+        assertEquals(PlayerState.DOOR, w.player.state)
+        assertEquals(0, w.stats.foundHiding)
+    }
+
+    @Test
+    fun aStashDoorLocksWhileYourHallwayIsOnAlert() {
+        val w = world(floor = 1)
+        val fs = w.floor(w.player.floor)!!
+        w.player.hall = fs.halls.indexOfFirst { hs -> hs.plan.doors.any { it.kind == DoorKind.STASH } }
+        val hs = fs.hall(w.player.hall)
+        val d = hs.plan.doors.indexOfFirst { it.kind == DoorKind.STASH }
+        w.player.x = hs.plan.doors[d].x
+        run(w, 0.05f)
+        assertEquals(ContextAction.STASH, w.tapAction())
+        // Spotted: the door won't budge.
+        hunter(w, w.player.x, gap = 5f)
+        assertTrue(w.stashLocked(hs, d))
+        assertNull(w.tapAction())
+        w.commands += Command.TAP
+        run(w, 0.05f) { it.player.invuln = 99f }
+        assertEquals(Phase.PLAYING, w.phase)
+        assertFalse(hs.stashUsed[d])
+        assertTrue(w.events.contains(GameEvent.StashLocked))
+        assertTrue(texts(w).contains(Popup.LOCKED))
+        // Nobody left on to you: it opens again, while the music's still tense.
+        w.enemies.clear()
+        run(w, 0.1f)
+        assertEquals(AlertPhase.CAUTION, w.alertPhase)
+        assertFalse(w.stashLocked(hs, d))
+        assertEquals(ContextAction.STASH, w.tapAction())
+    }
+
     // ------------------------------------------------------------ GHOST
 
     private fun boardHere(w: World): Shaft? {
