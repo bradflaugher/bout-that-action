@@ -565,7 +565,7 @@ class World(val config: RunConfig) {
         TAKEDOWN("WALK INTO HIM"),
         HIDE("SWIPE DOWN: HIDE"),
         JUMP("SWIPE UP: JUMP"),
-        GRENADE("GREEN BUTTON: GRENADE"),
+        GRENADE("GRENADE BUTTON: THROW"),
         FIND_LIFT("NO LIFT HERE: GREEN DOORS"),
     }
 

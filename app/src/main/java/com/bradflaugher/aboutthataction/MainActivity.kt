@@ -146,6 +146,11 @@ class MainActivity : ComponentActivity(), GameView.Host {
                             onPlay = ::startRun,
                             onSettings = { screen = Screen.SETTINGS },
                             onPreset = { updateSettings(settings.copy(preset = it, custom = it.difficulty)) },
+                            onCustom = {
+                                // Straight to the curve editor (HELL stays HELL: it lives in that menu too).
+                                if (settings.preset != Difficulty.Preset.STRAIGHT_TO_HELL) updateSettings(settings.copy(preset = null))
+                                screen = Screen.SETTINGS
+                            },
                             onHeroes = { screen = Screen.HEROES },
                         )
                         Screen.HEROES -> HeroPickerScreen(

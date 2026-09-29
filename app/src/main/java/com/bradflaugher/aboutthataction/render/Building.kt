@@ -1208,11 +1208,13 @@ internal class Building(private val f: Frame) {
         "DRAG ← →" to "RUN",
         "SWIPE ↑" to "JUMP",
         "SWIPE ↓" to "HIDE",
-        "TAP" to "DOORS & ELEVATORS",
-        "GREEN BUTTON" to "GRENADE",
+        "TAP" to "DOORS & LIFTS",
     )
 
-    /** The tutorial, as a rooftop billboard: the gestures, the takedown ticker and the mode button. */
+    /**
+     * The tutorial, as a rooftop billboard: the four gestures, then the two HUD buttons drawn
+     * the way the HUD draws them (mode, then grenade), and the takedown on the ticker below.
+     */
     private fun billboard(pal: Palette, gy: Float) {
         val x0 = 2.75f
         val x1 = 9.0f
@@ -1238,42 +1240,78 @@ internal class Building(private val f: Frame) {
         // Header.
         f.worldText("'BOUT THAT ACTION", (x0 + x1) / 2f, y0 + 0.5f, 0.32f, pal.neon, Gfx.Font.TITLE)
         g.fillRect(x0 + 0.4f, y0 + 0.64f, x1 - 0.4f, y0 + 0.665f, Col.fade(pal.neon, 0.5f))
-        // Rows: gesture (white) → action (cyan), shrunk to fit if a row runs long.
+        // Gestures: gesture (white) → action (cyan).
         val size = 0.32f
-        val pitch = 0.54f
+        val pitch = 0.5f
         val colX = x0 + 0.35f
         val actX = x1 - 0.35f
         for (k in rows.indices) {
             val row = rows[k]
-            val y = y0 + 1.2f + k * pitch
+            val y = y0 + 1.15f + k * pitch
             worldRich(row.first, colX, y, size, 0xFFF4ECFF.toInt(), Gfx.Align.LEFT)
-            val room = actX - colX - 1.75f
-            val aw = g.textWidth(row.second, size * f.s, Gfx.Font.TITLE) / f.s
-            val asz = if (aw > room) size * room / aw else size
             val lead = colX + Glyphs.width(g, row.first, size * f.s, Gfx.Font.HUD) / f.s + 0.18f
-            val tail = actX - g.textWidth(row.second, asz * f.s, Gfx.Font.TITLE) / f.s - 0.18f
-            if (tail > lead) g.fillRect(lead, y - 0.11f, tail, y - 0.09f, 0x40FFFFFF)
-            f.worldText(row.second, actX, y, asz, Col.fade(pal.neon2, 0.2f), Gfx.Font.TITLE, Gfx.Align.RIGHT)
-            f.worldText(row.second, actX, y, asz, pal.neon2, Gfx.Font.TITLE, Gfx.Align.RIGHT)
+            boardAction(row.second, lead, actX, y, size, pal.neon2)
         }
-        // The mode button, drawn like the HUD's, with what it does.
-        val my = y1 - 0.42f
-        val mx = colX + 0.2f
-        g.fillCircle(mx, my, 0.2f, 0xFF0C0A14.toInt())
-        g.strokeCircle(mx, my, 0.2f, 0.03f, 0xFFFF6A3A.toInt())
-        g.fillCircle(mx, my, 0.07f, 0xFFFF6A3A.toInt())
-        worldRich("TOP BUTTON:", mx + 0.34f, my + 0.1f, 0.24f, 0xFFD8D0EC.toInt(), Gfx.Align.LEFT)
-        val ms = 0.24f
-        val silentW = g.textWidth("SILENT", ms * f.s, Gfx.Font.TITLE) / f.s
+        // The buttons, split off by a thin rule: each as the HUD shows it, then what it does.
+        val by0 = y0 + 1.15f + rows.size * pitch - 0.2f
+        g.fillRect(x0 + 0.4f, by0 - 0.1f, x1 - 0.4f, by0 - 0.085f, Col.fade(pal.neon, 0.35f))
+        val bx = colX + 0.22f
+        val lead = bx + 0.34f + Glyphs.width(g, "TAP", size * f.s, Gfx.Font.HUD) / f.s + 0.18f
+        val my = by0 + 0.32f
+        modeIcon(bx, my - 0.1f)
+        worldRich("TAP", bx + 0.34f, my, size, 0xFFF4ECFF.toInt(), Gfx.Align.LEFT)
+        val bs = 0.28f
+        val silentW = g.textWidth("SILENT", bs * f.s, Gfx.Font.TITLE) / f.s
         val slashX = actX - silentW - 0.2f
-        f.worldText("SILENT", actX, my + 0.1f, ms, 0xFF9C8CFF.toInt(), Gfx.Font.TITLE, Gfx.Align.RIGHT)
-        f.worldText("/", slashX, my + 0.1f, ms, 0x80FFFFFF.toInt(), Gfx.Font.TITLE, Gfx.Align.CENTER)
-        f.worldText("GUNS HOT", slashX - 0.2f, my + 0.1f, ms, 0xFFFF6A3A.toInt(), Gfx.Font.TITLE, Gfx.Align.RIGHT)
+        val hotX = slashX - 0.2f
+        val tail = hotX - g.textWidth("GUNS HOT", bs * f.s, Gfx.Font.TITLE) / f.s - 0.18f
+        if (tail > lead) g.fillRect(lead, my - 0.11f, tail, my - 0.09f, 0x40FFFFFF)
+        f.worldText("SILENT", actX, my, bs, Hud.QUIET, Gfx.Font.TITLE, Gfx.Align.RIGHT)
+        f.worldText("/", slashX, my, bs, 0x80FFFFFF.toInt(), Gfx.Font.TITLE, Gfx.Align.CENTER)
+        f.worldText("GUNS HOT", hotX, my, bs, Hud.HOT, Gfx.Font.TITLE, Gfx.Align.RIGHT)
+        val ny = my + pitch
+        grenadeIcon(bx, ny - 0.1f)
+        worldRich("TAP", bx + 0.34f, ny, size, 0xFFF4ECFF.toInt(), Gfx.Align.LEFT)
+        boardAction("GRENADE", lead, actX, ny, size, Hud.LIME)
         // LED ticker bar under the board.
         val ty0 = y1 + 0.2f
         g.fillRoundRect(x0 + 0.1f, ty0, x1 - 0.1f, ty0 + 0.42f, 0.06f, 0xFF120308.toInt())
         g.strokeRoundRect(x0 + 0.1f, ty0, x1 - 0.1f, ty0 + 0.42f, 0.06f, 0.02f, 0x80FF3048.toInt())
         f.worldText("WALK INTO THEM = TAKEDOWN", (x0 + x1) / 2f, ty0 + 0.3f, 0.27f, 0xFFFF4A5E.toInt())
+    }
+
+    /** A billboard row's action, right-aligned with a leader line back to its gesture, shrunk to fit. */
+    private fun boardAction(text: String, lead: Float, actX: Float, y: Float, size: Float, color: Int) {
+        val room = actX - lead - 0.4f
+        val aw = g.textWidth(text, size * f.s, Gfx.Font.TITLE) / f.s
+        val asz = if (aw > room) size * room / aw else size
+        val tail = actX - g.textWidth(text, asz * f.s, Gfx.Font.TITLE) / f.s - 0.18f
+        if (tail > lead) g.fillRect(lead, y - 0.11f, tail, y - 0.09f, 0x40FFFFFF)
+        f.worldText(text, actX, y, asz, Col.fade(color, 0.2f), Gfx.Font.TITLE, Gfx.Align.RIGHT)
+        f.worldText(text, actX, y, asz, color, Gfx.Font.TITLE, Gfx.Align.RIGHT)
+    }
+
+    /** The HUD's mode button in miniature: a hot crosshair in a ring. */
+    private fun modeIcon(x: Float, y: Float) {
+        val r = 0.23f
+        g.fillCircle(x, y, r, 0xFF0C0A14.toInt())
+        g.strokeCircle(x, y, r, 0.03f, Hud.HOT)
+        val k = r * 0.5f
+        val sw = 0.025f
+        g.strokeCircle(x, y, k * 0.72f, sw, 0xFFF4F0FF.toInt())
+        g.line(x - k, y, x - k * 0.4f, y, sw, 0xFFF4F0FF.toInt())
+        g.line(x + k * 0.4f, y, x + k, y, sw, 0xFFF4F0FF.toInt())
+        g.line(x, y - k, x, y - k * 0.4f, sw, 0xFFF4F0FF.toInt())
+        g.line(x, y + k * 0.4f, x, y + k, sw, 0xFFF4F0FF.toInt())
+        g.fillCircle(x, y, sw * 0.9f, Hud.HOT)
+    }
+
+    /** The HUD's grenade button in miniature: a lime grenade in a ring. */
+    private fun grenadeIcon(x: Float, y: Float) {
+        val r = 0.23f
+        g.fillCircle(x, y, r, 0xFF0C0A14.toInt())
+        g.strokeCircle(x, y, r, 0.03f, Hud.LIME)
+        HudIcons.grenade(g, x - r * 0.12f, y + r * 0.08f, r * 1.25f, Hud.LIME)
     }
 
     private fun worldRich(text: String, x: Float, y: Float, size: Float, color: Int, align: Gfx.Align) {

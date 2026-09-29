@@ -33,7 +33,7 @@ is read on its own, so one thumb can run while the other taps.
 | **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind (the BEAST tackles them head-on); a napping guard from anywhere. Works in GUNS HOT too: the gun never shoots a guard with his back to you. |
 | **Grenade button** (under the mode button) | Throw a grenade, in either mode. The lime button shows how many you carry and greys out when you're empty. Taps never throw one, so hammering a door is always just the door. |
 | **Jump + tap** | Under a ceiling lamp: swat it out by hand. The hallway gets darker, the fixture drops on anyone right under it (never on you), and the crash of glass brings nearby guards over to look: lure them in, then grab them from the shadows. Works in both modes. |
-| **Mode button** (under pause) | **GUNS HOT**: you auto-fire at threats in range. **SILENT**: you never fire; guards only notice what they see, and quiet kills pay double. Your choice sticks between runs. |
+| **Mode button** (under pause) | **GUNS HOT**: you auto-fire at threats in range. **SILENT**: you never fire; guards only notice what they see, and quiet kills pay double. Flip it any time (it's the only place to); your choice sticks between runs. |
 
 A chip over your head shows what a tap (or a swipe ↓) will do right now, and
 the hallway map in the corner shows where you've been and which hallways have
@@ -205,7 +205,9 @@ you back. The building will still be there.
   </tr>
 </table>
 
-The title screen shows who you're playing as; **DROP IN** is still one tap.
+The title screen shows who you're playing as and the difficulty (CHILL, AGENT,
+BRUTAL, or **CUSTOM**, which opens Settings to shape your own curve or pick
+Straight to Hell); **DROP IN** is still one tap.
 Tap the hero bar to open the picker: swipe (or tap the roster) through all
 four heroes, each on their own stage with their theme playing, and see their
 trait and three hero-only perks. The pick sticks between runs, and the demo
@@ -221,7 +223,7 @@ its own bonus, and Hell adds a lot. Pick a preset or shape your own curve:
 - **Chill:** slow ramp, 5 hearts.
 - **Agent:** the intended descent.
 - **Brutal:** hot start, steep ramp, 2 hearts.
-- **Straight to Hell:** start on floor 150. Good luck.
+- **Straight to Hell:** start in Hell, at B100. Good luck.
 - **Custom:** starting heat, ramp, heat cap, hearts, and the zone you start in,
   with a live preview of the curve.
 

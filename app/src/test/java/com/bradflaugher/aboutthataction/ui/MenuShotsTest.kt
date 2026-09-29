@@ -81,13 +81,13 @@ class MenuShotsTest {
             RuntimeEnvironment.setQualifiers(qualifiers)
             val s = Settings()
             shot("$device-title", 1800, world()) {
-                TitleScreen(s, records, insets, {}, {}, {}, {})
+                TitleScreen(s, records, insets, {}, {}, {}, {}, {})
             }
             shot("$device-title-intro", 450, world()) {
-                TitleScreen(s, Records(), insets, {}, {}, {}, {})
+                TitleScreen(s, Records(), insets, {}, {}, {}, {}, {})
             }
             shot("$device-title-viper", 1800, world(Hero.VIPER)) {
-                TitleScreen(s.copy(hero = Hero.VIPER), records, insets, {}, {}, {}, {})
+                TitleScreen(s.copy(hero = Hero.VIPER), records, insets, {}, {}, {}, {}, {})
             }
             for (hero in Hero.entries) {
                 shot("$device-heroes-${hero.name.lowercase()}", 1200, world(hero)) {
