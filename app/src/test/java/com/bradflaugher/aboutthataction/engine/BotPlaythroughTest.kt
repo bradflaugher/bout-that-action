@@ -29,7 +29,7 @@ class BotPlaythroughTest {
         val depths = ArrayList<Int>()
     }
 
-    private fun play(seed: Long, difficulty: Difficulty, silent: Boolean, seconds: Float, t: Tally, hero: Hero = Hero.BEAST) {
+    private fun play(seed: Long, difficulty: Difficulty, silent: Boolean, seconds: Float, t: Tally, hero: Hero = Hero.BULL) {
         val w = World(RunConfig(seed, difficulty, silent = silent, hero = hero))
         val bot = Autopilot(seed)
         val met = HashSet<Int>()

@@ -3,14 +3,14 @@ package com.bradflaugher.aboutthataction.render
 import com.bradflaugher.aboutthataction.engine.Hero
 
 /**
- * HARDY: the barefoot cop having the worst night ever. A sweaty, grimy white tank top over
+ * BADGER: the barefoot cop having the worst night ever. A sweaty, grimy white tank top over
  * bare, scuffed arms, a brown leather shoulder holster, dark slacks rolled at the ankle, bare
- * feet, a buzzed and balding head with stubble and a smirk. An orange rim.
+ * feet, a buzzed and balding head with stubble and a smirk. A yellow rim.
  */
-internal class HardyKit(a: HeroArt) : HeroKit(a) {
+internal class BadgerKit(a: HeroArt) : HeroKit(a) {
     override val bulk = 0.95f
     override val head = 1.02f
-    override val accent = ORANGE
+    override val accent = YELLOW
     override val rim = RIM
     override val echo = 0xFFD04A6A.toInt()
     override val eyes = 0xFFFFC08A.toInt()
@@ -139,7 +139,7 @@ internal class HardyKit(a: HeroArt) : HeroKit(a) {
         p.begin()
         tp(0.745f, -c * 0.205f); tp(0.71f, -c * 0.317f); tp(0.55f, -c * 0.374f); tp(0.53f, -c * 0.324f); tp(0.67f, -c * 0.202f)
         p.shapeGradDetail(LEATHER_LIT, LEATHER, tx(0.74f, -c * 0.216f), ty(0.74f, -c * 0.216f), tx(0.55f, -c * 0.36f), ty(0.55f, -c * 0.36f))
-        if (p.shading) p.detail(tx(0.72f, -c * 0.23f), ty(0.72f, -c * 0.23f), tx(0.57f, -c * 0.346f), ty(0.57f, -c * 0.346f), 0.007f * hs, Col.lerp(ORANGE, LEATHER, 0.45f))
+        if (p.shading) p.detail(tx(0.72f, -c * 0.23f), ty(0.72f, -c * 0.23f), tx(0.57f, -c * 0.346f), ty(0.57f, -c * 0.346f), 0.007f * hs, Col.lerp(YELLOW, LEATHER, 0.45f))
         if (a.holstered) {
             // The grip, butt up and forward, ready for the draw.
             p.begin()
@@ -204,12 +204,12 @@ internal class HardyKit(a: HeroArt) : HeroKit(a) {
         val x = hpX(0.25f)
         val y = hpY(-0.78f)
         p.dot(x, y, 0.016f * k.hs, Col.alpha(0xFFFFF0DC.toInt(), 0.8f))
-        a.f.glowDot(x, y, 0.018f, ORANGE, 0.45f)
+        a.f.glowDot(x, y, 0.018f, YELLOW, 0.45f)
     }
 
     companion object {
-        val ORANGE = Hero.HARDY.color
-        const val RIM = 0xFFFFB27A.toInt()
+        val YELLOW = Hero.BADGER.color
+        const val RIM = 0xFFFFEC9A.toInt()
         const val TANK = 0xFFE6DFCC.toInt()
         const val TANK_LIT = 0xFFFFFAEE.toInt()
         const val TANK_SHADE = 0xFF9A9080.toInt()

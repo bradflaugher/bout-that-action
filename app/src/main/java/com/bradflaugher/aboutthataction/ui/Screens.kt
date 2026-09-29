@@ -67,12 +67,12 @@ data class RunSummary(
     val title: String = "",
     /** What got you ("Steamed like a dumpling"). */
     val deathLine: String = "",
-    /** The sign-off ("I'm just 'bout that action, boss."). */
+    /** The sign-off ("Cardboard remains undefeated."). */
     val quip: String = "",
     /** Label to value: best combo, ghost floors, box ambushes... only the non-zero ones. */
     val highlights: List<Pair<String, String>> = emptyList(),
     /** Who ran it. */
-    val hero: Hero = Hero.BEAST,
+    val hero: Hero = Hero.BULL,
 )
 
 internal fun grouped(n: Long): String = String.format(Locale.US, "%,d", n)

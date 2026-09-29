@@ -1,7 +1,5 @@
 # <img src="docs/screenshots/icon.png" alt="" height="44" align="top"> 'Bout That Action
 
-*"I'm just 'bout that action, boss."*
-
 An endless, portrait-only Android action game. It's a hyper-modern, neon-noir
 take on the arcade classic **Elevator Action**, with a little **Metal Gear
 Solid** cardboard box mixed in. A helicopter drops you on the roof of a
@@ -30,7 +28,7 @@ is read on its own, so one thumb can run while the other taps.
 | **Tap** | Interact with what you're standing at: go through a green **passage** door into another hallway, enter a gold **STASH** door (locked while you're being hunted), ride an open **elevator** down, or call a closed one. With nothing in reach, a tap does nothing. |
 | **Swipe ↓** | Hide: press into a nearby **doorway**, otherwise pop the **cardboard box**. In an elevator, box up in the car. Swipe ↓ again to stand up. In a doorway, a tap or a swipe ↑ also steps you out. |
 | **Swipe ↑** | Jump. Clears low shots; land on heads to stomp. Works mid-run. |
-| **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind (the BEAST tackles them head-on); a napping guard from anywhere. Works in GUNS HOT too: the gun never shoots a guard with his back to you. |
+| **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind (the BULL tackles them head-on); a napping guard from anywhere. Works in GUNS HOT too: the gun never shoots a guard with his back to you. |
 | **Grenade button** (under the mode button) | Throw a grenade, in either mode. The lime button shows how many you carry and greys out when you're empty. Taps never throw one, so hammering a door is always just the door. |
 | **Jump + tap** | Under a ceiling lamp: swat it out by hand. The hallway gets darker, the fixture drops on anyone right under it (never on you), and the crash of glass brings nearby guards over to look: lure them in, then grab them from the shadows. Works in both modes. |
 | **Mode button** (under pause) | **GUNS HOT**: you auto-fire at threats in range. **SILENT**: you never fire; guards only notice what they see, and quiet kills pay double. Flip it any time (it's the only place to); your choice sticks between runs. |
@@ -129,7 +127,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 
 ## Heroes
 
-<p align="center"><img src="docs/screenshots/lineup.png" alt="The four heroes: BEAST, ACE, HARDY and VIPER" width="720"></p>
+<p align="center"><img src="docs/screenshots/lineup.png" alt="The four heroes: BULL, FOX, BADGER and VIPER" width="720"></p>
 
 Pick who's going down on the title screen. Every hero plays the same
 building, but with a different body: an always-on trait, three perks only
@@ -138,23 +136,23 @@ music.
 
 | Hero | Who | Trait (always on) |
 |---|---|---|
-| **BEAST** | A running back in full pads. Tough, fast, bulldozes. | +1 heart, runs 10% faster, tackles Heavies head-on (no bouncing off the armor) |
-| **ACE** | A gentleman spy in a pressed tux. | An 8-round magazine (instead of 6) and a 15% quicker trigger; guards take 35% longer to react once they spot him |
-| **HARDY** | A barefoot cop in a tank top, in the wrong building on the wrong night. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
+| **BULL** | A bruiser in full pads. Tough, fast, bulldozes. | +1 heart, runs 10% faster, tackles Heavies head-on (no bouncing off the armor) |
+| **FOX** | A gentleman spy in a pressed tux. | An 8-round magazine (instead of 6) and a 15% quicker trigger; guards take 35% longer to react once they spot him |
+| **BADGER** | A barefoot cop in a tank top, in the wrong building on the wrong night. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
 | **VIPER** | A jungle commando in a bandana who lives in his cardboard box: the SILENT specialist. | Unplugs drones and turrets by hand, like a takedown (quiet, and not while one is aiming at him); in SILENT guards spot him from a quarter less far; the box glides (2.2 u/s instead of 1.3) and never looks suspicious moving; reloads 25% faster |
 
 Their perks:
 
-- **BEAST.** *Stiff Arm*: run into a guard and he's flattened on the spot,
-  even mid-swing, and you keep running. *Beast Quake* (2 levels): every
+- **BULL.** *Stiff Arm*: run into a guard and he's flattened on the spot,
+  even mid-swing, and you keep running. *Aftershock* (2 levels): every
   takedown dazes everyone within a quarter of the hallway for 1.8 s
   (nearly half of it at LV 2). *Candy
   Rain* (2 levels): every 8th kill heals a heart (every 5th at LV 2).
-- **ACE.** *Disguise*: guards take twice as long again to react.
+- **FOX.** *Disguise*: guards take twice as long again to react.
   *Laser Watch*: every shot slices the first lamp it passes under, and one
   jump-swat kills every lamp in the hallway. *Dead Drop* (2 levels): SILENT
   kills drop loot twice as often (three times at LV 2).
-- **HARDY.** *Yippee*: bigger blasts, and anyone within twice the blast who
+- **BADGER.** *Yippee*: bigger blasts, and anyone within twice the blast who
   survives is knocked flat for 2.5 s. *Vent Crawl*: passages take half the
   time and nobody can see you for 1.5 s once you're out in the open (firing
   gives you away). *Adrenaline* (2 levels): on your last heart you shoot,
@@ -196,8 +194,8 @@ building, and the zone (and its music and heat) comes from the floor.
 
 The game-over card tells the story of the run: a playstyle title
 ("CARDBOARD ENTHUSIAST", "BONK SPECIALIST", "THE GHOST"), what got you
-("Steamed like a dumpling"), your highlights, and a sign-off ("I'm just
-'bout that action, boss."). No streaks, no daily rewards, no timers asking
+("Steamed like a dumpling"), your highlights, and a sign-off ("Cardboard
+remains undefeated."). No streaks, no daily rewards, no timers asking
 you back. The building will still be there.
 
 ## The front end

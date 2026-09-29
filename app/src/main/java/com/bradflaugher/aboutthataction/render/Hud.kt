@@ -186,7 +186,7 @@ internal class Hud(private val f: Frame) {
             Perk.LUCKY -> "LK"
             Perk.SHOCKWAVE -> "SW"
             Perk.STIFF_ARM -> "SA"
-            Perk.BEAST_QUAKE -> "BQ"
+            Perk.AFTERSHOCK -> "AS"
             Perk.CANDY_RAIN -> "CR"
             Perk.DISGUISE -> "DG"
             Perk.LASER_WATCH -> "LW"
@@ -208,7 +208,7 @@ internal class Hud(private val f: Frame) {
             Perk.CQC, Perk.GHOST_BOX, Perk.DOUBLE_JUMP, Perk.SHOCKWAVE -> 0xFFB77CFF.toInt()
             Perk.DEMOLITION, Perk.MAGNET, Perk.LUCKY -> 0xFFFFC23C.toInt()
             // A hero's own perks wear the hero's colour.
-            Perk.STIFF_ARM, Perk.BEAST_QUAKE, Perk.CANDY_RAIN,
+            Perk.STIFF_ARM, Perk.AFTERSHOCK, Perk.CANDY_RAIN,
             Perk.DISGUISE, Perk.LASER_WATCH, Perk.DEAD_DROP,
             Perk.YIPPEE, Perk.VENT_CRAWL, Perk.ADRENALINE,
             Perk.JAMMER, Perk.CHAFF, Perk.CAMO,
@@ -220,7 +220,7 @@ internal class Hud(private val f: Frame) {
             Perk.VITALITY, Perk.ARMOR, Perk.REFLEX -> "DEFENSE"
             Perk.CQC, Perk.GHOST_BOX, Perk.DOUBLE_JUMP, Perk.SHOCKWAVE -> "STEALTH"
             Perk.DEMOLITION, Perk.MAGNET, Perk.LUCKY -> "UTILITY"
-            Perk.STIFF_ARM, Perk.BEAST_QUAKE, Perk.CANDY_RAIN,
+            Perk.STIFF_ARM, Perk.AFTERSHOCK, Perk.CANDY_RAIN,
             Perk.DISGUISE, Perk.LASER_WATCH, Perk.DEAD_DROP,
             Perk.YIPPEE, Perk.VENT_CRAWL, Perk.ADRENALINE,
             Perk.JAMMER, Perk.CHAFF, Perk.CAMO,

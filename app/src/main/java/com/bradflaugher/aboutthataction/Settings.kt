@@ -25,7 +25,7 @@ data class Settings(
     val musicVolume: Float = 0.8f,
     val sfxVolume: Float = 1f,
     /** Who drops in. Picked on the title screen, remembered between runs. All four from the start. */
-    val hero: Hero = Hero.BEAST,
+    val hero: Hero = Hero.BULL,
 ) {
     val difficulty: Difficulty get() = preset?.difficulty ?: custom
 

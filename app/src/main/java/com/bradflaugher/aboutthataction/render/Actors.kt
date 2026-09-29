@@ -22,9 +22,7 @@ import kotlin.math.sin
  *
  * Every humanoid is a [Rig] pose painted through [ActorPaint]: one ink outline
  * weight, a ceiling key light and a neon rim from behind. The agent is the
- * most readable thing on screen: Beast Mode in a home uniform. A glossy college-navy helmet
- * with a wolf-grey facemask and a green crown stripe, dreadlocks spilling out down the back,
- * big squared-off shoulder pads under a navy 24 jersey, wolf-grey pants, an action-green rim.
+ * most readable thing on screen, whichever hero is playing (see [HeroArt]).
  */
 internal class Actors(private val f: Frame) {
     private val g get() = f.g
@@ -212,8 +210,8 @@ internal class Actors(private val f: Frame) {
     private var heroNeckY = 0f
 
     /**
-     * The agent's beacon, so he's found in half a second on any floor: an action-green backlight
-     * hugging the silhouette and a crisp green ring on the floor under him. Three calls, all additive.
+     * The agent's beacon, so he's found in half a second on any floor: a backlight in the
+     * hero's accent hugging the silhouette and a crisp ring on the floor under him. Three calls, all additive.
      */
     private fun signature(x: Float, gy: Float, foot: Float, z: Float, boxed: Boolean, k: Float) {
         val a = p.alphaMul * k

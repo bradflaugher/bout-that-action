@@ -42,32 +42,32 @@ enum class Hero(
     /** Time between pistol shots, as a multiple. */
     val fireScale: Float = 1f,
 ) {
-    /** Running back in full pads. Tough, fast, bulldozes. */
-    BEAST(
-        "BEAST", "Running back. Pads on.",
-        "+1 heart, runs faster, tackles heavies head-on", "Just 'bout that action, boss.",
-        0xFF69BE28.toInt(),
+    /** A bruiser in full pads. Tough, fast, bulldozes. */
+    BULL(
+        "BULL", "Bruiser. Pads on.",
+        "+1 heart, runs faster, tackles heavies head-on", "Through, never around.",
+        0xFF4DA8FF.toInt(),
         extraHearts = 1, runSpeed = 1.1f, tacklesHeavies = true,
     ),
     /** The gentleman spy in a tux. Smooth, quiet, deadly. */
-    ACE(
-        "ACE", "Gentleman spy. Tux pressed.",
+    FOX(
+        "FOX", "Gentleman spy. Tux pressed.",
         "8-round mag, quick trigger; guards are slow to react", "Licensed to chill.",
-        0xFFE8C872.toInt(),
+        0xFFE8413A.toInt(),
         magSize = 8, reactionScale = 1.35f, fireScale = 0.85f,
     ),
     /** Barefoot cop in a tank top, having the worst holiday ever. */
-    HARDY(
-        "HARDY", "Wrong building. Wrong night.",
+    BADGER(
+        "BADGER", "Wrong building. Wrong night.",
         "Shrugs off one fatal hit a run; +1 grenade", "Now I have a grenade. Ho ho ho.",
-        0xFFFF7A3C.toInt(),
+        0xFFFFD23C.toInt(),
         secondWind = true, extraGrenades = 1,
     ),
     /** Jungle commando in a bandana. Lives in the box, unplugs the robots, never makes a sound. */
     VIPER(
         "VIPER", "Jungle commando. Bandana on.",
         "Sneaks unseen, unplugs robots, sly box, fast reloads", "A box is a lifestyle.",
-        0xFFE8413A.toInt(),
+        0xFF58D25A.toInt(),
         boxPro = true, sabotage = true, sneakSight = 0.75f, reloadScale = 0.75f,
     ),
 }

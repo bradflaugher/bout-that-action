@@ -123,6 +123,41 @@ class ScreenshotTest {
         println("wrote ${File(dir, "lineup.png")}")
     }
 
+    /**
+     * The Play feature graphic (1024x500): the title over the hero lineup. Only on request:
+     * `-Pata.scene=feature -Pata.shots=fastlane/metadata/android/en-US/images`.
+     */
+    @Test
+    fun featureGraphic() {
+        val img = BufferedImage(1024, 500, BufferedImage.TYPE_INT_ARGB)
+        val g = AwtGfx(img)
+        g.fillRect(0f, 0f, 1024f, 500f, 0xFF0B0A14.toInt())
+        g.fillRadialGradient(512f, 300f, 620f, 0xFF1C1430.toInt(), 0xFF0B0A14.toInt())
+        g.blend(Gfx.Blend.ADD)
+        g.glow(512f, 64f, 380f, 0x40FF4FD8)
+        g.blend(Gfx.Blend.NORMAL)
+        g.text("'BOUT THAT ACTION", 512f, 92f, 68f, 0xFFFFF0FA.toInt(), Gfx.Font.TITLE, Gfx.Align.CENTER)
+        for ((i, hero) in Hero.entries.withIndex()) {
+            val cx = 190f + i * 215f
+            g.save()
+            g.translate(cx, 420f)
+            g.scale(1f, 0.2f)
+            g.blend(Gfx.Blend.ADD)
+            g.glow(0f, 0f, 150f, Col.alpha(hero.color, 0.35f))
+            g.blend(Gfx.Blend.NORMAL)
+            g.strokeCircle(0f, 0f, 90f, 12f, Col.alpha(hero.color, 0.8f))
+            g.restore()
+            HeroPortrait.draw(g, hero, cx, 420f, 310f, 1.2f + i * 0.4f)
+            g.text(hero.title, cx, 480f, 40f, hero.color, Gfx.Font.TITLE, Gfx.Align.CENTER)
+        }
+        g.dispose()
+        val dir = outDir ?: return
+        if (System.getProperty("ata.scene") != "feature") return
+        dir.mkdirs()
+        ImageIO.write(img, "png", File(dir, "featureGraphic.png"))
+        println("wrote ${File(dir, "featureGraphic.png")}")
+    }
+
     @Test
     fun hitTestsMatchLayout() {
         val r = Renderer()
@@ -203,7 +238,7 @@ class ScreenshotTest {
             (start - 1..start + 5).sumOf { f -> LevelGen.shaftsOn(seed, f).size } * 10 + (seed - from).toInt()
         }!!
 
-    private fun newWorld(seed: Long, start: Int = 0, silent: Boolean = false, hero: Hero = Hero.BEAST): World =
+    private fun newWorld(seed: Long, start: Int = 0, silent: Boolean = false, hero: Hero = Hero.BULL): World =
         World(RunConfig(seed, Difficulty(startFloor = start), silent = silent, hero = hero)).also { it.viewAspect = 2400f / 1080f }
 
     private fun World.run(seconds: Float, hold: (World) -> Unit = {}) {
@@ -407,7 +442,7 @@ class ScreenshotTest {
     }
 
     private fun stash(): World {
-        val w = newWorld(5, 1, hero = Hero.ACE)
+        val w = newWorld(5, 1, hero = Hero.FOX)
         w.run(1.6f)
         val f = w.player.floor
         val fs = w.floors[f]!!
@@ -484,7 +519,7 @@ class ScreenshotTest {
     }
 
     private fun labs(): World {
-        val w = newWorld(calmSeed(32, 300), 32, hero = Hero.ACE)
+        val w = newWorld(calmSeed(32, 300), 32, hero = Hero.FOX)
         w.run(1.6f)
         w.settle(X(2.2f), 2.2f)
         val f = w.player.floor
@@ -593,7 +628,7 @@ class ScreenshotTest {
     }
 
     private fun magma(): World {
-        val w = newWorld(calmSeed(108, 500), 108, hero = Hero.HARDY)
+        val w = newWorld(calmSeed(108, 500), 108, hero = Hero.BADGER)
         w.run(1.6f)
         w.settle(X(3.0f), 0.8f)
         val f = w.player.floor
@@ -625,7 +660,7 @@ class ScreenshotTest {
     }
 
     private fun hell(): World {
-        val w = newWorld(calmSeed(165, 600), 165, hero = Hero.HARDY)
+        val w = newWorld(calmSeed(165, 600), 165, hero = Hero.BADGER)
         w.run(1.6f)
         w.settle(X(3.2f), 2.4f)
         val f = w.player.floor

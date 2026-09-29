@@ -3,15 +3,15 @@ package com.bradflaugher.aboutthataction.render
 import com.bradflaugher.aboutthataction.engine.Hero
 
 /**
- * ACE: the gentleman spy. A slim black dinner jacket cut to end at the hip (no tails), a
- * crisp white shirt front between satin shawl lapels, a black bow tie, a champagne pocket
+ * FOX: the gentleman spy. A slim black dinner jacket cut to end at the hip (no tails), a
+ * crisp white shirt front between satin shawl lapels, a black bow tie, a red pocket
  * square and cufflinks, satin-striped trousers, polished shoes, slicked side-parted hair and
- * a long suppressed pistol. A champagne-gold rim.
+ * a long suppressed pistol. A red rim.
  */
-internal class AceKit(a: HeroArt) : HeroKit(a) {
+internal class FoxKit(a: HeroArt) : HeroKit(a) {
     override val bulk = 0.95f
     override val head = 1.02f
-    override val accent = GOLD
+    override val accent = RED
     override val rim = RIM
     override val echo = 0xFF6A5AD0.toInt()
     override val eyes = 0xFFFFE08A.toInt()
@@ -36,7 +36,7 @@ internal class AceKit(a: HeroArt) : HeroKit(a) {
         l.feet = Look.FEET_DRESS
     }
 
-    /** The shirt cuff showing a finger's width below the sleeve, a gold cufflink on it. */
+    /** The shirt cuff showing a finger's width below the sleeve, a red cufflink on it. */
     override fun arm(l: Limb, far: Boolean) {
         val aw = k.limbW * look.armW
         if (!far) smoothJoint(l, aw * 0.78f, TUX)
@@ -47,8 +47,8 @@ internal class AceKit(a: HeroArt) : HeroKit(a) {
         frontOf(l.jx, l.jy, l.ex, l.ey)
         val cx = Rig.mix(l.jx, l.ex, 0.915f) - nrm[0] * aw * 0.14f
         val cy = Rig.mix(l.jy, l.ey, 0.915f) - nrm[1] * aw * 0.14f
-        p.dot(cx, cy, 0.016f * k.hs, GOLD)
-        addGlow(cx, cy, 0.05f * k.hs, GOLD, 0.5f)
+        p.dot(cx, cy, 0.016f * k.hs, RED)
+        addGlow(cx, cy, 0.05f * k.hs, RED, 0.5f)
     }
 
     /** The trouser's satin stripe down the outside of the leg; the shoe's the body pen's. */
@@ -130,7 +130,7 @@ internal class AceKit(a: HeroArt) : HeroKit(a) {
         p.detail(tx(0.78f, -c * 0.02f), ty(0.78f, -c * 0.02f), tx(0.78f, c * 0.2f), ty(0.78f, c * 0.2f), 0.014f * k.hs, 0xFF08080E.toInt())
         p.begin()
         tp(0.79f, -c * 0.0f); tp(0.87f, c * 0.04f); tp(0.81f, c * 0.08f); tp(0.88f, c * 0.13f); tp(0.8f, c * 0.18f)
-        p.shapeGradDetail(GOLD_LIT, GOLD, tx(0.87f, c * 0.1f), ty(0.87f, c * 0.1f), tx(0.79f, c * 0.1f), ty(0.79f, c * 0.1f))
+        p.shapeGradDetail(RED_LIT, RED, tx(0.87f, c * 0.1f), ty(0.87f, c * 0.1f), tx(0.79f, c * 0.1f), ty(0.79f, c * 0.1f))
         collar(c)
         bow(c)
         rimAlong(JACKET, RIM_FROM, RIM_TO, c, w)
@@ -209,14 +209,14 @@ internal class AceKit(a: HeroArt) : HeroKit(a) {
         val l = k.armF
         val x = Rig.mix(l.jx, l.ex, 0.86f)
         val y = Rig.mix(l.jy, l.ey, 0.86f)
-        p.dot(x, y, 0.02f * k.hs, Col.alpha(GOLD_LIT, 0.9f))
-        a.f.glowDot(x, y, 0.02f, GOLD, 0.5f)
+        p.dot(x, y, 0.02f * k.hs, Col.alpha(RED_LIT, 0.9f))
+        a.f.glowDot(x, y, 0.02f, RED, 0.5f)
     }
 
     companion object {
-        val GOLD = Hero.ACE.color
-        const val GOLD_LIT = 0xFFFFF0C4.toInt()
-        const val RIM = 0xFFFFE6A8.toInt()
+        val RED = Hero.FOX.color
+        const val RED_LIT = 0xFFFFB8B0.toInt()
+        const val RIM = 0xFFFF8C80.toInt()
         /** The dinner jacket: warm black, lifted just enough to model against dark walls. */
         const val TUX = 0xFF22232C.toInt()
         const val TUX_LIT = 0xFF767C94.toInt()

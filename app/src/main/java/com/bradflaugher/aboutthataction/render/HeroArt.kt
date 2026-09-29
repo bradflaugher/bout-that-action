@@ -14,8 +14,8 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
     val g: Gfx get() = f.g
     val look = Look()
 
-    var hero = Hero.BEAST
-    private val kits = arrayOf(BeastKit(this), AceKit(this), HardyKit(this), ViperKit(this))
+    var hero = Hero.BULL
+    private val kits = arrayOf(BullKit(this), FoxKit(this), BadgerKit(this), ViperKit(this))
     val kit: HeroKit get() = kits[hero.ordinal]
 
     // ---- Set by the poser.

@@ -42,17 +42,17 @@ object Popup {
     const val GHOST = "GHOST"
     const val CLOSE = "CLOSE!"
     const val SNORE = "z"
-    /** BEAST running through a Heavy's front door. */
+    /** BULL running through a Heavy's front door. */
     const val TACKLE = "TACKLE!"
-    /** BEAST's STIFF ARM: a guard flattened on the run. */
+    /** BULL's STIFF ARM: a guard flattened on the run. */
     const val FLATTENED = "FLATTENED"
-    /** HARDY's once-a-run shrug-off of a fatal hit. */
+    /** BADGER's once-a-run shrug-off of a fatal hit. */
     const val SECOND_WIND = "SECOND WIND"
     /** VIPER's SABOTAGE: a drone or turret unplugged by hand. */
     const val UNPLUGGED = "UNPLUGGED"
     /** VIPER's CAMO: a hit that missed him. */
     const val MISSED = "MISSED"
-    /** Guards stunned by CHAFF, a BEAST QUAKE or a YIPPEE blast. */
+    /** Guards stunned by CHAFF, a AFTERSHOCK or a YIPPEE blast. */
     const val DAZED = "DAZED"
 }
 

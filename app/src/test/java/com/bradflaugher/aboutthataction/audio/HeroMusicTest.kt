@@ -94,18 +94,18 @@ class HeroMusicTest {
     }
 
     /**
-     * Both action-movie heroes, told apart: HARDY is the bright rock band (guitars, gated
+     * Both action-movie heroes, told apart: BADGER is the bright rock band (guitars, gated
      * snare, sleigh bells), VIPER the dark orchestra (horns, pads, war drums).
      */
     @Test
-    fun viperIsTheOrchestraAndHardyIsTheBand() {
+    fun viperIsTheOrchestraAndBadgerIsTheBand() {
         for (z in Zone.entries) {
-            val hardy = AudioTestUtil.centroid(AudioTestUtil.spectrum(AudioTestUtil.mono(take(Hero.HARDY, z, false))))
+            val badger = AudioTestUtil.centroid(AudioTestUtil.spectrum(AudioTestUtil.mono(take(Hero.BADGER, z, false))))
             val viper = AudioTestUtil.centroid(AudioTestUtil.spectrum(AudioTestUtil.mono(take(Hero.VIPER, z, false))))
-            println("$z centroid: HARDY %.0f Hz, VIPER %.0f Hz".format(hardy, viper))
-            assertTrue("$z: VIPER ($viper Hz) should sit darker than HARDY ($hardy Hz)", viper < hardy * 0.92)
+            println("$z centroid: BADGER %.0f Hz, VIPER %.0f Hz".format(badger, viper))
+            assertTrue("$z: VIPER ($viper Hz) should sit darker than BADGER ($badger Hz)", viper < badger * 0.92)
         }
-        val h = HeroSongs.forZone(Hero.HARDY, Zone.TOWER, false)
+        val h = HeroSongs.forZone(Hero.BADGER, Zone.TOWER, false)
         val v = HeroSongs.forZone(Hero.VIPER, Zone.TOWER, false)
         assertTrue(h.padPower && !v.padPower)
         assertTrue(h.kit.snareGate > 0f && v.kit.snareGate == 0f)
@@ -130,21 +130,21 @@ class HeroMusicTest {
     fun setHeroPicksTheirArrangementAndFlipsStillCrossfade() {
         val e = SoundEngine()
         e.setIntensity(0.5f)
-        e.setHero(Hero.ACE)
+        e.setHero(Hero.FOX)
         e.setZone(Zone.TOWER)
         render(e, 2f)
-        assertEquals("tower-ace", e.songName)
+        assertEquals("tower-fox", e.songName)
         e.setZone(Zone.TOWER, silent = true)
         render(e, 0.2f)
-        assertEquals("the mode flip doesn't wait for the bar line", "tower-ace-sneak", e.songName)
+        assertEquals("the mode flip doesn't wait for the bar line", "tower-fox-sneak", e.songName)
         e.setZone(Zone.TOWER, silent = false)
         render(e, 0.2f)
-        assertEquals("tower-ace", e.songName)
+        assertEquals("tower-fox", e.songName)
         e.setZone(Zone.LABS)
         render(e, 0.2f)
-        assertEquals("a new zone still waits for the bar", "tower-ace", e.songName)
+        assertEquals("a new zone still waits for the bar", "tower-fox", e.songName)
         render(e, 5f)
-        assertEquals("labs-ace", e.songName)
+        assertEquals("labs-fox", e.songName)
         e.setHero(Hero.VIPER)
         e.setZone(Zone.LABS)
         render(e, 6f)
@@ -169,7 +169,7 @@ class HeroMusicTest {
         for (h in Hero.entries) {
             e.playHeroTheme(h)
             // Browsing: from the title it waits for the bar; from theme to theme it's immediate.
-            val x = render(e, if (h == Hero.BEAST) 6f else 0.1f)
+            val x = render(e, if (h == Hero.BULL) 6f else 0.1f)
             assertEquals("${h.name.lowercase()}-theme", e.songName)
             assertSane(x, "$h theme")
         }
@@ -328,7 +328,7 @@ class HeroMusicTest {
                 val n = hook.notes[b][s]
                 if (n < 0) continue
                 assertTrue("${spec.name} bar $b: ${n} out of key", Scales.contains(spec.scale, n - spec.tonic))
-                // Strong beats land on the chord (or its 7th/9th, for ACE).
+                // Strong beats land on the chord (or its 7th/9th, for FOX).
                 if (s == 0) {
                     val chord = spec.progA[b % spec.progA.size]
                     assertTrue("${spec.name} bar $b downbeat $n is off the chord", chord.containsPc(n - spec.tonic))
@@ -477,7 +477,7 @@ class HeroInstrumentsTest {
         assertTrue("crickets should chirp high ($high)", high > 0.5)
     }
 
-    /** BEAST's drumline rolls put a second stroke inside the step, and everything else still lands. */
+    /** BULL's drumline rolls put a second stroke inside the step, and everything else still lands. */
     @Test
     fun snareRollsAddStrokesWithinTheStep() {
         fun snareHits(row: String): Int {

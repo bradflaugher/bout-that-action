@@ -849,7 +849,7 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
     fun gameOverStinger(hero: Hero?) {
         gameOverStinger()
         when (hero) {
-            Hero.BEAST -> {
+            Hero.BULL -> {
                 // Sad trombone: three falling "wah"s and a long, wobbling fourth.
                 for (k in 0 until 4) voice {
                     val last = k == 3
@@ -859,16 +859,16 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                     vibRate = if (last) 6f else 0f; vibDepth = 0.012f; gain = 0.16f; reverb = 0.25f; delay = 0.9f + k * 0.34f; priority = 4f
                 }
             }
-            Hero.ACE -> {
+            Hero.FOX -> {
                 // Vibes, rolled: a cool D minor 9 fading out on tremolo.
-                for (k in ACE_EXIT.indices) voice {
-                    val s = ACE_EXIT[k]
+                for (k in FOX_EXIT.indices) voice {
+                    val s = FOX_EXIT[k]
                     wave = Wave.SINE; wave2 = Wave.SINE; ratio2 = 4f; level2 = 0.2f; f0 = 293.7f * Dsp.semis(s.toFloat()); f1 = f0
                     attack = 0.003f; decay = 2.4f; tremRate = 5.5f; tremDepth = 0.5f; gain = 0.07f
                     pan = (k - 2f) * 0.2f; reverb = 0.55f; delay = 0.8f + k * 0.09f; priority = 4f
                 }
             }
-            Hero.HARDY -> {
+            Hero.BADGER -> {
                 // A shake of sleigh bells and three tolling bells: ho... ho... no.
                 voice {
                     level1 = 0f; noise = 1f; filter = FilterMode.HIGH; cut0 = 6000f; cut1 = 6000f; attack = 0.02f; hold = 0.35f
@@ -928,7 +928,7 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         private val PERK_SWELL = intArrayOf(0, 3, 7, 14)
         private val STINGER = intArrayOf(-12, 0, 3, 7)
         /** Dm9 (D F A C E), rolled up. */
-        private val ACE_EXIT = intArrayOf(0, 3, 7, 10, 14)
+        private val FOX_EXIT = intArrayOf(0, 3, 7, 10, 14)
         private val HO_HO_NO = intArrayOf(7, 3, -5)
         /** D minor horn: A, F, then down to D. */
         private val VIPER_EXIT = intArrayOf(7, 3, 0)

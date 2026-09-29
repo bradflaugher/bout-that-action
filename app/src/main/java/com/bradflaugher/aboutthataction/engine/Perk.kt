@@ -30,20 +30,20 @@ enum class Perk(
     LUCKY("LUCKY", "Enemies drop loot more often", 2, "Found a penny, heads up."),
     SHOCKWAVE("SHOCKWAVE", "Landing a stomp blasts the whole corridor", 1, "Landings: legendary."),
 
-    // ---- BEAST
-    STIFF_ARM("STIFF ARM", "Run into guards to flatten them, even mid-swing", 1, "Get off me.", Hero.BEAST),
-    BEAST_QUAKE("BEAST QUAKE", "Takedowns daze everyone nearby (LV 2: wider)", 2, "Registered on the seismograph.", Hero.BEAST),
-    CANDY_RAIN("CANDY RAIN", "Every 8th kill heals a heart (LV 2: every 5th)", 2, "Taste the victory.", Hero.BEAST),
+    // ---- BULL
+    STIFF_ARM("STIFF ARM", "Run into guards to flatten them, even mid-swing", 1, "Get off me.", Hero.BULL),
+    AFTERSHOCK("AFTERSHOCK", "Takedowns daze everyone nearby (LV 2: wider)", 2, "The whole floor felt that.", Hero.BULL),
+    CANDY_RAIN("CANDY RAIN", "Every 8th kill heals a heart (LV 2: every 5th)", 2, "Sweet, sweet healing.", Hero.BULL),
 
-    // ---- ACE
-    DISGUISE("DISGUISE", "Guards take twice as long to react to you", 1, "Nice moustache, sir.", Hero.ACE),
-    LASER_WATCH("LASER WATCH", "Your shots cut lamps; one swat kills them all", 1, "It also tells the time.", Hero.ACE),
-    DEAD_DROP("DEAD DROP", "SILENT kills drop loot 2x as often (LV 2: 3x)", 2, "Leave it under the fern.", Hero.ACE),
+    // ---- FOX
+    DISGUISE("DISGUISE", "Guards take twice as long to react to you", 1, "Nice moustache, sir.", Hero.FOX),
+    LASER_WATCH("LASER WATCH", "Your shots cut lamps; one swat kills them all", 1, "It also tells the time.", Hero.FOX),
+    DEAD_DROP("DEAD DROP", "SILENT kills drop loot 2x as often (LV 2: 3x)", 2, "Leave it under the fern.", Hero.FOX),
 
-    // ---- HARDY
-    YIPPEE("YIPPEE", "Bigger blasts that knock survivors flat", 1, "Come out to the coast.", Hero.HARDY),
-    VENT_CRAWL("VENT CRAWL", "Passages twice as quick; arrive unseen", 1, "Now I know what a TV dinner feels like.", Hero.HARDY),
-    ADRENALINE("ADRENALINE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "Welcome to the party, pal.", Hero.HARDY),
+    // ---- BADGER
+    YIPPEE("YIPPEE", "Bigger blasts that knock survivors flat", 1, "Come out to the coast.", Hero.BADGER),
+    VENT_CRAWL("VENT CRAWL", "Passages twice as quick; arrive unseen", 1, "Now I know what a TV dinner feels like.", Hero.BADGER),
+    ADRENALINE("ADRENALINE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "Welcome to the party, pal.", Hero.BADGER),
 
     // ---- VIPER
     JAMMER("JAMMER", "Drones and turrets take twice as long to react", 1, "Static on every channel.", Hero.VIPER),

@@ -8,7 +8,7 @@ import com.bradflaugher.aboutthataction.engine.World
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The heroes' costumes: every one paints, on a budget comparable to Beast's. */
+/** The heroes' costumes: every one paints, on a budget comparable to Bull's. */
 class HeroArtTest {
     /** Counts draw calls and draws nothing. */
     private class CountingGfx(override val width: Float, override val height: Float) : Gfx {
@@ -69,18 +69,18 @@ class HeroArtTest {
     }
 
     @Test
-    fun everyHeroPaintsOnABeastSizedBudget() {
+    fun everyHeroPaintsOnABullSizedBudget() {
         val poses = listOf<(World) -> Unit>(
             { },
             { it.player.vx = 4.5f; it.player.runTime = 0.3f },
             { it.player.weapon = PickupKind.MINIGUN; it.player.sinceShot = 0.03f },
         )
-        val beast = poses.sumOf { heroCalls(Hero.BEAST, it) }
+        val bull = poses.sumOf { heroCalls(Hero.BULL, it) }
         for (h in Hero.entries) {
             val n = poses.sumOf { heroCalls(h, it) }
-            println("hero draw calls ${h.name}: ${n / poses.size} per frame (Beast ${beast / poses.size})")
+            println("hero draw calls ${h.name}: ${n / poses.size} per frame (Bull ${bull / poses.size})")
             assertTrue("${h.name} paints", n > 0)
-            assertTrue("${h.name} costs $n calls, Beast $beast", n <= beast * 1.35f)
+            assertTrue("${h.name} costs $n calls, Bull $bull", n <= bull * 1.35f)
         }
     }
 

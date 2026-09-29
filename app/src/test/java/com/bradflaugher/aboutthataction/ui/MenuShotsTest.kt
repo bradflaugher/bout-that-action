@@ -69,7 +69,7 @@ class MenuShotsTest {
     private val run = RunSummary(
         floor = 58, zone = Zone.METRO, score = 142_880, kills = 71, takedowns = 19, seconds = 734f,
         seedLabel = "48213377", newBestScore = false, newBestFloor = false,
-        title = "CARDBOARD ENTHUSIAST", deathLine = "Steamed like a dumpling", quip = "I'm just 'bout that action, boss.",
+        title = "CARDBOARD ENTHUSIAST", deathLine = "Steamed like a dumpling", quip = "Cardboard remains undefeated.",
         highlights = listOf("BEST COMBO" to "7x", "GHOST FLOORS" to "9", "BOX'D" to "12", "NIGHT NIGHTS" to "3", "CLOSE CALLS" to "14"),
     )
 
@@ -98,10 +98,10 @@ class MenuShotsTest {
                 SettingsScreen(s, insets, {}, {})
             }
             shot("$device-settings-custom", 900, world()) {
-                SettingsScreen(s.copy(preset = null, seedMode = SeedMode.CUSTOM, seedText = "BEASTMODE"), insets, {}, {})
+                SettingsScreen(s.copy(preset = null, seedMode = SeedMode.CUSTOM, seedText = "CARDBOARD"), insets, {}, {})
             }
             shot("$device-pause", 700, world()) {
-                PauseScreen(s, "48213377", Hero.ACE, insets, {}, {}, {}, {})
+                PauseScreen(s, "48213377", Hero.FOX, insets, {}, {}, {}, {})
             }
             shot("$device-gameover", 3500, world()) {
                 GameOverScreen(run, insets, {}, {}, {}, records)
@@ -118,7 +118,7 @@ class MenuShotsTest {
         }
     }
 
-    private fun world(hero: Hero = Hero.BEAST): World {
+    private fun world(hero: Hero = Hero.BULL): World {
         val seed = 7L
         val w = World(RunConfig(seed, Difficulty.Preset.AGENT.difficulty, hero = hero))
         val pilot = Autopilot(seed)
@@ -209,7 +209,7 @@ class MenuShotsTest {
             "phone-title" to "menu-title",
             "phone-gameover-best" to "menu-gameover",
             "phone-settings-custom" to "menu-settings",
-            "phone-heroes-beast" to "menu-heroes",
+            "phone-heroes-bull" to "menu-heroes",
         )
     }
 }
