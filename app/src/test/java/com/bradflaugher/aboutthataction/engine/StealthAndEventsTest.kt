@@ -554,6 +554,36 @@ class StealthAndEventsTest {
     }
 
     @Test
+    fun aGuardMidAimLowersHisGunWhenHeSeesYouHide() {
+        val w = world()
+        w.player.x = openFloor(w, room = 3.5f)
+        // A Heavy about to fire a burst, well outside FIND_REACH.
+        val g = watching(w, EnemyKind.HEAVY, 3f)
+        g.state = EnemyState.AIM
+        g.stateTime = Heat.aimTime(w.floor(w.player.floor)!!.hall(w.player.hall).plan.heat) - 0.02f
+        g.burstLeft = 2
+        w.commands += Command.SWIPE_DOWN
+        run(w, 0.3f) { it.player.invuln = 99f }
+        assertEquals(PlayerState.BOX, w.player.state)
+        assertEquals(0, w.events.count { it is GameEvent.Shot && !it.byPlayer })
+        assertEquals(EnemyState.ALERT, g.state)
+    }
+
+    @Test
+    fun anOldAlertStillGivesYouTheFullHoldAfterYouHide() {
+        val w = world()
+        w.player.x = openFloor(w, room = 3.5f)
+        val g = watching(w, EnemyKind.AGENT, 3f)
+        // He's been on to you for ages.
+        g.stateTime = 5f
+        w.commands += Command.SWIPE_DOWN
+        run(w, World.SEEN_HIDE_HOLD - 0.1f) { it.player.invuln = 99f }
+        assertEquals("still holding", EnemyState.ALERT, g.state)
+        run(w, 0.2f) { it.player.invuln = 99f }
+        assertEquals("then he comes over", EnemyState.SEARCH, g.state)
+    }
+
+    @Test
     fun aGuardWhoNeverSawYouHideWalksRightPast() {
         val w = world()
         val door = normalDoor(w)

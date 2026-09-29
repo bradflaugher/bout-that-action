@@ -908,6 +908,12 @@ class World(val config: RunConfig) {
             if (e.state != EnemyState.ALERT && e.state != EnemyState.AIM && e.state != EnemyState.WINDUP) continue
             e.sawHide = true
             e.lastSeenX = player.x
+            // A fresh hold from the moment you vanish: he lowers the gun (no finishing the shot
+            // or the burst at cardboard) and gives you your beat before he comes over.
+            e.state = EnemyState.ALERT
+            e.stateTime = 0f
+            e.vx = 0f
+            e.burstLeft = 0
         }
     }
 
