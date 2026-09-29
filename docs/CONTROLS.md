@@ -60,7 +60,7 @@ horizontal is vertical (a flick). A shallower stroke is horizontal (a run).
 | Flick cooldown / rebound | 260 ms same finger; 600 ms opposite direction ignored | The thumb springing back after a jump is not a hide. A deliberate opposite flick after 0.6 s works. |
 | Flick then drag | 14 dp sideways from rest (`RESTART_DP`) | Jump, then run with the same thumb without lifting. |
 | Tap | ≤ 10 dp, < 300 ms (`TAP_MS`) | Recognised on release with zero added delay. Longer holds are resting thumbs. |
-| Sloppy tap | A finger that became a run but lifted within 150 ms, having travelled ≤ 16 dp | A hard, rolling thumb press slides past the run slop. It was a tap, not a step. |
+| Sloppy tap | A finger that lifted within 150 ms, having travelled ≤ 16 dp (whether it became a run, or stayed short of taking the run over from another thumb) | A hard, rolling thumb press slides past the run slop. It was a tap, not a step. |
 
 **Fingers leaving.** `ACTION_CANCEL` means the system took the gesture. The
 run stops (`releaseAll`), but flicks and taps that were already recognised

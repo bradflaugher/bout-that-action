@@ -192,13 +192,14 @@ class GestureInput(density: Float) {
                     flick(f, dy, x, y, t)
                     return
                 }
-                if (abs(dx) <= slop && abs(dy) <= slop && dt < TAP_MS) tap()
+                // A rolling jab past the slop that didn't take the run over (another
+                // thumb is running) is the same sloppy tap as below.
+                if (abs(dx) <= slop && abs(dy) <= slop && dt < TAP_MS || sloppyTap(f, dx, dy, dt)) tap()
             }
             Mode.HELD -> {
                 // A quick jab that barely slid past the run slop was a tap with a
                 // rolling thumb, not a deliberate step: a tap.
-                val travel = maxOf(f.maxTravel, abs(dx), abs(dy))
-                if (f.lastFlick == 0 && dt < SLOPPY_TAP_MS && travel <= sloppyTapDist) tap()
+                if (f.lastFlick == 0 && sloppyTap(f, dx, dy, dt)) tap()
             }
         }
     }
@@ -223,6 +224,9 @@ class GestureInput(density: Float) {
     fun drain(sink: (Command) -> Unit) {
         while (pending.isNotEmpty()) sink(pending.removeFirst())
     }
+
+    private fun sloppyTap(f: Finger, dx: Float, dy: Float, dt: Long) =
+        dt < SLOPPY_TAP_MS && maxOf(f.maxTravel, abs(dx), abs(dy)) <= sloppyTapDist
 
     private fun startRun(f: Finger, dir: Int, x: Float) {
         f.mode = Mode.HELD

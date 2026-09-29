@@ -273,6 +273,18 @@ class GestureInputTest {
     }
 
     @Test
+    fun aSloppyTapWhileTheOtherThumbRunsStillTaps() {
+        // Past the run slop but short of the takeover distance: still a tap.
+        g.down(0, 200f, 1800f, 0)
+        drag(0, 200f, 1800f, 300f, 1800f, 0)
+        g.down(1, 900f, 1700f, 100)
+        drag(1, 900f, 1700f, 942f, 1702f, 100, steps = 4) // 14 dp
+        g.up(1, 942f, 1702f, 140)
+        assertEquals(listOf(Command.TAP), commands())
+        assertEquals(1, g.moveAxis)
+    }
+
+    @Test
     fun aFingerThatFlickedCanDragIntoARun() {
         g.down(0, 500f, 1500f, 0)
         var t = drag(0, 500f, 1500f, 505f, 1380f, 0, steps = 5)
