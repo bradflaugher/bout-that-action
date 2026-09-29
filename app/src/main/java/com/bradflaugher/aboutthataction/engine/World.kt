@@ -261,6 +261,7 @@ class World(val config: RunConfig) {
         heavyBounceCooldown -= dt
 
         if (phase == Phase.PLAYING) handleCommands()
+        if (phase == Phase.PLAYING) resolveSeenHides()
         if (phase == Phase.PLAYING) coach(dt)
         updatePlayer(dtP)
         if (phase == Phase.PLAYING) flushBuffer(dt)
@@ -528,7 +529,7 @@ class World(val config: RunConfig) {
                     swatLight()
                     return true
                 }
-                if (tapTarget() == null) return true
+                if (tapTarget() == null && !lockedStashInReach()) return true
                 interact()
             }
             // The on-screen grenade button.
@@ -565,7 +566,7 @@ class World(val config: RunConfig) {
         TAKEDOWN("WALK INTO HIM"),
         HIDE("SWIPE DOWN: HIDE"),
         JUMP("SWIPE UP: JUMP"),
-        GRENADE("GREEN BUTTON: GRENADE"),
+        GRENADE("GRENADE BUTTON: THROW"),
         FIND_LIFT("NO LIFT HERE: GREEN DOORS"),
     }
 
@@ -667,9 +668,28 @@ class World(val config: RunConfig) {
         val doors = hs.plan.doors
         for (i in doors.indices) {
             val d = doors[i]
-            if (d.kind == DoorKind.PASSAGE || d.kind == DoorKind.STASH && !hs.stashUsed[i]) consider(d.x, TAP_REACH, i)
+            if (d.kind == DoorKind.PASSAGE || d.kind == DoorKind.STASH && !hs.stashUsed[i] && !stashLocked) consider(d.x, TAP_REACH, i)
         }
         return best
+    }
+
+    /**
+     * STASH doors lock while anyone in your hallway is on to you (hunting you, or still out
+     * looking): drop them or lose them first. No ducking into the loot room mid-firefight.
+     */
+    var stashLocked = false
+        private set
+
+    /** Is the STASH door [d] of [hs] shut to you right now? (Only your own hallway's lock.) */
+    fun stashLocked(hs: HallState, d: Int): Boolean =
+        stashLocked && hs === playerHall() && hs.plan.doors[d].kind == DoorKind.STASH && !hs.stashUsed[d]
+
+    /** A live STASH door in tap reach that's locked (for the "LOCKED" rattle). */
+    private fun lockedStashInReach(): Boolean {
+        if (!stashLocked) return false
+        val hs = playerHall() ?: return false
+        val doors = hs.plan.doors
+        return doors.indices.any { doors[it].kind == DoorKind.STASH && !hs.stashUsed[it] && abs(doors[it].x - player.x) < TAP_REACH }
     }
 
     /** Is [car] standing open on the player's floor, long enough to step into? */
@@ -711,6 +731,11 @@ class World(val config: RunConfig) {
                 if (p.hidden) unhide()
                 val d = hs.plan.doors[t]
                 if (d.kind == DoorKind.PASSAGE) startPassage(hs, t) else enterStash(hs, t)
+            }
+            null -> if (lockedStashInReach()) {
+                stats.lockedStash++
+                events += GameEvent.StashLocked
+                fx.text(Popup.LOCKED, p.x, Geo.groundY(p.floor) - 2.4f, TextStyle.WARN, 0.8f)
             }
         }
     }
@@ -859,6 +884,7 @@ class World(val config: RunConfig) {
         hs.doorOpen[d] = 1f
         stats.doorHides++
         events += GameEvent.HideDoor
+        seenHiding()
     }
 
     private fun hideInBox() {
@@ -869,7 +895,68 @@ class World(val config: RunConfig) {
         stats.boxHides++
         events += GameEvent.HideBox
         fx.burst(ParticleKind.DUST, p.x, Geo.groundY(p.floor) - 0.1f, 6, 2f, 0.4f, 0.12f, upBias = 0.4f)
+        seenHiding()
     }
+
+    /**
+     * No magic vanishing act: anyone already on to you who was watching when you hid knows
+     * exactly where you went. He'll come over and pull you out ([foundHiding]).
+     */
+    private fun seenHiding() {
+        for (e in enemies) {
+            if (!e.alive || !here(e) || !e.eyesOn || e.kind == EnemyKind.TURRET) continue
+            if (e.state != EnemyState.ALERT && e.state != EnemyState.AIM && e.state != EnemyState.WINDUP) continue
+            e.sawHide = true
+            e.lastSeenX = player.x
+            // A fresh hold from the moment you vanish: he lowers the gun (no finishing the shot
+            // or the burst at cardboard) and gives you your beat before he comes over.
+            e.state = EnemyState.ALERT
+            e.stateTime = 0f
+            e.vx = 0f
+            e.burstLeft = 0
+        }
+    }
+
+    /** [e] walked up to where he saw you hide: out you come, box kicked off or pulled from the doorway. */
+    private fun foundHiding(e: Enemy) {
+        val p = player
+        e.sawHide = false
+        stats.foundHiding++
+        e.facing = if (p.x >= e.x) 1 else -1
+        if (p.state == PlayerState.BOX) {
+            kickBox(e)
+        } else {
+            unhide()
+            events += GameEvent.FoundHiding
+            fx.text(Popup.FOUND_YOU, e.x, Geo.groundY(e.floor) - e.height - 0.9f, TextStyle.WARN, 0.8f)
+            alert(e)
+        }
+        // Hauled out and shoved clear of each other: no choking him out the instant he's found
+        // you. Against a wall he's the one who steps back.
+        val away = if (p.x > e.x) 1 else if (p.x < e.x) -1 else if (p.x < Geo.FLOOR_W / 2f) 1 else -1
+        val sep = takedownReach() + e.halfWidth + FOUND_SHOVE
+        p.x = (e.x + away * sep).coerceIn(0.35f, Geo.FLOOR_W - 0.35f).let { if ((it - p.x) * away > 0f) it else p.x }
+        if (abs(p.x - e.x) < sep) e.x = (p.x - away * sep).coerceIn(0.6f, Geo.FLOOR_W - 0.6f)
+        p.vx = 0f
+    }
+
+    /**
+     * Every guard who watched you hide and has walked up to the spot finds you, before anything
+     * else this step can happen (a takedown, a SABOTAGE unplug): one place, every distance.
+     */
+    private fun resolveSeenHides() {
+        val p = player
+        if (!p.hidden) return
+        for (e in enemies) {
+            if (!e.sawHide || !e.alive || !here(e)) continue
+            if (e.state != EnemyState.ALERT && e.state != EnemyState.AIM && e.state != EnemyState.SEARCH) continue
+            if (abs(e.x - p.x) >= FIND_REACH) continue
+            foundHiding(e)
+            return
+        }
+    }
+
+    private fun takedownReach() = 0.55f + 0.3f * stacks(Perk.CQC)
 
     private fun stepOut() {
         val p = player
@@ -1114,9 +1201,11 @@ class World(val config: RunConfig) {
     private fun checkTakedown() {
         val p = player
         if (p.z > 0.55f) return
-        val reach = 0.55f + 0.3f * stacks(Perk.CQC)
+        val reach = takedownReach()
         for (e in enemies) {
             if (!here(e) || !e.alive || e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
+            // He watched you hide: no ambush, no unplugging him from cover. He's coming to find you.
+            if (p.hidden && e.sawHide) continue
             if (e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET) {
                 // SABOTAGE: reach up and pull the plug, as long as it isn't drawing a bead on you.
                 if (hero.sabotage && e.state != EnemyState.AIM && abs(e.x - p.x) <= reach + e.halfWidth &&
@@ -1610,6 +1699,7 @@ class World(val config: RunConfig) {
         }
         cautionLeft -= dt
         if (hunting || searching) cautionLeft = CAUTION_TIME
+        stashLocked = hunting || searching
         alertPhase = when {
             hunting -> AlertPhase.ALERT
             cautionLeft > 0f && (searching || alertPhase != AlertPhase.CALM) -> AlertPhase.CAUTION
@@ -1909,6 +1999,9 @@ class World(val config: RunConfig) {
             val sees = (visible && dist < (if (omni && !pitchBlack) range + 2f else range) &&
                 (sign(dx).toInt() == e.facing || dist < BEHIND_SENSE || omni)) || boxedNearby
             if (sees) e.lastSeenX = player.x
+            e.eyesOn = sees
+            // He saw you hide and you're still in there: he's coming. Once you're out (or gone), it's off.
+            if (e.sawHide && !(player.hidden && here(e))) e.sawHide = false
             val speed = Heat.enemySpeed(heat)
 
             // Drones bob and drift to a comfortable firing distance.
@@ -1936,7 +2029,14 @@ class World(val config: RunConfig) {
                 EnemyState.ALERT -> {
                     e.vx = 0f
                     if (visible || boxedNearby) e.facing = if (dx >= 0) 1 else -1
-                    if (!sees && e.stateTime > 1.2f) {
+                    if (e.sawHide) {
+                        // He knows you're in there: no shooting at cardboard, he comes to get you.
+                        if (e.stateTime > SEEN_HIDE_HOLD) {
+                            e.state = EnemyState.SEARCH
+                            e.stateTime = 0f
+                            e.timer = SEARCH_LINGER
+                        }
+                    } else if (!sees && e.stateTime > 1.2f) {
                         e.state = EnemyState.SEARCH
                         e.stateTime = 0f
                         e.timer = SEARCH_LINGER
@@ -2012,7 +2112,9 @@ class World(val config: RunConfig) {
                     if (sees) {
                         alert(e)
                         e.timer *= 0.5f
-                    } else if (e.timer <= 0f || e.stateTime > SEARCH_MAX) {
+                    } else if (e.timer <= 0f || e.stateTime > SEARCH_MAX && !e.sawHide) {
+                        // (He saw where you went: no giving up on the way, only once he's looked.)
+                        e.sawHide = false
                         e.state = EnemyState.PATROL
                         e.stateTime = 0f
                         e.timer = PATROL_LOOK
@@ -2574,6 +2676,12 @@ class World(val config: RunConfig) {
         const val ARRIVAL_GRACE = 0.8f
         /** A searching guard looks around this long once he reaches the spot, then gives up... */
         const val SEARCH_LINGER = 3.5f
+        /** A guard who saw you hide finds you once he's this close to the spot. */
+        const val FIND_REACH = 1.1f
+        /** Clearance past takedown reach that being found leaves between you and him. */
+        const val FOUND_SHOVE = 0.3f
+        /** A guard who saw you hide holds this long (your window to slip away), then comes over. */
+        const val SEEN_HIDE_HOLD = 0.8f
         /** ...or after this long in all, however far he had to walk. */
         const val SEARCH_MAX = 9f
         /**

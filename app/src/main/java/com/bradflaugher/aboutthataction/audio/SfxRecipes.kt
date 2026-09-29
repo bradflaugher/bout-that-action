@@ -94,6 +94,8 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
             GameEvent.Muzak -> muzak()
             is GameEvent.Snore -> snore(e.pan)
             GameEvent.BoxKicked -> boxKicked()
+            GameEvent.FoundHiding -> hideDoor()
+            GameEvent.StashLocked -> emptyClick()
         }
     }
 

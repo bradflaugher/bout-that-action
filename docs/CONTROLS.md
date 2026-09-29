@@ -28,7 +28,7 @@ Every verb has exactly one gesture, and no gesture means two things:
 | Drag | Run |
 | Swipe ↑ | Jump (stomp from above) |
 | Swipe ↓ | Hide: a doorway in reach, else the box; in a lift, the box in the car |
-| Tap | Interact: a passage, a live STASH door, an elevator (ride it if it's open, call it if not) |
+| Tap | Interact: a passage, a live STASH door (not while it's LOCKED), an elevator (ride it if it's open, call it if not) |
 | Grenade button | Grenade |
 | Walk into a guard | Takedown |
 | Jump + tap | Swat out the ceiling lamp overhead |
@@ -209,6 +209,23 @@ down.
 The fixture drops a beat later onto anyone within 0.8 u of it, never onto you.
 The crash of glass brings every guard within 7 u (`LIGHT_LURE_RADIUS`) over to
 look, sleepers included ("HUH?", a SEARCH at the lamp, not an alert): a lure.
+
+**Seen hiding.** A guard who is already on to you (ALERT or aiming) and has
+you in sight the moment you hide marks the spot (`sawHide`). He stops shooting
+at you, holds for 0.8 s (`SEEN_HIDE_HOLD`, your window to slip away), then
+walks straight over, however far, with no search time-out on the way. Once
+he's within 1.1 u (`FIND_REACH`) he finds you, checked first thing every step
+(`resolveSeenHides`), before any takedown: out of the doorway ("FOUND YOU!")
+or the box kicked off. While you're hidden he's never a takedown or SABOTAGE
+target, and being found leaves you clear of each other's reach (against a
+wall, he's the one who steps back), so there's no free choke. Guards who
+didn't see you go are fooled as ever. Stepping out, or leaving the hallway,
+calls it off.
+
+**Locked stashes.** A STASH door is LOCKED (red plate, no glow, no tap chip)
+while any guard in your hallway is hunting or searching for you. A tap on it
+rattles ("LOCKED"). It opens the moment nobody's on to you, even while the
+music is still in CAUTION.
 
 **Arriving in SILENT.** Through a passage or out of a car you arrive tucked
 into the doorway's shadow, hidden, so a guard facing the door sees nothing:

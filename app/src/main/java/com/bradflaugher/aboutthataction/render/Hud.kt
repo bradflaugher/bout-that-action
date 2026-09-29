@@ -69,8 +69,9 @@ internal class Hud(private val f: Frame) {
         private const val PAUSE_R = 4.6f
         /** Mode button centre sits this many units under the pause button's. */
         private const val MODE_GAP = 12.5f
-        private const val HOT = 0xFFFF6A3A.toInt()
-        private const val QUIET = 0xFF9C8CFF.toInt()
+        /** GUNS HOT orange, SILENT violet and grenade lime: the billboard draws the buttons in these too. */
+        const val HOT = 0xFFFF6A3A.toInt()
+        const val QUIET = 0xFF9C8CFF.toInt()
         private const val MARGIN = 4f
         private const val TOP = 2.5f
 
@@ -82,7 +83,7 @@ internal class Hud(private val f: Frame) {
         private const val HEART = 0xFFFF2E58.toInt()
         private const val GOLD = 0xFFFFD24A.toInt()
         private const val PINK = 0xFFFF3D9A.toInt()
-        private const val LIME = 0xFF9AE040.toInt()
+        const val LIME = 0xFF9AE040.toInt()
 
         fun unit(width: Float) = width / 100f
 

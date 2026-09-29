@@ -27,13 +27,13 @@ is read on its own, so one thumb can run while the other taps.
 | Gesture | Does |
 |---|---|
 | **Drag ← →** and hold | Run. Nudge back a little to turn around instantly. Lift to stop. A held run won't pull you out of a doorway or elevator: lift and drag again to step out. |
-| **Tap** | Interact with what you're standing at: go through a green **passage** door into another hallway, enter a gold **STASH** door, ride an open **elevator** down, or call a closed one. With nothing in reach, a tap does nothing. |
+| **Tap** | Interact with what you're standing at: go through a green **passage** door into another hallway, enter a gold **STASH** door (locked while you're being hunted), ride an open **elevator** down, or call a closed one. With nothing in reach, a tap does nothing. |
 | **Swipe ↓** | Hide: press into a nearby **doorway**, otherwise pop the **cardboard box**. In an elevator, box up in the car. Swipe ↓ again to stand up. In a doorway, a tap or a swipe ↑ also steps you out. |
 | **Swipe ↑** | Jump. Clears low shots; land on heads to stomp. Works mid-run. |
 | **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind (the BEAST tackles them head-on); a napping guard from anywhere. Works in GUNS HOT too: the gun never shoots a guard with his back to you. |
 | **Grenade button** (under the mode button) | Throw a grenade, in either mode. The lime button shows how many you carry and greys out when you're empty. Taps never throw one, so hammering a door is always just the door. |
 | **Jump + tap** | Under a ceiling lamp: swat it out by hand. The hallway gets darker, the fixture drops on anyone right under it (never on you), and the crash of glass brings nearby guards over to look: lure them in, then grab them from the shadows. Works in both modes. |
-| **Mode button** (under pause) | **GUNS HOT**: you auto-fire at threats in range. **SILENT**: you never fire; guards only notice what they see, and quiet kills pay double. Your choice sticks between runs. |
+| **Mode button** (under pause) | **GUNS HOT**: you auto-fire at threats in range. **SILENT**: you never fire; guards only notice what they see, and quiet kills pay double. Flip it any time (it's the only place to); your choice sticks between runs. |
 
 A chip over your head shows what a tap (or a swipe ↓) will do right now, and
 the hallway map in the corner shows where you've been and which hallways have
@@ -76,12 +76,18 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   stops ("HUH?") and comes over to check. Let him. Heavies and ninjas aren't
   fooled: they kick the box off. Leave a floor without anyone spotting you
   and it's a **GHOST** bonus (double in SILENT).
+- **No vanishing acts.** Hide *before* they see you. A guard who is already
+  on to you and watches you duck into a doorway or under the box knows where
+  you went: he walks over and pulls you out ("FOUND YOU!") or kicks the box
+  off. Anyone who didn't see you go walks right past.
 - **Special floors.** About one floor in six is something else: a
   **BLACKOUT** (every light dead, for them too), **NAP TIME** (guards asleep
   at their posts: tiptoe up for a NIGHT NIGHT), or **PAYDAY** (somebody left
   the loot lying around). Some rides come with smooth jazz. The first guard
   of every run is napping on the roof.
-- **Roguelike runs.** Every gold STASH door offers three perks, and they
+- **Roguelike runs.** Every gold STASH door offers three perks (it's
+  **LOCKED** while anyone in the hallway is hunting or searching for you:
+  drop them or lose them first), and they
   stack: Rapid Fire, Hollow Point, Pierce, Ricochet, Split Shot, Vitality,
   CQC Master, Ghost Box, Double Jump, Demolition, Magnet, Reflex (auto
   bullet-time), Kevlar, Lucky and Shockwave stomps, plus three that only your
@@ -205,7 +211,9 @@ you back. The building will still be there.
   </tr>
 </table>
 
-The title screen shows who you're playing as; **DROP IN** is still one tap.
+The title screen shows who you're playing as and the difficulty (CHILL, AGENT,
+BRUTAL, or **CUSTOM**, which opens Settings to shape your own curve or pick
+Straight to Hell); **DROP IN** is still one tap.
 Tap the hero bar to open the picker: swipe (or tap the roster) through all
 four heroes, each on their own stage with their theme playing, and see their
 trait and three hero-only perks. The pick sticks between runs, and the demo
@@ -221,7 +229,7 @@ its own bonus, and Hell adds a lot. Pick a preset or shape your own curve:
 - **Chill:** slow ramp, 5 hearts.
 - **Agent:** the intended descent.
 - **Brutal:** hot start, steep ramp, 2 hearts.
-- **Straight to Hell:** start on floor 150. Good luck.
+- **Straight to Hell:** start in Hell, at B100. Good luck.
 - **Custom:** starting heat, ramp, heat cap, hearts, and the zone you start in,
   with a live preview of the curve.
 

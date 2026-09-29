@@ -78,7 +78,8 @@ class Haptics(context: Context) {
             is GameEvent.Suspicious -> light(softTick)
             is GameEvent.Alerted -> play(click)
             is GameEvent.FloorEventStarted -> play(click)
-            GameEvent.BoxKicked -> play(thud)
+            GameEvent.BoxKicked, GameEvent.FoundHiding -> play(thud)
+            GameEvent.StashLocked -> light(empty)
             else -> Unit
         }
     }

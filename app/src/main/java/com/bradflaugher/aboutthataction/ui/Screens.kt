@@ -140,6 +140,10 @@ internal fun Modifier.veil(tint: Color = Neon.night, alpha: Float = 0.78f): Modi
 
 // ------------------------------------------------------------------ title
 
+/** The title's difficulty row: the everyday presets, then CUSTOM (null) for everything else. */
+private val TITLE_PRESETS: List<Difficulty.Preset?> =
+    listOf(Difficulty.Preset.CHILL, Difficulty.Preset.AGENT, Difficulty.Preset.BRUTAL, null)
+
 @Composable
 fun TitleScreen(
     settings: Settings,
@@ -148,6 +152,7 @@ fun TitleScreen(
     onPlay: () -> Unit,
     onSettings: () -> Unit,
     onPreset: (Difficulty.Preset) -> Unit,
+    onCustom: () -> Unit,
     onHeroes: () -> Unit,
 ) {
     // Logo up top, controls down by the thumbs; at big font sizes or in a short window, it scrolls.
@@ -184,14 +189,16 @@ fun TitleScreen(
                     Spacer(Modifier.weight(1f))
                     Kicker((settings.preset?.blurb ?: "Your own curve").uppercase(Locale.US), Neon.dim, align = TextAlign.End)
                 }
+                // The three everyday presets, then CUSTOM, which opens the full difficulty menu
+                // (and holds STRAIGHT TO HELL, which lights it up as HELL).
+                val hell = settings.preset == Difficulty.Preset.STRAIGHT_TO_HELL
                 Segmented(
-                    Difficulty.Preset.entries.toList(),
-                    settings.preset,
-                    label = ::presetLabel,
+                    TITLE_PRESETS,
+                    if (hell) null else settings.preset,
+                    label = { if (it != null) presetLabel(it) else if (hell) "HELL" else "CUSTOM" },
                     color = Neon.magenta,
                     modifier = Modifier.reveal(300),
-                    onSelect = onPreset,
-                )
+                ) { if (it != null) onPreset(it) else onCustom() }
                 HeroBar(settings.hero, Modifier.reveal(340), onHeroes)
                 NeonButton(
                     "DROP IN", Neon.magenta, Modifier.fillMaxWidth().reveal(380).padding(top = Space.xxs),
@@ -335,7 +342,6 @@ internal fun AudioAndControls(s: Settings, onChange: (Settings) -> Unit, audioIn
     LevelMeter("MUSIC", s.musicVolume) { onChange(s.copy(musicVolume = it)) }
     LevelMeter("SOUND FX", s.sfxVolume) { onChange(s.copy(sfxVolume = it)) }
     SectionHeader(controlsIndex, "CONTROLS", Neon.cyan)
-    Toggle("Silent mode", "Never fire: takedowns, stomps, grenades. Quiet kills score double", s.silent) { onChange(s.copy(silent = it)) }
     Toggle("Haptics", "Feel hits and pickups", s.haptics) { onChange(s.copy(haptics = it)) }
     Toggle("Thumb guide", "Ring under your running thumb", s.touchGuide) { onChange(s.copy(touchGuide = it)) }
     Toggle("Coach tips", "A one-line hint the first time each move would help", s.coach) { onChange(s.copy(coach = it)) }

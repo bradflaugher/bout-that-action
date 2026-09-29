@@ -263,7 +263,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
     private fun goalDir(w: World): Int = if (goalX(w) > w.player.x) 1 else -1
 
     /**
-     * Where to go in this hallway: a live STASH door, else a landing with a ride down, else the
+     * Where to go in this hallway: a live, unlocked STASH door, else a landing with a ride down, else the
      * passage on the shortest route to a hallway that has one.
      */
     private fun goalX(w: World): Float {
@@ -271,7 +271,8 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         val fs = w.floor(p.floor) ?: return p.x
         val hs = fs.hall(p.hall)
         val doors = hs.plan.doors
-        val stash = doors.indices.firstOrNull { doors[it].kind == DoorKind.STASH && !hs.stashUsed[it] }
+        // (Locked while the hallway's on alert: head for the ride instead.)
+        val stash = if (w.stashLocked) null else doors.indices.firstOrNull { doors[it].kind == DoorKind.STASH && !hs.stashUsed[it] }
         if (stash != null) return doors[stash].x
         val down = hs.plan.downLandings
         if (down.isNotEmpty()) {
