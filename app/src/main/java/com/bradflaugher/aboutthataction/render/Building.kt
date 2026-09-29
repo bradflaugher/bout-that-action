@@ -38,6 +38,9 @@ internal class Building(private val f: Frame) {
         private const val STASH_GLOW = 0xFFFFA828.toInt()
         private const val STASH_GOLD = 0xFFFFD27A.toInt()
         private const val STASH_LOCKED = 0xFFFF4A5E.toInt()
+        /** The billboard's mini HUD buttons: ring radius and the gap between their rows. */
+        private const val BUTTON_R = 0.19f
+        private const val BUTTON_PITCH = 0.6f
         /** Wayfinding green: passages to other hallways, and nothing else. */
         const val PASSAGE = 0xFF4CFFA8.toInt()
         /** The lift's cyan (HUD chip, map, plates). */
@@ -1275,7 +1278,8 @@ internal class Building(private val f: Frame) {
         f.worldText("SILENT", actX, my, bs, Hud.QUIET, Gfx.Font.TITLE, Gfx.Align.RIGHT)
         f.worldText("/", slashX, my, bs, 0x80FFFFFF.toInt(), Gfx.Font.TITLE, Gfx.Align.CENTER)
         f.worldText("GUNS HOT", hotX, my, bs, Hud.HOT, Gfx.Font.TITLE, Gfx.Align.RIGHT)
-        val ny = my + pitch
+        // The two buttons get more room than the text rows, so their rings never crowd.
+        val ny = my + BUTTON_PITCH
         grenadeIcon(bx, ny - 0.1f)
         worldRich("TAP", bx + 0.34f, ny, size, 0xFFF4ECFF.toInt(), Gfx.Align.LEFT)
         boardAction("GRENADE", lead, actX, ny, size, Hud.LIME)
@@ -1299,7 +1303,7 @@ internal class Building(private val f: Frame) {
 
     /** The HUD's mode button in miniature: a hot crosshair in a ring. */
     private fun modeIcon(x: Float, y: Float) {
-        val r = 0.23f
+        val r = BUTTON_R
         g.fillCircle(x, y, r, 0xFF0C0A14.toInt())
         g.strokeCircle(x, y, r, 0.03f, Hud.HOT)
         val k = r * 0.5f
@@ -1314,7 +1318,7 @@ internal class Building(private val f: Frame) {
 
     /** The HUD's grenade button in miniature: a lime grenade in a ring. */
     private fun grenadeIcon(x: Float, y: Float) {
-        val r = 0.23f
+        val r = BUTTON_R
         g.fillCircle(x, y, r, 0xFF0C0A14.toInt())
         g.strokeCircle(x, y, r, 0.03f, Hud.LIME)
         HudIcons.grenade(g, x - r * 0.12f, y + r * 0.08f, r * 1.25f, Hud.LIME)
