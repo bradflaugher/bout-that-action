@@ -53,21 +53,21 @@ enum class Hero(
     FOX(
         "FOX", "Gentleman spy. Tux pressed.",
         "8-round mag, quick trigger; guards are slow to react", "Licensed to chill.",
-        0xFFE8C872.toInt(),
+        0xFFE8413A.toInt(),
         magSize = 8, reactionScale = 1.35f, fireScale = 0.85f,
     ),
     /** Barefoot cop in a tank top, having the worst holiday ever. */
     BADGER(
         "BADGER", "Wrong building. Wrong night.",
         "Shrugs off one fatal hit a run; +1 grenade", "Now I have a grenade. Ho ho ho.",
-        0xFFFF7A3C.toInt(),
+        0xFFFFD23C.toInt(),
         secondWind = true, extraGrenades = 1,
     ),
     /** Jungle commando in a bandana. Lives in the box, unplugs the robots, never makes a sound. */
     VIPER(
         "VIPER", "Jungle commando. Bandana on.",
         "Sneaks unseen, unplugs robots, sly box, fast reloads", "A box is a lifestyle.",
-        0xFFE8413A.toInt(),
+        0xFF58D25A.toInt(),
         boxPro = true, sabotage = true, sneakSight = 0.75f, reloadScale = 0.75f,
     ),
 }

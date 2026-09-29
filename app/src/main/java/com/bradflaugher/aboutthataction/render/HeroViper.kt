@@ -5,16 +5,16 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * VIPER: the jungle commando. A long crimson bandana knotted round a shaggy dark mullet, its
+ * VIPER: the jungle commando. A long green bandana knotted round a shaggy dark mullet, its
  * two tails streaming behind his head; stubble and a smear of camo paint; bare, muscular arms
  * out of an olive sneaking vest with pouches and an ammo bandolier across the chest; fingerless
  * gloves; dark cargo pants with a knife on the thigh and a knee pad; laced combat boots. A
- * crimson rim.
+ * green rim.
  */
 internal class ViperKit(a: HeroArt) : HeroKit(a) {
     override val bulk = 1.08f
     override val head = 1.0f
-    override val accent = CRIMSON
+    override val accent = GREEN
     override val rim = RIM
     override val echo = 0xFF4A8A3A.toInt()
     override val eyes = 0xFFFF8A70.toInt()
@@ -205,15 +205,15 @@ internal class ViperKit(a: HeroArt) : HeroKit(a) {
         // The bandana round the forehead, knotted at the back.
         hpoly(BAND)
         if (p.ink) {
-            p.shape(CRIMSON)
-            p.disc(hpX(-1.1f), hpY(-0.46f), r * 0.2f, CRIMSON)
+            p.shape(GREEN)
+            p.disc(hpX(-1.1f), hpY(-0.46f), r * 0.2f, GREEN)
             return
         }
-        p.shapeLit(CRIMSON, hpX(0.6f), hpY(-0.8f), hpX(0f), hpY(-0.3f), sep = true)
-        p.ball(hpX(-1.1f), hpY(-0.46f), r * 0.2f, CRIMSON_DARK)
+        p.shapeLit(GREEN, hpX(0.6f), hpY(-0.8f), hpX(0f), hpY(-0.3f), sep = true)
+        p.ball(hpX(-1.1f), hpY(-0.46f), r * 0.2f, GREEN_DARK)
         if (p.shading) {
             p.detail(hpX(0.8f), hpY(-0.7f), hpX(-0.9f), hpY(-0.55f), r * 0.06f, Col.alpha(0xFFFFB0A0.toInt(), 0.7f))
-            p.detail(hpX(0.9f), hpY(-0.46f), hpX(-0.9f), hpY(-0.34f), r * 0.05f, CRIMSON_DARK)
+            p.detail(hpX(0.9f), hpY(-0.46f), hpX(-0.9f), hpY(-0.34f), r * 0.05f, GREEN_DARK)
         }
         if (look.rim != 0 && !ghost) {
             g.blend(Gfx.Blend.ADD)
@@ -241,7 +241,7 @@ internal class ViperKit(a: HeroArt) : HeroKit(a) {
             val mv = rv + sin(ang) * len * 0.5f + fl
             val tu = mu - cos(ang + 0.2f) * len * 0.55f + a.idle * 4f
             val tv = mv + sin(ang + 0.2f) * len * 0.55f + fl2
-            val col = if (i == 0) CRIMSON else CRIMSON_DARK
+            val col = if (i == 0) GREEN else GREEN_DARK
             p.bone(hpX(ru), hpY(rv), hpX(mu), hpY(mv), r * 0.3f, r * 0.26f, col, sep = i == 0, lit = i == 0)
             p.bone(hpX(mu), hpY(mv), hpX(tu), hpY(tv), r * 0.26f, r * 0.1f, col, sep = i == 0, lit = i == 0)
             if (i == 0 && !p.ink && look.rim != 0) addLine(hpX(mu), hpY(mv) - r * 0.1f, hpX(tu), hpY(tv) - r * 0.06f, HeroArt.RIM_PX, look.rim)
@@ -249,18 +249,18 @@ internal class ViperKit(a: HeroArt) : HeroKit(a) {
     }
 
     override fun doorGlint(time: Float) {
-        // An eye in the dark: a hard white glint with a crimson edge.
+        // An eye in the dark: a hard white glint with a green edge.
         if (fract(time * 0.25f) > 0.95f) return
         val x = hpX(0.78f)
         val y = hpY(-0.12f)
         p.dot(x, y, 0.014f * k.hs, Col.alpha(0xFFFFF4F0.toInt(), 0.9f))
-        a.f.glowDot(x, y, 0.018f, CRIMSON, 0.5f)
+        a.f.glowDot(x, y, 0.018f, GREEN, 0.5f)
     }
 
     companion object {
-        val CRIMSON = Hero.VIPER.color
-        const val CRIMSON_DARK = 0xFFA0201E.toInt()
-        const val RIM = 0xFFFF8C80.toInt()
+        val GREEN = Hero.VIPER.color
+        const val GREEN_DARK = 0xFF2A8A2E.toInt()
+        const val RIM = 0xFFA8F29C.toInt()
         const val SKIN = 0xFFB87E56.toInt()
         const val SKIN_LIT = 0xFFF0BE92.toInt()
         const val SKIN_FAR = 0xFF74482E.toInt()
