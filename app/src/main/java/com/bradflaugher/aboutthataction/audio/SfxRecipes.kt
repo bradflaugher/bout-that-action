@@ -869,7 +869,7 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                 }
             }
             Hero.BADGER -> {
-                // A shake of sleigh bells and three tolling bells: ho... ho... no.
+                // A shake of sleigh bells and three tolling bells.
                 voice {
                     level1 = 0f; noise = 1f; filter = FilterMode.HIGH; cut0 = 6000f; cut1 = 6000f; attack = 0.02f; hold = 0.35f
                     decay = 0.4f; tremRate = 17f; tremDepth = 0.8f; gain = 0.1f; reverb = 0.3f; delay = 0.8f; priority = 4f

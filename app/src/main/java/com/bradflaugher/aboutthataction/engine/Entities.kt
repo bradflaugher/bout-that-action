@@ -56,7 +56,7 @@ class Player {
     var grenades = 1
     var jumpsUsed = 0
     var shield = false
-    /** KEVLAR: blocks the first hit on each floor. */
+    /** VEST: blocks the first hit on each floor. */
     var armorReady = false
     var weapon: PickupKind? = null
     var weaponTime = 0f

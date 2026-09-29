@@ -23,7 +23,7 @@ import kotlin.math.sqrt
  *    shout for a hook and a crowd that roars into every fill.
  *  - FOX: spy jazz / surf. Swung ride and brushes, a walking upright bass, lush 7th/9th
  *    chords on strings, a tremolo vibraphone and a twangy, tremolo-picked surf guitar.
- *  - BADGER: 80s action rock on the worst Christmas ever. Gated-reverb snare, big toms,
+ *  - BADGER: 80s action rock for a very long night. Gated-reverb snare, big toms,
  *    sleigh bells, palm-muted power chords, tubular bells and an overdriven guitar lead
  *    whose hook is Beethoven's "Ode to Joy" (public domain); his sneak mix tiptoes on
  *    pizzicato under the "Shchedryk" bell ostinato (Leontovych, public domain).
@@ -542,7 +542,7 @@ internal object HeroSongs {
         ),
     )
 
-    /** "Licensed to Chill": C dorian, a Cm9–F9 vamp under a surf-guitar descent. */
+    /** "Pressed, Never Stressed": C dorian, a Cm9–F9 vamp under a surf-guitar descent. */
     private val foxHook = Melody(
         arrayOf(
             "G4:3 F4:1 Eb4:2 D4:2 -:2 Eb4:2 C4:4",
@@ -556,7 +556,7 @@ internal object HeroSongs {
         ),
     )
 
-    /** "Ho Ho Hold On": Beethoven's "Ode to Joy" (public domain) as a D major arena anthem. */
+    /** "Hold On": Beethoven's "Ode to Joy" (public domain) as a D major arena anthem. */
     private val badgerHook = Melody(
         arrayOf(
             "F#5:4 F#5:4 G5:4 A5:4",

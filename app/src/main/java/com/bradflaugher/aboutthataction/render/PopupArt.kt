@@ -316,7 +316,7 @@ internal class PopupArt(private val f: Frame) {
         g.restore()
     }
 
-    /** NOT TODAY: gold on a dark shield-blue plate (the KEVLAR / shield just ate a hit). */
+    /** NOT TODAY: gold on a dark shield-blue plate (the VEST / shield just ate a hit). */
     private fun shield(s: String, x: Float, y: Float, sz: Float, a: Float) {
         val w = tw(s, sz)
         val cy = y - sz * 0.36f

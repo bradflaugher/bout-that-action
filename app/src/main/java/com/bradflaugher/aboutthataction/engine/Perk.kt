@@ -26,7 +26,7 @@ enum class Perk(
     DEMOLITION("DEMOLITION", "+1 grenade, bigger blasts", 3, "Boom, but more."),
     MAGNET("MAGNET", "Pickups fly to you", 1, "Loot has a crush on you."),
     REFLEX("REFLEX", "Time slows when a bullet is about to hit", 2, "Everything's in slow motion. Briefly."),
-    ARMOR("KEVLAR", "Blocks a hit; back 3 floors later", 1, "Not today."),
+    ARMOR("VEST", "Blocks a hit; back 3 floors later", 1, "Not today."),
     LUCKY("LUCKY", "Enemies drop loot more often", 2, "Found a penny, heads up."),
     SHOCKWAVE("SHOCKWAVE", "Landing a stomp blasts the whole corridor", 1, "Landings: legendary."),
 
@@ -41,9 +41,9 @@ enum class Perk(
     DEAD_DROP("DEAD DROP", "SILENT kills drop loot 2x as often (LV 2: 3x)", 2, "Leave it under the fern.", Hero.FOX),
 
     // ---- BADGER
-    YIPPEE("YIPPEE", "Bigger blasts that knock survivors flat", 1, "Come out to the coast.", Hero.BADGER),
-    VENT_CRAWL("VENT CRAWL", "Passages twice as quick; arrive unseen", 1, "Now I know what a TV dinner feels like.", Hero.BADGER),
-    ADRENALINE("ADRENALINE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "Welcome to the party, pal.", Hero.BADGER),
+    KABOOM("KABOOM", "Bigger blasts that knock survivors flat", 1, "Everybody down.", Hero.BADGER),
+    VENT_CRAWL("VENT CRAWL", "Passages twice as quick; arrive unseen", 1, "Dusty, but right on time.", Hero.BADGER),
+    ADRENALINE("ADRENALINE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "Last heart, best heart.", Hero.BADGER),
 
     // ---- VIPER
     JAMMER("JAMMER", "Drones and turrets take twice as long to react", 1, "Static on every channel.", Hero.VIPER),
@@ -61,7 +61,7 @@ enum class PickupKind(val title: String, val seconds: Float) {
     SHOTGUN("SHOTGUN", 10f),
     MINIGUN("MINIGUN", 8f),
     SHIELD("SHIELD", 0f),
-    SLOWMO("BULLET TIME", 6f),
+    SLOWMO("SLOW-MO", 6f),
     GRENADE("GRENADE", 0f),
     CASH("CASH", 0f),
 }

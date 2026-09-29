@@ -60,7 +60,7 @@ class RunStats {
     var unplugged = 0
     /** CAMO: hits that missed. */
     var camoMisses = 0
-    /** Guards dazed by an EMP, a AFTERSHOCK or a YIPPEE blast. */
+    /** Guards dazed by an EMP, an AFTERSHOCK or a KABOOM blast. */
     var dazed = 0
     var hurts = 0
     /** Every hit taken, oldest first (capped; a run rarely takes more than a dozen). */

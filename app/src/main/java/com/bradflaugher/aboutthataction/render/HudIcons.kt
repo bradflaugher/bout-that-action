@@ -219,7 +219,7 @@ internal object HudIcons {
                 g.line(cx, cy - k * 0.3f, cx, cy + k * 0.24f, sw * 0.8f, h)
                 poly.tri(g, cx - k * 0.36f, cy + k * 0.14f, cx + k * 0.36f, cy + k * 0.14f, cx, cy + k * 0.62f, h)
             }
-            Perk.YIPPEE -> {
+            Perk.KABOOM -> {
                 // A cowboy hat: a pinched crown with its band, the brim curling up at both sides.
                 shape(g, HAT_CROWN, cx, cy, k, c)
                 shape(g, HAT_BRIM, cx, cy, k, c)
