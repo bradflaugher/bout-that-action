@@ -127,7 +127,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 
 ## Heroes
 
-<p align="center"><img src="docs/screenshots/lineup.png" alt="The four heroes: BULL, ACE, HARDY and VIPER" width="720"></p>
+<p align="center"><img src="docs/screenshots/lineup.png" alt="The four heroes: BULL, FOX, BADGER and VIPER" width="720"></p>
 
 Pick who's going down on the title screen. Every hero plays the same
 building, but with a different body: an always-on trait, three perks only
@@ -137,8 +137,8 @@ music.
 | Hero | Who | Trait (always on) |
 |---|---|---|
 | **BULL** | A bruiser in full pads. Tough, fast, bulldozes. | +1 heart, runs 10% faster, tackles Heavies head-on (no bouncing off the armor) |
-| **ACE** | A gentleman spy in a pressed tux. | An 8-round magazine (instead of 6) and a 15% quicker trigger; guards take 35% longer to react once they spot him |
-| **HARDY** | A barefoot cop in a tank top, in the wrong building on the wrong night. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
+| **FOX** | A gentleman spy in a pressed tux. | An 8-round magazine (instead of 6) and a 15% quicker trigger; guards take 35% longer to react once they spot him |
+| **BADGER** | A barefoot cop in a tank top, in the wrong building on the wrong night. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
 | **VIPER** | A jungle commando in a bandana who lives in his cardboard box: the SILENT specialist. | Unplugs drones and turrets by hand, like a takedown (quiet, and not while one is aiming at him); in SILENT guards spot him from a quarter less far; the box glides (2.2 u/s instead of 1.3) and never looks suspicious moving; reloads 25% faster |
 
 Their perks:
@@ -148,11 +148,11 @@ Their perks:
   takedown dazes everyone within a quarter of the hallway for 1.8 s
   (nearly half of it at LV 2). *Candy
   Rain* (2 levels): every 8th kill heals a heart (every 5th at LV 2).
-- **ACE.** *Disguise*: guards take twice as long again to react.
+- **FOX.** *Disguise*: guards take twice as long again to react.
   *Laser Watch*: every shot slices the first lamp it passes under, and one
   jump-swat kills every lamp in the hallway. *Dead Drop* (2 levels): SILENT
   kills drop loot twice as often (three times at LV 2).
-- **HARDY.** *Yippee*: bigger blasts, and anyone within twice the blast who
+- **BADGER.** *Yippee*: bigger blasts, and anyone within twice the blast who
   survives is knocked flat for 2.5 s. *Vent Crawl*: passages take half the
   time and nobody can see you for 1.5 s once you're out in the open (firing
   gives you away). *Adrenaline* (2 levels): on your last heart you shoot,

@@ -25,7 +25,7 @@ sealed interface GameEvent {
     data object ElevatorCalled : GameEvent
     /** The GUNS HOT / SILENT toggle flipped; [silent] is the new mode. */
     data class ModeToggled(val silent: Boolean) : GameEvent
-    /** [secondWind]: HARDY shrugged off what would have been the fatal hit ([hpLeft] is 1). */
+    /** [secondWind]: BADGER shrugged off what would have been the fatal hit ([hpLeft] is 1). */
     data class PlayerHurt(val hpLeft: Int, val secondWind: Boolean = false) : GameEvent
     /** A shield or KEVLAR ate a hit, or (VIPER's CAMO) a hit missed: nothing landed. */
     data object ShieldBlock : GameEvent

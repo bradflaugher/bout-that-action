@@ -136,7 +136,7 @@ class HeroTest {
 
     @Test
     fun theBullTacklesAHeavyHeadOn() {
-        for (hero in listOf(Hero.BULL, Hero.ACE)) {
+        for (hero in listOf(Hero.BULL, Hero.FOX)) {
             val w = world(hero)
             w.player.x = 3f
             val heavy = enemy(w, EnemyKind.HEAVY, 4.5f, facing = -1)
@@ -224,13 +224,13 @@ class HeroTest {
         }
     }
 
-    // ------------------------------------------------------------ ACE
+    // ------------------------------------------------------------ FOX
 
     @Test
-    fun aceCarriesAnEightRoundMagazine() {
-        for (hero in listOf(Hero.ACE, Hero.BULL)) {
+    fun foxCarriesAnEightRoundMagazine() {
+        for (hero in listOf(Hero.FOX, Hero.BULL)) {
             val w = world(hero, silent = false)
-            assertEquals(if (hero == Hero.ACE) 8 else 6, w.player.magSize)
+            assertEquals(if (hero == Hero.FOX) 8 else 6, w.player.magSize)
             assertEquals(w.player.magSize, w.player.ammo)
             w.player.x = 1f
             w.player.facing = 1
@@ -255,9 +255,9 @@ class HeroTest {
     }
 
     @Test
-    fun aceHasAQuickTrigger() {
+    fun foxHasAQuickTrigger() {
         val gaps = HashMap<Hero, Float>()
-        for (hero in listOf(Hero.ACE, Hero.BULL)) {
+        for (hero in listOf(Hero.FOX, Hero.BULL)) {
             val w = world(hero, silent = false)
             w.player.x = 1f
             w.player.facing = 1
@@ -275,7 +275,7 @@ class HeroTest {
             gaps[hero] = times[1] - times[0]
         }
         assertEquals(World.GUN_COOLDOWN, gaps.getValue(Hero.BULL), 2 * dt)
-        assertEquals(World.GUN_COOLDOWN * 0.85f, gaps.getValue(Hero.ACE), 2 * dt)
+        assertEquals(World.GUN_COOLDOWN * 0.85f, gaps.getValue(Hero.FOX), 2 * dt)
     }
 
     /** How long a guard takes to react once he spots [hero], as a multiple of the heat's reaction time. */
@@ -293,18 +293,18 @@ class HeroTest {
     @Test
     fun guardsAreSlowToReactToAceAndSlowerStillInDisguise() {
         val bull = reaction(Hero.BULL)
-        val ace = reaction(Hero.ACE)
-        val disguised = reaction(Hero.ACE, disguise = true)
+        val fox = reaction(Hero.FOX)
+        val disguised = reaction(Hero.FOX, disguise = true)
         assertTrue("bull $bull", bull in 0.79f..1.21f)
-        assertTrue("ace $ace", ace in 1.35f * 0.79f..1.35f * 1.21f)
+        assertTrue("fox $fox", fox in 1.35f * 0.79f..1.35f * 1.21f)
         assertTrue("disguised $disguised", disguised in 2.7f * 0.79f..2.7f * 1.21f)
-        assertEquals(2.7f, world(Hero.ACE).also { it.perks[Perk.DISGUISE] = 1 }.reactionScale, 1e-4f)
+        assertEquals(2.7f, world(Hero.FOX).also { it.perks[Perk.DISGUISE] = 1 }.reactionScale, 1e-4f)
     }
 
     @Test
     fun laserWatchShotsCutOneLampEach() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.ACE, silent = false)
+            val w = world(Hero.FOX, silent = false)
             if (perk) w.perks[Perk.LASER_WATCH] = 1
             park(w)
             val hs = w.playerHall()!!
@@ -325,7 +325,7 @@ class HeroTest {
     @Test
     fun laserWatchOneSwatKillsEveryLampInTheHallway() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.ACE)
+            val w = world(Hero.FOX)
             if (perk) w.perks[Perk.LASER_WATCH] = 1
             val hs = w.playerHall()!!
             val lx = hs.plan.lights.first { it in 3f..11f }
@@ -340,7 +340,7 @@ class HeroTest {
 
     /** Loot drops from [n] takedowns. */
     private fun drops(silent: Boolean, deadDrop: Int, n: Int = 400): Int {
-        val w = world(Hero.ACE, silent = silent)
+        val w = world(Hero.FOX, silent = silent)
         if (deadDrop > 0) w.perks[Perk.DEAD_DROP] = deadDrop
         var drops = 0
         repeat(n) {
@@ -364,11 +364,11 @@ class HeroTest {
         assertTrue("GUNS HOT kills aren't quiet: $loud", loud in 35..95)
     }
 
-    // ------------------------------------------------------------ HARDY
+    // ------------------------------------------------------------ BADGER
 
     @Test
-    fun hardyShrugsOffOneFatalHitARun() {
-        val w = world(Hero.HARDY, hearts = 1)
+    fun badgerShrugsOffOneFatalHitARun() {
+        val w = world(Hero.BADGER, hearts = 1)
         assertEquals(1, w.player.maxHp)
         w.player.x = 5f
         bullet(w, 8f, Body.HIGH, -9f)
@@ -388,19 +388,19 @@ class HeroTest {
     }
 
     @Test
-    fun hardyCarriesAnExtraGrenade() {
+    fun badgerCarriesAnExtraGrenade() {
         for (hero in Hero.entries) {
             val w = World(RunConfig(1L, hero = hero))
-            val hardy = hero == Hero.HARDY
-            assertEquals(if (hardy) 2 else 1, w.player.grenades)
-            assertEquals(if (hardy) 4 else 3, w.maxGrenades)
+            val badger = hero == Hero.BADGER
+            assertEquals(if (badger) 2 else 1, w.player.grenades)
+            assertEquals(if (badger) 4 else 3, w.maxGrenades)
         }
     }
 
     @Test
     fun yippeeBlastsReachFurtherAndKnockSurvivorsFlat() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.HARDY)
+            val w = world(Hero.BADGER)
             if (perk) w.perks[Perk.YIPPEE] = 1
             park(w)
             val edge = enemy(w, EnemyKind.AGENT, 7f + 2.7f)
@@ -424,7 +424,7 @@ class HeroTest {
     @Test
     fun ventCrawlPassagesAreQuickAndYouArriveUnseen() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.HARDY, silent = false)
+            val w = world(Hero.BADGER, silent = false)
             if (perk) w.perks[Perk.VENT_CRAWL] = 1
             assertEquals(World.PASSAGE_TIME * if (perk) World.VENT_CRAWL_SCALE else 1f, w.passageTime, 1e-5f)
             val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
@@ -454,7 +454,7 @@ class HeroTest {
     @Test
     fun adrenalineKicksInOnTheLastHeart() {
         for (level in 1..2) {
-            val w = world(Hero.HARDY)
+            val w = world(Hero.BADGER)
             w.perks[Perk.ADRENALINE] = level
             val boost = if (level >= 2) 1.5f else 1.3f
             assertFalse(w.adrenaline)

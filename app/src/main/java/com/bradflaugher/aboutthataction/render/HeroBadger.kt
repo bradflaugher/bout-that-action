@@ -3,11 +3,11 @@ package com.bradflaugher.aboutthataction.render
 import com.bradflaugher.aboutthataction.engine.Hero
 
 /**
- * HARDY: the barefoot cop having the worst night ever. A sweaty, grimy white tank top over
+ * BADGER: the barefoot cop having the worst night ever. A sweaty, grimy white tank top over
  * bare, scuffed arms, a brown leather shoulder holster, dark slacks rolled at the ankle, bare
  * feet, a buzzed and balding head with stubble and a smirk. An orange rim.
  */
-internal class HardyKit(a: HeroArt) : HeroKit(a) {
+internal class BadgerKit(a: HeroArt) : HeroKit(a) {
     override val bulk = 0.95f
     override val head = 1.02f
     override val accent = ORANGE
@@ -208,7 +208,7 @@ internal class HardyKit(a: HeroArt) : HeroKit(a) {
     }
 
     companion object {
-        val ORANGE = Hero.HARDY.color
+        val ORANGE = Hero.BADGER.color
         const val RIM = 0xFFFFB27A.toInt()
         const val TANK = 0xFFE6DFCC.toInt()
         const val TANK_LIT = 0xFFFFFAEE.toInt()

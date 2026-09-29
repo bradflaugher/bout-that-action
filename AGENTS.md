@@ -61,7 +61,7 @@ the JVM.
   instant reversal, flicks mid-drag, zero-latency taps; grenades are a HUD button, not a gesture).
 - `render/` — `Gfx.kt` is the tiny drawing interface; `Renderer` draws the
   world, HUD and overlays through it. `HeroArt` paints the player on one shared
-  rig, dressed by a `HeroKit` per hero (`HeroBull`, `HeroAce`, `HeroHardy`,
+  rig, dressed by a `HeroKit` per hero (`HeroBull`, `HeroFox`, `HeroBadger`,
   `HeroViper`); `HeroPortrait` draws that same figure for the hero picker.
 - `audio/` — procedural synth, sequencer, songs per zone, SFX; `SoundEngine`
   is the API. `AudioOutput.kt` streams it to an `AudioTrack`.

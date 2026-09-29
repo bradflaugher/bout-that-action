@@ -101,7 +101,7 @@ class MenuShotsTest {
                 SettingsScreen(s.copy(preset = null, seedMode = SeedMode.CUSTOM, seedText = "CARDBOARD"), insets, {}, {})
             }
             shot("$device-pause", 700, world()) {
-                PauseScreen(s, "48213377", Hero.ACE, insets, {}, {}, {}, {})
+                PauseScreen(s, "48213377", Hero.FOX, insets, {}, {}, {}, {})
             }
             shot("$device-gameover", 3500, world()) {
                 GameOverScreen(run, insets, {}, {}, {}, records)

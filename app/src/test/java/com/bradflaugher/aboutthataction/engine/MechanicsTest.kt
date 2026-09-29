@@ -83,7 +83,7 @@ class MechanicsTest {
     @Test
     fun heavyCanOnlyBeChokedFromBehind() {
         // (The BULL tackles them head-on: see HeroTest.)
-        val w = world(hero = Hero.ACE)
+        val w = world(hero = Hero.FOX)
         w.player.x = 3f
         val front = enemy(w, EnemyKind.HEAVY, 4.5f, facing = -1)
         run(w, 0.8f) { it.moveAxis = 1 }
@@ -835,8 +835,8 @@ class MechanicsTest {
 
     @Test
     fun dyingEndsTheRun() {
-        // ACE: no extra heart, no second wind.
-        val w = world(difficulty = Difficulty(hearts = 1, startFloor = 3), hero = Hero.ACE)
+        // FOX: no extra heart, no second wind.
+        val w = world(difficulty = Difficulty(hearts = 1, startFloor = 3), hero = Hero.FOX)
         w.player.x = 5f
         bullet(w, 8f, Body.HIGH, -9f)
         run(w, 4f)

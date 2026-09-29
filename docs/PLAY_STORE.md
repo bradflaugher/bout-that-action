@@ -75,7 +75,7 @@ them. The game leans on a few:
   quotes or names a real athlete: BULL is a generic bruiser in football pads
   and a plain blue uniform with no number, team colours, logo or name, and the
   sign-offs and perk names are all original. Keep it that way.
-- ACE's joke riffs on James Bond, HARDY's on *Die Hard* and VIPER on
+- FOX's joke riffs on James Bond, BADGER's on *Die Hard* and VIPER on
   *Metal Gear Solid*.
 - Wall text (murals, graffiti, neon, departure boards in `EnvWalls`) is
   all original: no brands, slogans or trademarks. Store screenshots count as

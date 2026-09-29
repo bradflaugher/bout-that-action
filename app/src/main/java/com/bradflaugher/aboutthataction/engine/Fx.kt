@@ -46,7 +46,7 @@ object Popup {
     const val TACKLE = "TACKLE!"
     /** BULL's STIFF ARM: a guard flattened on the run. */
     const val FLATTENED = "FLATTENED"
-    /** HARDY's once-a-run shrug-off of a fatal hit. */
+    /** BADGER's once-a-run shrug-off of a fatal hit. */
     const val SECOND_WIND = "SECOND WIND"
     /** VIPER's SABOTAGE: a drone or turret unplugged by hand. */
     const val UNPLUGGED = "UNPLUGGED"

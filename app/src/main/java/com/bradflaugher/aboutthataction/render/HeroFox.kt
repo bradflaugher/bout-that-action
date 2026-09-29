@@ -3,12 +3,12 @@ package com.bradflaugher.aboutthataction.render
 import com.bradflaugher.aboutthataction.engine.Hero
 
 /**
- * ACE: the gentleman spy. A slim black dinner jacket cut to end at the hip (no tails), a
+ * FOX: the gentleman spy. A slim black dinner jacket cut to end at the hip (no tails), a
  * crisp white shirt front between satin shawl lapels, a black bow tie, a champagne pocket
  * square and cufflinks, satin-striped trousers, polished shoes, slicked side-parted hair and
  * a long suppressed pistol. A champagne-gold rim.
  */
-internal class AceKit(a: HeroArt) : HeroKit(a) {
+internal class FoxKit(a: HeroArt) : HeroKit(a) {
     override val bulk = 0.95f
     override val head = 1.02f
     override val accent = GOLD
@@ -214,7 +214,7 @@ internal class AceKit(a: HeroArt) : HeroKit(a) {
     }
 
     companion object {
-        val GOLD = Hero.ACE.color
+        val GOLD = Hero.FOX.color
         const val GOLD_LIT = 0xFFFFF0C4.toInt()
         const val RIM = 0xFFFFE6A8.toInt()
         /** The dinner jacket: warm black, lifted just enough to model against dark walls. */

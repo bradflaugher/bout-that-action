@@ -21,16 +21,16 @@ import kotlin.math.sqrt
  *  - BULL: stadium marching-band funk. Drumline snare with rolls, claps, tambourine, a
  *    boomy 808 kick and bass, a brass section stabbing chords, a bell lyre, a trumpet
  *    shout for a hook and a crowd that roars into every fill.
- *  - ACE: spy jazz / surf. Swung ride and brushes, a walking upright bass, lush 7th/9th
+ *  - FOX: spy jazz / surf. Swung ride and brushes, a walking upright bass, lush 7th/9th
  *    chords on strings, a tremolo vibraphone and a twangy, tremolo-picked surf guitar.
- *  - HARDY: 80s action rock on the worst Christmas ever. Gated-reverb snare, big toms,
+ *  - BADGER: 80s action rock on the worst Christmas ever. Gated-reverb snare, big toms,
  *    sleigh bells, palm-muted power chords, tubular bells and an overdriven guitar lead
  *    whose hook is Beethoven's "Ode to Joy" (public domain); his sneak mix tiptoes on
  *    pizzicato under the "Shchedryk" bell ostinato (Leontovych, public domain).
  *  - VIPER: 80s action-movie / tactical-espionage score. Military snare cadences and rolls,
  *    taiko-like war toms, log drums and a shaker, a low pulsing stealth bassline, dark synth
  *    pads, brass stabs and a heroic minor-key French horn call. His sneak mix is pure
- *    tension: a ticking clock, a low drone, a distant war drum, sparse plucks and crickets. (HARDY is
+ *    tension: a ticking clock, a low drone, a distant war drum, sparse plucks and crickets. (BADGER is
  *    the rock band — guitars, gated snare, sleigh bells; VIPER is the orchestra and drums.)
  *
  * All of it is built once (at [SoundEngine] construction) and never allocates while playing.
@@ -111,22 +111,22 @@ internal object HeroSongs {
 
     private fun jazz(p: Array<Chord>, scale: IntArray, ninth: Boolean) = Array(p.size) { jazz(p[it], scale, ninth) }
 
-    // ---- Signatures (original, except HARDY's public-domain quotes) ------------------------
+    // ---- Signatures (original, except BADGER's public-domain quotes) ------------------------
 
     /** BULL: a horn-section shout — octave hit, bounce, and a tumble down to the third. */
     private val bullSig = Motif("7:2 .:1 7:1 4:2 6:1 7:1 .:2 4:2 3:2 2:2")
     private val bullAns = Motif("4:1 4:1 .:2 2:2 4:2 .:2 0:2 2:4")
 
-    /** ACE: a slinky surf-spy descent from the fifth, a breath, and home. */
-    private val aceSig = Motif("4:3 3:1 2:2 1:2 .:2 2:2 0:4")
-    private val aceAns = Motif("0:2 2:2 4:2 6:6 .:4")
+    /** FOX: a slinky surf-spy descent from the fifth, a breath, and home. */
+    private val foxSig = Motif("4:3 3:1 2:2 1:2 .:2 2:2 0:4")
+    private val foxAns = Motif("0:2 2:2 4:2 6:6 .:4")
 
-    /** HARDY: the head and tail of Beethoven's "Ode to Joy" (1824). */
-    private val hardySig = Motif("2:2 2:2 3:2 4:2 4:2 3:2 2:2 1:2")
-    private val hardyAns = Motif("0:2 0:2 1:2 2:2 2:3 1:1 1:4")
+    /** BADGER: the head and tail of Beethoven's "Ode to Joy" (1824). */
+    private val badgerSig = Motif("2:2 2:2 3:2 4:2 4:2 3:2 2:2 1:2")
+    private val badgerAns = Motif("0:2 0:2 1:2 2:2 2:3 1:1 1:4")
 
-    /** HARDY sneaking: the four-note "Shchedryk" bell ostinato (Leontovych, 1916), twice. */
-    private val hardyBells = Motif("2:2 1:1 2:1 0:2 2:2 1:1 2:1 0:2 .:4")
+    /** BADGER sneaking: the four-note "Shchedryk" bell ostinato (Leontovych, 1916), twice. */
+    private val badgerBells = Motif("2:2 1:1 2:1 0:2 2:2 1:1 2:1 0:2 .:4")
 
     /** VIPER: a horn call — the root twice, a leap to the fifth held, and a turn back to the third. */
     private val viperSig = Motif("0:3 0:1 4:6 3:1 2:1 1:2 2:2")
@@ -137,14 +137,14 @@ internal object HeroSongs {
     // Zones in order: ROOFTOP, TOWER, LABS, METRO, MINES, MAGMA, HELL, VOID.
     private val HOT_TRIM = arrayOf(
         floatArrayOf(1.06f, 1.00f, 0.94f, 0.98f, 1.00f, 1.01f, 1.11f, 0.98f), // BULL
-        floatArrayOf(0.97f, 0.87f, 0.89f, 0.85f, 0.85f, 0.88f, 0.90f, 0.82f), // ACE
-        floatArrayOf(1.12f, 1.05f, 1.02f, 1.04f, 1.04f, 1.05f, 1.12f, 1.00f), // HARDY
+        floatArrayOf(0.97f, 0.87f, 0.89f, 0.85f, 0.85f, 0.88f, 0.90f, 0.82f), // FOX
+        floatArrayOf(1.12f, 1.05f, 1.02f, 1.04f, 1.04f, 1.05f, 1.12f, 1.00f), // BADGER
         floatArrayOf(0.89f, 0.83f, 0.79f, 0.84f, 0.85f, 0.87f, 0.94f, 0.85f), // VIPER
     )
     private val SNEAK_TRIM = arrayOf(
         floatArrayOf(0.99f, 0.97f, 0.98f, 0.98f, 1.00f, 0.97f, 0.97f, 0.98f), // BULL
-        floatArrayOf(0.97f, 0.95f, 1.00f, 0.94f, 1.07f, 0.97f, 1.01f, 0.95f), // ACE
-        floatArrayOf(1.01f, 0.99f, 0.98f, 1.01f, 1.01f, 0.99f, 0.99f, 1.02f), // HARDY
+        floatArrayOf(0.97f, 0.95f, 1.00f, 0.94f, 1.07f, 0.97f, 1.01f, 0.95f), // FOX
+        floatArrayOf(1.01f, 0.99f, 0.98f, 1.01f, 1.01f, 0.99f, 0.99f, 1.02f), // BADGER
         floatArrayOf(1.01f, 1.01f, 1.01f, 1.03f, 1.03f, 1.01f, 1.00f, 1.06f), // VIPER
     )
     private val THEME_TRIM = floatArrayOf(1.06f, 0.85f, 1.03f, 0.9f)
@@ -244,9 +244,9 @@ internal object HeroSongs {
         crowd = 0.12f,
     )
 
-    // ---- ACE -------------------------------------------------------------------------------
+    // ---- FOX -------------------------------------------------------------------------------
 
-    private fun aceKit(base: SongSpec, t: Tint) = DrumTuning(
+    private fun foxKit(base: SongSpec, t: Tint) = DrumTuning(
         kickHi = 120f, kickLo = 50f, kickDecay = boom(base, 1f, 0.45f), kickClick = 0.2f, kickDrive = 0.1f, kickLevel = 0.8f,
         snareTone = 200f, snareNoiseHz = 3400f, snareDecay = 0.16f, snareToneMix = 0.35f, snareLevel = 0.6f, snareVerb = 0.5f,
         hatTone = 0.72f, hatDecay = 0.11f, openDecay = 0.5f, hatLevel = 0.28f, tomHz = 110f, crashDecay = 2.2f,
@@ -271,7 +271,7 @@ internal object HeroSongs {
         vibrato = 0.28f, vibRate = 6.2f, trem = 0.3f, tremRate = 7.5f, drive = 0.35f, gain = 0.18f, bright = 0.5f,
     )
 
-    private fun aceHot(base: SongSpec, t: Tint, name: String, hook: Melody? = null): SongSpec {
+    private fun foxHot(base: SongSpec, t: Tint, name: String, hook: Melody? = null): SongSpec {
         val hell = base === Songs.hell
         return base.derive(
             name = name, swing = maxOf(base.swing, 0.18f),
@@ -285,13 +285,13 @@ internal object HeroSongs {
                 hat = "X.x.x.x.X.x.x.x.", open = "..............x.",
             ),
             fill = DrumPattern(kick = "X.......X.......", snare = "....X..oX.oXX.XX", tom = "........3.3.2.1."),
-            kit = aceKit(base, t),
+            kit = foxKit(base, t),
             bassA = "R...T...F...A...", bassB = "R...S...T...A...",
             arpA = "0..2..4..3..1...", arpB = "4..3..2..1..0.2.", arpGate = 1.2f,
             padRhythm = "x...............", padRhythmB = "x.....x.........",
             leadOctave = leadOctave(base, 54),
-            leadTemplates = arrayOf(aceSig.rhythm, "x..x..x.x.......", "x.x...x..x.x...."),
-            motifSeed = base.motifSeed + 23, hook = hook, signature = aceSig, answer = aceAns,
+            leadTemplates = arrayOf(foxSig.rhythm, "x..x..x.x.......", "x.x...x..x.x...."),
+            motifSeed = base.motifSeed + 23, hook = hook, signature = foxSig, answer = foxAns,
             pad = strings.tinted(t, 0.1f), bass = upright.tinted(t, 0.2f), arp = vibes, lead = surfGuitar.tinted(t, 0.6f),
             mix = Mix(
                 pad = 1f, bass = 1f, arp = 1.25f, lead = 1.55f, drums = 0.67f * zoneDrums(base), padVerb = 0.35f,
@@ -301,7 +301,7 @@ internal object HeroSongs {
         )
     }
 
-    private fun aceSneak(base: SongSpec, t: Tint, name: String) = base.derive(
+    private fun foxSneak(base: SongSpec, t: Tint, name: String) = base.derive(
         name = name, swing = 0.25f,
         progA = jazz(base.progA, base.scale, ninth = true), progB = jazz(base.progB, base.scale, ninth = true),
         drumsA = DrumPattern(kick = base.drumsA.kick, snare = "o.o.x.o.o.o.x.oo", hat = "x...x..xx...x..x"),
@@ -315,8 +315,8 @@ internal object HeroSongs {
         bassA = "R...T...F...A...", bassB = "R...F...O...a...",
         padRhythm = "x.....x.........",
         arpA = "......2.......4.", arpB = "..3.........1...", arpGate = 3f,
-        leadTemplates = arrayOf(aceSig.rhythm, "x.......x.......", "x...........x..."),
-        signature = aceSig, answer = aceAns, leadOctave = leadOctave(base, 58),
+        leadTemplates = arrayOf(foxSig.rhythm, "x.......x.......", "x...........x..."),
+        signature = foxSig, answer = foxAns, leadOctave = leadOctave(base, 58),
         mix = scaled(base.mix, pad = 0.65f, bass = 2.5f),
         pad = Patch(
             wave1 = Wave.SINE, wave2 = Wave.SINE, osc2Semi = 12f, osc2Level = 0.3f, detune = 0.03f, cutoff = 3000f,
@@ -330,9 +330,9 @@ internal object HeroSongs {
         ),
     )
 
-    // ---- HARDY -----------------------------------------------------------------------------
+    // ---- BADGER -----------------------------------------------------------------------------
 
-    private fun hardyKit(base: SongSpec, t: Tint) = DrumTuning(
+    private fun badgerKit(base: SongSpec, t: Tint) = DrumTuning(
         kickHi = 155f, kickLo = 48f, kickDecay = boom(base, 1.2f, 0.55f), kickClick = 0.7f, kickDrive = 0.35f,
         snareTone = 175f, snareNoiseHz = 3000f, snareDecay = 0.16f, snareToneMix = 0.6f, snareLevel = 0.8f,
         snareVerb = 0.35f, snareGate = 0.2f, tomHz = 92f, tomLevel = 0.75f, hatLevel = 0.3f,
@@ -358,7 +358,7 @@ internal object HeroSongs {
         drive = 1.5f, gain = 0.14f, bright = 0.6f,
     )
 
-    private fun hardyHot(base: SongSpec, t: Tint, name: String, hook: Melody? = null): SongSpec {
+    private fun badgerHot(base: SongSpec, t: Tint, name: String, hook: Melody? = null): SongSpec {
         val hell = base === Songs.hell
         return base.derive(
             name = name,
@@ -371,14 +371,14 @@ internal object HeroSongs {
                 hat = "x.x.x.x.x.x.x.x.", open = "..............x.", jingle = "x.x.x.x.x.x.x.x.",
             ),
             fill = DrumPattern(kick = "X.......X.......", snare = "....X...........", tom = "........33221.1."),
-            kit = hardyKit(base, t),
+            kit = badgerKit(base, t),
             bassA = "R.R.R.R.R.R.O.F.", bassB = "R.rrR.rrR.rrO.rr",
             arpA = "0.......4.......", arpB = "3...2...1...0...", arpGate = 2f,
             padRhythm = "x-x-x-x-x-x-x-x-", padRhythmB = "x.......x.....-.", padPower = true,
             padCenter = base.padCenter - 7,
             leadOctave = leadOctave(base, 60),
-            leadTemplates = arrayOf(hardySig.rhythm, "x...x.x.x...x...", "x.x.x...x..xx..."),
-            motifSeed = base.motifSeed + 37, hook = hook, signature = hardySig, answer = hardyAns,
+            leadTemplates = arrayOf(badgerSig.rhythm, "x...x.x.x...x...", "x.x.x...x..xx..."),
+            motifSeed = base.motifSeed + 37, hook = hook, signature = badgerSig, answer = badgerAns,
             pad = powerChords.tinted(t, 0.3f), bass = rockBass.tinted(t, 0.3f), arp = tubularBells, lead = rockLead.tinted(t, 0.4f),
             mix = Mix(
                 pad = 2.5f, bass = 1f, arp = 1.35f, lead = 1.45f, drums = 0.48f * zoneDrums(base), padVerb = 0.15f,
@@ -388,7 +388,7 @@ internal object HeroSongs {
         )
     }
 
-    private fun hardySneak(base: SongSpec, t: Tint, name: String) = base.derive(
+    private fun badgerSneak(base: SongSpec, t: Tint, name: String) = base.derive(
         name = name,
         drumsA = DrumPattern(kick = base.drumsA.kick, hat = "x...o...x...o...", jingle = "....o.......o..."),
         drumsB = DrumPattern(kick = base.drumsB.kick, snare = "............o...", hat = "x.o.x.o.x.o.x.o.", jingle = "..o...o...o...o."),
@@ -400,8 +400,8 @@ internal object HeroSongs {
             drive = t.drive * 0.5f, crush = t.crush,
         ),
         arpA = "0...4...2...4...", arpB = "0...3...2...1...", arpGate = 0.5f,
-        leadTemplates = arrayOf(hardyBells.rhythm, "x.......x.......", "x...........x..."),
-        signature = hardyBells, answer = null, leadThreshold = 0.35f, leadOctave = leadOctave(base, 62),
+        leadTemplates = arrayOf(badgerBells.rhythm, "x.......x.......", "x...........x..."),
+        signature = badgerBells, answer = null, leadThreshold = 0.35f, leadOctave = leadOctave(base, 62),
         mix = scaled(base.mix, pad = 0.6f, bass = 1.5f, arp = 2f, drums = 0.8f),
         pad = Patch(
             wave1 = Wave.SAW, supersaw = true, detune = 0.1f, cutoff = 600f, q = 0.75f, envAmt = 0.9f, a = 2f, d = 1.5f,
@@ -543,7 +543,7 @@ internal object HeroSongs {
     )
 
     /** "Licensed to Chill": C dorian, a Cm9–F9 vamp under a surf-guitar descent. */
-    private val aceHook = Melody(
+    private val foxHook = Melody(
         arrayOf(
             "G4:3 F4:1 Eb4:2 D4:2 -:2 Eb4:2 C4:4",
             "C5:3 Bb4:1 A4:2 G4:2 -:2 A4:2 F4:4",
@@ -557,7 +557,7 @@ internal object HeroSongs {
     )
 
     /** "Ho Ho Hold On": Beethoven's "Ode to Joy" (public domain) as a D major arena anthem. */
-    private val hardyHook = Melody(
+    private val badgerHook = Melody(
         arrayOf(
             "F#5:4 F#5:4 G5:4 A5:4",
             "A5:4 G5:4 F#5:4 E5:4",
@@ -592,13 +592,13 @@ internal object HeroSongs {
                 themeBase("bull-theme", 100f, 50, AEOLIAN, tri(AEOLIAN, 0, 6, 5, 6), arrayOf(Chord.diatonic(AEOLIAN, 3), Chord.diatonic(AEOLIAN, 0), Chord.diatonic(AEOLIAN, 5), Chord.of(AEOLIAN, 4, Quality.MAJ)), 2401),
                 t, "bull-theme", bullHook,
             )
-            Hero.ACE -> aceHot(
-                themeBase("ace-theme", 144f, 48, DORIAN, tri(DORIAN, 0, 3, 0, 3), tri(DORIAN, 2, 3, 4, 0), 7007),
-                t, "ace-theme", aceHook,
+            Hero.FOX -> foxHot(
+                themeBase("fox-theme", 144f, 48, DORIAN, tri(DORIAN, 0, 3, 0, 3), tri(DORIAN, 2, 3, 4, 0), 7007),
+                t, "fox-theme", foxHook,
             )
-            Hero.HARDY -> hardyHot(
-                themeBase("hardy-theme", 132f, 50, IONIAN, tri(IONIAN, 0, 4, 5, 0, 0, 4, 3, 4), tri(IONIAN, 5, 3, 0, 4), 1988),
-                t, "hardy-theme", hardyHook,
+            Hero.BADGER -> badgerHot(
+                themeBase("badger-theme", 132f, 50, IONIAN, tri(IONIAN, 0, 4, 5, 0, 0, 4, 3, 4), tri(IONIAN, 5, 3, 0, 4), 1988),
+                t, "badger-theme", badgerHook,
             )
             Hero.VIPER -> viperHot(
                 themeBase("viper-theme", 108f, 55, AEOLIAN, tri(AEOLIAN, 0, 5, 6, 0), tri(AEOLIAN, 3, 5, 2, 6), 3161),
@@ -615,8 +615,8 @@ internal object HeroSongs {
         val name = if (silent) "${Songs.forZone(z).name}-${h.name.lowercase()}-sneak" else "${base.name}-${h.name.lowercase()}"
         val spec = when (h) {
             Hero.BULL -> if (silent) bullSneak(base, t, name) else bullHot(base, t, name)
-            Hero.ACE -> if (silent) aceSneak(base, t, name) else aceHot(base, t, name)
-            Hero.HARDY -> if (silent) hardySneak(base, t, name) else hardyHot(base, t, name)
+            Hero.FOX -> if (silent) foxSneak(base, t, name) else foxHot(base, t, name)
+            Hero.BADGER -> if (silent) badgerSneak(base, t, name) else badgerHot(base, t, name)
             Hero.VIPER -> if (silent) viperSneak(base, t, name) else viperHot(base, t, name)
         }
         return spec.derive(gain = (if (silent) SNEAK_TRIM else HOT_TRIM)[h.ordinal][z.ordinal])

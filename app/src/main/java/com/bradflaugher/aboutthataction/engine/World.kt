@@ -163,7 +163,7 @@ class World(val config: RunConfig) {
     /** Kills since CANDY RAIN was picked (or last paid out). */
     private var candyKills = 0
 
-    /** HARDY: the once-a-run shrug-off of a fatal hit has been spent. */
+    /** BADGER: the once-a-run shrug-off of a fatal hit has been spent. */
     var secondWindUsed = false
         private set
 
@@ -183,7 +183,7 @@ class World(val config: RunConfig) {
     /** The hero's running pace right now (ADRENALINE included). */
     val runSpeed: Float get() = RUN_SPEED * hero.runSpeed * adrenalineBoost
 
-    /** How much longer than usual guards take to react once they spot you (ACE's trait, DISGUISE). */
+    /** How much longer than usual guards take to react once they spot you (FOX's trait, DISGUISE). */
     val reactionScale: Float get() = hero.reactionScale * if (stacks(Perk.DISGUISE) > 0) 2f else 1f
 
     /** How slow [e] is to react once it spots you: [reactionScale], and JAMMER on the machines. */
@@ -1911,7 +1911,7 @@ class World(val config: RunConfig) {
         comboTimer = 0f
         fx.burst(ParticleKind.SHARD, p.x, y, 10, 5f, 0.5f, 0.1f)
         if (p.hp <= 0 && hero.secondWind && !secondWindUsed) {
-            // HARDY: not today, not like this. Once a run he gets back up on one heart.
+            // BADGER: not today, not like this. Once a run he gets back up on one heart.
             secondWindUsed = true
             stats.secondWinds++
             p.hp = 1
@@ -2738,7 +2738,7 @@ class World(val config: RunConfig) {
         /** ...and shimmers this long ([Player.camoTime]). */
         const val CAMO_SHOW = 0.4f
         private const val CAMO_KEY = 0x6717C4L
-        /** HARDY's second wind: back up on one heart, untouchable this long. */
+        /** BADGER's second wind: back up on one heart, untouchable this long. */
         const val SECOND_WIND_INVULN = 2f
 
         // ---- Controls & feel (see docs/CONTROLS.md) ----
