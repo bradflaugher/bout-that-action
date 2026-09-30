@@ -735,6 +735,7 @@ internal class Actors(private val f: Frame) {
         p.detail(-0.085f, -0.018f, 0.085f, -0.018f, 0.028f, BoxArt.BOX_STAMP)
         p.detail(-0.085f, 0.03f, 0.04f, 0.03f, 0.016f, BoxArt.BOX_STAMP)
         g.restore()
+        kit.boxDecal(rs)
         // Handle slot: the peek hole, cut through the board, the agent's cyan eyes glowing in it.
         val hx = -0.24f * rs
         val sy = -h + 0.22f
