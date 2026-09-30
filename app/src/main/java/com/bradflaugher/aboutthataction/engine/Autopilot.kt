@@ -241,7 +241,8 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
                     hide(w)
                     return true
                 }
-                if (facingMe && !alert && d > 1.2f) {
+                // (FOX and STIFF ARM walk right up to a face, once they're close enough to beat his reaction.)
+                if (facingMe && !alert && d > 1.2f && !(w.takedownWorks(blocker) && d < 2.5f)) {
                     if (d < sight(w) + 1.2f) hide(w) else w.moveAxis = 0
                     return true
                 }

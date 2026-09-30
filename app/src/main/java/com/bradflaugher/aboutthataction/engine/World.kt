@@ -1210,8 +1210,9 @@ class World(val config: RunConfig) {
             return
         }
         val reach = takedownReach()
-        // Nearest first: whoever you actually bump into is the one you deal with.
-        for (e in enemies.filter { here(it) }.sortedBy { abs(it.x - p.x) }) {
+        // Nearest body first (edge, not center: a big guard's front is closer than his middle):
+        // whoever you actually bump into is the one you deal with.
+        for (e in enemies.filter { here(it) }.sortedBy { abs(it.x - p.x) - it.halfWidth }) {
             if (!e.alive || e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
             // He watched you hide: no ambush, no unplugging him from cover. He's coming to find you.
             if (p.hidden && e.sawHide) continue
@@ -1236,12 +1237,13 @@ class World(val config: RunConfig) {
                 flatten(e, fromDir)
                 return
             }
-            if (e.state == EnemyState.WINDUP) continue // mid-slash: it wins
+            if (e.state == EnemyState.WINDUP) return // mid-slash: it wins (and nobody behind him is in reach)
             // STIFF ARM: BULL goes through a Heavy's front door (not from inside a box: he kicks those off).
             val tackle = stacks(Perk.STIFF_ARM) > 0 && e.kind == EnemyKind.HEAVY && p.state == PlayerState.NORMAL &&
                 !e.chokeable(fromDir) && !dazed(e)
             if (!takedownFrom(e, fromDir) && !tackle) {
-                if (!inReach) continue
+                // Nearest first, so he's in the way: no lunging past him at anyone behind.
+                if (!inReach) return
                 if (e.kind == EnemyKind.HEAVY) {
                     if (p.state == PlayerState.BOX) {
                         // A Heavy isn't fooled by cardboard: he kicks it off you.
@@ -1282,7 +1284,8 @@ class World(val config: RunConfig) {
 
     /**
      * Can a walk-in takedown on [e] come from the [fromDir] side? From behind, always. Face to
-     * face only when he can't see it coming (asleep or dazed), when he walked into your box, or
+     * face only when he can't see it coming (asleep or dazed), when he walked into your box (not
+     * you shoving the box into his face), or
      * for FOX's feet and BULL's STIFF ARM. A Heavy's armor wants his back even when he's dazed
      * (a napping one is fair game; STIFF ARM's head-on tackle is handled on its own).
      */
@@ -1290,7 +1293,12 @@ class World(val config: RunConfig) {
         if (!melee || e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET) return false
         if (e.chokeable(fromDir) || e.asleep) return true
         if (e.kind == EnemyKind.HEAVY) return false
-        return dazed(e) || player.state == PlayerState.BOX || hero.frontTakedowns || stacks(Perk.STIFF_ARM) > 0
+        // He has to walk into it: holding still, or him coming your way, not you shoving it into his
+        // face. (Nobody suspects HAWK's box or a GHOST BOX, though: those creep right up to him.)
+        // And never one who's already onto you: he knows what's in there.
+        val onto = e.state == EnemyState.ALERT || e.state == EnemyState.AIM
+        val ambush = player.state == PlayerState.BOX && !onto && (moveAxis != fromDir || e.vx * fromDir < 0f || boxPro)
+        return dazed(e) || ambush || hero.frontTakedowns || stacks(Perk.STIFF_ARM) > 0
     }
 
     /** Can the player take [e] down from where they stand right now? */

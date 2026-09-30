@@ -249,6 +249,52 @@ class HeroTest {
     }
 
     @Test
+    fun theWiderBodyInFrontIsTheOneYouMeet() {
+        // A demon's shoulders reach you before the agent's back does, though his middle is farther.
+        for (demonFirst in listOf(true, false)) {
+            val w = world(Hero.HAWK)
+            w.player.x = 3f
+            val demon: Enemy
+            val agent: Enemy
+            if (demonFirst) {
+                demon = enemy(w, EnemyKind.DEMON, 3.95f, facing = -1)
+                agent = enemy(w, EnemyKind.AGENT, 3.9f, facing = 1)
+            } else {
+                agent = enemy(w, EnemyKind.AGENT, 3.9f, facing = 1)
+                demon = enemy(w, EnemyKind.DEMON, 3.95f, facing = -1)
+            }
+            run(w, 0.3f) { it.moveAxis = 1; demon.x = 3.95f; agent.x = 3.9f }
+            assertEquals("demon first: $demonFirst", 0, w.takedowns)
+        }
+    }
+
+    @Test
+    fun shovingTheBoxIntoAFaceIsNoAmbush() {
+        // (Not HAWK or GHOST BOX: nobody suspects their box, so it can creep right up to a face.)
+        val w = world(Hero.BULL)
+        w.player.x = 3f
+        val g = enemy(w, EnemyKind.AGENT, 12f, facing = -1)
+        w.commands += Command.SWIPE_DOWN
+        run(w, 0.5f)
+        assertEquals(PlayerState.BOX, w.player.state)
+        g.x = 4f
+        w.moveAxis = 1
+        assertFalse(w.takedownWorks(g))
+        // (He stands his ground: a guard who walks over to check the box is the lure, and that's fair.)
+        run(w, 0.5f) { it.moveAxis = 1; g.x = 4f; g.vx = 0f }
+        assertEquals("he saw that coming", 0, w.takedowns)
+        // Sit still and let him walk in: that's an ambush.
+        val w2 = world(Hero.BULL)
+        w2.player.x = 3f
+        val g2 = enemy(w2, EnemyKind.AGENT, 12f, facing = -1)
+        w2.commands += Command.SWIPE_DOWN
+        run(w2, 0.5f)
+        g2.x = 4.4f
+        run(w2, 0.5f) { g2.x = max(w2.player.x + 0.5f, g2.x - 0.02f) }
+        assertEquals(1, w2.takedowns)
+    }
+
+    @Test
     fun onlyTheBullStompsHeadsFlat() {
         for (hero in listOf(Hero.BULL, Hero.FOX, Hero.HAWK)) {
             val w = world(hero)
