@@ -1301,10 +1301,15 @@ class World(val config: RunConfig) {
         return dazed(e) || ambush || hero.frontTakedowns || stacks(Perk.STIFF_ARM) > 0
     }
 
-    /** Can the player take [e] down from where they stand right now (STIFF ARM's head-on tackle included)? */
-    fun takedownWorks(e: Enemy): Boolean =
-        takedownFrom(e, if (e.x >= player.x) 1 else -1) ||
-            e.kind == EnemyKind.HEAVY && stacks(Perk.STIFF_ARM) > 0 && player.state == PlayerState.NORMAL
+    /**
+     * Can the player take [e] down from where they stand right now? STIFF ARM's head-on tackle
+     * counts; a mid-swing guard doesn't (only STIFF ARM runs through a swing).
+     */
+    fun takedownWorks(e: Enemy): Boolean {
+        val stiffArm = stacks(Perk.STIFF_ARM) > 0 && player.state == PlayerState.NORMAL
+        if (e.state == EnemyState.WINDUP) return stiffArm && e.kind != EnemyKind.DRONE && e.kind != EnemyKind.TURRET
+        return takedownFrom(e, if (e.x >= player.x) 1 else -1) || e.kind == EnemyKind.HEAVY && stiffArm
+    }
 
     /** Walking into a guard's front without the takedown: a wall, and he's onto you. */
     private fun faceOff(e: Enemy, fromDir: Int) {
@@ -1573,7 +1578,8 @@ class World(val config: RunConfig) {
                         shockwave(e)
                     }
                     val away = if (abs(p.vx) > 0.5f) sign(p.vx).toInt() else if (p.x != e.x) sign(p.x - e.x).toInt() else p.facing
-                    p.z = top
+                    // (A dazed guard stands up out of a low aim: off the top of his head as he is now.)
+                    p.z = e.z + e.height
                     p.vz = HEAD_BOUNCE_VZ
                     p.vx = away * HEAD_BOUNCE_VX
                     p.jumpsUsed = 1
@@ -1640,8 +1646,9 @@ class World(val config: RunConfig) {
         if (e.kind == EnemyKind.TURRET || e.kind == EnemyKind.DRONE) return true
         if (e.asleep) return false
         if (threatTier(e) <= 1) return true
-        // Seeing stars (a bonk, a daze) he's no threat yet: yours to finish by hand.
-        if (dazed(e)) return false
+        // Seeing stars (a bonk, a daze) he's no threat yet, and an unaware guard FOX or STIFF ARM
+        // can take face to face is theirs to finish by hand.
+        if (dazed(e) || takedownWorks(e)) return false
         val towardYou = e.facing == (if (player.x >= e.x) 1 else -1)
         return towardYou && abs(e.x - player.x) <= AUTO_FIRE_POINT_BLANK
     }

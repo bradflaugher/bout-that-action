@@ -76,7 +76,7 @@ enum class Hero(
      */
     FOX(
         "FOX", "Street brawler. Ponytail of doom.",
-        "Face-to-face takedowns, long kicks, quick trigger", "Kicks first. Questions never.",
+        "Face-to-face takedowns, long kicks, quick trigger; guards slow to react", "Kicks first. Questions never.",
         0xFFE8413A.toInt(),
         takedownReach = 0.35f, reactionScale = 1.35f, fireScale = 0.85f, frontTakedowns = true,
     ),

@@ -323,6 +323,45 @@ class HeroTest {
     }
 
     @Test
+    fun aMidSwingGuardIsNoTakedownButStiffArmRunsThroughIt() {
+        for ((hero, perk) in listOf(Hero.FOX to false, Hero.BULL to true)) {
+            val w = world(hero)
+            if (perk) w.perks[Perk.STIFF_ARM] = 1
+            w.player.x = 3f
+            val ninja = enemy(w, EnemyKind.NINJA, 3.9f, facing = -1)
+            ninja.state = EnemyState.WINDUP
+            assertEquals("$hero", perk, w.takedownWorks(ninja))
+        }
+    }
+
+    @Test
+    fun aBonkLiftsYouOffAGuardWhoStandsUpFromALowAim() {
+        val w = world(Hero.HAWK)
+        val e = enemy(w, EnemyKind.AGENT, 6f)
+        e.state = EnemyState.AIM
+        e.aimLow = true
+        val low = e.height
+        airborne(w, e, dx = 0f, z = low + 0.02f, vz = -3f)
+        w.step(dt)
+        assertEquals(EnemyState.STUNNED, e.state)
+        assertTrue("he stood up: ${e.height} > $low", e.height > low)
+        assertTrue("feet on top of him, not inside", w.player.z >= e.z + e.height - 0.05f)
+    }
+
+    @Test
+    fun inGunsHotTheGunLeavesFoxHerFaceToFaceTakedowns() {
+        val w = world(Hero.FOX, silent = false)
+        w.player.x = 3f
+        w.player.facing = 1
+        val g = enemy(w, EnemyKind.AGENT, 5f, facing = -1) // unaware, face to face, point-blank
+        w.player.fireCooldown = 0f
+        run(w, 0.3f) { g.state = EnemyState.PATROL; it.player.hp = it.player.maxHp }
+        assertTrue("left for her feet", g.alive)
+        run(w, 0.6f) { it.moveAxis = 1; it.player.hp = it.player.maxHp }
+        assertEquals(1, w.takedowns)
+    }
+
+    @Test
     fun onlyTheBullStompsHeadsFlat() {
         for (hero in listOf(Hero.BULL, Hero.FOX, Hero.HAWK)) {
             val w = world(hero)
