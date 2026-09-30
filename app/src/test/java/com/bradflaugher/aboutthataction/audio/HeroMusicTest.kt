@@ -99,8 +99,8 @@ class HeroMusicTest {
     /** Each hero plays their own genre at its own tempo; sneaking is always the slower one. */
     @Test
     fun eachHeroPlaysTheirGenreAtItsTempo() {
-        val hot = mapOf(Hero.BULL to 130f..155f, Hero.FOX to 145f..175f, Hero.LION to 145f..180f, Hero.HAWK to 110f..128f)
-        val sneak = mapOf(Hero.BULL to 80f..95f, Hero.FOX to 88f..108f, Hero.LION to 75f..95f, Hero.HAWK to 88f..102f)
+        val hot = mapOf(Hero.BULL to 138f..152f, Hero.FOX to 145f..175f, Hero.LION to 145f..180f, Hero.HAWK to 110f..128f)
+        val sneak = mapOf(Hero.BULL to 70f..84f, Hero.FOX to 88f..108f, Hero.LION to 75f..95f, Hero.HAWK to 88f..102f)
         for (h in Hero.entries) for (z in Zone.entries) {
             val loud = HeroSongs.forZone(h, z, false)
             val quiet = HeroSongs.forZone(h, z, true)
@@ -111,20 +111,53 @@ class HeroMusicTest {
         }
     }
 
-    /** BULL: a swung, dusty boom-bap backbeat sneaking; half-time trap with 808 slides and hat rolls. */
+    /**
+     * BULL is heavy: sneaking, a slow boom-bap head-nod (a fat driven kick, a snare-and-clap crack
+     * on 2 and 4, a deep sub); GUNS HOT, heavy trap with distorted, punching, gliding 808s out
+     * front, hat rolls that change bar to bar, and a drop that slams the low end in with the heat.
+     */
     @Test
-    fun bullIsBoomBapAndTrap() {
+    fun bullIsHeavyBoomBapAndHeavyTrap() {
         for (z in Zone.entries) {
             val bap = HeroSongs.forZone(Hero.BULL, z, true)
-            assertTrue("$z: the boom-bap swings", bap.swing >= 0.2f)
-            assertTrue("$z: on a record", bap.vinyl > 0f)
-            assertTrue("$z: a lo-fi kit", bap.kit.crush >= 3)
-            assertTrue("$z: backbeat on 2 and 4", onlyAt(bap.drumsA.snare, 4, 12))
+            assertTrue("$z: a slow head-nod (${bap.bpm})", bap.bpm <= 82f)
+            assertTrue("$z: it swings", bap.swing > 0f)
+            assertTrue("$z: backbeat on 2 and 4, snare and clap", onlyAt(bap.drumsA.snare, 4, 12) && onlyAt(bap.drumsA.clap, 4, 12))
+            assertTrue("$z: a fat, driven kick", bap.kit.kickLo <= 50f && bap.kit.kickDecay >= 0.5f && bap.kit.kickDrive >= 0.3f)
+            assertTrue("$z: a big snare", bap.kit.snareLevel >= 0.9f && bap.kit.snareDecay >= 0.2f)
+            assertTrue("$z: dusty", bap.vinyl > 0f && bap.kit.crush >= 2)
+            assertTrue("$z: a deep sine sub", bap.bass.wave1 == Wave.SINE && bap.mix.bass >= 1f)
             val trap = HeroSongs.forZone(Hero.BULL, z, false)
             assertEquals("$z: trap is straight", 0f, trap.swing, 0f)
             assertTrue("$z: half-time snare and clap on 3", onlyAt(trap.drumsA.snare, 8) && onlyAt(trap.drumsA.clap, 8))
-            assertTrue("$z: 808s slide", trap.bassSlide && trap.bass.glide > 0f && trap.bass.wave1 == Wave.SINE)
-            for (p in listOf(trap.drumsA, trap.drumsB, trap.fill)) assertTrue("$z: hat rolls", p.hat.any { it in "rtq" })
+            val b = trap.bass
+            assertTrue("$z: distorted 808s that punch and slide", trap.bassSlide && b.glide > 0f && b.wave1 == Wave.SINE && b.drive >= 1f && b.pitchEnv > 0f)
+            assertTrue("$z: the 808 leads the mix", trap.mix.bass > maxOf(trap.mix.pad, trap.mix.arp, trap.mix.lead))
+            assertTrue("$z: a hard, short kick", trap.kit.kickDecay < 0.3f && trap.kit.kickClick >= 0.5f)
+            for (p in listOf(trap.drumsA, trap.drumsB, trap.fill)) assertTrue("$z: hat rolls", (p.hat + p.hat2).any { it in "rtqw" })
+            assertTrue("$z: hat triplets", (trap.drumsA.hat2 + trap.drumsB.hat2).any { it in "yz" })
+            assertTrue("$z: the hats change bar to bar", trap.drumsA.hat != trap.drumsA.hat2 && trap.drumsB.hat != trap.drumsB.hat2)
+            assertTrue("$z: a drop", trap.dropThreshold in 0.3f..0.7f)
+        }
+        // Heard: cool, the kick and 808 hold back; heated past the drop, the low end slams in.
+        fun low(z: Zone, i: Float): Double {
+            val e = SoundEngine()
+            e.setIntensity(i)
+            e.setHero(Hero.BULL)
+            e.setZone(z)
+            val x = AudioTestUtil.mono(render(e, 9f).let { it.copyOfRange(AudioTestUtil.SR * 2 * 3, it.size) })
+            val a = kotlin.math.exp(-2.0 * Math.PI * 150.0 / AudioTestUtil.SR).toFloat()
+            var lp = 0f
+            var acc = 0.0
+            for (v in x) {
+                lp = a * lp + (1 - a) * v; acc += lp * lp
+            }
+            return kotlin.math.sqrt(acc / x.size)
+        }
+        for (z in listOf(Zone.TOWER, Zone.HELL)) {
+            val drop = db(low(z, 0.9f), low(z, 0.15f))
+            println("$z: the drop adds %.1f dB below 150 Hz".format(drop))
+            assertTrue("$z: the drop should land (%.1f dB)".format(drop), drop > 6)
         }
     }
 
@@ -639,6 +672,115 @@ class HeroInstrumentsTest {
         println("hat onsets per bar: plain $plain, rolled $rolls")
         assertEquals(4, plain)
         assertEquals(2 + 3 + 4 + 1, rolls)
+    }
+
+    private fun hatOnsets(row: String, row2: String = row): Int {
+        val spec = Songs.tower.derive(
+            name = "hat-roll-test", swing = 0f,
+            drumsA = DrumPattern(hat = row, hat2 = row2), drumsB = DrumPattern(hat = row, hat2 = row2),
+            fill = DrumPattern(hat = row, hat2 = row2),
+            mix = Mix(pad = 0f, bass = 0f, arp = 0f, lead = 0f, drums = 1f), rotor = 0f, wind = 0f,
+            kit = DrumTuning(hatDecay = 0.004f, hatLevel = 1f),
+        )
+        val d = MusicDirector(sr)
+        d.intensity = 1f
+        d.request(spec, immediate = false)
+        val n = 64
+        val l = FloatArray(n)
+        val r = FloatArray(n)
+        val rev = FloatArray(n)
+        val dly = FloatArray(n)
+        val bar = (60.0 / 118 * 4 * sr).toInt()
+        var env = 0.0
+        var hits = 0
+        var armed = true
+        var done = 0
+        while (done < 3 * bar) {
+            d.render(n, l, r, rev, dly)
+            for (k in 0 until n) {
+                env = maxOf(abs(l[k]).toDouble(), env * 0.99)
+                if (armed && env > 0.03) {
+                    if (done + k in bar until 3 * bar) hits++
+                    armed = false
+                }
+                if (env < 0.006) armed = true
+            }
+            done += n
+        }
+        return hits
+    }
+
+    /** 'w' buzzes six strokes into a step; "yz" rolls 16th-note triplets; [DrumPattern.hat2] plays odd bars. */
+    @Test
+    fun tripletHatsBuzzesAndTwoBarHatLines() {
+        val plain = hatOnsets("x...x...x...x...")
+        val triplets = hatOnsets("yzyz............")
+        val buzz = hatOnsets("w...............")
+        val twoBar = hatOnsets("x...x...x...x...", "x...............")
+        println("hat onsets over two bars: plain $plain, triplets $triplets, buzz $buzz, two-bar $twoBar")
+        assertEquals(8, plain)
+        assertEquals("three strokes per two steps", 2 * 6, triplets)
+        assertEquals(2 * 6, buzz)
+        assertEquals("bar 2 plays hat2", 4 + 1, twoBar)
+    }
+
+    /** An 808's punch: a struck note starts sharp and falls to pitch; a glide doesn't restrike it. */
+    @Test
+    fun pitchEnvelopePunchesThenSettles() {
+        val p = Patch(wave1 = Wave.SINE, cutoff = 4000f, keyTrack = 0f, a = 0.001f, s = 1f, glide = 0.1f, gain = 0.4f, pitchEnv = 12f, pitchDecay = 0.02f)
+        val x = voice(p, 0.6f) { it.noteOn(45, 1f, sr, legato = false, age = 1) }
+        val early = pitch(x, 0, sr / 100)
+        val settled = pitch(x, sr / 5, sr / 2)
+        val want = Dsp.midiToHz(45f)
+        println("808 punch: first 10 ms %.1f Hz, settled %.1f Hz (want %.1f)".format(early, settled, want))
+        assertTrue("starts sharp", early > want * 1.3)
+        assertTrue("settles in tune", abs(settled / want - 1) < 0.01)
+        val plain = voice(Patch(wave1 = Wave.SINE, cutoff = 4000f, keyTrack = 0f, a = 0.001f, s = 1f, gain = 0.4f), 0.2f) {
+            it.noteOn(45, 1f, sr, legato = false, age = 1)
+        }
+        assertTrue("no envelope, no punch", abs(pitch(plain, 0, sr / 100) / want - 1) < 0.05)
+    }
+
+    /**
+     * A trap drop: below its threshold the kick and 808 hold back; heating up cuts the bar's
+     * last beat (the held breath), then the next bar lands it.
+     */
+    @Test
+    fun theDropHoldsItsBreathThenLands() {
+        val spec = Songs.tower.derive(
+            name = "drop-test", bpm = 120f, swing = 0f,
+            drumsA = DrumPattern(kick = "X...X...X...X..."), drumsB = DrumPattern(kick = "X...X...X...X..."),
+            fill = DrumPattern(kick = "X...X...X...X..."), kit = DrumTuning(kickDecay = 0.1f),
+            bassA = "R...R...R...R...", bassB = "R...R...R...R...",
+            mix = Mix(pad = 0f, bass = 1f, arp = 0f, lead = 0f, drums = 1f), rotor = 0f, wind = 0f,
+            dropThreshold = 0.5f,
+        )
+        val d = MusicDirector(sr)
+        d.intensity = 0.4f
+        d.request(spec, immediate = false)
+        val n = 64
+        val l = FloatArray(n)
+        val r = FloatArray(n)
+        val rev = FloatArray(n)
+        val dly = FloatArray(n)
+        val beat = sr / 2 // 120 BPM
+        val beats = DoubleArray(16)
+        var done = 0
+        while (done < 16 * beat) {
+            // Heat up a little into bar 2 (beat 5).
+            d.intensity = if (done >= 5 * beat) 0.9f else 0.4f
+            d.render(n, l, r, rev, dly)
+            for (k in 0 until n) if (done + k < 16 * beat) beats[(done + k) / beat] += (l[k] * l[k]).toDouble()
+            done += n
+        }
+        val lv = beats.map { kotlin.math.sqrt(it / beat) }
+        println("drop, rms per beat: " + lv.joinToString { "%.3f".format(it) })
+        // Bars 1 and 2 only tease (a soft bass note on the downbeat); heating up in bar 2 waits
+        // for the bar line (its last beat is the held breath under a swell), then bar 3 lands.
+        assertTrue("the tease", lv[0] > lv[1] * 2 && lv[4] > lv[5] * 2)
+        for (b in 1..6) assertTrue("beat $b holds back", lv[b] < lv[8] * 0.25)
+        assertTrue("the held breath: just the swell rising into it", lv[7] > lv[6] * 2 && lv[7] < lv[8] * 0.5)
+        assertTrue("then it lands, on the bar", lv[8] > lv[0] * 1.5 && (9..11).all { lv[it] > lv[5] * 3 })
     }
 
     @Test

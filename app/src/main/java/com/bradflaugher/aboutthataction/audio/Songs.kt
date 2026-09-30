@@ -9,7 +9,9 @@ import com.bradflaugher.aboutthataction.audio.Scales.PHRYGIAN
  * One bar of drums, 16 steps per row. Velocity chars: 'X' accent, 'x' normal, 'o' ghost.
  * Tom rows use '1'..'3' for low/mid/high. On the snare row 'r' is a soft roll: two quick
  * strokes in one step (drumline buzz). On the hat row 'r', 't' and 'q' roll too: two, three
- * or four strokes in the step (trap hat rolls). [jingle] is sleigh bells / tambourine.
+ * or four strokes in the step (trap hat rolls), 'w' six (a buzz); 'y' and 'z' are 16th-note
+ * triplets, three strokes across two steps ('y' on the step and two thirds in, 'z' a third
+ * in), so "yzyz" rolls a beat in sixes. [jingle] is sleigh bells / tambourine.
  */
 internal class DrumPattern(
     val kick: String = REST,
@@ -20,9 +22,11 @@ internal class DrumPattern(
     val tom: String = REST,
     val perc: String = REST,
     val jingle: String = REST,
+    /** The hats on odd bars (a two-bar hat line: rolls that change from bar to bar). */
+    val hat2: String = hat,
 ) {
     init {
-        for (row in arrayOf(kick, snare, clap, hat, open, tom, perc, jingle)) require(row.length == 16) { "Bad drum row '$row'" }
+        for (row in arrayOf(kick, snare, clap, hat, open, tom, perc, jingle, hat2)) require(row.length == 16) { "Bad drum row '$row'" }
     }
 
     companion object {
@@ -35,6 +39,8 @@ internal class DrumPattern(
             'o' -> 0.42f
             'r', 't' -> 0.5f
             'q' -> 0.45f
+            'w' -> 0.4f
+            'y', 'z' -> 0.48f
             '1', '2', '3' -> 0.8f
             else -> 0f
         }
@@ -126,6 +132,13 @@ internal class SongSpec(
     val bassSlide: Boolean = false,
     /** Record crackle and hiss level. */
     val vinyl: Float = 0f,
+    /**
+     * >= 0: a trap drop. Below this intensity (and through BREAK phrases) the kick and the
+     * bass hold back to a tease; heating past it cuts everything for the bar's last beat
+     * under a reversed-cymbal swell, then the next bar lands it with a crash and a sub boom.
+     * It only lets go at a bar line, once intensity falls well below. -1: no drop.
+     */
+    val dropThreshold: Float = -1f,
 ) {
     /** A single strike at step 0 means "sustain for the whole chord". */
     val padSustain = sustains(padRhythm)
@@ -572,5 +585,5 @@ internal fun Patch.copyish(
     supersaw = supersaw, sub = sub, noise = noise, pw = pw, pwm = pwm, cutoff = cutoff, q = q,
     envAmt = envAmt, keyTrack = keyTrack, a = a, d = d, s = s, r = r, fa = fa, fd = fd, fs = fs, fr = fr,
     drive = drive, glide = glide, vibrato = vibrato, vibRate = vibRate, gain = gain, crush = crush, bright = bright,
-    trem = trem, tremRate = tremRate, pluck = pluck, ring = ring,
+    trem = trem, tremRate = tremRate, pluck = pluck, ring = ring, pitchEnv = pitchEnv, pitchDecay = pitchDecay,
 )
