@@ -1370,6 +1370,7 @@ class World(val config: RunConfig) {
             enemies
                 .filter {
                     it !== e && it.floor == e.floor && it.hall == e.hall && it.alive &&
+                        !(it.state == EnemyState.EMERGING && it.stateTime < 0.2f) &&
                         it.kind != EnemyKind.DRONE && it.kind != EnemyKind.TURRET && abs(it.x - p.x) <= SPIN_KICK_REACH
                 }
                 .sortedBy { abs(it.x - p.x) }

@@ -815,6 +815,48 @@ class HeroInstrumentsTest {
         assertTrue("then it lands, on the bar", lv[8] > lv[0] * 1.5 && (9..11).all { lv[it] > lv[5] * 3 })
     }
 
+    /** The held breath silences the melody too: no pad, arp or lead notes in the gap beat. */
+    @Test
+    fun theDropGapMutesTheMelody() {
+        fun beats(arp: Float): List<Double> {
+            val spec = Songs.tower.derive(
+                name = "drop-gap-test", bpm = 120f, swing = 0f,
+                drumsA = DrumPattern(kick = "X..............."), drumsB = DrumPattern(kick = "X..............."),
+                fill = DrumPattern(kick = "X..............."), kit = DrumTuning(kickDecay = 0.1f),
+                bassA = "................", bassB = "................",
+                arpA = "0123012301230123", arpB = "0123012301230123", arpGate = 0.5f,
+                mix = Mix(pad = 0f, bass = 0f, arp = arp, lead = 0f, drums = 0f, arpDelay = 0f, arpVerb = 0f), rotor = 0f, wind = 0f,
+                dropThreshold = 0.5f,
+            )
+            val d = MusicDirector(sr)
+            d.intensity = 0.4f
+            d.request(spec, immediate = false)
+            val n = 64
+            val l = FloatArray(n)
+            val r = FloatArray(n)
+            val rev = FloatArray(n)
+            val dly = FloatArray(n)
+            val beat = sr / 2
+            val out = DoubleArray(12)
+            var done = 0
+            while (done < 12 * beat) {
+                // Heat up into bar 2 (beat 5): its last beat is the held breath.
+                d.intensity = if (done >= 5 * beat) 0.9f else 0.4f
+                d.render(n, l, r, rev, dly)
+                for (k in 0 until n) if (done + k < 12 * beat) out[(done + k) / beat] += (l[k] * l[k]).toDouble()
+                done += n
+            }
+            return out.toList()
+        }
+        val with = beats(1f)
+        val without = beats(0f)
+        val arpBeat = with[6] - without[6]
+        val arpGap = with[7] - without[7]
+        println("drop gap: " + with.indices.joinToString { "%.3f".format(with[it] - without[it]) })
+        assertTrue("the arp plays before the gap", arpBeat > 0.0)
+        assertTrue("and holds its breath in it", arpGap < arpBeat * 0.2)
+    }
+
     /** LION's slide whistle swoops up (slow, then a rush to the top), then stops; silent unless asked. */
     @Test
     fun slideWhistleSwoopsUp() {

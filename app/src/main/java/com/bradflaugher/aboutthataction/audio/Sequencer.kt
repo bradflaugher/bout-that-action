@@ -308,7 +308,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             ) {
                 // Hold your breath: the last beat cuts out under a swell.
                 dropGap = true
-                bass.releaseAll()
+                bass.releaseAll(); pad.releaseAll(); arp.releaseAll(); lead.releaseAll()
                 dropFx.swell((4 * stepSamples).toInt(), 0.35f)
             }
             gap = dropGap
@@ -430,7 +430,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         val prow = if (isB) sp.padRhythmB else sp.padRhythm
         val sustain = if (isB) sp.padSustainB else sp.padSustain
         val strike = if (sustain) chordChange else prow[s] == 'x'
-        if (strike) {
+        if (strike && !gap) {
             val len = (padLength(sp, bar, s, prow, sustain) * stepSamples).toInt()
             pad.releaseAll()
             if (sp.padPower) {
@@ -455,7 +455,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
                 val note = root + chord.tone(ac - '0') - chord.root
                 val len = 1 + ties(arow, s)
                 val accent = if (s % 4 == 0) 1f else 0.78f
-                arp.noteOn(note, lArp * accent, max(1f, len * stepSamples * sp.arpGate).toInt())
+                if (!gap) arp.noteOn(note, lArp * accent, max(1f, len * stepSamples * sp.arpGate).toInt())
             }
         }
 
@@ -465,7 +465,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             if (note >= 0) {
                 val legato = if (sp.lead.glide > 0f) 1.04f else 0.85f
                 val accent = if (s % 4 == 0) 1f else 0.85f
-                lead.noteOn(note, lLead * accent, (comp.leadLen * stepSamples * legato).toInt())
+                if (!gap) lead.noteOn(note, lLead * accent, (comp.leadLen * stepSamples * legato).toInt())
             }
         }
 

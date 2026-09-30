@@ -335,6 +335,26 @@ class HeroTest {
         }
     }
 
+    @Test
+    fun spinKickSkipsGuardsStillInTheDoorway() {
+        val w = world(Hero.FOX)
+        w.perks[Perk.SPIN_KICK] = 2
+        w.player.x = 3f
+        w.player.facing = 1
+        val target = enemy(w, EnemyKind.AGENT, 3.8f, facing = 1)
+        val emerging = enemy(w, EnemyKind.AGENT, 2f, facing = 1).also { it.state = EnemyState.EMERGING; it.stateTime = 0f }
+        var n = 0
+        while (w.player.state != PlayerState.TAKEDOWN && n++ < 60) {
+            w.moveAxis = 1
+            emerging.x = 2f; emerging.vx = 0f; emerging.stateTime = 0f
+            w.step(dt)
+        }
+        assertEquals(PlayerState.TAKEDOWN, w.player.state)
+        assertEquals(EnemyState.CHOKED, target.state)
+        assertTrue("a guard still behind the door is out of reach", emerging.alive)
+        assertEquals(0, w.stats.spinKicks)
+    }
+
     /** FOX in the air beside [e], rising, [dx] away and [z] up. */
     private fun airborne(w: World, e: Enemy, dx: Float, z: Float, vz: Float = 2f) {
         val p = w.player
