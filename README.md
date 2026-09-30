@@ -252,14 +252,22 @@ synthesized too, panned to where it happened on screen, with haptics on the
 big moments.
 
 Every hero brings their own band to every zone, in both modes, and signs off
-the game over in their own style. **BULL** plays hip-hop: a dusty, swung
-boom-bap beat on a crackly record while sneaking, then half-time trap with
-sliding 808s and rolling hats when the guns come out. **FOX** plays classical:
-pizzicato strings and a clarinet on tiptoe, then a harpsichord-and-violins
-presto with timpani. **LION** plays country: a slow brushed shuffle with
-fingerpicked guitar and a harmonica, then a train-beat hoedown with banjo rolls
-and a fiddle. **HAWK** plays jungle drums: hand drums, shakers, a marimba, a
-wooden flute and crickets, then pounding war drums in threes against the beat.
+the game over in their own style. **BULL** plays heavy hip-hop: a slow,
+menacing boom-bap head-nod while sneaking (fat dusty kick, cracking snare, deep
+sub, a dark felt-piano riff), then heavy trap when the guns come out:
+distorted, gliding 808s, rolling hats, dark bells and brass, and when the fight
+heats up the beat holds its breath for one beat, then drops. **FOX** plays an
+early-90s street-brawler soundtrack, all FM synths: a smooth late-night new-jack
+swing of electric piano, slap bass and a sultry lead, then a breakbeat rave of
+piano-house stabs, a bouncing bass and bright brass that drops hard when the
+heat climbs. **LION** brought the circus: a creepy tiptoe clown march (bassoon
+oom-pah, a music box, temple blocks, a wobbly calliope and the odd honk), then a
+screaming galop of steam calliope, tuba, snare rolls, crashing cymbals,
+xylophone runs and slide whistles. **HAWK**'s radio is stuck on the courier's
+station: elevator-muzak bossa nova (nylon guitar, vibraphone, a cross-stick
+clave and a soft flute), then 70s delivery-van funk with ghost-note breakbeats,
+slap bass, wah clavinet, horn stabs and a cop-show lead; his game over is a
+van-horn beep-beep and a doorbell. Delivered.
 The hero picker plays each one's theme. Every tune is original.
 
 ## Install
