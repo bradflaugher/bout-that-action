@@ -42,32 +42,46 @@ enum class Hero(
     /** Time between pistol shots, as a multiple. */
     val fireScale: Float = 1f,
 ) {
-    /** A bruiser in full pads. Tough, fast, bulldozes. */
+    /** A heavyweight in a quilted bomber and a gold chain. Tough, fast, bulldozes. */
     BULL(
-        "BULL", "Bruiser. Pads on.",
+        "BULL", "Heavyweight. Chain on.",
         "+1 heart, runs faster, tackles heavies head-on", "Through, never around.",
         0xFF4DA8FF.toInt(),
         extraHearts = 1, runSpeed = 1.1f, tacklesHeavies = true,
     ),
-    /** The gentleman spy in a tux. Smooth, quiet, deadly. */
+    /** The silver-haired gentleman spy in a long crimson coat. Smooth, quiet, deadly. */
     FOX(
-        "FOX", "Gentleman spy. Tux pressed.",
+        "FOX", "Gentleman spy. Silver fox.",
         "8-round mag, quick trigger; guards are slow to react", "Pressed, never stressed.",
         0xFFE8413A.toInt(),
         magSize = 8, reactionScale = 1.35f, fireScale = 0.85f,
     ),
-    /** Barefoot cop in a tank top, having the worst night ever. */
-    BADGER(
-        "BADGER", "Wrong building. Wrong night.",
-        "Shrugs off one fatal hit a run; +1 grenade", "Shoes optional. Stubborn required.",
-        0xFFFFD23C.toInt(),
+    /** A bald small-town sheriff with a horseshoe moustache who will not stay down. */
+    WOLF(
+        "WOLF", "Small-town sheriff. Lone wolf.",
+        "Shrugs off one fatal hit a run; +1 grenade", "Boots on. Stubborn required.",
+        0xFFDA8CFF.toInt(),
         secondWind = true, extraGrenades = 1,
     ),
-    /** Jungle commando in a bandana. Lives in the box, unplugs the robots, never makes a sound. */
-    VIPER(
-        "VIPER", "Jungle commando. Bandana on.",
+    /** A mohawked jungle commando, sharp-eyed and fearless. Lives in the box, unplugs the robots, never makes a sound. */
+    HAWK(
+        "HAWK", "Jungle commando. Eagle-eyed.",
         "Sneaks unseen, unplugs robots, sly box, fast reloads", "A box is a lifestyle.",
         0xFF58D25A.toInt(),
         boxPro = true, sabotage = true, sneakSight = 0.75f, reloadScale = 0.75f,
     ),
+    ;
+
+    companion object {
+        /**
+         * A hero saved by [name], or null if there's none by that name. Older builds called
+         * HAWK "VIPER" (and, briefly, "MONGOOSE") and WOLF "BADGER".
+         */
+        fun fromSaved(name: String?): Hero? = when (name) {
+            null -> null
+            "VIPER", "MONGOOSE" -> HAWK
+            "BADGER" -> WOLF
+            else -> entries.firstOrNull { it.name == name }
+        }
+    }
 }

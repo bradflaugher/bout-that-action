@@ -43,6 +43,9 @@ internal class DrumTuning(
     val jingleDecay: Float = 0.16f,
     val jingleNoise: Float = 0.5f,
     val jingleLevel: Float = 0.3f,
+    /** Tom ring time and how far its pitch drops (low: a hand drum's slap; high: a big tom's boom). */
+    val tomDecay: Float = 0.42f,
+    val tomBend: Float = 0.7f,
 )
 
 /** Base for one-shot drum voices rendering into stereo + reverb-send buffers. */
@@ -242,11 +245,12 @@ internal class Tom(sr: Int) : DrumVoice(sr) {
     private var hz = 100f
     private var env = 0f
     private var bend = 0f
-    private val coef = Dsp.decay60(0.42f, sr)
+    private var coef = 0f
     private val bendCoef = Dsp.decay60(0.12f, sr)
 
     fun trigger(v: Float, pitch: Int) {
         vel = v; env = 1f; bend = 1f; phase = 0f; active = true
+        coef = Dsp.decay60(t.tomDecay, sr)
         hz = t.tomHz * when (pitch) {
             0 -> 0.75f
             2 -> 1.5f
@@ -260,7 +264,7 @@ internal class Tom(sr: Int) : DrumVoice(sr) {
     override fun render(l: FloatArray, r: FloatArray, rev: FloatArray, n: Int, pitchMul: Float) {
         if (!active) return
         for (i in 0 until n) {
-            phase += hz * pitchMul * (1f + 0.7f * bend) / sr; if (phase >= 1f) phase -= 1f
+            phase += hz * pitchMul * (1f + t.tomBend * bend) / sr; if (phase >= 1f) phase -= 1f
             val x = (Dsp.sin01(phase) + lp.lp(noise.next()) * 0.25f * bend) * env
             out(l, r, rev, i, x * vel)
             env *= coef; bend *= bendCoef

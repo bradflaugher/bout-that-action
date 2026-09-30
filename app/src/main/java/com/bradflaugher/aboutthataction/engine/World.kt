@@ -163,7 +163,7 @@ class World(val config: RunConfig) {
     /** Kills since CANDY RAIN was picked (or last paid out). */
     private var candyKills = 0
 
-    /** BADGER: the once-a-run shrug-off of a fatal hit has been spent. */
+    /** WOLF: the once-a-run shrug-off of a fatal hit has been spent. */
     var secondWindUsed = false
         private set
 
@@ -192,7 +192,7 @@ class World(val config: RunConfig) {
 
     /** Jumps before touching down: one, plus the hero's or the perk's second. */
     val maxJumps: Int get() = 1 + stacks(Perk.DOUBLE_JUMP)
-    /** The box glides and never looks suspicious: VIPER's trait or GHOST BOX. */
+    /** The box glides and never looks suspicious: HAWK's trait or GHOST BOX. */
     val boxPro: Boolean get() = hero.boxPro || stacks(Perk.GHOST_BOX) > 0
     val heat: Float get() = floors[player.floor]?.plan?.heat ?: 0f
 
@@ -1280,7 +1280,7 @@ class World(val config: RunConfig) {
         afterTakedown(e)
     }
 
-    /** VIPER's SABOTAGE: a drone or turret unplugged by hand. A takedown, so it's quiet in SILENT. */
+    /** HAWK's SABOTAGE: a drone or turret unplugged by hand. A takedown, so it's quiet in SILENT. */
     private fun unplug(e: Enemy, dir: Int) {
         val p = player
         if (p.state == PlayerState.BOX) {
@@ -1911,7 +1911,7 @@ class World(val config: RunConfig) {
         comboTimer = 0f
         fx.burst(ParticleKind.SHARD, p.x, y, 10, 5f, 0.5f, 0.1f)
         if (p.hp <= 0 && hero.secondWind && !secondWindUsed) {
-            // BADGER: not today, not like this. Once a run he gets back up on one heart.
+            // WOLF: not today, not like this. Once a run he gets back up on one heart.
             secondWindUsed = true
             stats.secondWinds++
             p.hp = 1
@@ -2738,7 +2738,7 @@ class World(val config: RunConfig) {
         /** ...and shimmers this long ([Player.camoTime]). */
         const val CAMO_SHOW = 0.4f
         private const val CAMO_KEY = 0x6717C4L
-        /** BADGER's second wind: back up on one heart, untouchable this long. */
+        /** WOLF's second wind: back up on one heart, untouchable this long. */
         const val SECOND_WIND_INVULN = 2f
 
         // ---- Controls & feel (see docs/CONTROLS.md) ----

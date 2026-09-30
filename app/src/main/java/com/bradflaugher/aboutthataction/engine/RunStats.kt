@@ -54,7 +54,7 @@ class RunStats {
     var tackles = 0
     /** STIFF ARM: guards flattened on the run. */
     var stiffArms = 0
-    /** BADGER: fatal hits shrugged off (one a run at most). */
+    /** WOLF: fatal hits shrugged off (one a run at most). */
     var secondWinds = 0
     /** SABOTAGE: drones and turrets unplugged by hand. */
     var unplugged = 0

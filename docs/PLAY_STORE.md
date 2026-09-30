@@ -72,12 +72,13 @@ Play review rejects apps that suggest a real person, team or brand endorses
 them. The game leans on a few:
 
 - The title, 'Bout That Action, is a common phrase. Nothing else in the game
-  quotes or names a real athlete: BULL is a generic bruiser in football pads
-  and a plain blue uniform with no number, team colours, logo or name, and the
-  sign-offs and perk names are all original. Keep it that way.
-- FOX (a spy in a tux), BADGER (a barefoot cop) and VIPER (a jungle
-  commando) are genre archetypes, not anyone's characters: no film or game
-  quotes, names or catchphrases in their text.
+  quotes or names a real athlete: BULL is an original heavyweight in a
+  quilted bomber and shades, with no number, team colours, logo or name, and
+  the sign-offs and perk names are all original. Keep it that way.
+- FOX (a silver-haired spy in a crimson coat), WOLF (a small-town sheriff)
+  and HAWK (a mohawked jungle commando) are original characters on
+  genre archetypes, drawn to look like nobody else's: no film or game quotes,
+  names, catchphrases or signature costumes.
 - No third-party trademarks in game text either: armor is a VEST (not
   Kevlar), the slow-motion pickup is SLOW-MO (not bullet time).
 - Wall text (murals, graffiti, neon, departure boards in `EnvWalls`) is

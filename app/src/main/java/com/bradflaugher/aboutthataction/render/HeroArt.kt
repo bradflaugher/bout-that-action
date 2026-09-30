@@ -15,7 +15,7 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
     val look = Look()
 
     var hero = Hero.BULL
-    private val kits = arrayOf(BullKit(this), FoxKit(this), BadgerKit(this), ViperKit(this))
+    private val kits = arrayOf(BullKit(this), FoxKit(this), WolfKit(this), HawkKit(this))
     val kit: HeroKit get() = kits[hero.ordinal]
 
     // ---- Set by the poser.
@@ -211,7 +211,7 @@ internal abstract class HeroKit(val a: HeroArt) {
     /** Fill pass only: holstered gear and small kit over the torso. */
     open fun details(ghost: Boolean) {}
     abstract fun head(ghost: Boolean)
-    /** Drawn last, over the near arm (locks over the pads). */
+    /** Drawn last, over the near arm (hair, leaves, anything that trails). */
     open fun hair() {}
     /** Fill pass only, after everything. */
     open fun strips() {}
