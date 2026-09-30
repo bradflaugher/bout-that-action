@@ -850,17 +850,26 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         gameOverStinger()
         when (hero) {
             Hero.BULL -> {
-                // The record stops: the beat's last chord winds down to nothing over one big 808.
+                // Lights out: a dark brass stab tape-stops into the floor, then one last distorted
+                // 808 punches in and slides down an octave under a lone minor bell.
                 for (k in BULL_EXIT.indices) voice {
                     val s = BULL_EXIT[k]
-                    wave = Wave.TRIANGLE; wave2 = Wave.SAW; level2 = 0.25f; f0 = 146.8f * Dsp.semis(s.toFloat()); f1 = f0 * 0.2f
-                    sweep = 0.9f; filter = FilterMode.LOW; cut0 = 2200f; cut1 = 300f; cutTime = 0.9f
-                    attack = 0.005f; hold = 0.5f; decay = 0.5f; gain = 0.08f; pan = (k - 1f) * 0.3f; reverb = 0.2f
-                    delay = 0.85f; priority = 4f
+                    wave = Wave.SAW; wave2 = Wave.SAW; ratio2 = 1.007f; level2 = 0.7f; f0 = 146.8f * Dsp.semis(s.toFloat())
+                    f1 = f0 * 0.25f; sweep = 0.7f; filter = FilterMode.LOW; cut0 = 1800f; cut1 = 150f; cutTime = 0.7f; q = 1.1f
+                    attack = 0.004f; hold = 0.25f; decay = 0.45f; drive = 0.4f; gain = 0.07f; pan = (k - 1f) * 0.35f
+                    reverb = 0.25f; delay = 0.8f; priority = 4f
                 }
                 voice {
-                    wave = Wave.SINE; f0 = 73.4f; f1 = 55f; sweep = 1.4f; attack = 0.002f; hold = 0.3f; decay = 1.4f
-                    drive = 0.6f; gain = 0.22f; delay = 1.9f; priority = 4f
+                    wave = Wave.SINE; f0 = 220f; f1 = 73.4f; sweep = 0.025f; attack = 0.001f; decay = 0.09f; drive = 0.8f
+                    gain = 0.16f; delay = 1.5f; priority = 4f
+                }
+                voice {
+                    wave = Wave.SINE; f0 = 73.4f; f1 = 36.7f; sweep = 1.3f; attack = 0.002f; hold = 0.35f; decay = 1.5f
+                    drive = 0.9f; gain = 0.22f; delay = 1.5f; priority = 4f
+                }
+                voice {
+                    wave = Wave.SINE; wave2 = Wave.SINE; ratio2 = 3.5f; fm = 0.5f; f0 = 1174.7f * Dsp.semis(BULL_BELL.toFloat()); f1 = f0
+                    attack = 0.001f; decay = 1.8f; gain = 0.05f; reverb = 0.55f; delay = 1.5f; priority = 4f
                 }
             }
             Hero.FOX -> {
@@ -933,8 +942,10 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         private val SHIELD_ARP = intArrayOf(0, 4, 7, 12, 16)
         private val PERK_SWELL = intArrayOf(0, 3, 7, 14)
         private val STINGER = intArrayOf(-12, 0, 3, 7)
-        /** D minor (D F A), wound down together. */
+        /** D minor (D F A), stabbed and wound down together. */
         private val BULL_EXIT = intArrayOf(0, 3, 7)
+        /** The bell above it rings the minor third (F). */
+        private const val BULL_BELL = 3
         /** D minor, run down from the octave to the low D. */
         private val FOX_EXIT = intArrayOf(12, 7, 3, 0, -5, -12)
         /** G, E, D and a bent B (a major-pentatonic tag). */
