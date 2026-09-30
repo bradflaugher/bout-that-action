@@ -67,7 +67,7 @@ class Prefs(context: Context) {
             coach = sp.getBoolean("coach", d.coach),
             musicVolume = sp.getFloat("music", d.musicVolume),
             sfxVolume = sp.getFloat("sfx", d.sfxVolume),
-            hero = Hero.entries.firstOrNull { it.name == sp.getString("hero", null) } ?: d.hero,
+            hero = Hero.fromSaved(sp.getString("hero", null)) ?: d.hero,
         )
     }
 

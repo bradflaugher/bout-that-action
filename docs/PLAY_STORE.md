@@ -76,7 +76,7 @@ them. The game leans on a few:
   quilted bomber and shades, with no number, team colours, logo or name, and
   the sign-offs and perk names are all original. Keep it that way.
 - FOX (a silver-haired spy in a crimson coat), BADGER (a small-town sheriff)
-  and VIPER (a jungle ghost in a cloak of leaves) are original characters on
+  and MONGOOSE (a jungle commando in a boonie hat) are original characters on
   genre archetypes, drawn to look like nobody else's: no film or game quotes,
   names, catchphrases or signature costumes.
 - No third-party trademarks in game text either: armor is a VEST (not

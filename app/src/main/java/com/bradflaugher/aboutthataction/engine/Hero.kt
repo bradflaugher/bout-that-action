@@ -63,11 +63,21 @@ enum class Hero(
         0xFFFFD23C.toInt(),
         secondWind = true, extraGrenades = 1,
     ),
-    /** A jungle ghost in a cloak of leaves. Lives in the box, unplugs the robots, never makes a sound. */
-    VIPER(
-        "VIPER", "Jungle ghost. Leaves on.",
+    /** A jungle commando in a boonie hat, fast and fearless. Lives in the box, unplugs the robots, never makes a sound. */
+    MONGOOSE(
+        "MONGOOSE", "Jungle commando. Snake-proof.",
         "Sneaks unseen, unplugs robots, sly box, fast reloads", "A box is a lifestyle.",
         0xFF58D25A.toInt(),
         boxPro = true, sabotage = true, sneakSight = 0.75f, reloadScale = 0.75f,
     ),
+    ;
+
+    companion object {
+        /** A hero saved by [name], or null if there's none by that name (MONGOOSE was once VIPER). */
+        fun fromSaved(name: String?): Hero? = when (name) {
+            null -> null
+            "VIPER" -> MONGOOSE
+            else -> entries.firstOrNull { it.name == name }
+        }
+    }
 }

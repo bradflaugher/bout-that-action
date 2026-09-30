@@ -48,9 +48,9 @@ object Popup {
     const val FLATTENED = "FLATTENED"
     /** BADGER's once-a-run shrug-off of a fatal hit. */
     const val SECOND_WIND = "SECOND WIND"
-    /** VIPER's SABOTAGE: a drone or turret unplugged by hand. */
+    /** MONGOOSE's SABOTAGE: a drone or turret unplugged by hand. */
     const val UNPLUGGED = "UNPLUGGED"
-    /** VIPER's CAMO: a hit that missed him. */
+    /** MONGOOSE's CAMO: a hit that missed him. */
     const val MISSED = "MISSED"
     /** Guards stunned by CHAFF, an AFTERSHOCK or a KABOOM blast. */
     const val DAZED = "DAZED"

@@ -28,7 +28,7 @@ import kotlin.math.sqrt
  *  - BADGER: country. Sneaking is a slow shuffle (brushes, a two-beat bass, fingerpicked
  *    steel guitar, pedal steel and a harmonica); GUNS HOT is a train-beat hoedown at ~160
  *    (16th-note snare, boom-chick bass, banjo rolls, strummed acoustic and a fiddle).
- *  - VIPER: jungle drums. Sneaking is sparse hand drums, a shaker and a heartbeat frame
+ *  - MONGOOSE: jungle drums. Sneaking is sparse hand drums, a shaker and a heartbeat frame
  *    drum under a marimba, a wooden flute and crickets; GUNS HOT is a war-drum ensemble at
  *    ~126 (big key-tuned toms in threes against the fours, log drums, shakers, a chant).
  *
@@ -104,9 +104,9 @@ internal object HeroSongs {
     private val badgerSig = Motif("0:2 2:2 4:3 3:1 2:2 0:2 1:4")
     private val badgerAns = Motif("4:2 4:2 2:2 3:2 2:2 1:2 0:4")
 
-    /** VIPER: a chant — the root twice, up to the fifth held, and down past the root. */
-    private val viperSig = Motif("0:2 0:2 2:4 1:2 0:2 -1:4")
-    private val viperAns = Motif("2:2 4:2 2:2 1:2 0:6 .:2")
+    /** MONGOOSE: a chant — the root twice, up to the fifth held, and down past the root. */
+    private val mongooseSig = Motif("0:2 0:2 2:4 1:2 0:2 -1:4")
+    private val mongooseAns = Motif("2:2 4:2 2:2 1:2 0:6 .:2")
 
     // ---- Tempos (each genre at its own speed, a notch quicker the deeper you go) -------------
 
@@ -115,13 +115,13 @@ internal object HeroSongs {
         floatArrayOf(136f, 138f, 140f, 140f, 138f, 142f, 150f, 144f), // BULL: trap, half-time
         floatArrayOf(150f, 152f, 156f, 158f, 152f, 160f, 172f, 164f), // FOX: presto
         floatArrayOf(150f, 154f, 158f, 160f, 154f, 164f, 176f, 168f), // BADGER: train beat
-        floatArrayOf(118f, 122f, 126f, 128f, 120f, 132f, 144f, 136f), // VIPER: war drums
+        floatArrayOf(118f, 122f, 126f, 128f, 120f, 132f, 144f, 136f), // MONGOOSE: war drums
     )
     private val SNEAK_BPM = arrayOf(
         floatArrayOf(84f, 85f, 86f, 87f, 86f, 88f, 92f, 90f), // BULL: boom-bap
         floatArrayOf(92f, 94f, 96f, 98f, 94f, 100f, 104f, 100f), // FOX: pizzicato
         floatArrayOf(78f, 80f, 82f, 84f, 80f, 86f, 92f, 88f), // BADGER: slow country shuffle
-        floatArrayOf(88f, 90f, 92f, 94f, 90f, 96f, 102f, 98f), // VIPER: hand drums
+        floatArrayOf(88f, 90f, 92f, 94f, 90f, 96f, 102f, 98f), // MONGOOSE: hand drums
     )
 
     // ---- Loudness trims (measured: each arrangement matches its zone's own track) ----------
@@ -130,13 +130,13 @@ internal object HeroSongs {
         floatArrayOf(0.86f, 0.88f, 0.89f, 0.94f, 1.00f, 0.98f, 1.10f, 0.89f), // BULL
         floatArrayOf(1.16f, 1.15f, 1.08f, 1.11f, 1.14f, 1.14f, 1.17f, 1.07f), // FOX
         floatArrayOf(1.22f, 1.16f, 1.19f, 1.19f, 1.20f, 1.20f, 1.29f, 1.12f), // BADGER
-        floatArrayOf(0.87f, 0.87f, 0.86f, 0.91f, 0.97f, 0.94f, 1.10f, 0.89f), // VIPER
+        floatArrayOf(0.87f, 0.87f, 0.86f, 0.91f, 0.97f, 0.94f, 1.10f, 0.89f), // MONGOOSE
     )
     private val SNEAK_TRIM = arrayOf(
         floatArrayOf(0.83f, 0.82f, 0.80f, 0.80f, 0.85f, 0.81f, 0.81f, 0.87f), // BULL
         floatArrayOf(1.02f, 1.05f, 1.01f, 1.05f, 1.05f, 1.07f, 1.10f, 1.07f), // FOX
         floatArrayOf(1.01f, 1.01f, 1.05f, 1.06f, 1.17f, 1.00f, 1.11f, 1.12f), // BADGER
-        floatArrayOf(0.89f, 0.88f, 0.84f, 0.89f, 0.93f, 0.93f, 0.91f, 0.92f), // VIPER
+        floatArrayOf(0.89f, 0.88f, 0.84f, 0.89f, 0.93f, 0.93f, 0.91f, 0.92f), // MONGOOSE
     )
     private val THEME_TRIM = floatArrayOf(0.83f, 1.11f, 1.16f, 0.83f)
 
@@ -404,7 +404,7 @@ internal object HeroSongs {
         )
     }
 
-    // ---- VIPER: hand drums and a marimba in the dark, then war drums ---------------------------
+    // ---- MONGOOSE: hand drums and a marimba in the dark, then war drums ---------------------------
 
     private val marimba = Patch(
         wave1 = Wave.SINE, wave2 = Wave.SINE, osc2Semi = 24f, osc2Level = 0.22f, detune = 0f, cutoff = 5000f,
@@ -419,7 +419,7 @@ internal object HeroSongs {
         a = 0.06f, d = 0.4f, s = 0.8f, r = 0.2f, glide = 0.05f, vibrato = 0.3f, vibRate = 5f, gain = 0.15f, bright = 0.2f,
     )
 
-    private fun viperSneak(base: SongSpec, t: Tint, name: String, bpm: Float) = base.derive(
+    private fun mongooseSneak(base: SongSpec, t: Tint, name: String, bpm: Float) = base.derive(
         name = name, bpm = bpm, swing = 0.12f,
         drumsA = DrumPattern(kick = "X.x.....X.x.....", tom = "......1.....1.2.", perc = "...x.......x....", jingle = "..o...o...o...o."),
         drumsB = DrumPattern(kick = "X.x.....X.x.....", tom = "..1...1.2..1.2..", perc = "...x......x...x.", jingle = "o.o.o.o.o.o.o.o."),
@@ -433,8 +433,8 @@ internal object HeroSongs {
         bassA = "R~~~~~~~~~~~~~~~", bassB = "R~~~~~~~~~~~~~~~",
         arpA = "0...2...3.2.....", arpB = "2.0...3...1...0.", arpGate = 1f,
         padRhythm = "x...............",
-        leadTemplates = arrayOf(viperSig.rhythm, "x.......x.......", "x...........x..."),
-        signature = viperSig, answer = viperAns, leadOctave = leadOctave(base, 57),
+        leadTemplates = arrayOf(mongooseSig.rhythm, "x.......x.......", "x...........x..."),
+        signature = mongooseSig, answer = mongooseAns, leadOctave = leadOctave(base, 57),
         pad = jungleAir.tinted(t, 0f),
         bass = Patch(wave1 = Wave.SINE, sub = 0.4f, cutoff = 300f, a = 0.6f, d = 1f, s = 1f, r = 1.2f, gain = 0.14f, bright = 0.1f),
         arp = marimba, lead = woodFlute,
@@ -461,7 +461,7 @@ internal object HeroSongs {
         vibrato = 0.25f, vibRate = 5f, drive = 0.15f, gain = 0.15f, bright = 0.4f,
     )
 
-    private fun viperHot(base: SongSpec, t: Tint, name: String, bpm: Float, hook: Melody? = null) = base.derive(
+    private fun mongooseHot(base: SongSpec, t: Tint, name: String, bpm: Float, hook: Melody? = null) = base.derive(
         name = name, bpm = bpm, swing = 0f,
         drumsA = DrumPattern(
             kick = "X.....X...X.....", snare = "....x.......x...", tom = "1..2..1..2..1.3.", perc = "....x.......x...",
@@ -484,8 +484,8 @@ internal object HeroSongs {
         arpA = "0.2.0.3.0.2.4.2.", arpB = "3.2.4.2.3.2.0.2.", arpGate = 0.6f,
         padRhythm = "x...............",
         leadOctave = leadOctave(base, 55),
-        leadTemplates = arrayOf(viperSig.rhythm, "x...x.x.x.......", "x..x..x.x...x..."),
-        motifSeed = base.motifSeed + 53, hook = hook, signature = viperSig, answer = viperAns,
+        leadTemplates = arrayOf(mongooseSig.rhythm, "x...x.x.x.......", "x..x..x.x...x..."),
+        motifSeed = base.motifSeed + 53, hook = hook, signature = mongooseSig, answer = mongooseAns,
         pad = chantChoir.tinted(t, 0.1f), bass = tribalBass.tinted(t, 0.2f), arp = kalimba, lead = chantLead.tinted(t, 0.2f),
         mix = Mix(
             pad = 0.8f, bass = 1.2f, arp = 1.4f, lead = 1f, drums = 0.42f * zoneDrums(base), padVerb = 0.4f, arpDelay = 0.25f,
@@ -548,7 +548,7 @@ internal object HeroSongs {
     )
 
     /** "Drums in the Canopy": a G minor chant over war drums, i–VI–VII–i. */
-    private val viperHook = Melody(
+    private val mongooseHook = Melody(
         arrayOf(
             "G4:4 G4:2 Bb4:2 D5:6 C5:2",
             "Bb4:4 G4:2 Bb4:2 Eb5:6 D5:2",
@@ -577,9 +577,9 @@ internal object HeroSongs {
                 themeBase("badger-theme", 160f, 50, IONIAN, tri(IONIAN, 0, 3, 0, 4), tri(IONIAN, 5, 3, 0, 4), 1988),
                 t, "badger-theme", 160f, badgerHook,
             )
-            Hero.VIPER -> viperHot(
-                themeBase("viper-theme", 124f, 55, AEOLIAN, tri(AEOLIAN, 0, 5, 6, 0), tri(AEOLIAN, 3, 5, 2, 6), 3161),
-                t, "viper-theme", 124f, viperHook,
+            Hero.MONGOOSE -> mongooseHot(
+                themeBase("mongoose-theme", 124f, 55, AEOLIAN, tri(AEOLIAN, 0, 5, 6, 0), tri(AEOLIAN, 3, 5, 2, 6), 3161),
+                t, "mongoose-theme", 124f, mongooseHook,
             )
         }.derive(gain = trim, fixedIntensity = 0.85f)
     }
@@ -595,7 +595,7 @@ internal object HeroSongs {
             Hero.BULL -> if (silent) bullSneak(base, t, name, bpm) else bullHot(base, t, name, bpm)
             Hero.FOX -> if (silent) foxSneak(base, t, name, bpm) else foxHot(base, t, name, bpm)
             Hero.BADGER -> if (silent) badgerSneak(base, t, name, bpm) else badgerHot(base, t, name, bpm)
-            Hero.VIPER -> if (silent) viperSneak(base, t, name, bpm) else viperHot(base, t, name, bpm)
+            Hero.MONGOOSE -> if (silent) mongooseSneak(base, t, name, bpm) else mongooseHot(base, t, name, bpm)
         }
         return spec.derive(gain = (if (silent) SNEAK_TRIM else HOT_TRIM)[h.ordinal][z.ordinal])
     }

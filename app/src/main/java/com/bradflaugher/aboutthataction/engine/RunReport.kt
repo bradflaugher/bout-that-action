@@ -51,7 +51,7 @@ data class RunReport(
             Hero.BULL to "Chain still shiny. Good game.",
             Hero.FOX to "The coat survived. Mostly.",
             Hero.BADGER to "Hat stayed on. Stubborn to the end.",
-            Hero.VIPER to "Back to the box.",
+            Hero.MONGOOSE to "Back to the box.",
         )
 
         fun of(w: World): RunReport {

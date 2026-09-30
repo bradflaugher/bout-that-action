@@ -45,10 +45,10 @@ enum class Perk(
     VENT_CRAWL("VENT CRAWL", "Passages twice as quick; arrive unseen", 1, "Dusty, but right on time.", Hero.BADGER),
     ADRENALINE("ADRENALINE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "Last heart, best heart.", Hero.BADGER),
 
-    // ---- VIPER
-    JAMMER("JAMMER", "Drones and turrets take twice as long to react", 1, "Static on every channel.", Hero.VIPER),
-    CHAFF("CHAFF", "Grenades daze the whole hallway (LV 2: longer)", 2, "Shiny. Confusing. Effective.", Hero.VIPER),
-    CAMO("CAMO", "1 in 4 hits miss you (LV 2: 1 in 3)", 2, "Just a very tall fern.", Hero.VIPER),
+    // ---- MONGOOSE
+    JAMMER("JAMMER", "Drones and turrets take twice as long to react", 1, "Static on every channel.", Hero.MONGOOSE),
+    CHAFF("CHAFF", "Grenades daze the whole hallway (LV 2: longer)", 2, "Shiny. Confusing. Effective.", Hero.MONGOOSE),
+    CAMO("CAMO", "1 in 4 hits miss you (LV 2: 1 in 3)", 2, "Just a very tall fern.", Hero.MONGOOSE),
     ;
 
     /** Can [who] find this in a STASH? Everyone's perks, plus their own three. */

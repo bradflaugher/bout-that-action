@@ -886,16 +886,16 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                     vibDepth = 0.008f; gain = 0.19f; reverb = 0.35f; delay = 0.85f + k * 0.26f; priority = 4f
                 }
             }
-            Hero.VIPER -> {
+            Hero.MONGOOSE -> {
                 // Two war drums in the distance, and a wooden flute falling to rest.
                 for (k in 0 until 2) voice {
                     wave = Wave.SINE; f0 = 82f; f1 = 52f; sweep = 0.25f; attack = 0.002f; decay = 0.9f; noise = 0.15f
                     filter = FilterMode.LOW; cut0 = 900f; cut1 = 200f; cutTime = 0.3f; gain = 0.14f - k * 0.05f; reverb = 0.5f
                     delay = 0.8f + k * 0.45f; priority = 4f
                 }
-                for (k in VIPER_EXIT.indices) voice {
-                    val s = VIPER_EXIT[k]
-                    val last = k == VIPER_EXIT.size - 1
+                for (k in MONGOOSE_EXIT.indices) voice {
+                    val s = MONGOOSE_EXIT[k]
+                    val last = k == MONGOOSE_EXIT.size - 1
                     wave = Wave.SINE; wave2 = Wave.TRIANGLE; ratio2 = 2f; level2 = 0.12f; noise = 0.06f
                     f0 = 587.3f * Dsp.semis(s.toFloat()); f1 = f0; filter = FilterMode.LOW; cut0 = 2500f; cut1 = 2500f
                     attack = 0.06f; hold = if (last) 0.7f else 0.22f; decay = if (last) 1.1f else 0.15f; vibRate = 5f
@@ -940,7 +940,7 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         /** G, E, D and a bent B (a major-pentatonic tag). */
         private val BADGER_EXIT = intArrayOf(12, 9, 7, 4)
         /** D minor flute: A, F, then down to D. */
-        private val VIPER_EXIT = intArrayOf(7, 3, 0)
+        private val MONGOOSE_EXIT = intArrayOf(7, 3, 0)
         private val FIFTHS = intArrayOf(0, 7, 12, 19)
         private val ROOT_SHIFT = intArrayOf(0, 2, -3, 5)
         /** Semitones above A1 for each zone's impact "braam". */

@@ -192,7 +192,7 @@ class World(val config: RunConfig) {
 
     /** Jumps before touching down: one, plus the hero's or the perk's second. */
     val maxJumps: Int get() = 1 + stacks(Perk.DOUBLE_JUMP)
-    /** The box glides and never looks suspicious: VIPER's trait or GHOST BOX. */
+    /** The box glides and never looks suspicious: MONGOOSE's trait or GHOST BOX. */
     val boxPro: Boolean get() = hero.boxPro || stacks(Perk.GHOST_BOX) > 0
     val heat: Float get() = floors[player.floor]?.plan?.heat ?: 0f
 
@@ -1280,7 +1280,7 @@ class World(val config: RunConfig) {
         afterTakedown(e)
     }
 
-    /** VIPER's SABOTAGE: a drone or turret unplugged by hand. A takedown, so it's quiet in SILENT. */
+    /** MONGOOSE's SABOTAGE: a drone or turret unplugged by hand. A takedown, so it's quiet in SILENT. */
     private fun unplug(e: Enemy, dir: Int) {
         val p = player
         if (p.state == PlayerState.BOX) {

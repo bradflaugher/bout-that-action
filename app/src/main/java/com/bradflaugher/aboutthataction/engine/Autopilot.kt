@@ -192,7 +192,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
             w.moveAxis = toward
             return true
         }
-        // VIPER walks up to a machine and pulls the plug (not into one drawing a bead: wait it out).
+        // MONGOOSE walks up to a machine and pulls the plug (not into one drawing a bead: wait it out).
         if (w.hero.sabotage && (blocker.kind == EnemyKind.TURRET || blocker.kind == EnemyKind.DRONE)) {
             w.moveAxis = if (blocker.state == EnemyState.AIM && d < 3f) 0 else toward
             return true
