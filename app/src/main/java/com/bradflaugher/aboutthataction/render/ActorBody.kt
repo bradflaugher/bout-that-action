@@ -293,7 +293,10 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
         g.scale(k.dir * scale, scale)
         g.rotate(-Math.toDegrees(up.toDouble()).toFloat())
         when (kind) {
-            0 -> {
+            0 -> if (variant == RIFLE) {
+                rifle(trim)
+                muzzleAt(hx, hy, 0.68f * scale, -0.068f * scale, up)
+            } else {
                 pistol(trim)
                 when (variant) {
                     SUPPRESSED -> {
@@ -392,6 +395,64 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
             glint(0.1f, -0.086f, 0.17f, -0.086f, 0.008f, 0.5f)
         }
         trimLine(-0.045f, -0.052f, 0.18f, -0.052f, 0.014f, trim)
+    }
+
+    /**
+     * A generic long assault rifle, held by its pistol grip at the origin: a wooden stock and
+     * handguard, a gunmetal receiver, a long barrel with a front sight post and a slotted
+     * muzzle, a leather sling sagging underneath, brass pins in the [trim], and (the joke) a
+     * curved magazine that is a banana.
+     */
+    private fun rifle(trim: Int) {
+        // The sling, sagging under the whole gun.
+        if (!p.ink) {
+            p.detail(-0.36f, 0.03f, 0.02f, 0.2f, 0.02f, SLING)
+            p.detail(0.02f, 0.2f, 0.4f, -0.03f, 0.02f, SLING)
+        }
+        // The stock: wood, sloping down to the butt.
+        p.begin().add(-0.44f, -0.1f).add(-0.26f, -0.09f).add(-0.13f, -0.075f).add(-0.13f, -0.02f).add(-0.22f, 0.0f).add(-0.44f, 0.06f).add(-0.46f, 0.02f)
+        plate(WALNUT, -0.1f, 0.06f)
+        // The receiver, the rear sight hump.
+        p.begin().add(-0.15f, -0.115f).add(0.2f, -0.115f).add(0.23f, -0.095f).add(0.23f, -0.03f).add(-0.15f, -0.025f)
+        plate(GUN, -0.115f, -0.025f)
+        p.begin().add(0.12f, -0.115f).add(0.14f, -0.14f).add(0.19f, -0.14f).add(0.2f, -0.115f).shape(GUN_DARK)
+        // The pistol grip.
+        p.begin().add(-0.03f, -0.03f).add(0.04f, -0.03f).add(0.02f, 0.085f).add(-0.05f, 0.08f)
+        plate(GUN_DARK, -0.03f, 0.08f)
+        // The handguard: wood, and the barrel and gas tube out past it.
+        p.begin().add(0.23f, -0.105f).add(0.44f, -0.1f).add(0.45f, -0.04f).add(0.23f, -0.03f)
+        plate(WALNUT, -0.105f, -0.03f)
+        p.begin().add(0.44f, -0.086f).add(0.66f, -0.082f).add(0.66f, -0.056f).add(0.44f, -0.052f)
+        plate(GUN, -0.086f, -0.052f)
+        p.begin().add(0.44f, -0.112f).add(0.54f, -0.11f).add(0.54f, -0.092f).add(0.44f, -0.094f).shape(GUN_DARK)
+        // The front sight post and the slotted muzzle.
+        p.begin().add(0.55f, -0.084f).add(0.56f, -0.13f).add(0.585f, -0.13f).add(0.59f, -0.084f).shape(GUN_DARK)
+        p.begin().add(0.64f, -0.092f).add(0.7f, -0.092f).add(0.7f, -0.046f).add(0.64f, -0.046f).shape(GUN_DARK)
+        // The banana: curving forward, yellow, a brown tip.
+        p.begin().add(0.07f, -0.035f).add(0.15f, -0.035f).add(0.17f, 0.05f).add(0.21f, 0.13f).add(0.27f, 0.19f).add(0.3f, 0.2f)
+            .add(0.25f, 0.245f).add(0.17f, 0.2f).add(0.11f, 0.12f).add(0.085f, 0.04f)
+        p.shape(BANANA)
+        if (p.ink) return
+        if (p.shading) {
+            p.begin().add(0.12f, -0.03f).add(0.15f, -0.035f).add(0.17f, 0.05f).add(0.21f, 0.13f).add(0.27f, 0.19f).add(0.3f, 0.2f).add(0.25f, 0.2f).add(0.18f, 0.14f).add(0.14f, 0.05f)
+                .shapeDetail(BANANA_SHADE)
+            p.detail(0.09f, 0.0f, 0.13f, 0.12f, 0.012f, Col.alpha(0xFFFFFFFF.toInt(), 0.5f))
+        }
+        p.detail(0.25f, 0.225f, 0.3f, 0.205f, 0.03f, BANANA_TIP)
+        if (p.shading) {
+            // Wood grain, the ejection port, the lamp along the receiver and the barrel.
+            p.detail(-0.42f, -0.05f, -0.16f, -0.05f, 0.008f, Col.alpha(0xFF3A2010.toInt(), 0.7f))
+            p.detail(0.26f, -0.07f, 0.42f, -0.068f, 0.008f, Col.alpha(0xFF3A2010.toInt(), 0.7f))
+            p.detail(0.0f, -0.08f, 0.1f, -0.08f, 0.016f, GUN_DEEP)
+            glint(-0.12f, -0.108f, 0.18f, -0.108f, 0.01f, 0.45f)
+            glint(0.46f, -0.08f, 0.64f, -0.078f, 0.008f, 0.4f)
+            p.detail(0.68f, -0.086f, 0.68f, -0.052f, 0.01f, 0xFF08090E.toInt())
+        }
+        // Brass pins through the wood.
+        p.dot(-0.3f, -0.03f, 0.014f, trim)
+        p.dot(0.3f, -0.068f, 0.012f, trim)
+        p.dot(0.38f, -0.066f, 0.012f, trim)
+        trimLine(-0.13f, -0.06f, 0.2f, -0.06f, 0.012f, trim)
     }
 
     /** A long suppressor screwed onto the pistol's muzzle: one matte tube, a ringed seam, a clean glint. */
@@ -562,6 +623,8 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
         const val PISTOL = 0
         const val SUPPRESSED = 1
         const val SMART = 2
+        /** A long assault rifle in place of the pistol: wood furniture, a banana of a magazine, a sling. */
+        const val RIFLE = 3
 
         /** Foot outlines in the foot frame (forward, up), as in [boot]. */
         private val BARE = floatArrayOf(
@@ -579,5 +642,9 @@ internal class ActorBody(private val p: ActorPaint, private val k: Rig) {
         private const val GUN_DEEP = 0xFF12131B.toInt()
         private const val GUN_LIT = 0xFF565D70.toInt()
         private const val WALNUT = 0xFF6A3E24.toInt()
+        private const val SLING = 0xFF4A2A18.toInt()
+        private const val BANANA = 0xFFF6D23A.toInt()
+        private const val BANANA_SHADE = 0xFFD8A822.toInt()
+        private const val BANANA_TIP = 0xFF4A3016.toInt()
     }
 }

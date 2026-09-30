@@ -189,8 +189,10 @@ internal class Actors(private val f: Frame) {
                         poseHero(pl.x, foot, dir)
                     }
                     // The front arm over the victim, in full kit: pad, tape and all.
+                    art.push()
                     p.twoPass { art.frontArm() }
                     art.strips()
+                    art.pop()
                 } else {
                     art.draw(ghost = false)
                 }
@@ -450,8 +452,8 @@ internal class Actors(private val f: Frame) {
                 k.stand(x, 0.1f + 0.04f * grab, 0.24f, -0.26f)
                 lean = -0.14f - 0.14f * q
                 k.spine(lean, 0.15f)
-                heroNeckX = k.neckX
-                heroNeckY = k.neckY
+                heroNeckX = art.shownX(k.neckX)
+                heroNeckY = art.shownY(k.neckY)
                 // Forearm across the victim's throat, other hand locking the back of the head.
                 val vx = x + 0.1f * dir
                 val vy = foot - 1.1f - 0.07f * q
@@ -498,8 +500,8 @@ internal class Actors(private val f: Frame) {
                 k.armFK(k.armF, 0.25f, 0.5f)
             }
         }
-        heroNeckX = k.neckX
-        heroNeckY = k.neckY
+        heroNeckX = art.shownX(k.neckX)
+        heroNeckY = art.shownY(k.neckY)
         if (state == PlayerState.TAKEDOWN || state == PlayerState.INTRO && f.w.difficulty.startFloor == 0) return
         if (pl.flyingKickTime > 0f && airborne) {
             // The kick owns the arms for its moment: no aiming over it.
@@ -700,7 +702,9 @@ internal class Actors(private val f: Frame) {
         art.holstered = false
         art.dim = 0.3f
         art.kit.look(art.look, ghost = false)
+        art.push(x, gy)
         cast.ragdoll(x, gy, pl.z, dir, HS, fall, t, 0.55f, CastDeath.KNOCK, art.look, heroRagdollHead, bulk = art.kit.bulk, arm = heroRagdollArm)
+        art.pop()
         p.flatAmt = 0f
     }
 
