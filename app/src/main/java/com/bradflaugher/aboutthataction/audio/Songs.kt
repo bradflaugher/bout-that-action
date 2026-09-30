@@ -9,7 +9,8 @@ import com.bradflaugher.aboutthataction.audio.Scales.PHRYGIAN
  * One bar of drums, 16 steps per row. Velocity chars: 'X' accent, 'x' normal, 'o' ghost.
  * Tom rows use '1'..'3' for low/mid/high. On the snare row 'r' is a soft roll: two quick
  * strokes in one step (drumline buzz). On the hat row 'r', 't' and 'q' roll too: two, three
- * or four strokes in the step (trap hat rolls). [jingle] is sleigh bells / tambourine.
+ * or four strokes in the step (trap hat rolls). [jingle] is sleigh bells / tambourine;
+ * [crash] strikes the crash cymbal on the beat (on top of the one every phrase opens with).
  */
 internal class DrumPattern(
     val kick: String = REST,
@@ -20,9 +21,10 @@ internal class DrumPattern(
     val tom: String = REST,
     val perc: String = REST,
     val jingle: String = REST,
+    val crash: String = REST,
 ) {
     init {
-        for (row in arrayOf(kick, snare, clap, hat, open, tom, perc, jingle)) require(row.length == 16) { "Bad drum row '$row'" }
+        for (row in arrayOf(kick, snare, clap, hat, open, tom, perc, jingle, crash)) require(row.length == 16) { "Bad drum row '$row'" }
     }
 
     companion object {
@@ -126,6 +128,8 @@ internal class SongSpec(
     val bassSlide: Boolean = false,
     /** Record crackle and hiss level. */
     val vinyl: Float = 0f,
+    /** Slide whistle level: it swoops up through every drum fill (a circus gag). */
+    val slideWhistle: Float = 0f,
 ) {
     /** A single strike at step 0 means "sustain for the whole chord". */
     val padSustain = sustains(padRhythm)

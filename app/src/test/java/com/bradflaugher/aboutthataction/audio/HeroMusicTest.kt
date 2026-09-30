@@ -99,8 +99,8 @@ class HeroMusicTest {
     /** Each hero plays their own genre at its own tempo; sneaking is always the slower one. */
     @Test
     fun eachHeroPlaysTheirGenreAtItsTempo() {
-        val hot = mapOf(Hero.BULL to 130f..155f, Hero.FOX to 145f..175f, Hero.LION to 145f..180f, Hero.HAWK to 115f..150f)
-        val sneak = mapOf(Hero.BULL to 80f..95f, Hero.FOX to 88f..108f, Hero.LION to 75f..95f, Hero.HAWK to 85f..105f)
+        val hot = mapOf(Hero.BULL to 130f..155f, Hero.FOX to 145f..175f, Hero.LION to 170f..192f, Hero.HAWK to 115f..150f)
+        val sneak = mapOf(Hero.BULL to 80f..95f, Hero.FOX to 88f..108f, Hero.LION to 86f..102f, Hero.HAWK to 85f..105f)
         for (h in Hero.entries) for (z in Zone.entries) {
             val loud = HeroSongs.forZone(h, z, false)
             val quiet = HeroSongs.forZone(h, z, true)
@@ -149,22 +149,39 @@ class HeroMusicTest {
         }
     }
 
-    /** LION: country in the major key — a brushed shuffle sneaking, a train beat and banjo rolls hot. */
+    /**
+     * LION: circus. Sneaking is a creepy tiptoe march in the harmonic minor (a staccato
+     * oom-pah, pizzicato "pah"s, a music box, temple blocks, a bulb horn, a wobbly calliope
+     * always carrying the tune); hot is a major-key galop (tuba oom-pah, snare rolls, cymbal
+     * crashes, xylophone runs, a slide whistle up every fill and a steam calliope).
+     */
     @Test
-    fun lionIsCountry() {
+    fun lionIsCircus() {
         for (z in Zone.entries) for (silent in listOf(false, true)) {
             val spec = HeroSongs.forZone(Hero.LION, z, silent)
             val what = "$z${if (silent) " sneak" else ""}"
-            assertTrue("$what: a major key", spec.scale.contentEquals(Scales.IONIAN))
-            val degrees = (spec.progA + spec.progB).map { it.degree }.toSet()
-            assertTrue("$what: I, IV and V", degrees.containsAll(listOf(0, 3, 4)))
+            // Oom on the beat, pah on the "and".
+            assertTrue("$what: oom", onlyAt(spec.bassA, 0, 4, 8, 12) && spec.bass.s < 1f)
+            assertTrue("$what: pah", onlyAt(spec.padRhythm.replace('-', '.'), 2, 6, 10, 14))
+            assertTrue("$what: temple blocks", spec.kit.tomHz > 500f && spec.kit.tomDecay < 0.1f)
+            assertTrue("$what: a bulb horn", spec.kit.percRatio == 1f && hits(spec.drumsB.perc) >= 1)
+            assertEquals("$what: straight, not swung", 0f, spec.swing, 0f)
+            assertTrue("$what: a pipe organ's wobble", spec.lead.vibrato > 0f && spec.lead.trem > 0f)
             if (silent) {
-                assertTrue("$what: a shuffle", spec.swing > 0f)
-                assertTrue("$what: fingerpicked", spec.arp.pluck > 0f)
+                assertTrue("$what: a carnival's harmonic minor", spec.scale.contentEquals(Scales.HARMONIC_MINOR))
+                assertTrue("$what: on tiptoe", spec.bpm < 101f && onlyAt(spec.drumsA.kick, 0, 8))
+                assertTrue("$what: pizzicato", spec.pad.pluck > 0f)
+                assertTrue("$what: the calliope plays even at zero heat", spec.leadThreshold < -0.1f)
+                assertEquals("$what: no slide whistle on tiptoe", 0f, spec.slideWhistle, 0f)
             } else {
-                assertEquals("$what: a train beat", 16, hits(spec.drumsA.snare))
-                assertTrue("$what: boom-chick", spec.bassA == "R...F...R...F...")
-                assertTrue("$what: banjo rolls", spec.arp.pluck >= 0.9f && hits(spec.arpA) == 16)
+                assertTrue("$what: a major key", spec.scale.contentEquals(Scales.IONIAN))
+                val degrees = (spec.progA + spec.progB).map { it.degree }.toSet()
+                assertTrue("$what: I, IV and V", degrees.containsAll(listOf(0, 3, 4)))
+                assertTrue("$what: a galop", spec.bpm >= 170f && hits(spec.drumsA.kick) == 4)
+                assertTrue("$what: snare rolls", listOf(spec.drumsB, spec.fill).all { p -> p.snare.count { it == 'r' } >= 4 })
+                assertTrue("$what: cymbal crashes", hits(spec.drumsB.crash) >= 1)
+                assertTrue("$what: xylophone runs", hits(spec.arpB) == 16 && spec.arp.s == 0f)
+                assertTrue("$what: a slide whistle", spec.slideWhistle > 0f)
             }
         }
     }
@@ -385,8 +402,14 @@ class HeroMusicTest {
             assertEquals(what, base.wind, spec.wind, 0f)
             assertEquals(what, base.glitch, spec.glitch)
             if (h == Hero.LION) {
-                // Country in the parallel major: its own chords, all in that key.
-                assertTrue(what, spec.scale.contentEquals(Scales.IONIAN))
+                // Circus: the zone's chord roots in its harmonic minor sneaking (a carnival), its own
+                // chords in the parallel major hot; either way every chord tone is in that key.
+                assertTrue(what, spec.scale.contentEquals(if (silent) Scales.HARMONIC_MINOR else Scales.IONIAN))
+                if (silent) {
+                    for ((bp, hp) in listOf(base.progA to spec.progA, base.progB to spec.progB)) {
+                        assertEquals(what, bp.map { it.degree }, hp.map { it.degree })
+                    }
+                }
                 for (c in spec.progA + spec.progB) for (iv in c.intervals) {
                     assertTrue("$what: chord tone out of key", Scales.contains(spec.scale, c.root + iv))
                 }

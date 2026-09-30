@@ -2,6 +2,7 @@ package com.bradflaugher.aboutthataction.audio
 
 import com.bradflaugher.aboutthataction.audio.Scales.AEOLIAN
 import com.bradflaugher.aboutthataction.audio.Scales.DORIAN
+import com.bradflaugher.aboutthataction.audio.Scales.HARMONIC_MINOR
 import com.bradflaugher.aboutthataction.audio.Scales.IONIAN
 import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.Zone
@@ -12,7 +13,7 @@ import kotlin.math.sqrt
  * hero's genre, plus a signature theme for the hero picker.
  *
  * An arrangement keeps what makes a zone that zone — its key (and chords, except LION's
- * country, which plays in the parallel major), bars per chord, section plan, the ambience
+ * circus, which recasts them in the harmonic minor sneaking and the parallel major hot), bars per chord, section plan, the ambience
  * (wind, rotor, VOID's glitches) and the intensity layering thresholds — and swaps in the
  * hero's band: tempo, patches, drum kit and every part, plus their signature motif (the
  * hero's leitmotif, transposed over every zone's chords). Each zone also tints the band:
@@ -25,9 +26,12 @@ import kotlin.math.sqrt
  *  - FOX: classical. Sneaking is a chamber piece on tiptoe: pizzicato cello and violins,
  *    soft bowed strings, a clarinet and a timpani; GUNS HOT is a baroque presto at ~156
  *    (spiccato cellos, running violin figures, harpsichord continuo, timpani, a solo violin).
- *  - LION: country. Sneaking is a slow shuffle (brushes, a two-beat bass, fingerpicked
- *    steel guitar, pedal steel and a harmonica); GUNS HOT is a train-beat hoedown at ~160
- *    (16th-note snare, boom-chick bass, banjo rolls, strummed acoustic and a fiddle).
+ *  - LION: circus. Sneaking is a creepy clown march on tiptoe at ~92 in the harmonic minor
+ *    (a staccato bassoon oom-pah, pizzicato "pah" chords, a music box, temple blocks, a bulb
+ *    horn honking as tension creeps in, and a wobbly, seasick calliope carrying his theme);
+ *    GUNS HOT is a screaming circus galop at ~180 in the major (a steam calliope, tuba
+ *    oom-pah, band-organ chords, snare rolls, cymbal crashes, xylophone runs and a slide
+ *    whistle up through every fill).
  *  - HAWK: jungle drums. Sneaking is sparse hand drums, a shaker and a heartbeat frame
  *    drum under a marimba, a wooden flute and crickets; GUNS HOT is a war-drum ensemble at
  *    ~126 (big key-tuned toms in threes against the fours, log drums, shakers, a chant).
@@ -100,9 +104,9 @@ internal object HeroSongs {
     private val foxSig = Motif("0:1 1:1 2:1 3:1 4:2 2:2 3:1 2:1 1:1 0:1 1:2 .:2")
     private val foxAns = Motif("4:2 3:2 2:2 1:2 0:4 .:4")
 
-    /** LION: a fiddle-and-harmonica lick — climb to the fifth, lean on it and walk home. */
-    private val lionSig = Motif("0:2 2:2 4:3 3:1 2:2 0:2 1:4")
-    private val lionAns = Motif("4:2 4:2 2:2 3:2 2:2 1:2 0:4")
+    /** LION: a showman's flourish — tiptoe up the chord to the octave, a twirl and a bow. */
+    private val lionSig = Motif("2:1 .:1 4:1 .:1 7:3 6:1 4:1 5:1 4:1 3:1 2:2 1:1 -3:1")
+    private val lionAns = Motif("4:1 3:1 4:1 .:1 2:1 1:1 2:1 .:1 0:1 .:1 4:1 .:1 0:4")
 
     /** HAWK: a chant — the root twice, up to the fifth held, and down past the root. */
     private val hawkSig = Motif("0:2 0:2 2:4 1:2 0:2 -1:4")
@@ -114,13 +118,13 @@ internal object HeroSongs {
     private val HOT_BPM = arrayOf(
         floatArrayOf(136f, 138f, 140f, 140f, 138f, 142f, 150f, 144f), // BULL: trap, half-time
         floatArrayOf(150f, 152f, 156f, 158f, 152f, 160f, 172f, 164f), // FOX: presto
-        floatArrayOf(150f, 154f, 158f, 160f, 154f, 164f, 176f, 168f), // LION: train beat
+        floatArrayOf(172f, 176f, 178f, 180f, 174f, 182f, 190f, 184f), // LION: circus galop
         floatArrayOf(118f, 122f, 126f, 128f, 120f, 132f, 144f, 136f), // HAWK: war drums
     )
     private val SNEAK_BPM = arrayOf(
         floatArrayOf(84f, 85f, 86f, 87f, 86f, 88f, 92f, 90f), // BULL: boom-bap
         floatArrayOf(92f, 94f, 96f, 98f, 94f, 100f, 104f, 100f), // FOX: pizzicato
-        floatArrayOf(78f, 80f, 82f, 84f, 80f, 86f, 92f, 88f), // LION: slow country shuffle
+        floatArrayOf(88f, 90f, 92f, 94f, 90f, 96f, 100f, 96f), // LION: tiptoe clown march
         floatArrayOf(88f, 90f, 92f, 94f, 90f, 96f, 102f, 98f), // HAWK: hand drums
     )
 
@@ -314,93 +318,125 @@ internal object HeroSongs {
         crowd = 0f,
     )
 
-    // ---- LION: a slow country shuffle, then a train-beat hoedown ---------------------------
+    // ---- LION: a tiptoeing clown march, then a screaming circus galop ------------------------
 
-    /** LION plays country in the zone's major key: I–IV–V (a V7) with a little ii and vi. */
-    private fun country(vararg degrees: Int) = Array(degrees.size) {
+    /**
+     * LION's sneak is a creepy carnival: the zone's chords recast in its harmonic minor (the
+     * raised seventh, an augmented III, a V7 and a diminished vii that leans on the tonic).
+     */
+    private fun carnival(p: Array<Chord>) = Array(p.size) {
+        val d = p[it].degree
+        Chord.diatonic(HARMONIC_MINOR, d, seventh = d == 4 || d == 6)
+    }
+
+    /** LION's galop is in the zone's parallel major: I–IV–V7 with a vi and a ii. */
+    private fun circus(vararg degrees: Int) = Array(degrees.size) {
         val d = degrees[it]
         Chord.diatonic(IONIAN, d, seventh = d == 4)
     }
 
-    private val countryBass = Patch(
-        wave1 = Wave.TRIANGLE, wave2 = Wave.SINE, osc2Semi = 12f, osc2Level = 0.2f, sub = 0.3f, cutoff = 700f,
-        envAmt = 1.2f, a = 0.003f, d = 0.4f, s = 0.5f, r = 0.1f, fd = 0.15f, gain = 0.38f, bright = 0.3f,
+    /** A bassoon on tiptoe: a reedy, nasal staccato. */
+    private val bassoon = Patch(
+        wave1 = Wave.PULSE, wave2 = Wave.SAW, pw = 0.28f, osc2Level = 0.35f, detune = 0.05f, sub = 0.2f, cutoff = 700f,
+        q = 1.3f, envAmt = 1.1f, keyTrack = 0.4f, a = 0.008f, d = 0.18f, s = 0.55f, r = 0.07f, fa = 0.006f, fd = 0.12f,
+        fs = 0.25f, gain = 0.3f, bright = 0.2f,
     )
-    private val steelGuitar = Patch(pluck = 0.7f, ring = 1.2f, cutoff = 4000f, a = 0.001f, d = 1f, s = 1f, r = 0.15f, gain = 0.2f, bright = 0.2f)
-    private val pedalSteel = Patch(
-        wave1 = Wave.SINE, wave2 = Wave.TRIANGLE, osc2Semi = 12f, osc2Level = 0.3f, detune = 0.04f, cutoff = 2000f,
-        a = 0.5f, d = 1f, s = 0.9f, r = 1f, vibrato = 0.15f, vibRate = 4.5f, gain = 0.09f, bright = 0.2f,
+    /** Pizzicato "pah" chords: short, soft plucks. */
+    private val pizzPah = Patch(pluck = 0.4f, ring = 0.35f, cutoff = 3000f, keyTrack = 0.2f, a = 0.001f, d = 1f, s = 1f, r = 0.08f, gain = 0.26f, bright = 0.15f)
+    /** A music box: a bright tine and a glassy partial two octaves up, ringing away. */
+    private val musicBox = Patch(
+        wave1 = Wave.SINE, wave2 = Wave.SINE, osc2Semi = 24f, osc2Level = 0.28f, detune = 0.12f, cutoff = 7000f,
+        keyTrack = 0f, a = 0.001f, d = 0.9f, s = 0f, r = 0.6f, gain = 0.13f, bright = 0.1f,
     )
-    private val harmonica = Patch(
-        wave1 = Wave.PULSE, wave2 = Wave.SQUARE, pw = 0.3f, osc2Level = 0.3f, noise = 0.04f, cutoff = 2300f, q = 1f,
-        envAmt = 0.6f, a = 0.03f, d = 0.4f, s = 0.8f, r = 0.15f, fa = 0.03f, fd = 0.3f, fs = 0.5f, glide = 0.03f,
-        vibrato = 0.3f, vibRate = 5.5f, trem = 0.15f, tremRate = 6f, gain = 0.12f, bright = 0.3f,
+    /** A wheezy little calliope, seasick: sour pipes, a slow wobble in the pitch. */
+    private val wobblyCalliope = Patch(
+        wave1 = Wave.TRIANGLE, wave2 = Wave.SQUARE, osc2Semi = 12f, osc2Level = 0.16f, detune = 0.22f, noise = 0.03f,
+        cutoff = 2400f, q = 0.8f, a = 0.02f, d = 0.35f, s = 0.55f, r = 0.2f, glide = 0.012f, vibrato = 0.4f, vibRate = 3.3f,
+        trem = 0.2f, tremRate = 5.5f, gain = 0.13f, bright = 0.2f,
+    )
+
+    private fun lionKit(base: SongSpec, t: Tint, hot: Boolean) = DrumTuning(
+        kickHi = if (hot) 115f else 88f, kickLo = if (hot) 55f else 48f, kickPitchDecay = 0.05f, kickDecay = if (hot) 0.3f else 0.38f,
+        kickClick = if (hot) 0.08f else 0.03f, kickDrive = if (hot) 0.15f else 0f, kickLevel = if (hot) 0.7f else 0.95f,
+        // A tight marching snare (brushed-soft when sneaking).
+        snareTone = keyed(base, 55), snareNoiseHz = 5200f, snareDecay = if (hot) 0.1f else 0.07f, snareToneMix = 0.25f,
+        snareLevel = if (hot) 0.55f else 0.22f, snareVerb = 0.2f,
+        // The "hats" are a pair of clash cymbals on the backbeat.
+        hatTone = 0.7f, hatDecay = 0.05f, openDecay = 0.22f, hatLevel = 0.2f, crashDecay = 1.4f, crashLevel = 0.28f,
+        // Temple blocks, tuned to the key; the perc is a clown's bulb horn.
+        tomHz = keyed(base, 72), tomDecay = 0.07f, tomBend = 0.04f, tomLevel = 0.45f,
+        percHz = keyed(base, 57) * 1.5f, percRatio = 1f, percDecay = 0.16f, percFm = 2.2f, percNoise = 0.08f,
+        percLevel = if (hot) 0.32f else 0.3f, drive = t.drive * 0.4f, crush = t.crush,
     )
 
     private fun lionSneak(base: SongSpec, t: Tint, name: String, bpm: Float) = base.derive(
-        name = name, bpm = bpm, swing = 0.22f, scale = IONIAN, progA = country(0, 4, 3, 0), progB = country(3, 0, 1, 4),
-        drumsA = DrumPattern(kick = "X.......X.......", snare = "....x.......x...", hat = "x.o.x.o.x.o.x.o."),
-        drumsB = DrumPattern(
-            kick = "X.....x.X.......", snare = "....x.......x.o.", hat = "x.o.x.o.x.o.x.o.", perc = "......x.......x.",
-        ),
-        fill = DrumPattern(kick = "X.......X.......", snare = "....x...x.x.xoxo", hat = "x.o.x.o.x.o.x.o."),
-        kit = DrumTuning(
-            kickHi = 100f, kickLo = 50f, kickDecay = 0.4f, kickClick = 0.05f, kickDrive = 0.1f, snareTone = 170f,
-            snareNoiseHz = 2400f, snareDecay = 0.3f, snareToneMix = 0.05f, snareLevel = 0.45f, snareVerb = 0.3f,
-            hatTone = 0.6f, hatDecay = 0.07f, hatLevel = 0.14f, percHz = 2000f, percRatio = 1.5f, percDecay = 0.03f,
-            percFm = 0.5f, percNoise = 0.4f, percLevel = 0.2f, drive = t.drive * 0.3f, crush = t.crush,
-        ),
-        bassA = "R.......F.......", bassB = "R...T...F...A...",
-        arpA = "0.3.2.4.1.3.2.4.", arpB = "0.4.2.3.1.4.2.3.", arpGate = 2f,
-        padRhythm = "x...............",
-        leadTemplates = arrayOf(lionSig.rhythm, "x.......x.......", "x...........x..."),
-        signature = lionSig, answer = lionAns, leadOctave = leadOctave(base, 60),
-        pad = pedalSteel, bass = countryBass, arp = steelGuitar.tinted(t, 0.1f), lead = harmonica,
+        name = name, bpm = bpm, swing = 0f, scale = HARMONIC_MINOR, progA = carnival(base.progA), progB = carnival(base.progB),
+        drumsA = DrumPattern(kick = "X.......X.......", tom = "..3.......3....."),
+        drumsB = DrumPattern(kick = "X.......X.......", tom = "..3...2...3...1.", perc = "..............x."),
+        fill = DrumPattern(kick = "X.......X.......", snare = "........o.o.rrrr", tom = "..3...2...3.2.1."),
+        kit = lionKit(base, t, hot = false),
+        bassA = "R...F...R...F...", bassB = "R...F...R...A...", bassCenter = base.bassCenter + 12,
+        arpA = "......3.......2.", arpB = "..4...3.......2.", arpGate = 1f, arpCenter = base.arpCenter + 12,
+        padRhythm = "..x-..x-..x-..x-",
+        leadTemplates = arrayOf(lionSig.rhythm, "x...x...x.......", "x.x.x.......x..."),
+        signature = lionSig, answer = lionAns, leadOctave = leadOctave(base, 60), leadThreshold = -0.3f,
+        pad = pizzPah.tinted(t, 0.05f), bass = bassoon.tinted(t, 0.1f), arp = musicBox, lead = wobblyCalliope.tinted(t, 0.1f),
         mix = Mix(
-            pad = 0.6f, bass = 0.9f, arp = 1.3f, lead = 0.9f, drums = 0.8f, padVerb = 0.35f, arpDelay = 0.2f, arpVerb = 0.3f,
-            leadDelay = 0.2f, leadVerb = 0.3f, padDuck = 0.1f, bassDuck = 0.05f, arpDuck = 0f, arpPan = -0.25f,
+            pad = 1f, bass = 1f, arp = 1f, lead = 0.8f, drums = 0.75f, padVerb = 0.3f, arpDelay = 0.45f, arpVerb = 0.4f,
+            leadDelay = 0.2f, leadVerb = 0.35f, padDuck = 0.1f, bassDuck = 0.05f, arpDuck = 0f, arpPan = 0.3f,
         ),
         crowd = 0f,
     )
 
-    private val boomChickBass = Patch(
-        wave1 = Wave.TRIANGLE, wave2 = Wave.SQUARE, osc2Level = 0.2f, sub = 0.3f, cutoff = 900f, envAmt = 1.5f,
-        a = 0.002f, d = 0.25f, s = 0.5f, r = 0.06f, fd = 0.12f, gain = 0.36f, bright = 0.4f,
+    /** A tuba: a round, brassy "oom", tongued short. */
+    private val tuba = Patch(
+        wave1 = Wave.SAW, wave2 = Wave.SQUARE, osc2Level = 0.3f, detune = 0.04f, sub = 0.35f, cutoff = 380f, q = 0.9f,
+        envAmt = 1.6f, keyTrack = 0.5f, a = 0.012f, d = 0.2f, s = 0.6f, r = 0.07f, fa = 0.01f, fd = 0.12f, fs = 0.15f,
+        drive = 0.15f, gain = 0.34f, bright = 0.3f,
     )
-    private val banjo = Patch(pluck = 1f, ring = 0.5f, cutoff = 6000f, keyTrack = 0f, a = 0.001f, d = 1f, s = 1f, r = 0.05f, gain = 0.15f, bright = 0.1f)
-    private val acousticStrum = Patch(pluck = 0.6f, ring = 0.9f, cutoff = 3500f, a = 0.001f, d = 1f, s = 1f, r = 0.08f, gain = 0.17f, bright = 0.3f)
-    private val fiddle = Patch(
-        wave1 = Wave.SAW, wave2 = Wave.SAW, osc2Level = 0.3f, detune = 0.07f, noise = 0.015f, cutoff = 3400f, q = 0.9f,
-        envAmt = 0.6f, a = 0.02f, d = 0.3f, s = 0.85f, r = 0.1f, fa = 0.02f, fd = 0.25f, fs = 0.5f, glide = 0.025f,
-        vibrato = 0.3f, vibRate = 6f, drive = 0.1f, gain = 0.14f, bright = 0.5f,
+    /** A band organ's "pah": reedy pipes, pumped. */
+    private val organPah = Patch(
+        wave1 = Wave.SQUARE, wave2 = Wave.SAW, osc2Semi = 12f, osc2Level = 0.3f, detune = 0.08f, cutoff = 2200f, q = 0.8f,
+        envAmt = 0.8f, a = 0.004f, d = 0.12f, s = 0.6f, r = 0.06f, fd = 0.08f, trem = 0.15f, tremRate = 7f, gain = 0.075f,
+        bright = 0.4f,
+    )
+    /** A xylophone: a hard mallet, the bar's twelfth ringing over its fundamental, dead in a moment. */
+    private val xylophone = Patch(
+        wave1 = Wave.SINE, wave2 = Wave.SINE, osc2Semi = 19f, osc2Level = 0.4f, detune = 0f, noise = 0.04f, cutoff = 9000f,
+        keyTrack = 0f, a = 0.001f, d = 0.2f, s = 0f, r = 0.15f, gain = 0.2f, bright = 0.2f,
+    )
+    /** A steam calliope: shrill whistle pipes, a touch out of tune, hissing and pumping. */
+    private val calliope = Patch(
+        wave1 = Wave.TRIANGLE, wave2 = Wave.SQUARE, osc2Semi = 12f, osc2Level = 0.3f, detune = 0.16f, noise = 0.05f,
+        cutoff = 3600f, q = 0.9f, envAmt = 0.4f, a = 0.012f, d = 0.3f, s = 0.8f, r = 0.1f, fa = 0.01f, fd = 0.2f, fs = 0.6f,
+        vibrato = 0.22f, vibRate = 6.5f, trem = 0.25f, tremRate = 7.5f, gain = 0.15f, bright = 0.5f,
     )
 
     private fun lionHot(base: SongSpec, t: Tint, name: String, bpm: Float, hook: Melody? = null): SongSpec {
-        // A theme brings its own (major) chords; a zone's track gets the country ones.
+        // A theme brings its own (major) chords; a zone's track gets the circus ones.
         val own = base.scale.contentEquals(IONIAN)
         return base.derive(
             name = name, bpm = bpm, swing = 0f, scale = IONIAN,
-            progA = if (own) base.progA else country(0, 3, 0, 4), progB = if (own) base.progB else country(5, 3, 0, 4),
-            drumsA = DrumPattern(kick = "X.......X.......", snare = "oxoxXoxooxoxXoxo"),
-            drumsB = DrumPattern(kick = "X...X...X...X...", snare = "oxoxXoxoxoxoXoxx"),
-            fill = DrumPattern(kick = "X.......X.......", snare = "oxoxXoxoXXXXXXXX", tom = "........3.3.2.1."),
-            kit = DrumTuning(
-                kickHi = 120f, kickLo = 50f, kickDecay = 0.3f, kickClick = 0.4f, kickDrive = 0.2f, snareTone = 190f,
-                snareNoiseHz = 4200f, snareDecay = 0.09f, snareToneMix = 0.35f, snareLevel = 0.55f, snareVerb = 0.2f,
-                tomHz = 110f, crashLevel = 0.3f, drive = t.drive * 0.5f, crush = t.crush,
+            progA = if (own) base.progA else circus(0, 3, 4, 0), progB = if (own) base.progB else circus(5, 1, 4, 0),
+            drumsA = DrumPattern(kick = "X...x...X...x...", snare = "..x...x...x...x.", open = "....o.......o...", perc = "..............x."),
+            drumsB = DrumPattern(
+                kick = "X...x...X...x.x.", snare = "..x...x.rrrrx.x.", open = "....o.......o...", perc = "......x.......x.",
+                crash = "X...............",
             ),
-            bassA = "R...F...R...F...", bassB = "R...F...O...A...",
-            arpA = "3423423423423423", arpB = "2435243524352435", arpGate = 0.9f, arpCenter = base.arpCenter + 2,
-            padRhythm = "..x.-.x.-.x.-.x.", padRhythmB = "x.x.-.x.x.x.-.x.",
+            fill = DrumPattern(kick = "X...x...X.X.X.X.", snare = "rrrrrrrrrrrrrrrX", tom = "........3.2.1.3."),
+            kit = lionKit(base, t, hot = true),
+            bassA = "R...F...R...F...", bassB = "R...T...F...A...",
+            arpA = "........01234567", arpB = "7654321001234567", arpGate = 1f,
+            padRhythm = "..x-..x-..x-..x-", padRhythmB = "..x-..x-..x-x-x-",
             leadOctave = leadOctave(base, 62),
-            leadTemplates = arrayOf(lionSig.rhythm, "x.x.x...x.x.x...", "x...x.x.x..xx..."),
+            leadTemplates = arrayOf(lionSig.rhythm, "x.x.x.x.x...x...", "x..x..x.x.x.x..."),
             motifSeed = base.motifSeed + 37, hook = hook, signature = lionSig, answer = lionAns,
-            pad = acousticStrum, bass = boomChickBass.tinted(t, 0.2f), arp = banjo, lead = fiddle.tinted(t, 0.2f),
+            pad = organPah.tinted(t, 0.1f), bass = tuba.tinted(t, 0.2f), arp = xylophone, lead = calliope.tinted(t, 0.15f),
             mix = Mix(
-                pad = 1.2f, bass = 1f, arp = 1.3f, lead = 1.2f, drums = 0.5f * zoneDrums(base), padVerb = 0.2f, arpDelay = 0.15f,
-                arpVerb = 0.25f, leadDelay = 0.2f, leadVerb = 0.25f, padDuck = 0.15f, bassDuck = 0.15f, arpDuck = 0.05f, arpPan = -0.3f,
+                pad = 1.4f, bass = 0.95f, arp = 1.2f, lead = 1.35f, drums = 0.5f * zoneDrums(base), padVerb = 0.2f, arpDelay = 0.1f,
+                arpVerb = 0.3f, leadDelay = 0.15f, leadVerb = 0.3f, padDuck = 0.1f, bassDuck = 0.1f, arpDuck = 0.05f, arpPan = -0.3f,
             ),
-            crowd = 0f,
+            crowd = 0f, slideWhistle = 0.06f,
         )
     }
 
@@ -533,17 +569,17 @@ internal object HeroSongs {
         ),
     )
 
-    /** "Wrong Town, Right Boots": a D major fiddle hoedown on a train beat, I–IV–I–V. */
+    /** "Runaway Big Top": a D major galop for a steam calliope, I–IV–V–I, ending on a ta-da. */
     private val lionHook = Melody(
         arrayOf(
-            "F#5:2 A5:2 F#5:2 D5:2 E5:2 F#5:2 E5:2 D5:2",
-            "B4:2 D5:2 G5:4 F#5:2 E5:2 D5:4",
-            "A4:2 D5:2 F#5:2 A5:2 B5:2 A5:2 F#5:4",
-            "E5:4 C#5:2 E5:2 A4:8",
-            "F#5:2 A5:2 F#5:2 D5:2 E5:2 F#5:2 E5:2 D5:2",
-            "B4:2 D5:2 G5:4 F#5:2 E5:2 D5:4",
-            "D5:2 F#5:2 A5:2 D6:2 B5:2 A5:2 F#5:4",
-            "E5:2 F#5:2 E5:2 C#5:2 D5:8",
+            "F#5:1 -:1 A5:1 -:1 D6:3 C#6:1 A5:1 B5:1 A5:1 G5:1 F#5:2 E5:1 A4:1",
+            "G5:1 -:1 B5:1 -:1 D6:3 C#6:1 B5:1 C#6:1 B5:1 A5:1 G5:2 F#5:1 E5:1",
+            "E5:1 F#5:1 G5:1 A5:1 B5:1 C#6:1 D6:1 E6:1 C#6:2 A5:2 E5:2 C#5:2",
+            "D5:2 -:2 A5:2 -:2 D6:4 -:4",
+            "F#5:1 -:1 A5:1 -:1 D6:3 C#6:1 A5:1 B5:1 A5:1 G5:1 F#5:2 E5:1 A4:1",
+            "G5:1 A5:1 B5:1 C#6:1 D6:2 B5:2 G5:2 B5:2 D6:2 B5:2",
+            "C#6:1 -:1 A5:1 -:1 E5:1 -:1 A5:1 -:1 C#6:1 D6:1 C#6:1 B5:1 A5:1 G5:1 F#5:1 E5:1",
+            "D5:1 F#5:1 A5:1 D6:1 -:4 A5:2 D6:6",
         ),
     )
 
@@ -574,8 +610,8 @@ internal object HeroSongs {
                 t, "fox-theme", 156f, foxHook,
             )
             Hero.LION -> lionHot(
-                themeBase("lion-theme", 160f, 50, IONIAN, tri(IONIAN, 0, 3, 0, 4), tri(IONIAN, 5, 3, 0, 4), 1988),
-                t, "lion-theme", 160f, lionHook,
+                themeBase("lion-theme", 178f, 50, IONIAN, circus(0, 3, 4, 0), circus(5, 1, 4, 0), 1988),
+                t, "lion-theme", 178f, lionHook,
             )
             Hero.HAWK -> hawkHot(
                 themeBase("hawk-theme", 124f, 55, AEOLIAN, tri(AEOLIAN, 0, 5, 6, 0), tri(AEOLIAN, 3, 5, 2, 6), 3161),
@@ -664,6 +700,7 @@ internal fun SongSpec.derive(
     rotor: Float = this.rotor,
     bassSlide: Boolean = this.bassSlide,
     vinyl: Float = this.vinyl,
+    slideWhistle: Float = this.slideWhistle,
 ) = SongSpec(
     name = name, bpm = bpm, tonic = tonic, scale = scale, progA = progA, progB = progB, barsPerChord = barsPerChord,
     swing = swing, drumsA = drumsA, drumsB = drumsB, fill = fill, kit = kit, bassA = bassA, bassB = bassB,
@@ -674,5 +711,5 @@ internal fun SongSpec.derive(
     leadThreshold = leadThreshold, sections = sections, delayBeats = delayBeats,
     padRhythmB = padRhythmB ?: if (padRhythm == this.padRhythm) this.padRhythmB else padRhythm,
     padPower = padPower, crowd = crowd, jungle = jungle, signature = signature,
-    answer = answer, gain = gain, bassSlide = bassSlide, vinyl = vinyl,
+    answer = answer, gain = gain, bassSlide = bassSlide, vinyl = vinyl, slideWhistle = slideWhistle,
 )

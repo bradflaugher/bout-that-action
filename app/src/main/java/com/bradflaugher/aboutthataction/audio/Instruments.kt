@@ -537,3 +537,62 @@ internal class Vinyl(private val sr: Int) {
         }
     }
 }
+
+/**
+ * A slide whistle: a breathy, nearly pure tone whose pitch swoops from one note to another,
+ * easing in (slow at first, then a rush to the top), with a little flutter on the way.
+ */
+internal class SlideWhistle(private val sr: Int) {
+    private val noise = Noise(5150)
+    private val breath = Svf()
+    private var phase = 0f
+    private var from = 440f
+    private var ratio = 1f
+    private var t = 0
+    private var len = 0
+    private var env = 0f
+    private var vel = 0f
+    private var flutter = 0f
+    private val attack = 1f - Dsp.decay60(0.04f, sr)
+    private val release = Dsp.decay60(0.12f, sr)
+
+    val active: Boolean get() = t < len || env > 1e-4f
+
+    /** Swoop from [fromHz] to [toHz] over [seconds], at velocity [v]. */
+    fun trigger(fromHz: Float, toHz: Float, seconds: Float, v: Float) {
+        from = fromHz; ratio = toHz / fromHz; len = max(1, (seconds * sr).toInt()); t = 0; vel = v
+    }
+
+    fun render(l: FloatArray, r: FloatArray, n: Int, level: Float, pitchMul: Float) {
+        if (level <= 0f || !active) return
+        // Pitch at the chunk's ends (control rate), eased: x^1.7 of the way up.
+        val x0 = min(1f, t.toFloat() / len)
+        val x1 = min(1f, (t + n).toFloat() / len)
+        flutter += 7f * n / sr
+        if (flutter > 1f) flutter -= 1f
+        val fl = 1f + 0.006f * Dsp.sin01(flutter)
+        val h0 = from * ratio.pow(x0.pow(1.7f)) * pitchMul * fl
+        val h1 = from * ratio.pow(x1.pow(1.7f)) * pitchMul * fl
+        breath.setHz(min(h1 * 2f, 16000f), 4f, sr)
+        val inv = 1f / sr
+        val g = level * vel
+        for (i in 0 until n) {
+            val hz = h0 + (h1 - h0) * i / n
+            phase += hz * inv; if (phase >= 1f) phase -= 1f
+            if (t < len) {
+                env += (1f - env) * attack; t++
+            } else {
+                env *= release
+            }
+            val y = (Dsp.sin01(phase) + 0.08f * Dsp.sin01(phase * 2f) + breath.bp(noise.next()) * 0.35f) * env * g
+            l[i] += y
+            r[i] += y
+        }
+    }
+
+    fun kill() {
+        t = 0; len = 0; env = 0f; breath.reset()
+    }
+
+    fun sanitize() = breath.sanitize()
+}

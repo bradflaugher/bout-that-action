@@ -875,15 +875,31 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                 }
             }
             Hero.LION -> {
-                // A twangy guitar tag: three picked notes and a last one bent down, left ringing.
-                for (k in LION_EXIT.indices) voice {
-                    val s = LION_EXIT[k]
-                    val last = k == LION_EXIT.size - 1
-                    wave = Wave.SAW; wave2 = Wave.SQUARE; level2 = 0.3f; pw = 0.3f
-                    f0 = 196f * Dsp.semis(s.toFloat()); f1 = if (last) f0 * Dsp.semis(-2f) else f0; sweep = 0.45f
-                    filter = FilterMode.LOW; cut0 = 3500f; cut1 = 1400f; cutTime = 0.3f; q = 1.6f; attack = 0.002f
-                    hold = if (last) 0.3f else 0f; decay = if (last) 1.3f else 0.35f; vibRate = if (last) 5f else 0f
-                    vibDepth = 0.008f; gain = 0.19f; reverb = 0.35f; delay = 0.85f + k * 0.26f; priority = 4f
+                // The show must go on: a calliope "ta-DAAA!" (open fifths, no third to argue with
+                // the minor chord), then a slide whistle droops and a bulb horn honks twice.
+                for ((k, s) in LION_TA.withIndex()) voice {
+                    wave = Wave.TRIANGLE; wave2 = Wave.SQUARE; ratio2 = 2.01f; level2 = 0.3f; noise = 0.04f
+                    f0 = 587.3f * Dsp.semis(s.toFloat()); f1 = f0; filter = FilterMode.LOW; cut0 = 4000f; cut1 = 4000f
+                    attack = 0.008f; hold = 0.08f; decay = 0.08f; gain = 0.095f; pan = (k - 0.5f) * 0.3f; reverb = 0.35f
+                    delay = 0.8f; priority = 4f
+                }
+                for ((k, s) in LION_EXIT.withIndex()) voice {
+                    wave = Wave.TRIANGLE; wave2 = Wave.SQUARE; ratio2 = 2.01f; level2 = 0.3f; noise = 0.04f
+                    f0 = 587.3f * Dsp.semis(s.toFloat()); f1 = f0; filter = FilterMode.LOW; cut0 = 4500f; cut1 = 2500f
+                    cutTime = 1f; attack = 0.012f; hold = 0.75f; decay = 0.5f; vibRate = 6.5f; vibDepth = 0.006f
+                    tremRate = 7.5f; tremDepth = 0.3f; gain = 0.075f; pan = (k - 1f) * 0.3f; reverb = 0.4f
+                    delay = 0.98f; priority = 4f
+                }
+                voice {
+                    wave = Wave.SINE; noise = 0.12f; f0 = 1175f; f1 = 520f; sweep = 0.55f; filter = FilterMode.LOW
+                    cut0 = 5000f; cut1 = 2500f; cutTime = 0.5f; attack = 0.03f; hold = 0.45f; decay = 0.15f
+                    vibRate = 7f; vibDepth = 0.005f; gain = 0.1f; reverb = 0.3f; delay = 2.1f; priority = 4f
+                }
+                for (k in 0 until 2) voice {
+                    wave = Wave.SAW; wave2 = Wave.SQUARE; ratio2 = 1.01f; level2 = 0.5f; f0 = 370f; f1 = 340f; sweep = 0.15f
+                    filter = FilterMode.BAND; cut0 = 1400f; cut1 = 1100f; cutTime = 0.15f; q = 1.4f; drive = 0.4f
+                    attack = 0.008f; hold = 0.1f; decay = 0.08f; gain = 0.16f; pan = if (k == 0) -0.25f else 0.25f
+                    reverb = 0.25f; delay = 2.85f + k * 0.26f; priority = 4f
                 }
             }
             Hero.HAWK -> {
@@ -937,8 +953,9 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         private val BULL_EXIT = intArrayOf(0, 3, 7)
         /** D minor, run down from the octave to the low D. */
         private val FOX_EXIT = intArrayOf(12, 7, 3, 0, -5, -12)
-        /** G, E, D and a bent B (a major-pentatonic tag). */
-        private val LION_EXIT = intArrayOf(12, 9, 7, 4)
+        /** LION's "ta" (A and E, the dominant's open fifth) and his "DAAA" (D, A and D). */
+        private val LION_TA = intArrayOf(-5, 2)
+        private val LION_EXIT = intArrayOf(0, 7, 12)
         /** D minor flute: A, F, then down to D. */
         private val HAWK_EXIT = intArrayOf(7, 3, 0)
         private val FIFTHS = intArrayOf(0, 7, 12, 19)

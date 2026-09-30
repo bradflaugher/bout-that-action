@@ -24,6 +24,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private val crowd = Crowd(sr)
     private val jungle = Jungle(sr)
     private val vinyl = Vinyl(sr)
+    private val whistle = SlideWhistle(sr)
+    private var lastFill = false
     private val rng = Rng(0x5eed + id.toLong())
 
     var spec: SongSpec? = null; private set
@@ -105,6 +107,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         absStep = -1L; stepPos = 1.0
         swingPending = false; stutterPending = false; rollPending = false; hatRollN = 0
         crowdSwell = 0f
+        lastFill = false
+        whistle.kill()
         endStep = Long.MAX_VALUE
         sequencing = true
         bpm = s.bpm
@@ -129,7 +133,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     }
 
     fun sanitize() {
-        pad.sanitize(); bass.sanitize(); arp.sanitize(); lead.sanitize()
+        pad.sanitize(); bass.sanitize(); arp.sanitize(); lead.sanitize(); whistle.sanitize()
     }
 
     private fun samplesPerStep(): Double = sr * 60.0 / (bpm * 4.0)
@@ -296,6 +300,16 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             }
             val cv = DrumPattern.velocity(pat.clap[s]) * sMul * (0.4f + 0.6f * lPerc)
             if (cv > 0.02f) kit.clap.trigger(cv)
+            val xv = DrumPattern.velocity(pat.crash[s]) * sMul
+            if (xv > 0.02f) kit.crash.trigger(xv)
+        }
+        if (sp.slideWhistle > 0f) {
+            // Every fill gets a slide whistle up (from the key's tonic, two octaves) as heat allows.
+            if (fill && !lastFill && lPerc > 0.05f) {
+                val from = Dsp.midiToHz(nearest(key, 74).toFloat())
+                whistle.trigger(from, from * 4f, (16 - s) * stepSamples / sr * 0.85f, lPerc)
+            }
+            lastFill = fill
         }
         val ov = DrumPattern.velocity(pat.open[s])
         if (ov > 0f) {
@@ -434,6 +448,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         rotor.render(ambL, ambR, n, sp.rotor, 0.6f * Dsp.sin01((time * 0.05).toFloat()))
         jungle.render(ambL, ambR, n, sp.jungle)
         vinyl.render(ambL, ambR, n, sp.vinyl)
+        whistle.render(ambL, ambR, n, sp.slideWhistle, pm)
         if (sp.crowd > 0f) {
             val i = if (sp.fixedIntensity >= 0f) sp.fixedIntensity else intensity
             crowdSwell *= crowdDecay.pow(n)
