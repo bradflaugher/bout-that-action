@@ -146,8 +146,10 @@ def analyse(base, png):
         if s and s["from"]:
             steps_per_s = s["fromBpm"] * 4 / 60
             pos = s["fromPos"]
-            beat_ph = (pos / 4) % 1
-            row["beat_ms"] = min(beat_ph, 1 - beat_ph) * 4 / steps_per_s * 1000
+            # Turning up into twice the tempo, the new beat is the old eighth: that's the grid.
+            q = 2 if abs(s["toBpm"] / s["fromBpm"] - 2) < 0.02 else 4
+            beat_ph = (pos / q) % 1
+            row["beat_ms"] = min(beat_ph, 1 - beat_ph) * q / steps_per_s * 1000
             row["bar_step"] = pos % 16
             row["down"] = abs(s["toPos"] % 16) < 1e-3 or abs(s["toPos"] % 16 - 16) < 1e-3
             ratio = s["toBpm"] / s["fromBpm"]

@@ -19,6 +19,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private val bass = Instrument(sr, 1, id * 8 + 2)
     private val arp = Instrument(sr, 4, id * 8 + 3)
     private val lead = Instrument(sr, 1, id * 8 + 4)
+    /** The harmony voice under the lead ([Phrase.harmony]). */
+    private val harm = Instrument(sr, 1, id * 8 + 5)
     private val kit = DrumKit(sr)
     private val wind = Wind(sr)
     private val rotor = Rotor(sr)
@@ -112,6 +114,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private val arpR = FloatArray(c)
     private val leadL = FloatArray(c)
     private val leadR = FloatArray(c)
+    private val harmL = FloatArray(c)
+    private val harmR = FloatArray(c)
     private val drL = FloatArray(c)
     private val drR = FloatArray(c)
     private val drRev = FloatArray(c)
@@ -140,8 +144,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         composer = comp
         comp.reset()
         if (startBar % 8 != 0) comp.begin(startBar / 8)
-        pad.kill(); bass.kill(); arp.kill(); lead.kill(); kit.kill()
-        pad.patch = s.pad; bass.patch = s.bass; arp.patch = s.arp; lead.patch = s.lead
+        pad.kill(); bass.kill(); arp.kill(); lead.kill(); harm.kill(); kit.kill()
+        pad.patch = s.pad; bass.patch = s.bass; arp.patch = s.arp; lead.patch = s.lead; harm.patch = s.lead
         kit.setTuning(s.kit)
         absStep = startBar * 16L - 1; stepPos = 1.0
         fillFrom = Long.MAX_VALUE; hitPending = false
@@ -173,7 +177,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         endStep = Long.MAX_VALUE
         fillFrom = Long.MAX_VALUE
         if (release) {
-            pad.releaseAll(); bass.releaseAll(); arp.releaseAll(); lead.releaseAll()
+            pad.releaseAll(); bass.releaseAll(); arp.releaseAll(); lead.releaseAll(); harm.releaseAll()
         }
         ramp(0f, fadeSeconds)
     }
@@ -193,7 +197,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     }
 
     fun sanitize() {
-        pad.sanitize(); bass.sanitize(); arp.sanitize(); lead.sanitize(); whistle.sanitize()
+        pad.sanitize(); bass.sanitize(); arp.sanitize(); lead.sanitize(); harm.sanitize(); whistle.sanitize()
     }
 
     private fun samplesPerStep(): Double = sr * 60.0 / (bpm * 4.0)
@@ -248,7 +252,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         time += n.toDouble() / sr
         if (!sequencing && fade < 1e-4f && (rampLeft == 0 || fadeTo == 0f)) {
             fade = 0f; rampLeft = 0
-            pad.kill(); bass.kill(); arp.kill(); lead.kill()
+            pad.kill(); bass.kill(); arp.kill(); lead.kill(); harm.kill()
         }
     }
 
@@ -361,14 +365,14 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
                     dropOn = false
                 }
             }
-            val nextSec = if (phraseBar == 7) sp.sections[(bar / 8 + 1) % sp.sections.size] else sec
+            val nextSec = if (phraseBar != 7) sec else sp.phrases?.let { it[(bar / 8 + 1) % it.size].section } ?: sp.sections[(bar / 8 + 1) % sp.sections.size]
             dropped = dropOn && sec != Section.BREAK
             if (s == 12 && !dropped && !dropGap && endStep == Long.MAX_VALUE && nextSec != Section.BREAK &&
                 (i >= sp.dropThreshold || (dropOn && !cool))
             ) {
                 // Hold your breath: the last beat cuts out under a swell.
                 dropGap = true
-                bass.releaseAll(); pad.releaseAll(); arp.releaseAll(); lead.releaseAll()
+                bass.releaseAll(); pad.releaseAll(); arp.releaseAll(); lead.releaseAll(); harm.releaseAll()
                 dropFx.swell((4 * stepSamples).toInt(), 0.35f)
             }
             gap = dropGap
@@ -383,9 +387,13 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             (phraseBar == 7 && s >= 12 && lSnare > 0.3f) ||
             (bar % 16 == 15 && s >= 8 && lSnare > 0.5f)
         val brk = sec == Section.BREAK && !fill
-        val pat = if (fill) sp.fill else if (isB) sp.drumsB else sp.drumsA
-        val kMul = if (transitionFill) max(lKick, 0.6f) else if (dropped) lKick else 0f
-        val sMul = if (transitionFill) max(lSnare, 0.6f) else lSnare
+        val plan = comp.phrase
+        val build = plan?.build?.takeIf { phraseBar >= 6 }
+        val pat = if (fill) plan?.fill ?: sp.fill else build ?: plan?.drums ?: if (isB) sp.drumsB else sp.drumsA
+        // A transition's fill always sounds, as hard as the heat: a calm one is a soft one.
+        val fillMin = 0.3f + 0.3f * heat(sp)
+        val kMul = if (transitionFill) max(lKick, fillMin) else if (dropped) lKick else 0f
+        val sMul = if (transitionFill) max(lSnare, fillMin) else lSnare
         if (!brk && !gap) {
             val kv = DrumPattern.velocity(pat.kick[ps]) * kMul
             if (kv > 0.02f) {
@@ -450,7 +458,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             if (jv > 0.02f) kit.jingle.trigger(jv)
         }
         val tc = pat.tom[ps]
-        val tomMul = if (transitionFill) max(lSnare, 0.6f) else lSnare
+        val tomMul = if (transitionFill) max(lSnare, fillMin) else lSnare
         if (tc != '.' && tomMul > 0.05f) kit.tom(DrumPattern.velocity(tc) * tomMul, if (tc in '1'..'3') tc - '1' else 1)
         val pv = DrumPattern.velocity(pat.perc[ps]) * lPerc
         if (pv > 0.02f && !brk && !gap) kit.perc(pv * rng.vary(0.1f))
@@ -464,14 +472,14 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             kit.kick.trigger(1f); duckEnv = 1f; impactPending = false
         }
         if (hitPending && s % 4 == 0 && !gap) {
-            // A crash, a kick and a sub boom on the chord's root: the band has seen you too.
-            kit.crash.trigger(1f); kit.kick.trigger(1f); duckEnv = 1f; crowdSwell = 1f
+            // Crash, kick, snare and clap together, over a sub boom on the chord's root: the band has seen you too.
+            kit.crash.trigger(1f); kit.kick.trigger(1f); kit.snare.trigger(0.8f); kit.clap.trigger(0.7f); duckEnv = 1f; crowdSwell = 1f
             dropFx.boom(Dsp.midiToHz((nearest(key + chord.root, sp.bassCenter) + 12).toFloat()), 0.25f)
             hitPending = false
         }
 
         // ---- Bass
-        val brow = if (isB) sp.bassB else sp.bassA
+        val brow = plan?.bass ?: if (isB) sp.bassB else sp.bassA
         val bc = brow[s]
         // Before the drop the bass only teases: a soft note on the downbeat.
         if (bc != '.' && bc != '~' && !gap && (dropped || s == 0)) {
@@ -517,7 +525,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
 
         // ---- Arp
         if (lArp > 0.02f) {
-            val arow = if (isB) sp.arpB else sp.arpA
+            val arow = plan?.arp ?: if (isB) sp.arpB else sp.arpA
             val ac = arow[s]
             if (ac in '0'..'9') {
                 val root = nearest(key + chord.root, sp.arpCenter)
@@ -535,6 +543,10 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
                 val legato = if (sp.lead.glide > 0f) 1.04f else 0.85f
                 val accent = if (s % 4 == 0) 1f else 0.85f
                 if (!gap) lead.noteOn(note, lLead * accent, (comp.leadLen * stepSamples * legato).toInt())
+                if (!gap && plan != null && plan.harmony) {
+                    val h = comp.harmonyFor(note, chord)
+                    if (h >= 0) harm.noteOn(h, lLead * accent, (comp.leadLen * stepSamples * legato).toInt())
+                }
             }
         }
 
@@ -562,6 +574,12 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         bass.render(bassL, bassR, n, pm, cutMul(sp.bass))
         arp.render(arpL, arpR, n, pm, cutMul(sp.arp))
         lead.render(leadL, leadR, n, pm, cutMul(sp.lead))
+        val harmOn = harm.active
+        if (harmOn) {
+            harm.render(harmL, harmR, n, pm, cutMul(sp.lead))
+            val hg = sp.mix.harmony
+            for (i in 0 until n) leadL[i] += harmL[i] * hg
+        }
         kit.render(drL, drR, drRev, n, pm)
         ambL.fill(0f, 0, n); ambR.fill(0f, 0, n)
         wind.render(ambL, ambR, n, sp.wind)
@@ -773,7 +791,9 @@ internal class MusicDirector(private val sr: Int) {
         val flip = t == Transition.FLIP_UP || t == Transition.FLIP_DOWN
         val bar = if (playing && flip) alignedBar(spec, old, oldChord) else 0
         val startBpm = if (playing && t != Transition.NOW) lockedBpm(spec, oldBpm) else spec.bpm
-        if (playing) old.stop(fadeOut(t, startBpm), release = !flip && t != Transition.BEAT)
+        // Flips and menu cuts let the old chord ring on under the new song, when it doesn't rub.
+        val hold = (flip || t == Transition.BEAT) && clashes(oldChord, chordMask(spec, bar)) == 0
+        if (playing) old.stop(fadeOut(t, startBpm), release = !hold)
         // A player that's done; failing that, the quietest, choked off first.
         var next = -1
         for (i in players.indices) if (i != active && !players[i].audible) {
@@ -831,21 +851,20 @@ internal class MusicDirector(private val sr: Int) {
         val oldBar = max(0L, old.absStep / 16).toInt()
         var phrase = oldBar / 8
         if (spec.glitch || oldChord == 0) return phrase * 8
-        for (k in spec.sections.indices) {
-            if (spec.sections[(phrase + k) % spec.sections.size] != Section.BREAK) {
+        val plan = spec.phrases
+        val size = plan?.size ?: spec.sections.size
+        fun sectionOf(p: Int) = plan?.get(p % size)?.section ?: spec.sections[p % size]
+        for (k in 0 until size) {
+            if (sectionOf(phrase + k) != Section.BREAK) {
                 phrase += k; break
             }
         }
-        val sec = spec.sections[phrase % spec.sections.size]
-        val prog = if (sec == Section.B || sec == Section.B2) spec.progB else spec.progA
         val here = oldBar % 8
         var best = 0
         var bestScore = Float.MAX_VALUE
         var k = 0
         while (k < 8) {
-            val ch = prog[(k / spec.barsPerChord) % prog.size]
-            var m = 0
-            for (iv in ch.intervals) m = m or (1 shl Math.floorMod(spec.tonic + ch.root + iv, 12))
+            val m = chordMask(spec, phrase * 8 + k)
             val score = clashes(oldChord, m) * 4f - Integer.bitCount(oldChord and m) + abs(k - here) * 0.3f
             if (score < bestScore) {
                 bestScore = score; best = k
@@ -853,6 +872,18 @@ internal class MusicDirector(private val sr: Int) {
             k += spec.barsPerChord
         }
         return phrase * 8 + best
+    }
+
+    /** Pitch classes of [spec]'s chord at [bar] (as its plan has it; VOID's random ones aside). */
+    private fun chordMask(spec: SongSpec, bar: Int): Int {
+        val plan = spec.phrases
+        val p = bar / 8
+        val sec = plan?.get(p % plan.size)?.section ?: spec.sections[p % spec.sections.size]
+        val prog = if (sec == Section.B || sec == Section.B2) spec.progB else spec.progA
+        val ch = prog[((bar % 8) / spec.barsPerChord) % prog.size]
+        var m = 0
+        for (iv in ch.intervals) m = m or (1 shl Math.floorMod(spec.tonic + ch.root + iv, 12))
+        return m
     }
 
     /** [spec]'s tempo, or the one at a simple ratio to [oldBpm] within its [SongSpec.tempoLock]. */
@@ -896,7 +927,7 @@ internal class MusicDirector(private val sr: Int) {
                 }
             }
             for (p in players) p.render(chunk, l, r, rev, dly, done)
-            riser.render(l, r, done, chunk, 0.22f)
+            riser.render(l, r, done, chunk, riserGain)
             done += chunk
             frames += chunk
             if (deferredLeft > 0) {
@@ -907,6 +938,14 @@ internal class MusicDirector(private val sr: Int) {
     }
 
     fun sanitize() = players.forEach { it.sanitize() }
+
+    /** The riser swells as big as the song is hot (a sneak mix's is a whisper). */
+    private val riserGain: Float
+        get() {
+            val c = current
+            val heat = if (c != null && c.fixedIntensity >= 0f) c.fixedIntensity else intensity
+            return 0.22f * (0.35f + 0.65f * heat.coerceIn(0f, 1f))
+        }
 
     companion object {
         private const val PLAYERS = 3

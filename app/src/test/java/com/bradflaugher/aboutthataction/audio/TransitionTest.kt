@@ -195,19 +195,26 @@ class TransitionTest {
     @Test
     fun spottedInGunsHotTheBandHitsTheNextBeat() {
         for (h in heroes) {
+            var beatAt = 0
             fun take(alert: Boolean): FloatArray {
                 val e = SoundEngine()
-                e.setHero(h); e.setIntensity(0.3f); e.setZone(Zone.TOWER)
+                // (Above the drops, so the hit is not the drop landing.)
+                e.setHero(h); e.setIntensity(0.6f); e.setZone(Zone.TOWER)
                 AudioTestUtil.render(e, 3f)
+                val p = e.director.activePlayer
+                // Where the next beat falls.
+                beatAt = ((((p.absStep + 4) / 4 * 4) - p.position) * 15.0 / p.bpm * sr).toInt()
                 if (alert) e.setAlert(AlertPhase.ALERT) else e.setIntensity(0.95f)
                 return AudioTestUtil.render(e, 1.5f)
             }
-            // The beat after being spotted (at most one beat away, and ringing on).
-            val hit = AudioTestUtil.rms(take(true), 0, sr * 2 * 7 / 10)
-            val plain = AudioTestUtil.rms(take(false), 0, sr * 2 * 7 / 10)
-            assertTrue("${tag(h)}: the hit is a pile-up", hit < plain * 1.6)
+            // The quarter second from the next beat on, spotted or just heated up.
+            val a = take(true)
+            val b = take(false)
+            val hit = AudioTestUtil.rms(a, beatAt * 2, (beatAt + sr / 4) * 2)
+            val plain = AudioTestUtil.rms(b, beatAt * 2, (beatAt + sr / 4) * 2)
+            assertTrue("${tag(h)}: the hit is a pile-up", hit < plain * 2.5)
             println("alert hit ${tag(h)}: %.3f vs %.3f".format(hit, plain))
-            assertTrue("${tag(h)}: no hit on being spotted", hit > plain * 1.1)
+            assertTrue("${tag(h)}: no hit on being spotted", hit > plain * 1.05)
         }
     }
 

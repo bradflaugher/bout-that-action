@@ -240,14 +240,22 @@ word or number you type.
 
 The soundtrack is synthesized live: band-limited oscillators, filters,
 drums, delay and reverb. Every zone gets its own procedural track, with its
-own key, tempo and motif-based melodies. The music gets more intense in a
+own key, tempo and motif-based melodies. The title screen plays the main
+theme, "Going Down": a hand-written spy hook (a question that hangs, an
+answer that comes home) over a bouncing octave bass ostinato and a tremolo
+twang guitar, arranged like a real song, with an intro, a B section and a lift
+before the hook comes back bigger with a harmony, looping seamlessly after
+just under two minutes. The music gets more intense in a
 fight and pitches down in slow-mo. SILENT gets its own sneak mix of every
 zone: the same key and chords at a slow tempo over a heartbeat kick, a roomy
 snare, ticking hats and glassy bell notes in a long echo, with rim clicks
-creeping in as guards get suspicious. Flipping the mode crossfades between
-the two. Getting spotted plays a sharp "!" sting and throws the music into
-ALERT (full drums and lead; in SILENT, the sneak mix gives way to the zone's
-full track). Once they lose you it stays tense through CAUTION for a few
+creeping in as guards get suspicious. Flipping the mode switches on the next
+beat, like one song opening up or holding its breath: the other mix comes in
+on its downbeat at a tempo locked to the old one, at the same place in the
+song, on the chord that's ringing. A new zone lands on the bar line after a
+drum fill and a riser. Getting spotted plays a sharp "!" sting, the band hits
+the next beat, and the music goes to ALERT (full drums and lead; in SILENT,
+the sneak mix gives way to the zone's full track). Once they lose you it stays tense through CAUTION for a few
 seconds, then calms down. Takedowns get a strangled grunt. Every sound effect is
 synthesized too, panned to where it happened on screen, with haptics on the
 big moments.
