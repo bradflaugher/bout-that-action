@@ -136,10 +136,10 @@ music.
 
 | Hero | Who | Trait (always on) |
 |---|---|---|
-| **BULL** | A bruiser in full pads. Tough, fast, bulldozes. | +1 heart, runs 10% faster, tackles Heavies head-on (no bouncing off the armor) |
-| **FOX** | A gentleman spy in a pressed tux. | An 8-round magazine (instead of 6) and a 15% quicker trigger; guards take 35% longer to react once they spot him |
-| **BADGER** | A barefoot cop in a tank top, in the wrong building on the wrong night. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
-| **VIPER** | A jungle commando in a bandana who lives in his cardboard box: the SILENT specialist. | Unplugs drones and turrets by hand, like a takedown (quiet, and not while one is aiming at him); in SILENT guards spot him from a quarter less far; the box glides (2.2 u/s instead of 1.3) and never looks suspicious moving; reloads 25% faster |
+| **BULL** | A heavyweight in a quilted bomber, shades and a gold chain. Tough, fast, bulldozes. | +1 heart, runs 10% faster, tackles Heavies head-on (no bouncing off the armor) |
+| **FOX** | A silver-haired gentleman spy in a long crimson coat. | An 8-round magazine (instead of 6) and a 15% quicker trigger; guards take 35% longer to react once they spot him |
+| **BADGER** | A small-town sheriff in a big hat and boots, too stubborn to stay down. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
+| **VIPER** | A jungle ghost in a cloak of leaves who lives in his cardboard box: the SILENT specialist. | Unplugs drones and turrets by hand, like a takedown (quiet, and not while one is aiming at him); in SILENT guards spot him from a quarter less far; the box glides (2.2 u/s instead of 1.3) and never looks suspicious moving; reloads 25% faster |
 
 Their perks:
 
@@ -162,8 +162,8 @@ Their perks:
   machines too, for 2 s (3.5 s at LV 2). *Camo* (2 levels): 1 in 4 hits miss
   you (1 in 3 at LV 2).
 
-Each hero is a nod to an action icon, in spirit only: no real names, no
-logos, no team colors.
+Each hero is an original character built on a genre archetype: no real
+names, no logos, no team colors, nobody else's character.
 
 ## The descent
 

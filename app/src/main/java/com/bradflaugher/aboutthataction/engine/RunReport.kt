@@ -48,9 +48,9 @@ data class RunReport(
 
         /** Extra sign-offs for whoever was playing. */
         val HERO_QUIPS = mapOf(
-            Hero.BULL to "Pads off. Good game.",
-            Hero.FOX to "The tux survived. Mostly.",
-            Hero.BADGER to "Stubborn to the very end.",
+            Hero.BULL to "Chain still shiny. Good game.",
+            Hero.FOX to "The coat survived. Mostly.",
+            Hero.BADGER to "Hat stayed on. Stubborn to the end.",
             Hero.VIPER to "Back to the box.",
         )
 

@@ -211,7 +211,7 @@ internal abstract class HeroKit(val a: HeroArt) {
     /** Fill pass only: holstered gear and small kit over the torso. */
     open fun details(ghost: Boolean) {}
     abstract fun head(ghost: Boolean)
-    /** Drawn last, over the near arm (locks over the pads). */
+    /** Drawn last, over the near arm (hair, leaves, anything that trails). */
     open fun hair() {}
     /** Fill pass only, after everything. */
     open fun strips() {}
