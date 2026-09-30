@@ -37,8 +37,14 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
     /** Faces and small lights dim when he's down (0..1). */
     var dim = 1f
 
+    /** Where the feet were set, the point a short hero's figure scales round ([push]). */
+    private var footY = 0f
+    private var keepOut = 0f
+    private var pushed = false
+
     /** The hero's own proportions on the rig, feet at [foot]. */
     fun setup(dir: Int, foot: Float) {
+        footY = foot
         k.setup(dir, foot - 0.045f * HS, HS, kit.bulk)
         k.headR *= kit.head
         // Longer legs or a shorter back, for a hero built differently (1 = the shared rig).
@@ -48,6 +54,11 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
             k.legB.len1 *= legs; k.legB.len2 *= legs
         }
         if (kit.spine != 1f) k.spineLen *= kit.spine
+        val arms = kit.arms
+        if (arms != 1f) {
+            k.armF.len1 *= arms; k.armF.len2 *= arms
+            k.armB.len1 *= arms; k.armB.len2 *= arms
+        }
         // Heads up, stacked over the spine: no jutting chin.
         k.headFwd = -0.015f
         k.headLean = 0.15f
@@ -57,6 +68,40 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
 
     /** The full figure. [skipFrontArm] leaves the near arm (and what goes over it) for a grapple. */
     fun draw(ghost: Boolean, skipFrontArm: Boolean = false) {
+        push()
+        paint(ghost, skipFrontArm)
+        pop()
+    }
+
+    /**
+     * A hero shorter than a grown-up ([HeroKit.scale] under 1) is painted scaled round his
+     * feet ([px], [py]; by default where the poser stood him), outline kept at full weight.
+     * Nothing happens for a full-size hero. Pair with [pop].
+     */
+    fun push(px: Float = k.hipX, py: Float = footY) {
+        val s = kit.scale
+        pushed = s != 1f
+        if (!pushed) return
+        g.save()
+        g.translate(px, py)
+        g.scale(s, s)
+        g.translate(-px, -py)
+        keepOut = p.out
+        p.weight(keepOut / s)
+    }
+
+    fun pop() {
+        if (!pushed) return
+        pushed = false
+        p.weight(keepOut)
+        g.restore()
+    }
+
+    /** A point of the posed rig where [push] paints it (x, then y). */
+    fun shownX(x: Float): Float = if (kit.scale == 1f) x else k.hipX + (x - k.hipX) * kit.scale
+    fun shownY(y: Float): Float = if (kit.scale == 1f) y else footY + (y - footY) * kit.scale
+
+    private fun paint(ghost: Boolean, skipFrontArm: Boolean) {
         val kit = kit
         kit.pose()
         kit.look(look, ghost)
@@ -79,7 +124,7 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
         }
         if (skipFrontArm) return
         p.twoPass {
-            if (showGun) body.gun(gunKind, gunX, gunY, gunUp, kit.trim, spin = f.t * 60f, scale = if (gunKind == 0) kit.pistolScale else 1.1f, variant = if (gunKind == 0) kit.pistol else 0)
+            if (showGun) body.gun(gunKind, gunX, gunY, gunUp, kit.trim, spin = f.t * 60f, scale = if (gunKind == 0) kit.pistolScale else kit.gunScale, variant = if (gunKind == 0) kit.pistol else 0)
             frontArm()
             kit.hair()
         }
@@ -111,6 +156,12 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
     /** Flattened into a doorway: a near-black silhouette with one signature glint. */
     fun doorHide(x: Float, foot: Float, dir: Int, time: Float) {
         setup(dir, foot)
+        push(x, foot)
+        hideIn(x, dir, time)
+        pop()
+    }
+
+    private fun hideIn(x: Float, dir: Int, time: Float) {
         val breathe = kotlin.math.sin(time * 2f) * 0.005f
         k.stand(x, 0.02f + breathe, 0.06f, -0.06f)
         k.spine(-0.04f, 0.05f)
@@ -188,9 +239,12 @@ internal abstract class HeroKit(val a: HeroArt) {
     abstract val bulk: Float
     /** Head size on the rig. */
     open val head: Float = 1f
-    /** Leg length and spine length on the rig (1 = the shared proportions). */
+    /** Leg, spine and arm length on the rig (1 = the shared proportions). */
     open val legs: Float = 1f
     open val spine: Float = 1f
+    open val arms: Float = 1f
+    /** The whole figure's size, scaled round the feet (1 = a grown-up; see [HeroArt.push]). */
+    open val scale: Float get() = 1f
     /** The signature colour (beacon, echoes). */
     abstract val accent: Int
     /** The back-contour rim light, lifted for light. */
@@ -208,6 +262,8 @@ internal abstract class HeroKit(val a: HeroArt) {
     /** Pistol variant ([ActorBody.gun]) and size. */
     open val pistol: Int = 0
     open val pistolScale: Float = 1.3f
+    /** The shotgun's and the minigun's size in his hands. */
+    open val gunScale: Float = 1.1f
     open val flashSize: Float = 0.15f
 
     /** Before the figure is painted: the hero's own touch on the posed rig (nothing, by default). */
