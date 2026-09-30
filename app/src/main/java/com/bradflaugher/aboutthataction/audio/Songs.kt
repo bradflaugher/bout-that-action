@@ -8,7 +8,8 @@ import com.bradflaugher.aboutthataction.audio.Scales.PHRYGIAN
 /**
  * One bar of drums, 16 steps per row. Velocity chars: 'X' accent, 'x' normal, 'o' ghost.
  * Tom rows use '1'..'3' for low/mid/high. On the snare row 'r' is a soft roll: two quick
- * strokes in one step (drumline buzz). [jingle] is sleigh bells / tambourine.
+ * strokes in one step (drumline buzz). On the hat row 'r', 't' and 'q' roll too: two, three
+ * or four strokes in the step (trap hat rolls). [jingle] is sleigh bells / tambourine.
  */
 internal class DrumPattern(
     val kick: String = REST,
@@ -32,7 +33,8 @@ internal class DrumPattern(
             'X' -> 1f
             'x' -> 0.72f
             'o' -> 0.42f
-            'r' -> 0.5f
+            'r', 't' -> 0.5f
+            'q' -> 0.45f
             '1', '2', '3' -> 0.8f
             else -> 0f
         }
@@ -120,6 +122,10 @@ internal class SongSpec(
     val answer: Motif? = null,
     /** Output trim, for loudness matching arrangements of the same track. */
     val gain: Float = 1f,
+    /** A bass note tied right up to the next one slides into it (an 808's glide). */
+    val bassSlide: Boolean = false,
+    /** Record crackle and hiss level. */
+    val vinyl: Float = 0f,
 ) {
     /** A single strike at step 0 means "sustain for the whole chord". */
     val padSustain = sustains(padRhythm)
@@ -566,5 +572,5 @@ internal fun Patch.copyish(
     supersaw = supersaw, sub = sub, noise = noise, pw = pw, pwm = pwm, cutoff = cutoff, q = q,
     envAmt = envAmt, keyTrack = keyTrack, a = a, d = d, s = s, r = r, fa = fa, fd = fd, fs = fs, fr = fr,
     drive = drive, glide = glide, vibrato = vibrato, vibRate = vibRate, gain = gain, crush = crush, bright = bright,
-    trem = trem, tremRate = tremRate,
+    trem = trem, tremRate = tremRate, pluck = pluck, ring = ring,
 )

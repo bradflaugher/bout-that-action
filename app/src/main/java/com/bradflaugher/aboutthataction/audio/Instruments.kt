@@ -64,6 +64,14 @@ internal class Patch(
     /** Tremolo depth 0..1 (amplitude LFO: surf guitar, vibraphone, Rhodes). */
     val trem: Float = 0f,
     val tremRate: Float = 6f,
+    /**
+     * > 0: a plucked string (Karplus-Strong) replaces osc 1: a noise burst rings round a
+     * delay line one period long. This is its brightness, 0..1 (low: a nylon or pizzicato
+     * pluck; high: a steel string, a banjo, a harpsichord).
+     */
+    val pluck: Float = 0f,
+    /** How long a plucked string rings (seconds to -60 dB) while the key is held. */
+    val ring: Float = 1.5f,
 ) {
     val driveGain = 1f + drive * 3f
     val driveComp = if (drive > 0f) 1f / Dsp.tanh(min(driveGain, 3f)) * (1f / (1f + drive * 0.5f)) else 1f
@@ -96,6 +104,14 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
     private var sinceOn = 0
     private var vel = 1f
 
+    // Plucked string: the delay line, its loop filter and the excitation burst still to play.
+    private val string = DelayLine(MAX_STRING)
+    private var ksZ = 0f
+    private var exLp = 0f
+    private var dcIn = 0f
+    private var dcOut = 0f
+    private var exciteLeft = 0
+
     val active: Boolean get() = amp.active
     val gated: Boolean get() = gate > 0
     val level: Float get() = amp.level
@@ -115,6 +131,13 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
             hz = target
         }
         val p = patch
+        if (p.pluck > 0f) {
+            if (!active) {
+                string.clear(); ksZ = 0f; dcIn = 0f; dcOut = 0f
+            }
+            exLp = 0f
+            exciteLeft = (sr / target).toInt().coerceIn(2, MAX_STRING - 4)
+        }
         amp.set(p.a, p.d, p.s, p.r)
         flt.set(p.fa, p.fd, p.fs, p.fr)
         amp.gateOn(); flt.gateOn()
@@ -175,6 +198,10 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
         }
         val w1 = pt.wave1
         val w2 = pt.wave2
+        if (pt.pluck > 0f) {
+            renderString(l, r, off, n, pt, f, dt2, pw, gain, gainStep)
+            return
+        }
         for (i in 0 until n) {
             flt.next()
             gain += gainStep
@@ -216,8 +243,60 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
         }
     }
 
+    /** [render] for a plucked string: the delay-line loop stands in for osc 1. */
+    private fun renderString(l: FloatArray, r: FloatArray, off: Int, n: Int, pt: Patch, f: Float, dt2: Float, pw: Float, g0: Float, gainStep: Float) {
+        val b = 0.3f + 0.65f * pt.pluck.coerceIn(0f, 1f)
+        // The one-pole loop filter delays the loop by about (1 - b) / b samples: take it off.
+        val period = sr / f
+        val delay = (period - (1f - b) / b).coerceIn(2f, (MAX_STRING - 4).toFloat())
+        val fb = if (gate > 0) Dsp.decay60(pt.ring, sr).pow(period) else Dsp.decay60(minOf(pt.ring, pt.r), sr).pow(period)
+        val exB = 0.25f + 0.7f * pt.pluck
+        var gain = g0
+        for (i in 0 until n) {
+            flt.next()
+            gain += gainStep
+            val a = amp.next() * gain
+            if (gate > 0 && --gate == 0) {
+                amp.gateOff(); flt.gateOff()
+            }
+            var ex = 0f
+            if (exciteLeft > 0) {
+                exciteLeft--
+                exLp += (noise.next() - exLp) * exB
+                ex = exLp
+            }
+            ksZ += (string.read(delay) - ksZ) * b
+            val y = ex + ksZ * fb
+            string.write(y)
+            // Block the burst's DC (it would ring round the loop), and bring the string up to
+            // a full-scale oscillator's level.
+            dcOut = y - dcIn + 0.997f * dcOut
+            dcIn = y
+            var x = dcOut * STRING_GAIN
+            if (pt.osc2Level > 0f) {
+                p2 += dt2; if (p2 >= 1f) p2 -= 1f
+                x += pt.osc2Level * osc(pt.wave2, p2, dt2, pw, noise)
+            }
+            x = svfL.lp(x)
+            if (pt.drive > 0f) x = Dsp.tanh(x * pt.driveGain) * pt.driveComp
+            x *= a
+            l[off + i] += x
+            r[off + i] += x
+        }
+        if (!active) {
+            svfL.reset(); svfR.reset()
+        }
+    }
+
     fun sanitize() {
         svfL.sanitize(); svfR.sanitize()
+        ksZ = Dsp.flush(ksZ); dcOut = Dsp.flush(dcOut)
+    }
+
+    companion object {
+        /** Longest string period: 4096-sample line, so down to ~12 Hz at 48 kHz. */
+        const val MAX_STRING = 4000
+        private const val STRING_GAIN = 3f
     }
 }
 
@@ -425,5 +504,36 @@ internal class Jungle(private val sr: Int) {
         val p = inBurst * 30f
         val ph = p - p.toInt()
         return if (ph < 0.5f) Dsp.sin01(ph) else 0f
+    }
+}
+
+/**
+ * A dusty record under a boom-bap beat: sparse crackles (sharp, high-passed clicks, some big
+ * enough to pop) over a thin surface hiss.
+ */
+internal class Vinyl(private val sr: Int) {
+    private val noise = Noise(3303)
+    private val hp = OnePole().apply { setHz(2200f, sr) }
+    private val hiss = Svf().apply { setHz(6000f, 0.6f, sr) }
+    private var click = 0f
+    private var pan = 0f
+    private val clickCoef = Dsp.decay60(0.006f, sr)
+    /** Chance per sample of a crackle (about 12 a second). */
+    private val threshold = 1f - 2f * 12f / sr
+
+    fun render(l: FloatArray, r: FloatArray, n: Int, level: Float) {
+        if (level <= 0f) return
+        for (i in 0 until n) {
+            if (noise.next() > threshold) {
+                val k = noise.next()
+                click = (if (k < 0f) -1f else 1f) * (0.35f + 0.65f * k * k)
+                pan = noise.next() * 0.6f
+            }
+            val c = hp.hp(click) * 0.8f
+            click *= clickCoef
+            val h = hiss.bp(noise.next()) * 0.06f
+            l[i] += (c * (1f - maxOf(0f, pan)) + h) * level
+            r[i] += (c * (1f + minOf(0f, pan)) + h) * level
+        }
     }
 }

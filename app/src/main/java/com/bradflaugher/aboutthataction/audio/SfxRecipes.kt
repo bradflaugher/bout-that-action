@@ -850,38 +850,44 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         gameOverStinger()
         when (hero) {
             Hero.BULL -> {
-                // Sad trombone: three falling "wah"s and a long, wobbling fourth.
-                for (k in 0 until 4) voice {
-                    val last = k == 3
-                    wave = Wave.SAW; wave2 = Wave.SQUARE; level2 = 0.3f; f0 = 146.8f * Dsp.semis(-k.toFloat()); f1 = f0 * (if (last) 0.97f else 0.99f)
-                    sweep = if (last) 1.2f else 0.3f; filter = FilterMode.LOW; cut0 = 400f; cut1 = 1400f; cutTime = 0.12f; q = 2f
-                    attack = 0.03f; hold = if (last) 0.7f else 0.18f; decay = if (last) 0.6f else 0.12f
-                    vibRate = if (last) 6f else 0f; vibDepth = 0.012f; gain = 0.16f; reverb = 0.25f; delay = 0.9f + k * 0.34f; priority = 4f
+                // The record stops: the beat's last chord winds down to nothing over one big 808.
+                for (k in BULL_EXIT.indices) voice {
+                    val s = BULL_EXIT[k]
+                    wave = Wave.TRIANGLE; wave2 = Wave.SAW; level2 = 0.25f; f0 = 146.8f * Dsp.semis(s.toFloat()); f1 = f0 * 0.2f
+                    sweep = 0.9f; filter = FilterMode.LOW; cut0 = 2200f; cut1 = 300f; cutTime = 0.9f
+                    attack = 0.005f; hold = 0.5f; decay = 0.5f; gain = 0.08f; pan = (k - 1f) * 0.3f; reverb = 0.2f
+                    delay = 0.85f; priority = 4f
+                }
+                voice {
+                    wave = Wave.SINE; f0 = 73.4f; f1 = 55f; sweep = 1.4f; attack = 0.002f; hold = 0.3f; decay = 1.4f
+                    drive = 0.6f; gain = 0.22f; delay = 1.9f; priority = 4f
                 }
             }
             Hero.FOX -> {
-                // Vibes, rolled: a cool D minor 9 fading out on tremolo.
+                // A harpsichord curtsy: a quick run down the minor chord, landing low on the tonic.
                 for (k in FOX_EXIT.indices) voice {
                     val s = FOX_EXIT[k]
-                    wave = Wave.SINE; wave2 = Wave.SINE; ratio2 = 4f; level2 = 0.2f; f0 = 293.7f * Dsp.semis(s.toFloat()); f1 = f0
-                    attack = 0.003f; decay = 2.4f; tremRate = 5.5f; tremDepth = 0.5f; gain = 0.07f
-                    pan = (k - 2f) * 0.2f; reverb = 0.55f; delay = 0.8f + k * 0.09f; priority = 4f
+                    val last = k == FOX_EXIT.size - 1
+                    wave = Wave.SAW; wave2 = Wave.SAW; ratio2 = 2.003f; level2 = 0.3f; f0 = 293.7f * Dsp.semis(s.toFloat()); f1 = f0
+                    filter = FilterMode.LOW; cut0 = 6000f; cut1 = 1500f; cutTime = 0.3f; attack = 0.001f
+                    decay = if (last) 1.4f else 0.3f; gain = 0.2f; pan = (2f - k) * 0.15f; reverb = 0.45f
+                    delay = 0.8f + k * 0.11f + (if (last) 0.12f else 0f); priority = 4f
                 }
             }
             Hero.BADGER -> {
-                // A shake of sleigh bells and three tolling bells.
-                voice {
-                    level1 = 0f; noise = 1f; filter = FilterMode.HIGH; cut0 = 6000f; cut1 = 6000f; attack = 0.02f; hold = 0.35f
-                    decay = 0.4f; tremRate = 17f; tremDepth = 0.8f; gain = 0.1f; reverb = 0.3f; delay = 0.8f; priority = 4f
-                }
-                for (k in HO_HO_NO.indices) voice {
-                    val s = HO_HO_NO[k]
-                    wave = Wave.SINE; wave2 = Wave.SINE; ratio2 = 2.76f; fm = 0.9f; f0 = 293.7f * Dsp.semis(s.toFloat()); f1 = f0
-                    attack = 0.002f; decay = 2f; gain = 0.12f; reverb = 0.45f; delay = 1.1f + k * 0.42f; priority = 4f
+                // A twangy guitar tag: three picked notes and a last one bent down, left ringing.
+                for (k in BADGER_EXIT.indices) voice {
+                    val s = BADGER_EXIT[k]
+                    val last = k == BADGER_EXIT.size - 1
+                    wave = Wave.SAW; wave2 = Wave.SQUARE; level2 = 0.3f; pw = 0.3f
+                    f0 = 196f * Dsp.semis(s.toFloat()); f1 = if (last) f0 * Dsp.semis(-2f) else f0; sweep = 0.45f
+                    filter = FilterMode.LOW; cut0 = 3500f; cut1 = 1400f; cutTime = 0.3f; q = 1.6f; attack = 0.002f
+                    hold = if (last) 0.3f else 0f; decay = if (last) 1.3f else 0.35f; vibRate = if (last) 5f else 0f
+                    vibDepth = 0.008f; gain = 0.19f; reverb = 0.35f; delay = 0.85f + k * 0.26f; priority = 4f
                 }
             }
             Hero.VIPER -> {
-                // Two war drums in the distance, and a lone horn falling to rest.
+                // Two war drums in the distance, and a wooden flute falling to rest.
                 for (k in 0 until 2) voice {
                     wave = Wave.SINE; f0 = 82f; f1 = 52f; sweep = 0.25f; attack = 0.002f; decay = 0.9f; noise = 0.15f
                     filter = FilterMode.LOW; cut0 = 900f; cut1 = 200f; cutTime = 0.3f; gain = 0.14f - k * 0.05f; reverb = 0.5f
@@ -890,10 +896,10 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                 for (k in VIPER_EXIT.indices) voice {
                     val s = VIPER_EXIT[k]
                     val last = k == VIPER_EXIT.size - 1
-                    wave = Wave.SAW; wave2 = Wave.TRIANGLE; level2 = 0.6f; f0 = 146.8f * Dsp.semis(s.toFloat()); f1 = f0
-                    filter = FilterMode.LOW; cut0 = 500f; cut1 = 1100f; cutTime = 0.15f; attack = 0.05f
-                    hold = if (last) 0.8f else 0.25f; decay = if (last) 1.2f else 0.15f; vibRate = 5f; vibDepth = 0.006f
-                    gain = 0.1f; reverb = 0.5f; delay = 1.5f + k * 0.42f; priority = 4f
+                    wave = Wave.SINE; wave2 = Wave.TRIANGLE; ratio2 = 2f; level2 = 0.12f; noise = 0.06f
+                    f0 = 587.3f * Dsp.semis(s.toFloat()); f1 = f0; filter = FilterMode.LOW; cut0 = 2500f; cut1 = 2500f
+                    attack = 0.06f; hold = if (last) 0.7f else 0.22f; decay = if (last) 1.1f else 0.15f; vibRate = 5f
+                    vibDepth = 0.008f; gain = 0.1f; reverb = 0.55f; delay = 1.5f + k * 0.4f; priority = 4f
                 }
             }
             null -> {}
@@ -927,10 +933,13 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         private val SHIELD_ARP = intArrayOf(0, 4, 7, 12, 16)
         private val PERK_SWELL = intArrayOf(0, 3, 7, 14)
         private val STINGER = intArrayOf(-12, 0, 3, 7)
-        /** Dm9 (D F A C E), rolled up. */
-        private val FOX_EXIT = intArrayOf(0, 3, 7, 10, 14)
-        private val HO_HO_NO = intArrayOf(7, 3, -5)
-        /** D minor horn: A, F, then down to D. */
+        /** D minor (D F A), wound down together. */
+        private val BULL_EXIT = intArrayOf(0, 3, 7)
+        /** D minor, run down from the octave to the low D. */
+        private val FOX_EXIT = intArrayOf(12, 7, 3, 0, -5, -12)
+        /** G, E, D and a bent B (a major-pentatonic tag). */
+        private val BADGER_EXIT = intArrayOf(12, 9, 7, 4)
+        /** D minor flute: A, F, then down to D. */
         private val VIPER_EXIT = intArrayOf(7, 3, 0)
         private val FIFTHS = intArrayOf(0, 7, 12, 19)
         private val ROOT_SHIFT = intArrayOf(0, 2, -3, 5)
