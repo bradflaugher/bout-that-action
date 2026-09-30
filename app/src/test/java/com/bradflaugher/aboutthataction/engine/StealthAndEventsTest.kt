@@ -719,12 +719,13 @@ class StealthAndEventsTest {
             val door = w.playerHall()!!.plan.doors.firstOrNull { it.kind == DoorKind.PASSAGE && napping(w, f, it.to) } ?: continue
             w.enemies.removeAll { it.floor == f && it.hall == 0 }
             w.floor(f)!!.halls.forEach { it.spawnTimer = 999f }
+            w.player.state = PlayerState.NORMAL // out of the arrival doorway
             w.player.x = door.x
             w.player.grenades = 0
             w.commands += Command.TAP
             run(w, World.PASSAGE_TIME + 0.5f)
             assertEquals(door.to, w.player.hall)
-            assertTrue(w.events.any { it is GameEvent.FloorEventStarted && it.event == FloorEvent.NAP_TIME })
+            assertTrue(texts(w).contains(FloorEvent.NAP_TIME.title))
             assertEquals(1, w.stats.floorEvents)
             walkedIn = true
         }
