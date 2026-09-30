@@ -217,6 +217,11 @@ internal abstract class HeroKit(val a: HeroArt) {
     open fun strips() {}
     /** The one light left on while hidden in a doorway. */
     abstract fun doorGlint(time: Float)
+    /**
+     * The hero's own mark on the box's front face, over the printing (box space: x ±0.48,
+     * y -0.8 floor-up to 0; [rs] is the trailing side, ±1). None by default.
+     */
+    open fun boxDecal(rs: Float) {}
 
     // ------------------------------------------------------------ helpers
 
