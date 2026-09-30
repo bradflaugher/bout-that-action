@@ -127,7 +127,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 
 ## Heroes
 
-<p align="center"><img src="docs/screenshots/lineup.png" alt="The four heroes: BULL, FOX, WOLF and HAWK" width="720"></p>
+<p align="center"><img src="docs/screenshots/lineup.png" alt="The four heroes: BULL, FOX, LION and HAWK" width="720"></p>
 
 Pick who's going down on the title screen. Every hero plays the same
 building, but with a different body: an always-on trait, three perks only
@@ -137,9 +137,9 @@ music.
 | Hero | Who | Trait (always on) |
 |---|---|---|
 | **BULL** | A heavyweight in a quilted bomber, shades and a gold chain. Tough, fast, bulldozes. | +1 heart, runs 10% faster, tackles Heavies head-on (no bouncing off the armor) |
-| **FOX** | A silver-haired gentleman spy in a long crimson coat. | An 8-round magazine (instead of 6) and a 15% quicker trigger; guards take 35% longer to react once they spot him |
-| **WOLF** | A bald small-town sheriff with a horseshoe moustache and a gold star, too stubborn to stay down. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
-| **HAWK** | A fast, fearless jungle commando with a mohawk and a chest rig who lives in his cardboard box: the SILENT specialist. | Unplugs drones and turrets by hand, like a takedown (quiet, and not while one is aiming at him); in SILENT guards spot him from a quarter less far; the box glides (2.2 u/s instead of 1.3) and never looks suspicious moving; reloads 25% faster |
+| **FOX** | A street-brawler heroine in a cropped red leather jacket and fighter boots, a long copper ponytail whipping behind her. Kicks first, questions never: the takedown specialist. | Takedowns reach 0.35 u further (long legs), a 15% quicker trigger; guards take 35% longer to react once they spot her |
+| **LION** | A huge circus strongman on the run from the big top: clown greasepaint, a red nose, a golden lion's mane, a curled moustache and giant clown shoes. The show must go on. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
+| **HAWK** | A deadpan parcel courier in brown shorts, knee socks and a cap, mohawk poking out and scanner glowing, who lives in a cardboard box (naturally): the SILENT specialist. Goes postal, politely. | Unplugs drones and turrets by hand, like a takedown (quiet, and not while one is aiming at him); in SILENT guards spot him from a quarter less far; the box glides (2.2 u/s instead of 1.3) and never looks suspicious moving; reloads 25% faster |
 
 Their perks:
 
@@ -148,19 +148,20 @@ Their perks:
   takedown dazes everyone within a quarter of the hallway for 1.8 s
   (nearly half of it at LV 2). *Candy
   Rain* (2 levels): every 8th kill heals a heart (every 5th at LV 2).
-- **FOX.** *Disguise*: guards take twice as long again to react.
-  *Laser Watch*: every shot slices the first lamp it passes under, and one
-  jump-swat kills every lamp in the hallway. *Dead Drop* (2 levels): SILENT
-  kills drop loot twice as often (three times at LV 2).
-- **WOLF.** *Kaboom*: bigger blasts, and anyone within twice the blast who
-  survives is knocked flat for 2.5 s. *Vent Crawl*: passages take half the
-  time and nobody can see you for 1.5 s once you're out in the open (firing
-  gives you away). *Adrenaline* (2 levels): on your last heart you shoot,
-  reload and run 30% faster (50% at LV 2).
-- **HAWK.** *Jammer*: drones and turrets take twice as long to react to
-  him. *Chaff* (2 levels): a grenade also dazes everyone in the hallway,
-  machines too, for 2 s (3.5 s at LV 2). *Camo* (2 levels): 1 in 4 hits miss
-  you (1 in 3 at LV 2).
+- **FOX.** *Showstopper*: guards take twice as long again to react.
+  *Spin Kick* (2 levels): every takedown also kicks the nearest guard
+  within 2.2 u flat (the nearest two at LV 2). *Flying Kick*: jump into a
+  guard and your boots knock him out cold, Heavies from the front and ninjas
+  mid-swing too (come down on his head and it's still a stomp).
+- **LION.** *Confetti*: bigger blasts that burst into confetti, and anyone
+  within twice the blast who survives is knocked flat for 2.5 s. *Clown
+  Car*: passages take half the time and nobody can see you for 1.5 s once
+  you're out in the open (firing gives you away). *Encore* (2 levels): on
+  your last heart you shoot, reload and run 30% faster (50% at LV 2).
+- **HAWK.** *Signed For*: drones and turrets take twice as long to react to
+  him. *Packing Peanuts* (2 levels): a grenade also bursts into peanuts that
+  daze everyone in the hallway, machines too, for 2 s (3.5 s at LV 2).
+  *Fragile* (2 levels): 1 in 4 hits miss you (1 in 3 at LV 2).
 
 Each hero is an original character built on a genre archetype: no real
 names, no logos, no team colors, nobody else's character.
@@ -255,7 +256,7 @@ the game over in their own style. **BULL** plays hip-hop: a dusty, swung
 boom-bap beat on a crackly record while sneaking, then half-time trap with
 sliding 808s and rolling hats when the guns come out. **FOX** plays classical:
 pizzicato strings and a clarinet on tiptoe, then a harpsichord-and-violins
-presto with timpani. **WOLF** plays country: a slow brushed shuffle with
+presto with timpani. **LION** plays country: a slow brushed shuffle with
 fingerpicked guitar and a harmonica, then a train-beat hoedown with banjo rolls
 and a fiddle. **HAWK** plays jungle drums: hand drums, shakers, a marimba, a
 wooden flute and crickets, then pounding war drums in threes against the beat.

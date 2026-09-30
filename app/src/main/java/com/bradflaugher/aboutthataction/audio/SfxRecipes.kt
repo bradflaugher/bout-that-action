@@ -850,17 +850,26 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         gameOverStinger()
         when (hero) {
             Hero.BULL -> {
-                // The record stops: the beat's last chord winds down to nothing over one big 808.
+                // Lights out: a dark brass stab tape-stops into the floor, then one last distorted
+                // 808 punches in and slides down an octave under a lone minor bell.
                 for (k in BULL_EXIT.indices) voice {
                     val s = BULL_EXIT[k]
-                    wave = Wave.TRIANGLE; wave2 = Wave.SAW; level2 = 0.25f; f0 = 146.8f * Dsp.semis(s.toFloat()); f1 = f0 * 0.2f
-                    sweep = 0.9f; filter = FilterMode.LOW; cut0 = 2200f; cut1 = 300f; cutTime = 0.9f
-                    attack = 0.005f; hold = 0.5f; decay = 0.5f; gain = 0.08f; pan = (k - 1f) * 0.3f; reverb = 0.2f
-                    delay = 0.85f; priority = 4f
+                    wave = Wave.SAW; wave2 = Wave.SAW; ratio2 = 1.007f; level2 = 0.7f; f0 = 146.8f * Dsp.semis(s.toFloat())
+                    f1 = f0 * 0.25f; sweep = 0.7f; filter = FilterMode.LOW; cut0 = 1800f; cut1 = 150f; cutTime = 0.7f; q = 1.1f
+                    attack = 0.004f; hold = 0.25f; decay = 0.45f; drive = 0.4f; gain = 0.07f; pan = (k - 1f) * 0.35f
+                    reverb = 0.25f; delay = 0.8f; priority = 4f
                 }
                 voice {
-                    wave = Wave.SINE; f0 = 73.4f; f1 = 55f; sweep = 1.4f; attack = 0.002f; hold = 0.3f; decay = 1.4f
-                    drive = 0.6f; gain = 0.22f; delay = 1.9f; priority = 4f
+                    wave = Wave.SINE; f0 = 220f; f1 = 73.4f; sweep = 0.025f; attack = 0.001f; decay = 0.09f; drive = 0.8f
+                    gain = 0.16f; delay = 1.5f; priority = 4f
+                }
+                voice {
+                    wave = Wave.SINE; f0 = 73.4f; f1 = 36.7f; sweep = 1.3f; attack = 0.002f; hold = 0.35f; decay = 1.5f
+                    drive = 0.9f; gain = 0.22f; delay = 1.5f; priority = 4f
+                }
+                voice {
+                    wave = Wave.SINE; wave2 = Wave.SINE; ratio2 = 3.5f; fm = 0.5f; f0 = 1174.7f * Dsp.semis(BULL_BELL.toFloat()); f1 = f0
+                    attack = 0.001f; decay = 1.8f; gain = 0.05f; reverb = 0.55f; delay = 1.5f; priority = 4f
                 }
             }
             Hero.FOX -> {
@@ -903,19 +912,27 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                 }
             }
             Hero.HAWK -> {
-                // Two war drums in the distance, and a wooden flute falling to rest.
-                for (k in 0 until 2) voice {
-                    wave = Wave.SINE; f0 = 82f; f1 = 52f; sweep = 0.25f; attack = 0.002f; decay = 0.9f; noise = 0.15f
-                    filter = FilterMode.LOW; cut0 = 900f; cut1 = 200f; cutTime = 0.3f; gain = 0.14f - k * 0.05f; reverb = 0.5f
-                    delay = 0.8f + k * 0.45f; priority = 4f
+                // Delivered: the van pulls up (a polite beep-beep), then the doorbell, ding... dong.
+                for (b in 0 until 2) for (k in HAWK_HORN.indices) voice {
+                    wave = Wave.PULSE; pw = 0.35f; wave2 = Wave.SAW; level2 = 0.4f; ratio2 = 1.004f
+                    f0 = 349.2f * Dsp.semis(HAWK_HORN[k].toFloat()); f1 = f0 * 0.985f; sweep = 0.12f
+                    filter = FilterMode.BAND; cut0 = 1500f; cut1 = 1000f; cutTime = 0.12f; q = 0.9f; drive = 0.5f
+                    attack = 0.006f; hold = if (b == 0) 0.07f else 0.16f; decay = 0.06f; gain = 0.12f
+                    pan = (k - 0.5f) * 0.3f; reverb = 0.25f; delay = 0.8f + b * 0.2f; priority = 4f
                 }
-                for (k in HAWK_EXIT.indices) voice {
-                    val s = HAWK_EXIT[k]
-                    val last = k == HAWK_EXIT.size - 1
-                    wave = Wave.SINE; wave2 = Wave.TRIANGLE; ratio2 = 2f; level2 = 0.12f; noise = 0.06f
-                    f0 = 587.3f * Dsp.semis(s.toFloat()); f1 = f0; filter = FilterMode.LOW; cut0 = 2500f; cut1 = 2500f
-                    attack = 0.06f; hold = if (last) 0.7f else 0.22f; decay = if (last) 1.1f else 0.15f; vibRate = 5f
-                    vibDepth = 0.008f; gain = 0.1f; reverb = 0.55f; delay = 1.5f + k * 0.4f; priority = 4f
+                for (k in HAWK_EXIT.indices) {
+                    // A doorbell's struck bar: a long, round tone and a bright, inharmonic strike.
+                    val hz = 587.3f * Dsp.semis(HAWK_EXIT[k].toFloat())
+                    val at = 1.45f + k * 0.5f
+                    voice {
+                        wave = Wave.SINE; wave2 = Wave.SINE; ratio2 = 2f; level2 = 0.12f; f0 = hz; f1 = hz
+                        attack = 0.002f; hold = 0.05f; decay = if (k == HAWK_EXIT.size - 1) 2.2f else 1.3f
+                        gain = 0.15f; pan = 0.2f - k * 0.4f; reverb = 0.5f; delay = at; priority = 4f
+                    }
+                    voice {
+                        wave = Wave.SINE; f0 = hz * 3.93f; f1 = f0; attack = 0.001f; decay = 0.14f; gain = 0.05f
+                        pan = 0.2f - k * 0.4f; reverb = 0.4f; delay = at; priority = 4f
+                    }
                 }
             }
             null -> {}
@@ -949,15 +966,19 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         private val SHIELD_ARP = intArrayOf(0, 4, 7, 12, 16)
         private val PERK_SWELL = intArrayOf(0, 3, 7, 14)
         private val STINGER = intArrayOf(-12, 0, 3, 7)
-        /** D minor (D F A), wound down together. */
+        /** D minor (D F A), stabbed and wound down together. */
         private val BULL_EXIT = intArrayOf(0, 3, 7)
+        /** The bell above it rings the minor third (F). */
+        private const val BULL_BELL = 3
         /** D minor, run down from the octave to the low D. */
         private val FOX_EXIT = intArrayOf(12, 7, 3, 0, -5, -12)
         /** LION's "ta" (A and E, the dominant's open fifth) and his "DAAA" (D, A and D). */
         private val LION_TA = intArrayOf(-5, 2)
         private val LION_EXIT = intArrayOf(0, 7, 12)
-        /** D minor flute: A, F, then down to D. */
-        private val HAWK_EXIT = intArrayOf(7, 3, 0)
+        /** The doorbell: A, then F (ding... dong, the D minor chord's fifth down to its third). */
+        private val HAWK_EXIT = intArrayOf(7, 3)
+        /** The van horn: F and A together (semitones above F4), a friendly major third. */
+        private val HAWK_HORN = intArrayOf(0, 4)
         private val FIFTHS = intArrayOf(0, 7, 12, 19)
         private val ROOT_SHIFT = intArrayOf(0, 2, -3, 5)
         /** Semitones above A1 for each zone's impact "braam". */

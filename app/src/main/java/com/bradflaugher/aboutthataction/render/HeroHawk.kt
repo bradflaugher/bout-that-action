@@ -5,14 +5,15 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * HAWK: the parcel courier. Deadpan, unstoppable, always on time. A brown short-sleeved
- * uniform shirt with a white name patch on the pocket and a lime hi-vis armband; a courier
- * satchel on the back hip, its strap across the chest with a reflective stripe; brown shorts,
- * white knee socks with lime bands, sturdy work boots on tan wedge soles. A brown cap pulled
- * low over a clean, stubbled face and a half-lidded stare, his short dark mohawk sprouting out
- * through the back of the cap. A handheld parcel scanner glowing lime in his free hand (clipped
- * to the belt when both hands are busy), and a chunky watch. No logos, no company: just a guy
- * with a parcel. A lime rim.
+ * HAWK: the parcel courier. Deadpan, unstoppable, always on time. A warm brown short-sleeved
+ * uniform shirt (pointed collar, button placket, a chest pocket under a white name patch, dark
+ * piping and a lime hi-vis armband on the sleeves) tucked into darker brown shorts; an olive
+ * canvas messenger bag low on the hip, its strap slung across the chest; white knee socks with
+ * lime bands, sturdy work boots on tan wedge soles. A brown cap pulled low over a heavy brow, a
+ * big nose, a square stubbled jaw and a half-lidded stare, a pencil behind the ear, and his
+ * mohawk as a neat swept-back fin through the cap's strap opening. A handheld parcel scanner
+ * glowing lime in his free hand (poking out of the bag's pocket when his hands are busy), and
+ * a chunky watch. No logos, no company: just a guy with a parcel. A lime rim.
  */
 internal class HawkKit(a: HeroArt) : HeroKit(a) {
     override val bulk = 1.06f
@@ -183,7 +184,7 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
         val ey = Rig.mix(l.ay, l.jy, 0.6f)
         p.bone(l.ax + k.ux * 0.012f, l.ay + k.uy * 0.012f, ex, ey, aw * 1.32f, aw * 1.2f, if (far) SHIRT_FAR else SHIRT, lit = !far, bulge = aw * 1.36f)
         if (p.ink || !p.hi) return
-        band(l.ax, l.ay, l.jx, l.jy, 0.5f, 0.58f, aw * 1.2f, if (far) SHIRT_DARK else SHIRT_HEM)
+        band(l.ax, l.ay, l.jx, l.jy, 0.52f, 0.59f, aw * 1.22f, SHIRT_DARK)
         band(l.ax, l.ay, l.jx, l.jy, 0.28f, 0.42f, aw * 1.3f, if (far) Col.mul(LIME, 0.55f) else LIME)
         if (far || !p.shading) return
         // The reflective thread through the armband.
@@ -196,9 +197,9 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
 
     /**
      * The uniform shirt, tucked into the shorts under a belt: a pointed collar open at the
-     * throat, a button placket, a chest pocket with the white name patch, the satchel strap
-     * across it all; lamp-lit across the chest into shadow down the back, the lime rim on the
-     * back contour.
+     * throat, a button placket, a chest pocket with the white name patch above it, the satchel
+     * strap slung across it all; lamp-lit across the chest into shadow down the back, the lime
+     * rim on the back contour.
      */
     override fun torso() {
         p.lightFrom(k.dir)
@@ -207,8 +208,8 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
         contour(BODY, c, w)
         p.shapeLit(SHIRT, tx(1.05f, c * 0.5f), ty(1.05f, c * 0.5f), tx(0.3f, -w * 0.6f), ty(0.3f, -w * 0.6f))
         if (p.ink) {
+            collar(c)
             satchel(w)
-            clip(c)
             return
         }
         // The shorts from the belt down.
@@ -221,117 +222,113 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
             tp(0.08f, -w * 0.58f); tp(0.5f, -w * 0.58f); tp(0.9f, -c * 0.42f); tp(1.0f, -c * 0.32f); tp(0.62f, -c * 0.12f); tp(0.12f, -w * 0.16f)
             p.shapeGradDetail(Col.alpha(0xFF160A04.toInt(), 0.55f), 0x00160A04, tx(0.5f, -c * 0.5f), ty(0.5f, -c * 0.5f), tx(0.5f, -c * 0.08f), ty(0.5f, -c * 0.08f))
             // The tuck: soft folds bunched over the belt.
-            for (i in 0 until 3) {
-                val s = -0.3f + i * 0.3f
+            for (i in 0 until 2) {
+                val s = -0.2f + i * 0.4f
                 p.detail(tx(0.14f, w * s), ty(0.14f, w * s), tx(0.3f, w * (s + 0.06f)), ty(0.3f, w * (s + 0.06f)), 0.014f * k.hs, SHIRT_DARK)
             }
         }
-        // The placket down the front, three buttons.
-        p.detail(tx(1.0f, c * 0.44f), ty(1.0f, c * 0.44f), tx(0.12f, w * 0.44f), ty(0.12f, w * 0.44f), 0.022f * k.hs, SHIRT_DARK)
-        if (p.shading) {
-            for (i in 0 until 3) {
-                val t = 0.78f - i * 0.22f
-                p.dot(tx(t, c * 0.4f), ty(t, c * 0.4f), 0.01f * k.hs, SHIRT_LIT)
-            }
+        // The placket down the front edge, three pale buttons.
+        p.detail(tx(0.98f, c * 0.5f), ty(0.98f, c * 0.5f), tx(0.12f, w * 0.46f), ty(0.12f, w * 0.46f), 0.024f * k.hs, SHIRT_DARK)
+        for (i in 0 until 3) {
+            val t = 0.62f - i * 0.2f
+            p.dot(tx(t, c * 0.5f), ty(t, c * 0.5f), 0.013f * k.hs, BUTTON)
         }
-        // The chest pocket, its flap, and the white name patch over it.
+        // The chest pocket with its flap, out front where the arm doesn't hide it...
         p.begin()
-        tp(0.72f, c * 0.0f); tp(0.72f, c * 0.24f); tp(0.5f, c * 0.22f); tp(0.48f, c * 0.12f); tp(0.52f, c * 0.0f)
+        tp(0.7f, c * 0.26f); tp(0.7f, c * 0.52f); tp(0.5f, c * 0.5f); tp(0.48f, c * 0.38f); tp(0.5f, c * 0.26f)
         p.shapeDetail(SHIRT_POCKET)
-        p.detail(tx(0.7f, c * 0.0f), ty(0.7f, c * 0.0f), tx(0.7f, c * 0.24f), ty(0.7f, c * 0.24f), 0.018f * k.hs, SHIRT_DARK)
+        p.detail(tx(0.68f, c * 0.26f), ty(0.68f, c * 0.26f), tx(0.68f, c * 0.52f), ty(0.68f, c * 0.52f), 0.024f * k.hs, SHIRT_DARK)
+        // ...and the white name patch above it, a scribble of a name nobody can read.
         p.begin()
-        tp(0.86f, c * 0.0f); tp(0.86f, c * 0.24f); tp(0.75f, c * 0.24f); tp(0.75f, c * 0.0f)
-        p.shapeGradDetail(PATCH, PATCH_SHADE, tx(0.86f, c * 0.2f), ty(0.86f, c * 0.2f), tx(0.75f, c * 0.04f), ty(0.75f, c * 0.04f))
-        if (p.shading) {
-            // A name, stitched in a scribble nobody can read.
-            p.detail(tx(0.805f, c * 0.04f), ty(0.805f, c * 0.04f), tx(0.805f, c * 0.2f), ty(0.805f, c * 0.2f), 0.012f * k.hs, SHIRT_DARK)
-        }
-        // The collar: a band round the back of the neck, a point folded down at the front, the throat open.
+        tp(0.87f, c * 0.24f); tp(0.87f, c * 0.54f); tp(0.73f, c * 0.54f); tp(0.73f, c * 0.24f)
+        p.shapeGradDetail(PATCH, PATCH_SHADE, tx(0.87f, c * 0.46f), ty(0.87f, c * 0.46f), tx(0.73f, c * 0.28f), ty(0.73f, c * 0.28f))
+        p.detail(tx(0.8f, c * 0.3f), ty(0.8f, c * 0.3f), tx(0.805f, c * 0.48f), ty(0.805f, c * 0.48f), 0.016f * k.hs, NAME_INK)
+        // The throat, open under the collar.
         p.begin()
-        tp(1.05f, c * 0.12f); tp(1.03f, c * 0.42f); tp(0.9f, c * 0.4f)
+        tp(1.05f, c * 0.12f); tp(1.03f, c * 0.42f); tp(0.92f, c * 0.4f)
         p.shapeGradDetail(SKIN, SKIN_FAR, tx(1.03f, c * 0.4f), ty(1.03f, c * 0.4f), tx(0.92f, c * 0.3f), ty(0.92f, c * 0.3f))
-        p.begin()
-        tp(1.06f, -c * 0.34f); tp(1.16f, -c * 0.3f); tp(1.14f, c * 0.14f); tp(1.04f, c * 0.1f)
-        p.shapeGradDetail(COLLAR, SHIRT, tx(1.16f, 0f), ty(1.16f, 0f), tx(1.04f, 0f), ty(1.04f, 0f))
-        p.begin()
-        tp(1.1f, c * 0.1f); tp(1.06f, c * 0.46f); tp(0.86f, c * 0.5f); tp(0.98f, c * 0.22f)
-        p.shapeGradDetail(COLLAR, SHIRT, tx(1.06f, c * 0.4f), ty(1.06f, c * 0.4f), tx(0.9f, c * 0.3f), ty(0.9f, c * 0.3f))
+        collar(c)
         // The belt.
         p.detail(tx(0.08f, -w * 0.58f), ty(0.08f, -w * 0.58f), tx(0.08f, w * 0.52f), ty(0.08f, w * 0.52f), 0.056f * k.hs, BELT)
-        p.dot(tx(0.08f, w * 0.34f), ty(0.08f, w * 0.34f), 0.022f * k.hs, BUCKLE)
-        // The satchel strap, over the far shoulder and across the chest to the back hip.
-        strap(c, w)
+        p.dot(tx(0.08f, w * 0.36f), ty(0.08f, w * 0.36f), 0.022f * k.hs, BUCKLE)
         rimAlong(BODY, RIM_FROM, RIM_TO, c, w)
+        strap(c, w)
         satchel(w)
-        clip(c)
+    }
+
+    /** The pointed shirt collar: a band round the back of the neck and a point folded down the front. Both passes. */
+    private fun collar(c: Float) {
+        p.begin()
+        tp(1.06f, -c * 0.34f); tp(1.17f, -c * 0.3f); tp(1.15f, c * 0.14f); tp(1.04f, c * 0.1f)
+        p.shapeLit(COLLAR, tx(1.17f, 0f), ty(1.17f, 0f), tx(1.04f, 0f), ty(1.04f, 0f))
+        p.begin()
+        tp(1.12f, c * 0.08f); tp(1.07f, c * 0.46f); tp(0.9f, c * 0.52f); tp(0.97f, c * 0.24f)
+        p.shapeLit(COLLAR, tx(1.1f, c * 0.3f), ty(1.1f, c * 0.3f), tx(0.9f, c * 0.5f), ty(0.9f, c * 0.5f))
     }
 
     /**
-     * The strap, cross-body over the far shoulder: one run down the chest, one down the back,
-     * both to the satchel on the near hip. Dark webbing with a reflective lime stripe.
+     * The strap, slung from the top of the back diagonally down across the chest to the
+     * satchel's front corner: khaki webbing, a darker edge, a slide buckle.
      */
     private fun strap(c: Float, w: Float) {
-        val x0 = tx(1.05f, c * 0.42f)
-        val y0 = ty(1.05f, c * 0.42f)
-        val x1 = tx(0.16f, w * 0.22f)
-        val y1 = ty(0.16f, w * 0.22f)
-        val x2 = tx(1.07f, -c * 0.26f)
-        val y2 = ty(1.07f, -c * 0.26f)
-        val x3 = tx(0.16f, -w * 0.6f)
-        val y3 = ty(0.16f, -w * 0.6f)
-        p.detail(x2, y2, x3, y3, 0.06f * k.hs, STRAP)
-        p.detail(x0, y0, x1, y1, 0.07f * k.hs, STRAP)
-        p.detail(x0, y0, x1, y1, 0.02f * k.hs, LIME)
+        val x0 = tx(1.1f, -c * 0.34f)
+        val y0 = ty(1.1f, -c * 0.34f)
+        val xm = tx(0.46f, c * 0.46f)
+        val ym = ty(0.46f, c * 0.46f)
+        val x1 = tx(0.0f, w * 0.4f)
+        val y1 = ty(0.0f, w * 0.4f)
+        p.detail(x0, y0, xm, ym, 0.086f * k.hs, BAG_DARK)
+        p.detail(xm, ym, x1, y1, 0.086f * k.hs, BAG_DARK)
+        p.detail(x0, y0, xm, ym, 0.058f * k.hs, BAG)
+        p.detail(xm, ym, x1, y1, 0.058f * k.hs, BAG)
         if (!p.shading) return
-        p.detail(Rig.mix(x2, x3, 0.1f), Rig.mix(y2, y3, 0.1f), Rig.mix(x2, x3, 0.9f), Rig.mix(y2, y3, 0.9f), 0.014f * k.hs, STRAP_LIT)
-        addLine(Rig.mix(x0, x1, 0.1f), Rig.mix(y0, y1, 0.1f), Rig.mix(x0, x1, 0.9f), Rig.mix(y0, y1, 0.9f), 0.008f * k.hs, Col.alpha(LIME_GLOW, 0.5f))
+        p.detail(Rig.mix(x0, xm, 0.04f), Rig.mix(y0, ym, 0.04f), xm, ym, 0.012f * k.hs, Col.alpha(BAG_LIT, 0.8f))
+        val dx = (x1 - xm) * 0.12f
+        val dy = (y1 - ym) * 0.12f
+        val bx = Rig.mix(xm, x1, 0.4f)
+        val by = Rig.mix(ym, y1, 0.4f)
+        p.detail(bx - dx, by - dy, bx + dx, by + dy, 0.074f * k.hs, BUCKLE)
     }
 
     /**
-     * The courier satchel on the near hip, sticking out behind: a canvas body with rounded
-     * corners, a deep flap edged in reflective lime, a buckle. In SILENT the pistol rides in it,
-     * its grip showing. Both passes.
+     * The messenger bag, hung low on the hip from the strap: soft olive canvas, rounded at the
+     * bottom, a flap with one reflective lime tab and a buckle. In SILENT the pistol rides in
+     * it, its grip showing. Both passes.
      */
     private fun satchel(w: Float) {
         val sw = a.bob * 0.4f + a.idle * 0.3f
         if (a.holstered && !p.ink && p.shading) {
-            // The pistol's grip poking out of the satchel's mouth.
-            p.detail(tx(0.16f, -w * 0.5f), ty(0.16f, -w * 0.5f), tx(0.3f, -w * 0.64f), ty(0.3f, -w * 0.64f), 0.05f * k.hs, 0xFF1A1C24.toInt())
+            // The pistol's grip poking out of the bag's mouth.
+            p.detail(tx(0.0f, -w * 0.3f), ty(0.0f, -w * 0.3f), tx(0.12f, -w * 0.42f), ty(0.12f, -w * 0.42f), 0.05f * k.hs, 0xFF1A1C24.toInt())
         }
+        holster(w, sw)
         p.begin()
-        tp(0.18f, w * 0.3f); tp(0.2f, -w * 0.8f)
-        tp(-0.22f + sw, -w * 0.84f); tp(-0.3f + sw, -w * 0.74f); tp(-0.32f + sw, w * 0.18f); tp(-0.26f + sw, w * 0.3f)
-        p.shapeLit(BAG, tx(0.18f, w * 0.2f), ty(0.18f, w * 0.2f), tx(-0.3f, -w * 0.7f), ty(-0.3f, -w * 0.7f))
+        tp(0.02f, w * 0.34f); tp(0.04f, -w * 0.62f)
+        tp(-0.18f + sw, -w * 0.68f); tp(-0.3f + sw, -w * 0.6f); tp(-0.35f + sw, -w * 0.4f); tp(-0.36f + sw, w * 0.1f); tp(-0.31f + sw, w * 0.28f); tp(-0.18f + sw, w * 0.36f)
+        p.shapeLit(BAG, tx(0.02f, w * 0.2f), ty(0.02f, w * 0.2f), tx(-0.4f, -w * 0.5f), ty(-0.4f, -w * 0.5f))
         if (p.ink) return
-        // The flap, its lime edge, the buckle.
-        val fb = -0.12f + sw * 0.6f
+        // The flap, rounded at the front edge, and its lime tab and buckle.
+        val fb = -0.17f + sw * 0.6f
         p.begin()
-        tp(0.2f, w * 0.32f); tp(0.22f, -w * 0.82f); tp(fb, -w * 0.84f); tp(fb - 0.03f, -w * 0.7f); tp(fb - 0.03f, w * 0.2f); tp(fb, w * 0.32f)
-        p.shapeGradDetail(BAG_LIT, BAG_DARK, tx(0.2f, 0f), ty(0.2f, 0f), tx(fb, -w * 0.4f), ty(fb, -w * 0.4f))
-        val lx0 = tx(fb + 0.02f, w * 0.28f)
-        val ly0 = ty(fb + 0.02f, w * 0.28f)
-        val lx1 = tx(fb + 0.02f, -w * 0.8f)
-        val ly1 = ty(fb + 0.02f, -w * 0.8f)
-        p.detail(lx0, ly0, lx1, ly1, 0.036f * k.hs, LIME)
+        tp(0.04f, w * 0.36f); tp(0.06f, -w * 0.64f); tp(fb, -w * 0.68f); tp(fb - 0.05f, -w * 0.5f); tp(fb - 0.06f, w * 0.14f); tp(fb - 0.03f, w * 0.3f); tp(fb + 0.04f, w * 0.38f)
+        p.shapeGradDetail(BAG_LIT, BAG_DARK, tx(0.04f, 0f), ty(0.04f, 0f), tx(fb, -w * 0.3f), ty(fb, -w * 0.3f))
+        p.detail(tx(fb - 0.01f, -w * 0.12f), ty(fb - 0.01f, -w * 0.12f), tx(fb - 0.04f, -w * 0.12f), ty(fb - 0.04f, -w * 0.12f), 0.04f * k.hs, LIME)
         if (!p.shading) return
-        addLine(lx0, ly0, lx1, ly1, 0.012f * k.hs, Col.alpha(LIME_GLOW, 0.6f))
-        p.dot(tx(fb + 0.02f, -w * 0.2f), ty(fb + 0.02f, -w * 0.2f), 0.026f * k.hs, BUCKLE)
-        // Stitching round the bottom, the lamp along the top edge.
-        p.detail(tx(-0.26f + sw, -w * 0.72f), ty(-0.26f + sw, -w * 0.72f), tx(-0.27f + sw, w * 0.18f), ty(-0.27f + sw, w * 0.18f), 0.01f * k.hs, BAG_LIT)
-        p.detail(tx(0.19f, w * 0.26f), ty(0.19f, w * 0.26f), tx(0.21f, -w * 0.76f), ty(0.21f, -w * 0.76f), 0.014f * k.hs, Col.alpha(BAG_LIT, 0.8f))
+        // The seam of the gusset and the lamp along the top.
+        p.detail(tx(-0.31f + sw, -w * 0.5f), ty(-0.31f + sw, -w * 0.5f), tx(-0.32f + sw, w * 0.12f), ty(-0.32f + sw, w * 0.12f), 0.012f * k.hs, BAG_DARK)
+        p.detail(tx(0.03f, w * 0.3f), ty(0.03f, w * 0.3f), tx(0.05f, -w * 0.58f), ty(0.05f, -w * 0.58f), 0.016f * k.hs, Col.alpha(BAG_LIT, 0.9f))
     }
 
-    /** The scanner holstered high on the strap, screen out, when it isn't in his hand. Both passes. */
-    private fun clip(c: Float) {
+    /** The scanner, stowed in the bag's slip pocket when it isn't in his hand: its head pokes out, screen glowing. Both passes. */
+    private fun holster(w: Float, sw: Float) {
         if (scanInHand()) return
         p.begin()
-        tp(0.84f, c * 0.26f); tp(0.84f, c * 0.48f); tp(0.62f, c * 0.47f); tp(0.62f, c * 0.25f)
-        p.shapeLit(DEVICE, tx(0.84f, c * 0.44f), ty(0.84f, c * 0.44f), tx(0.62f, c * 0.26f), ty(0.62f, c * 0.26f))
+        tp(0.2f + sw, -w * 0.52f); tp(0.22f + sw, -w * 0.3f); tp(-0.06f + sw, -w * 0.3f); tp(-0.06f + sw, -w * 0.52f)
+        p.shapeLit(DEVICE, tx(0.2f, -w * 0.3f), ty(0.2f, -w * 0.3f), tx(0f, -w * 0.52f), ty(0f, -w * 0.52f))
         if (p.ink) return
-        p.detail(tx(0.79f, c * 0.37f), ty(0.79f, c * 0.37f), tx(0.67f, c * 0.36f), ty(0.67f, c * 0.36f), 0.034f * k.hs, Col.mul(LIME, 0.6f * a.dim + 0.2f))
+        p.detail(tx(0.15f + sw, -w * 0.36f), ty(0.15f + sw, -w * 0.36f), tx(0.1f + sw, -w * 0.36f), ty(0.1f + sw, -w * 0.36f), 0.05f * k.hs, Col.mul(LIME, 0.6f * a.dim + 0.2f))
         if (!p.shading) return
-        p.detail(tx(0.77f, c * 0.34f), ty(0.77f, c * 0.34f), tx(0.7f, c * 0.33f), ty(0.7f, c * 0.33f), 0.01f * k.hs, LIME_GLOW)
-        addGlow(tx(0.73f, c * 0.37f), ty(0.73f, c * 0.37f), 0.07f * k.hs, LIME, 0.4f)
+        addGlow(tx(0.13f + sw, -w * 0.38f), ty(0.13f + sw, -w * 0.38f), 0.06f * k.hs, LIME, 0.45f)
     }
 
     /**
@@ -343,24 +340,28 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
         pen(k.headX, k.headY, r)
         p.lightFrom(k.dir)
         // The mohawk behind the cap, so the cap's own edge cuts it cleanly.
-        hpoly(TUFT).shapeLit(HAIR, hpX(-0.6f), hpY(-1.6f), hpX(-1.0f), hpY(-0.8f))
+        hpoly(TUFT).shapeLit(HAIR, hpX(-0.9f), hpY(-1.1f), hpX(-1.3f), hpY(-0.5f))
         hpoly(FACE).shapeLit(SKIN, hpX(0.4f), hpY(-1.0f), hpX(-0.5f), hpY(0.9f))
         if (!p.ink) {
             if (p.shading) hpoly(JAW).shapeShade(SKIN)
             if (p.hi) {
                 // Short dark hair at the nape and a sideburn.
                 hpoly(NAPE).shapeDetail(Col.alpha(HAIR, 0.85f))
-                hpoly(STUBBLE).shapeDetail(Col.alpha(HAIR, 0.22f))
-                // The ear.
-                p.dot(hpX(-0.16f), hpY(0.06f), r * 0.2f, SKIN_FAR)
-                p.dot(hpX(-0.13f), hpY(0.04f), r * 0.13f, SKIN)
+                hpoly(STUBBLE).shapeDetail(Col.alpha(STUBBLE_C, 0.34f))
                 // The eye: half-lidded, deadpan; a flat brow.
                 p.detail(hpX(0.62f), hpY(-0.1f), hpX(0.86f), hpY(-0.1f), r * 0.1f, 0xFFF4F0E8.toInt())
                 p.dot(hpX(0.8f), hpY(-0.08f), r * 0.07f, 0xFF140E0A.toInt())
                 p.detail(hpX(0.58f), hpY(-0.15f), hpX(0.9f), hpY(-0.15f), r * 0.08f, SKIN_FAR)
-                p.detail(hpX(0.54f), hpY(-0.3f), hpX(0.96f), hpY(-0.3f), r * 0.1f, HAIR)
+                p.detail(hpX(0.48f), hpY(-0.3f), hpX(1.0f), hpY(-0.29f), r * 0.17f, HAIR)
                 // The mouth: one straight line. Nothing to see here.
-                p.detail(hpX(0.72f), hpY(0.64f), hpX(1.0f), hpY(0.64f), r * 0.07f, SKIN_FAR)
+                p.detail(hpX(0.7f), hpY(0.66f), hpX(1.04f), hpY(0.66f), r * 0.08f, SKIN_FAR)
+                // A pencil tucked behind the ear, for signatures.
+                p.detail(hpX(-0.5f), hpY(-0.22f), hpX(0.0f), hpY(-0.14f), r * 0.14f, PENCIL)
+                p.detail(hpX(0.0f), hpY(-0.14f), hpX(0.12f), hpY(-0.12f), r * 0.08f, 0xFFE8C8A0.toInt())
+                p.detail(hpX(-0.5f), hpY(-0.22f), hpX(-0.6f), hpY(-0.235f), r * 0.14f, 0xFFE07A8A.toInt())
+                // The ear, in front of it.
+                p.dot(hpX(-0.16f), hpY(0.08f), r * 0.2f, SKIN_FAR)
+                p.dot(hpX(-0.13f), hpY(0.06f), r * 0.13f, SKIN)
             }
             if (p.shading && !ghost) {
                 // The bill's shadow over the eyes, the lamp on the nose.
@@ -385,9 +386,8 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
         }
         if (p.shading && !ghost) {
             // A few lit strands in the tuft.
-            for (i in 0 until 3) {
-                val u = -0.66f - i * 0.2f
-                p.detail(hpX(u), hpY(-1.16f + i * 0.1f), hpX(u - 0.1f), hpY(-1.4f + i * 0.04f), r * 0.06f, Col.alpha(HAIR_LIT, 0.8f))
+            for (i in 0 until 2) {
+                p.detail(hpX(-1.06f - i * 0.06f), hpY(-0.86f + i * 0.18f), hpX(-1.24f - i * 0.06f), hpY(-0.96f + i * 0.2f), r * 0.06f, Col.alpha(HAIR_LIT, 0.8f))
             }
         }
         if (look.rim != 0 && !ghost) {
@@ -430,9 +430,9 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
     override fun doorGlint(time: Float) {
         // The scanner's screen, left on in the dark: it blinks now and then, like it's thinking.
         if (fract(time * 0.4f) > 0.92f) return
-        val c = k.chestD * 1.06f
-        val x = tx(0.73f, c * 0.37f)
-        val y = ty(0.73f, c * 0.37f)
+        val w = k.waistD * 0.98f
+        val x = tx(0.13f, -w * 0.38f)
+        val y = ty(0.13f, -w * 0.38f)
         p.detail(x - 0.03f * k.dir, y, x + 0.03f * k.dir, y, 0.022f, Col.alpha(LIME, 0.9f))
         a.f.glowDot(x, y, 0.03f, LIME, 0.6f)
     }
@@ -446,18 +446,21 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
         const val SKIN_FAR = 0xFF94583C.toInt()
         const val HAIR = 0xFF1A120C.toInt()
         const val HAIR_LIT = 0xFF6E5442.toInt()
+        const val STUBBLE_C = 0xFF3A2E36.toInt()
         /** The uniform: a warm mid brown, bright enough to read on dark walls. */
-        const val SHIRT = 0xFF8C5E36.toInt()
-        const val SHIRT_LIT = 0xFFD8A878.toInt()
-        const val SHIRT_DARK = 0xFF4A2E18.toInt()
-        const val SHIRT_FAR = 0xFF5A3A20.toInt()
-        const val SHIRT_HEM = 0xFF6E4828.toInt()
-        const val SHIRT_POCKET = 0xFF7E5230.toInt()
-        const val COLLAR = 0xFFA8764A.toInt()
-        const val SHORTS = 0xFF6E4828.toInt()
-        const val SHORTS_LIT = 0xFFB08058.toInt()
-        const val SHORTS_DARK = 0xFF4A2E18.toInt()
-        const val SHORTS_FAR = 0xFF44301C.toInt()
+        const val SHIRT = 0xFFA06E40.toInt()
+        const val SHIRT_LIT = 0xFFE6B886.toInt()
+        const val SHIRT_DARK = 0xFF4A2C16.toInt()
+        const val SHIRT_FAR = 0xFF65421F.toInt()
+        const val SHIRT_POCKET = 0xFF8E5E34.toInt()
+        const val COLLAR = 0xFFB07E4E.toInt()
+        const val BUTTON = 0xFFE8D8BC.toInt()
+        const val NAME_INK = 0xFF7A2A1E.toInt()
+        /** The shorts: a deeper, cooler brown, so shirt and shorts read as two garments. */
+        const val SHORTS = 0xFF5A3A22.toInt()
+        const val SHORTS_LIT = 0xFF9A7050.toInt()
+        const val SHORTS_DARK = 0xFF36220F.toInt()
+        const val SHORTS_FAR = 0xFF3A2616.toInt()
         const val CAP_C = 0xFF7A5030.toInt()
         const val CAP_LIT = 0xFFC8966A.toInt()
         const val CAP_DARK = 0xFF3E2614.toInt()
@@ -468,11 +471,12 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
         const val BOOT = 0xFF2E2016.toInt()
         const val BOOT_LIT = 0xFF6A4E38.toInt()
         const val SOLE = 0xFFC49A62.toInt()
-        const val BAG = 0xFF3A3632.toInt()
-        const val BAG_LIT = 0xFF76706A.toInt()
-        const val BAG_DARK = 0xFF24201C.toInt()
+        /** The messenger bag and its strap: olive-khaki canvas. */
+        const val BAG = 0xFF6A6A3E.toInt()
+        const val BAG_LIT = 0xFFAAA86E.toInt()
+        const val BAG_DARK = 0xFF34341C.toInt()
         const val STRAP = 0xFF221E1A.toInt()
-        const val STRAP_LIT = 0xFF4A443C.toInt()
+        const val PENCIL = 0xFFF2C230.toInt()
         const val BELT = 0xFF2A1A10.toInt()
         const val BUCKLE = 0xFF9A9A8E.toInt()
         const val DEVICE = 0xFF3A3E44.toInt()
@@ -501,19 +505,21 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
         private const val RIM_FROM = 10
         private const val RIM_TO = 15
 
+        /** A square, heavy-jawed profile with a proper nose. */
         private val FACE = floatArrayOf(
             -1.02f, -0.1f, -0.84f, -0.7f, -0.38f, -1.02f, 0.14f, -1.05f, 0.6f, -0.86f,
-            0.9f, -0.46f, 0.96f, -0.12f, 1.16f, 0.24f, 0.99f, 0.38f, 1.02f, 0.52f,
-            0.97f, 0.66f, 1.0f, 0.8f, 0.9f, 0.98f, 0.3f, 1.04f, -0.2f, 0.82f,
-            -0.56f, 0.52f, -0.94f, 0.26f,
+            0.9f, -0.46f, 0.98f, -0.14f, 1.26f, 0.26f, 1.2f, 0.36f, 1.02f, 0.42f,
+            1.06f, 0.56f, 1.02f, 0.68f, 1.1f, 0.84f, 1.02f, 1.06f, 0.3f, 1.12f,
+            -0.24f, 0.9f, -0.62f, 0.6f, -0.96f, 0.3f,
         )
         private val JAW = floatArrayOf(
-            -0.94f, 0.26f, -0.56f, 0.52f, -0.2f, 0.82f, 0.3f, 1.04f, 0.9f, 0.98f,
-            0.86f, 0.9f, 0.3f, 0.92f, -0.1f, 0.7f, -0.46f, 0.4f, -0.82f, 0.14f,
+            -0.96f, 0.3f, -0.62f, 0.6f, -0.24f, 0.9f, 0.3f, 1.12f, 1.02f, 1.06f,
+            0.96f, 0.96f, 0.3f, 1.0f, -0.1f, 0.76f, -0.5f, 0.44f, -0.84f, 0.16f,
         )
         private val STUBBLE = floatArrayOf(
-            0.0f, 0.3f, 0.4f, 0.52f, 0.8f, 0.72f, 1.0f, 0.7f, 1.01f, 0.8f,
-            0.9f, 0.98f, 0.3f, 1.04f, -0.2f, 0.82f, -0.34f, 0.5f, -0.14f, 0.2f,
+            -0.04f, 0.34f, 0.4f, 0.52f, 0.8f, 0.46f, 1.04f, 0.46f, 1.06f, 0.56f,
+            1.02f, 0.68f, 1.1f, 0.84f, 1.02f, 1.06f, 0.3f, 1.12f, -0.24f, 0.9f,
+            -0.4f, 0.56f, -0.2f, 0.22f,
         )
         /** Short hair under the cap at the back and the sideburn. */
         private val NAPE = floatArrayOf(
@@ -535,10 +541,10 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
             0.7f, -0.56f, 1.2f, -0.56f, 1.52f, -0.48f, 1.58f, -0.4f, 1.46f, -0.33f,
             0.86f, -0.34f,
         )
-        /** The mohawk tuft, sprouting up and back out of the cap's back strap. */
+        /** The mohawk: a neat fin of four short spikes swept back out of the cap's strap opening. */
         private val TUFT = floatArrayOf(
-            -0.5f, -1.0f, -0.52f, -1.44f, -0.7f, -1.2f, -0.86f, -1.58f, -0.94f, -1.2f,
-            -1.18f, -1.42f, -1.14f, -0.96f, -1.32f, -0.98f, -1.08f, -0.64f, -0.8f, -0.7f,
+            -0.72f, -0.84f, -0.86f, -1.16f, -0.98f, -0.94f, -1.2f, -1.1f, -1.14f, -0.84f,
+            -1.4f, -0.9f, -1.2f, -0.68f, -1.38f, -0.64f, -1.1f, -0.5f, -0.86f, -0.56f,
         )
     }
 }

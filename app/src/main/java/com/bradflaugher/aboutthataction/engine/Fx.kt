@@ -4,7 +4,8 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /** Purely visual particles, simulated with the world so screenshots are deterministic. */
-enum class ParticleKind { SPARK, SHARD, SMOKE, EMBER, GLASS, CASING, DUST, RING, CARDBOARD }
+/** [CONFETTI] is LION's CONFETTI finale; [PEANUT], HAWK's PACKING PEANUTS. Both flutter down. */
+enum class ParticleKind { SPARK, SHARD, SMOKE, EMBER, GLASS, CASING, DUST, RING, CARDBOARD, CONFETTI, PEANUT }
 
 class Particle(
     val kind: ParticleKind,
@@ -50,9 +51,13 @@ object Popup {
     const val SECOND_WIND = "SECOND WIND"
     /** HAWK's SABOTAGE: a drone or turret unplugged by hand. */
     const val UNPLUGGED = "UNPLUGGED"
-    /** HAWK's CAMO: a hit that missed him. */
+    /** FOX's FLYING KICK: a guard kicked flat from the air. */
+    const val FLYING_KICK = "HI-YAH!"
+    /** FOX's SPIN KICK: the bonus boot on the back of a takedown. */
+    const val SPIN_KICK = "SPIN KICK!"
+    /** HAWK's FRAGILE: a hit that missed him. */
     const val MISSED = "MISSED"
-    /** Guards stunned by CHAFF, an AFTERSHOCK or a KABOOM blast. */
+    /** Guards stunned by PACKING PEANUTS, an AFTERSHOCK or a CONFETTI blast. */
     const val DAZED = "DAZED"
 }
 
@@ -105,6 +110,8 @@ class Fx(private val rng: Rng) {
                 ParticleKind.SMOKE -> { p.vx *= 0.96f; p.vy -= 0.6f * dt }
                 ParticleKind.EMBER -> { p.vy -= 1.2f * dt; p.vx *= 0.98f }
                 ParticleKind.RING, ParticleKind.SPARK -> { p.vx *= 0.9f; p.vy *= 0.9f }
+                // Paper and foam: a burst, then a slow flutter down.
+                ParticleKind.CONFETTI, ParticleKind.PEANUT -> { p.vx *= 0.985f; p.vy = p.vy * 0.985f + 5f * dt }
                 else -> p.vy += 14f * dt
             }
         }

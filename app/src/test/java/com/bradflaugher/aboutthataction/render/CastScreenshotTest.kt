@@ -155,7 +155,7 @@ class CastScreenshotTest {
             false to { it.player.state = PlayerState.BOX; it.player.stateTime = 1f },
             false to { it.player.state = PlayerState.PASSAGE; it.player.stateTime = World.PASSAGE_TIME * 0.18f },
             false to { it.player.state = PlayerState.DEAD; it.player.stateTime = 1.4f },
-            false to { it.player.camoTime = 0.3f },
+            false to { it.player.fragileTime = 0.3f },
             false to { it.player.unseenTime = 1f },
         )
         val crops = ArrayList<BufferedImage>()

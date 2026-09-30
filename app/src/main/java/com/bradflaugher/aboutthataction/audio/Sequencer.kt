@@ -26,6 +26,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private val vinyl = Vinyl(sr)
     private val whistle = SlideWhistle(sr)
     private var lastFill = false
+    private val dropFx = DropFx(sr)
     private val rng = Rng(0x5eed + id.toLong())
 
     var spec: SongSpec? = null; private set
@@ -47,6 +48,11 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private var hatRollN = 0
     private var hatRollK = 0
     private var hatRollVel = 0f
+    /** Which of the roll's strokes sound (bit k: stroke k); triplet hats skip some. */
+    private var hatRollMask = -1
+    // Trap drop ([SongSpec.dropThreshold]): landed, and the held breath before landing.
+    private var dropOn = true
+    private var dropGap = false
 
     // Controls
     var rate = 1f
@@ -115,6 +121,9 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         warp = 1f; warpTarget = 1f; crushOn = false
         impactPending = impact
         duckEnv = 0f; duckSm = 0f
+        dropOn = s.dropThreshold < 0f || heat(s) >= s.dropThreshold
+        dropGap = false
+        dropFx.kill()
         fadeTarget = 1f
         if (fadeInSeconds > 0f) {
             fade = 0f; fadeCoef = Dsp.onePole(fadeInSeconds / 4f, sr)
@@ -146,9 +155,11 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         return max(1.0, ceil(steps / inc())).toInt().coerceAtMost(Int.MAX_VALUE / 2)
     }
 
+    private fun heat(s: SongSpec) = if (s.fixedIntensity >= 0f) s.fixedIntensity else intensity
+
     private fun updateLayers() {
         val s = spec ?: return
-        val i = if (s.fixedIntensity >= 0f) s.fixedIntensity else intensity
+        val i = heat(s)
         val kt = s.kickThreshold
         lKick = Dsp.smoothstep(kt - 0.1f, kt + 0.1f, i)
         lSnare = Dsp.smoothstep(kt, kt + 0.2f, i)
@@ -216,7 +227,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
                 continue
             }
             if (hatRollN > 0 && stepPos >= hatRollK.toDouble() / hatRollN - 1e-7) {
-                kit.hat.trigger(hatRollVel * rng.vary(0.1f), false)
+                if ((hatRollMask shr hatRollK) and 1 != 0) kit.hat.trigger(hatRollVel * rng.vary(0.1f), false)
                 if (++hatRollK >= hatRollN) hatRollN = 0
                 continue
             }
@@ -275,6 +286,34 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         val key = sp.tonic + comp.transpose
         val isB = sec == Section.B || sec == Section.B2
 
+        // ---- The drop
+        var dropped = true
+        var gap = false
+        if (sp.dropThreshold >= 0f) {
+            val i = heat(sp)
+            val cool = i < sp.dropThreshold - 0.15f
+            if (s == 0) {
+                if (dropGap) {
+                    // Land it: a crash, a kick and a sub boom on the downbeat.
+                    dropGap = false; dropOn = true; impactPending = true
+                    dropFx.boom(Dsp.midiToHz((nearest(key + chord.root, sp.bassCenter) + 12).toFloat()), 0.3f)
+                } else if (dropOn && cool) {
+                    dropOn = false
+                }
+            }
+            val nextSec = if (phraseBar == 7) sp.sections[(bar / 8 + 1) % sp.sections.size] else sec
+            dropped = dropOn && sec != Section.BREAK
+            if (s == 12 && !dropped && !dropGap && endStep == Long.MAX_VALUE && nextSec != Section.BREAK &&
+                (i >= sp.dropThreshold || (dropOn && !cool))
+            ) {
+                // Hold your breath: the last beat cuts out under a swell.
+                dropGap = true
+                bass.releaseAll()
+                dropFx.swell((4 * stepSamples).toInt(), 0.35f)
+            }
+            gap = dropGap
+        }
+
         // ---- Drums
         val transitionFill = endStep != Long.MAX_VALUE && absStep >= endStep - 8
         val fill = transitionFill ||
@@ -282,9 +321,9 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             (bar % 16 == 15 && s >= 8 && lSnare > 0.5f)
         val brk = sec == Section.BREAK && !fill
         val pat = if (fill) sp.fill else if (isB) sp.drumsB else sp.drumsA
-        val kMul = if (transitionFill) max(lKick, 0.6f) else lKick
+        val kMul = if (transitionFill) max(lKick, 0.6f) else if (dropped) lKick else 0f
         val sMul = if (transitionFill) max(lSnare, 0.6f) else lSnare
-        if (!brk) {
+        if (!brk && !gap) {
             val kv = DrumPattern.velocity(pat.kick[s]) * kMul
             if (kv > 0.02f) {
                 kit.kick.trigger(kv * rng.vary(0.05f)); duckEnv = max(duckEnv, kv)
@@ -312,21 +351,30 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             lastFill = fill
         }
         val ov = DrumPattern.velocity(pat.open[s])
-        if (ov > 0f) {
+        if (gap) {
+            // (the held breath: no hats either)
+        } else if (ov > 0f) {
             kit.hat.trigger(ov * lHat * rng.vary(0.1f), true)
         } else {
-            val hc = pat.hat[s]
+            val hc = (if (bar % 2 == 1) pat.hat2 else pat.hat)[s]
             val hv = DrumPattern.velocity(hc)
-            if (hv > 0f) kit.hat.trigger(hv * lHat * rng.vary(0.12f), false)
+            // 16th-note triplets: 'y' strikes thirds 0 and 2 of the step, 'z' just third 1.
+            val mask = when (hc) {
+                'y' -> 0b101
+                'z' -> 0b010
+                else -> -1
+            }
+            if (hv > 0f && mask and 1 != 0) kit.hat.trigger(hv * lHat * rng.vary(0.12f), false)
             val strokes = when (hc) {
                 'r' -> 2
-                't' -> 3
+                't', 'y', 'z' -> 3
                 'q' -> 4
+                'w' -> 6
                 else -> 0
             }
             if (strokes > 0) {
                 // The rest of the roll, evenly through what's left of the step.
-                hatRollN = strokes; hatRollK = 1; hatRollVel = hv * lHat * 0.85f
+                hatRollN = strokes; hatRollK = 1; hatRollVel = hv * lHat * 0.85f; hatRollMask = mask
                 if (stepPos > 0.0) {
                     while (hatRollK < hatRollN && hatRollK.toDouble() / hatRollN <= stepPos) hatRollK++
                     if (hatRollK >= hatRollN) hatRollN = 0
@@ -342,8 +390,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         val tomMul = if (transitionFill) max(lSnare, 0.6f) else lSnare
         if (tc != '.' && tomMul > 0.05f) kit.tom(DrumPattern.velocity(tc) * tomMul, if (tc in '1'..'3') tc - '1' else 1)
         val pv = DrumPattern.velocity(pat.perc[s]) * lPerc
-        if (pv > 0.02f && !brk) kit.perc(pv * rng.vary(0.1f))
-        if (s == 0 && ((phraseBar == 0 && bar > 0 && lKick > 0.5f && !brk) || impactPending)) {
+        if (pv > 0.02f && !brk && !gap) kit.perc(pv * rng.vary(0.1f))
+        if (s == 0 && ((phraseBar == 0 && bar > 0 && lKick > 0.5f && !brk && dropped) || impactPending)) {
             kit.crash.trigger(if (impactPending) 1f else 0.75f)
             crowdSwell = 1f
         }
@@ -356,7 +404,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         // ---- Bass
         val brow = if (isB) sp.bassB else sp.bassA
         val bc = brow[s]
-        if (bc != '.' && bc != '~') {
+        // Before the drop the bass only teases: a soft note on the downbeat.
+        if (bc != '.' && bc != '~' && !gap && (dropped || s == 0)) {
             val root = nearest(key + chord.root, sp.bassCenter)
             val iv = chord.intervals
             val note = when (bc) {
@@ -369,7 +418,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
                 'A', 'a' -> nearest(key + comp.chordAt(bar + 1).root, sp.bassCenter) - 1
                 else -> root
             }
-            val vel = (if (bc.isLowerCase()) 0.62f else 1f) * (if (brk) 0.8f else 1f)
+            val vel = (if (bc.isLowerCase()) 0.62f else 1f) * (if (brk) 0.8f else 1f) * (if (dropped) 1f else 0.5f)
             val len = 1 + ties(brow, s)
             // A slide holds the note into the next one, so the mono voice glides there.
             val slide = sp.bassSlide && s + len < 16 && brow[s + len] != '.'
@@ -449,6 +498,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         jungle.render(ambL, ambR, n, sp.jungle)
         vinyl.render(ambL, ambR, n, sp.vinyl)
         whistle.render(ambL, ambR, n, sp.slideWhistle, pm)
+        dropFx.render(ambL, ambR, n)
         if (sp.crowd > 0f) {
             val i = if (sp.fixedIntensity >= 0f) sp.fixedIntensity else intensity
             crowdSwell *= crowdDecay.pow(n)
@@ -556,6 +606,7 @@ internal class MusicDirector(private val sr: Int) {
     private fun switchTo(spec: SongSpec, impact: Boolean, oldFade: Float, fadeIn: Float) {
         players[active].stop(oldFade)
         active = 1 - active
+        players[active].intensity = intensity
         players[active].start(spec, composerFor(spec), impact, fadeIn)
         current = spec
         pending = null

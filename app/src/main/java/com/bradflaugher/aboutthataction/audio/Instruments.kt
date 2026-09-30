@@ -72,6 +72,12 @@ internal class Patch(
     val pluck: Float = 0f,
     /** How long a plucked string rings (seconds to -60 dB) while the key is held. */
     val ring: Float = 1.5f,
+    /**
+     * A struck note starts this many semitones sharp and falls to pitch (an 808's punch);
+     * a glide into a tied note doesn't restrike it. [pitchDecay] is its time constant.
+     */
+    val pitchEnv: Float = 0f,
+    val pitchDecay: Float = 0.04f,
 ) {
     val driveGain = 1f + drive * 3f
     val driveComp = if (drive > 0f) 1f / Dsp.tanh(min(driveGain, 3f)) * (1f / (1f + drive * 0.5f)) else 1f
@@ -103,6 +109,7 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
     private var tremGain = 1f
     private var sinceOn = 0
     private var vel = 1f
+    private var pEnv = 0f
 
     // Plucked string: the delay line, its loop filter and the excitation burst still to play.
     private val string = DelayLine(MAX_STRING)
@@ -142,6 +149,7 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
         flt.set(p.fa, p.fd, p.fs, p.fr)
         amp.gateOn(); flt.gateOn()
         sinceOn = 0
+        pEnv = 1f
     }
 
     fun release() {
@@ -165,6 +173,10 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
         lfo += pt.vibRate * n / sr
         if (lfo > 1f) lfo -= 1f
         var f = hz * pitchMul
+        if (pt.pitchEnv != 0f) {
+            f *= Dsp.semis(pt.pitchEnv * pEnv)
+            pEnv *= kotlin.math.exp(-n / (pt.pitchDecay * sr))
+        }
         if (pt.vibrato > 0f) {
             val depth = min(1f, sinceOn / (0.3f * sr))
             f *= 1f + 0.05776f * pt.vibrato * depth * Dsp.sin01(lfo)
@@ -358,6 +370,68 @@ internal class Instrument(private val sr: Int, voices: Int, seed: Int) {
 
     companion object {
         const val MAX_CHUNK = 64
+    }
+}
+
+/**
+ * A trap drop's ear candy: a reversed cymbal swelling into the drop (noise opening up from
+ * a hiss to a full wash, cut dead on the downbeat) and a sub boom that falls an octave on it.
+ */
+internal class DropFx(private val sr: Int) {
+    private val nl = Noise(5150)
+    private val nr = Noise(8150)
+    private val fl = Svf()
+    private val fr = Svf()
+    private var swellAt = 0
+    private var swellLen = 0
+    private var swellLevel = 0f
+    private var boom = 0f
+    private var boomCoef = 1f
+    private var boomHz = 0f
+    private var boomFall = 1f
+    private var boomPhase = 0f
+
+    /** A swell [samples] long, peaking at [level] just as it's cut. */
+    fun swell(samples: Int, level: Float) {
+        swellAt = 0; swellLen = maxOf(1, samples); swellLevel = level
+    }
+
+    /** A sub boom from [hz], falling an octave over about a second. */
+    fun boom(hz: Float, level: Float) {
+        boom = level; boomHz = hz; boomPhase = 0f
+        boomCoef = Dsp.decay60(1.8f, sr); boomFall = Dsp.decay60(1.1f * 6.9f / 0.69f, sr)
+        swellLen = 0
+    }
+
+    fun kill() {
+        swellLen = 0; boom = 0f
+    }
+
+    fun render(l: FloatArray, r: FloatArray, n: Int) {
+        if (swellLen > 0) {
+            val p = swellAt.toFloat() / swellLen
+            // Opens from a thin top-end hiss to the whole wash as it grows.
+            val hz = 9000f * 0.12f.pow(p)
+            fl.setHz(hz, 0.7f, sr); fr.setHz(hz * 1.07f, 0.7f, sr)
+            for (i in 0 until n) {
+                if (swellAt >= swellLen) {
+                    swellLen = 0; break
+                }
+                val e = (swellAt.toFloat() / swellLen).let { it * it } * swellLevel
+                swellAt++
+                l[i] += fl.hp(nl.next()) * e
+                r[i] += fr.hp(nr.next()) * e
+            }
+        }
+        if (boom > 1e-4f) {
+            for (i in 0 until n) {
+                boomPhase += boomHz / sr; if (boomPhase >= 1f) boomPhase -= 1f
+                val x = Dsp.tanh(Dsp.sin01(boomPhase) * 2f) * boom
+                l[i] += x; r[i] += x
+                boom *= boomCoef
+                boomHz = maxOf(20f, boomHz * boomFall)
+            }
+        }
     }
 }
 

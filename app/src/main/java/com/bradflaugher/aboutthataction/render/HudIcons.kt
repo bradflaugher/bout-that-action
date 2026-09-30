@@ -189,97 +189,129 @@ internal object HudIcons {
                 Glyphs.heart(g, cx + k * 0.58f, cy + k * 0.6f, k * 0.74f, c)
 
             }
-            Perk.DISGUISE -> {
-                // The classic kit: bushy brows, round specs, a big nose and a moustache.
-                g.strokeCircle(cx - k * 0.44f, cy - k * 0.32f, k * 0.3f, sw * 0.85f, c)
-                g.strokeCircle(cx + k * 0.44f, cy - k * 0.32f, k * 0.3f, sw * 0.85f, c)
-                g.fillRoundRect(cx - k * 0.84f, cy - k * 0.94f, cx - k * 0.14f, cy - k * 0.74f, k * 0.1f, c)
-                g.fillRoundRect(cx + k * 0.14f, cy - k * 0.94f, cx + k * 0.84f, cy - k * 0.74f, k * 0.1f, c)
-                val pb = poly.begin()
-                for (i in MOUSTACHE_X.indices) pb.add(cx + MOUSTACHE_X[i] * k, cy + MOUSTACHE_Y[i] * k)
-                for (i in MOUSTACHE_X.size - 1 downTo 0) pb.add(cx - MOUSTACHE_X[i] * k, cy + MOUSTACHE_Y[i] * k)
-                pb.fill(g, c)
-                g.fillCircle(cx, cy + k * 0.08f, k * 0.28f, h)
-                g.fillCircle(cx, cy + k * 0.08f, k * 0.2f, c)
+            Perk.SHOWSTOPPER -> {
+                // A face mid-wink, one eye shut and a sparkle off the grin: did she just wink?
+                val fx = cx - k * 0.12f
+                val fy = cy + k * 0.12f
+                g.fillCircle(fx, fy, k * 0.78f, c)
+                g.fillCircle(fx - k * 0.3f, fy - k * 0.18f, k * 0.13f, h)
+                g.strokeArc(fx + k * 0.3f, fy - k * 0.1f, k * 0.17f, 200f, 140f, k * GAP * 1.2f, h)
+                g.strokeArc(fx, fy + k * 0.02f, k * 0.46f, 25f, 130f, k * GAP * 1.3f, h)
+                g.fillCircle(cx + k * 0.66f, cy - k * 0.66f, k * 0.34f, h)
+                spark(g, cx + k * 0.66f, cy - k * 0.66f, k * 0.3f, c)
             }
-            Perk.LASER_WATCH -> {
-                // A wristwatch on its strap, a laser beam cutting out of its face.
-                g.fillRoundRect(cx - k * 0.64f, cy - k * 0.96f, cx - k * 0.16f, cy + k * 0.96f, k * 0.1f, c)
-                g.fillCircle(cx - k * 0.4f, cy, k * 0.5f, c)
-                g.fillCircle(cx - k * 0.4f, cy, k * 0.3f, h)
-                g.line(cx - k * 0.4f, cy + k * 0.02f, cx - k * 0.4f, cy - k * 0.2f, k * 0.1f, c)
-                g.line(cx - k * 0.4f, cy + k * 0.02f, cx - k * 0.24f, cy + k * 0.06f, k * 0.1f, c)
-                g.line(cx + k * 0.1f, cy, cx + k * 0.7f, cy, sw * 0.7f, c)
-                spark(g, cx + k * 0.72f, cy, k * 0.3f, c)
+            Perk.SPIN_KICK -> {
+                // A fighter's boot with the spin whirling round it and back on itself.
+                g.strokeArc(cx, cy, k * 0.84f, 200f, 250f, sw * 0.8f, c)
+                arrowHead(g, cx - k * 0.4f, cy + k * 0.84f, -1f, 0f, k * 0.42f, c)
+                g.save()
+                g.translate(cx - k * 0.1f, cy + k * 0.02f)
+                boot(g, 0f, 0f, k * 0.72f, c)
+                g.restore()
             }
-            Perk.DEAD_DROP -> {
-                // A briefcase with a drop arrow cut into it: the loot left behind.
-                g.strokeRoundRect(cx - k * 0.28f, cy - k * 0.84f, cx + k * 0.28f, cy - k * 0.42f, k * 0.1f, sw * 0.75f, c)
-                g.fillRoundRect(cx - k * 0.94f, cy - k * 0.52f, cx + k * 0.94f, cy + k * 0.84f, k * 0.16f, c)
-                g.line(cx, cy - k * 0.3f, cx, cy + k * 0.24f, sw * 0.8f, h)
-                poly.tri(g, cx - k * 0.36f, cy + k * 0.14f, cx + k * 0.36f, cy + k * 0.14f, cx, cy + k * 0.62f, h)
+            Perk.FLYING_KICK -> {
+                // A boot diving in, speed lines streaming behind, the impact off the sole.
+                g.save()
+                g.translate(cx + k * 0.16f, cy - k * 0.02f)
+                g.rotate(-30f)
+                boot(g, 0f, 0f, k * 0.8f, c)
+                g.restore()
+                g.line(cx - k * 0.96f, cy - k * 0.62f, cx - k * 0.6f, cy - k * 0.62f, sw * 0.7f, c)
+                g.line(cx - k * 0.96f, cy - k * 0.1f, cx - k * 0.54f, cy - k * 0.1f, sw * 0.7f, c)
+                g.line(cx - k * 0.96f, cy + k * 0.42f, cx - k * 0.44f, cy + k * 0.42f, sw * 0.7f, c)
+                spark(g, cx + k * 0.74f, cy + k * 0.66f, k * 0.3f, c)
             }
-            Perk.KABOOM -> {
-                // A cowboy hat: a pinched crown with its band, the brim curling up at both sides.
-                shape(g, HAT_CROWN, cx, cy, k, c)
-                shape(g, HAT_BRIM, cx, cy, k, c)
-                g.fillRect(cx - k * 0.49f, cy - k * 0.12f, cx + k * 0.49f, cy - k * 0.01f, h)
-            }
-            Perk.VENT_CRAWL -> {
-                // An air vent: a grille of slats and four screws.
-                g.fillRoundRect(cx - k * 0.92f, cy - k * 0.74f, cx + k * 0.92f, cy + k * 0.74f, k * 0.16f, c)
-                for (i in 0 until 3) {
-                    val y = cy - k * 0.36f + i * k * 0.36f
-                    g.fillRoundRect(cx - k * 0.56f, y - k * 0.1f, cx + k * 0.56f, y + k * 0.1f, k * 0.1f, h)
+            Perk.CONFETTI -> {
+                // A party popper going off: the striped cone, and confetti and a streamer bursting out.
+                poly.tri(g, cx - k * 0.94f, cy + k * 0.94f, cx - k * 0.66f, cy - k * 0.04f, cx + k * 0.04f, cy + k * 0.66f, c)
+                g.line(cx - k * 0.72f, cy + k * 0.3f, cx - k * 0.3f, cy + k * 0.72f, k * GAP, h)
+                g.line(cx - k * 0.82f, cy + k * 0.62f, cx - k * 0.62f, cy + k * 0.82f, k * GAP, h)
+                for (i in CONFETTI_X.indices) {
+                    g.save()
+                    g.translate(cx + CONFETTI_X[i] * k, cy + CONFETTI_Y[i] * k)
+                    g.rotate(i * 37f)
+                    g.fillRoundRect(-k * 0.13f, -k * 0.08f, k * 0.13f, k * 0.08f, k * 0.03f, c)
+                    g.restore()
                 }
-                for (sx in -1..1 step 2) for (sy in -1..1 step 2) {
-                    g.fillCircle(cx + sx * k * 0.76f, cy + sy * k * 0.56f, k * 0.08f, h)
-                }
+                g.strokeArc(cx + k * 0.02f, cy - k * 0.42f, k * 0.2f, 180f, 180f, sw * 0.6f, c)
+                g.strokeArc(cx + k * 0.42f, cy - k * 0.42f, k * 0.2f, 0f, 180f, sw * 0.6f, c)
             }
-            Perk.ADRENALINE -> {
-                // A heart with the pulse racing straight through it.
-                Glyphs.heart(g, cx, cy + k * 0.06f, k * 1.8f, c)
-                val xs = PULSE_X
-                val ys = PULSE_Y
-                for (i in 0 until xs.size - 1) g.line(cx + xs[i] * k, cy + ys[i] * k, cx + xs[i + 1] * k, cy + ys[i + 1] * k, sw * 0.7f, h)
-            }
-            Perk.JAMMER -> {
-                // A broadcast mast, its signal struck through: the channels are jammed.
-                poly.tri(g, cx, cy - k * 0.2f, cx - k * 0.34f, cy + k * 0.92f, cx + k * 0.34f, cy + k * 0.92f, c)
-                g.fillCircle(cx, cy - k * 0.2f, k * 0.2f, c)
+            Perk.CLOWN_CAR -> {
+                // A tiny bubble car, three heads crammed out of the roof: how many fit in there?
+                for (i in -1..1) g.fillCircle(cx + i * k * 0.36f, cy - k * 0.6f, k * 0.25f, h)
+                for (i in -1..1) g.fillCircle(cx + i * k * 0.36f, cy - k * 0.62f, k * 0.19f, c)
+                g.fillArc(cx, cy + k * 0.06f, k * 0.62f, 180f, 180f, h)
+                g.fillArc(cx, cy + k * 0.06f, k * 0.54f, 180f, 180f, c)
+                g.fillArc(cx, cy + k * 0.04f, k * 0.34f, 180f, 180f, h)
+                g.fillRoundRect(cx - k * 0.96f, cy - k * 0.02f, cx + k * 0.96f, cy + k * 0.56f, k * 0.24f, c)
                 for (sx in -1..1 step 2) {
-                    val a0 = if (sx > 0) -40f else 140f
-                    g.strokeArc(cx, cy - k * 0.2f, k * 0.46f, a0, 80f, sw * 0.8f, c)
-                    g.strokeArc(cx, cy - k * 0.2f, k * 0.8f, a0, 80f, sw * 0.8f, c)
+                    g.fillCircle(cx + sx * k * 0.52f, cy + k * 0.6f, k * 0.36f, h)
+                    g.fillCircle(cx + sx * k * 0.52f, cy + k * 0.6f, k * 0.27f, c)
+                    g.fillCircle(cx + sx * k * 0.52f, cy + k * 0.6f, k * 0.09f, h)
                 }
-                g.save()
-                g.clipRect(cx - k * 0.92f, cy - k * 0.74f, cx + k * 0.92f, cy + k * 0.96f)
-                g.line(cx - k * 0.84f, cy - k * 0.9f, cx + k * 0.84f, cy + k * 0.78f, sw * 1.5f, h)
-                g.restore()
-
-                g.line(cx - k * 0.84f, cy - k * 0.9f, cx + k * 0.84f, cy + k * 0.78f, sw * 0.8f, c)
             }
-            Perk.CHAFF -> {
-                // A grenade bursting into a glittering cloud.
-                grenade(g, cx - k * 0.34f, cy + k * 0.3f, s * 0.7f, c)
-                spark(g, cx + k * 0.5f, cy - k * 0.5f, k * 0.46f, c)
-                spark(g, cx - k * 0.46f, cy - k * 0.78f, k * 0.22f, c)
-                spark(g, cx + k * 0.74f, cy + k * 0.3f, k * 0.26f, c)
-
+            Perk.ENCORE -> {
+                // Curtain call: the drapes swept back, the pelmet, and a star taking a bow.
+                g.fillRoundRect(cx - k * 0.96f, cy - k * 0.96f, cx + k * 0.96f, cy - k * 0.72f, k * 0.08f, c)
+                shape(g, DRAPE, cx, cy, k, c)
+                shape(g, DRAPE, cx, cy, k, c, -1f)
+                stash(g, cx, cy + k * 0.22f, k * 1.1f, c)
             }
-            Perk.CAMO -> {
-                // A figure behind a leafy sprig: just a very tall fern.
-                g.fillCircle(cx - k * 0.26f, cy - k * 0.52f, k * 0.34f, c)
-                g.fillRoundRect(cx - k * 0.86f, cy - k * 0.04f, cx + k * 0.34f, cy + k * 1.0f, k * 0.36f, c)
-                g.save()
-                g.clipRect(cx - k * 0.86f, cy - k * 0.84f, cx + k * 0.34f, cy + k * 1f)
-                leaf(g, cx + k * 0.4f, cy + k * 0.36f, k * 0.62f, -1.1f, h, k * 0.12f)
-                g.restore()
-                leaf(g, cx + k * 0.4f, cy + k * 0.36f, k * 0.62f, -1.1f, c, 0f)
-                g.line(cx + k * 0.2f, cy + k * 0.78f, cx + k * 0.58f, cy - k * 0.04f, k * GAP, h)
-                leaf(g, cx + k * 0.7f, cy - k * 0.44f, k * 0.34f, -0.5f, c, 0f)
+            Perk.SIGNED_FOR -> {
+                // A parcel with its label, a signature scrawled across it, and the pen.
+                g.fillRoundRect(cx - k * 0.92f, cy - k * 0.5f, cx + k * 0.56f, cy + k * 0.92f, k * 0.1f, c)
+                g.fillRect(cx - k * 0.92f, cy - k * 0.1f, cx + k * 0.56f, cy - k * 0.1f + k * GAP * 1.4f, h)
+                g.fillRoundRect(cx - k * 0.72f, cy + k * 0.18f, cx + k * 0.36f, cy + k * 0.74f, k * 0.06f, h)
+                for (i in 0 until SIG_X.size - 1) {
+                    g.line(cx + SIG_X[i] * k, cy + SIG_Y[i] * k, cx + SIG_X[i + 1] * k, cy + SIG_Y[i + 1] * k, k * GAP * 1.1f, c)
+                }
+                // The pen, nib down on the box.
+                g.line(cx + k * 0.84f, cy - k * 0.94f, cx + k * 0.28f, cy - k * 0.22f, sw * 1.1f, h)
+                g.line(cx + k * 0.84f, cy - k * 0.94f, cx + k * 0.34f, cy - k * 0.3f, sw * 0.8f, c)
+                poly.tri(g, cx + k * 0.34f, cy - k * 0.42f, cx + k * 0.46f, cy - k * 0.32f, cx + k * 0.24f, cy - k * 0.18f, c)
+            }
+            Perk.PACKING_PEANUTS -> {
+                // Foam packing peanuts, tumbling every which way.
+                peanut(g, cx - k * 0.42f, cy - k * 0.44f, k * 0.5f, 0.5f, c, h)
+                peanut(g, cx + k * 0.46f, cy - k * 0.1f, k * 0.5f, -1.0f, c, h)
+                peanut(g, cx - k * 0.2f, cy + k * 0.54f, k * 0.5f, 0.15f, c, h)
+            }
+            Perk.FRAGILE -> {
+                // The sticker's stemmed glass, cracked right across: handle with care.
+                g.fillRect(cx - k * 0.56f, cy - k * 0.92f, cx + k * 0.56f, cy - k * 0.42f, c)
+                g.fillArc(cx, cy - k * 0.43f, k * 0.56f, 0f, 180f, c)
+                g.line(cx, cy + k * 0.08f, cx, cy + k * 0.72f, sw * 0.9f, c)
+                g.fillRoundRect(cx - k * 0.46f, cy + k * 0.66f, cx + k * 0.46f, cy + k * 0.9f, k * 0.1f, c)
+                for (i in 0 until CRACK_X.size - 1) {
+                    g.line(cx + CRACK_X[i] * k, cy + CRACK_Y[i] * k, cx + CRACK_X[i + 1] * k, cy + CRACK_Y[i + 1] * k, k * GAP * 1.2f, h)
+                }
             }
         }
+    }
+
+    /** A fighter's boot standing toe-right, [r] from the cuff to the sole, centred on (x, y). */
+    private fun boot(g: Gfx, x: Float, y: Float, r: Float, c: Int) {
+        val pb = poly.begin()
+        var i = 0
+        while (i < BOOT.size) {
+            pb.add(x + BOOT[i] * r, y + BOOT[i + 1] * r)
+            i += 2
+        }
+        pb.fill(g, c)
+        val hc = cut(HOLE, c)
+        g.line(x - r * 0.4f, y + r * 0.42f, x + r * 0.66f, y + r * 0.42f, r * GAP, hc)
+        g.line(x - r * 0.4f, y - r * 0.62f, x + r * 0.1f, y - r * 0.62f, r * GAP, hc)
+    }
+
+    /** A foam packing peanut: a fat, pinched squiggle [r] long, turned [ang] radians, dimpled. */
+    private fun peanut(g: Gfx, x: Float, y: Float, r: Float, ang: Float, c: Int, h: Int) {
+        val ux = cos(ang)
+        val uy = sin(ang)
+        g.fillCircle(x - ux * r * 0.42f, y - uy * r * 0.42f, r * 0.44f, c)
+        g.fillCircle(x + ux * r * 0.42f, y + uy * r * 0.42f, r * 0.44f, c)
+        g.line(x - ux * r * 0.3f, y - uy * r * 0.3f, x + ux * r * 0.3f, y + uy * r * 0.3f, r * 0.62f, c)
+        g.fillCircle(x - ux * r * 0.46f, y - uy * r * 0.46f, r * 0.12f, h)
+        g.fillCircle(x + ux * r * 0.46f, y + uy * r * 0.46f, r * 0.12f, h)
     }
 
     /** A projectile in flight pointing right, rear at x0, tip at x1, [r] its half-thickness. */
@@ -334,24 +366,6 @@ internal object HudIcons {
         g.line(x + r * 0.35f, y - r * 0.8f, x + r * 0.35f, y + r * 0.8f, r * 0.26f, hc)
     }
 
-    /** A leaf: a pointed lens [r] long, turned [ang] radians, grown by [pad] all round. */
-    private fun leaf(g: Gfx, x: Float, y: Float, r: Float, ang: Float, c: Int, pad: Float = 0f) {
-        val ux = cos(ang)
-        val uy = sin(ang)
-        val pb = poly.begin()
-        for (i in 0..8) {
-            val t = -1f + i / 4f
-            val w = (1f - t * t) * 0.42f * r + pad
-            pb.add(x + ux * t * (r + pad) - uy * w, y + uy * t * (r + pad) + ux * w)
-        }
-        for (i in 1..7) {
-            val t = 1f - i / 4f
-            val w = (1f - t * t) * 0.42f * r + pad
-            pb.add(x + ux * t * (r + pad) + uy * w, y + uy * t * (r + pad) - ux * w)
-        }
-        pb.fill(g, c)
-    }
-
     /** A four-point spark. */
     private fun spark(g: Gfx, x: Float, y: Float, r: Float, c: Int) {
         poly.begin()
@@ -380,17 +394,6 @@ internal object HudIcons {
     /** The left flap of the ghost box, folded up and out (mirrored for the right). */
     private val BOX_FLAP = floatArrayOf(-0.72f, -0.46f, -0.06f, -0.46f, -0.2f, -0.78f, -0.96f, -0.72f)
 
-    /** The cowboy hat: a crown pinched at the top, and a brim swept up at both ends. */
-    private val HAT_CROWN = floatArrayOf(
-        -0.46f, 0.14f, -0.52f, -0.3f, -0.48f, -0.62f, -0.32f, -0.86f, -0.14f, -0.82f, 0f, -0.66f,
-        0.14f, -0.82f, 0.32f, -0.86f, 0.48f, -0.62f, 0.52f, -0.3f, 0.46f, 0.14f,
-    )
-    private val HAT_BRIM = floatArrayOf(
-        -0.96f, -0.56f, -0.86f, -0.2f, -0.68f, 0.02f, -0.38f, 0.12f, 0f, 0.15f, 0.38f, 0.12f, 0.68f, 0.02f, 0.86f, -0.2f,
-        0.96f, -0.56f, 0.99f, -0.2f, 0.92f, 0.1f, 0.74f, 0.32f, 0.4f, 0.44f, 0f, 0.47f, -0.4f, 0.44f, -0.74f, 0.32f,
-        -0.92f, 0.1f, -0.99f, -0.2f,
-    )
-
     /** Shockwave spray angles off the floor (radians up from horizontal). */
     private val SHOCK_A = floatArrayOf(0.1f, 0.56f)
 
@@ -398,11 +401,21 @@ internal object HudIcons {
 
     private val QUAKE_X = floatArrayOf(-0.96f, -0.62f, -0.42f, -0.16f, 0.12f, 0.4f, 0.62f, 0.96f)
     private val QUAKE_Y = floatArrayOf(0.1f, 0.1f, -0.44f, 0.46f, -0.9f, 0.3f, 0.1f, 0.1f)
-    private val PULSE_X = floatArrayOf(-0.8f, -0.42f, -0.2f, 0.06f, 0.28f, 0.8f)
-    private val PULSE_Y = floatArrayOf(-0.02f, -0.02f, -0.46f, 0.42f, -0.02f, -0.02f)
-    /** Half a curly moustache, from the centre out to the curled tip (mirrored for the other half). */
-    private val MOUSTACHE_X = floatArrayOf(0f, 0.36f, 0.72f, 0.94f, 0.9f, 0.76f, 0.84f, 0.5f, 0f)
-    private val MOUSTACHE_Y = floatArrayOf(0.28f, 0.2f, 0.32f, 0.18f, 0.02f, 0.1f, 0.38f, 0.64f, 0.52f)
+    /** The fighter's boot, toe right: the shaft, the ankle, a rounded toe and a flat heel. */
+    private val BOOT = floatArrayOf(
+        -0.4f, -0.8f, 0.1f, -0.8f, 0.12f, -0.04f, 0.46f, 0.06f, 0.62f, 0.16f, 0.68f, 0.3f, 0.66f, 0.52f, -0.42f, 0.52f,
+    )
+    /** The left drape of the curtain call, swept back (mirrored for the right). */
+    private val DRAPE = floatArrayOf(-0.96f, -0.74f, -0.3f, -0.74f, -0.5f, -0.44f, -0.66f, -0.02f, -0.7f, 0.94f, -0.96f, 0.94f)
+    /** Confetti flying off the popper. */
+    private val CONFETTI_X = floatArrayOf(-0.46f, 0.7f, 0.2f, 0.76f, -0.08f, 0.4f)
+    private val CONFETTI_Y = floatArrayOf(-0.62f, -0.78f, -0.02f, 0.26f, -0.86f, 0.52f)
+    /** The signature's scrawl across the parcel label. */
+    private val SIG_X = floatArrayOf(-0.6f, -0.46f, -0.36f, -0.26f, -0.12f, 0f, 0.1f, 0.24f)
+    private val SIG_Y = floatArrayOf(0.56f, 0.3f, 0.6f, 0.36f, 0.58f, 0.34f, 0.5f, 0.44f)
+    /** The crack down the fragile glass. */
+    private val CRACK_X = floatArrayOf(-0.1f, 0.1f, -0.06f, 0.14f, 0.02f)
+    private val CRACK_Y = floatArrayOf(-0.92f, -0.66f, -0.46f, -0.24f, -0.02f)
 
     fun pickup(g: Gfx, p: PickupKind, cx: Float, cy: Float, s: Float, c: Int) {
         val k = s / 2f

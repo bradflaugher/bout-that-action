@@ -13,7 +13,7 @@ import kotlin.math.sin
  */
 internal class FoxKit(a: HeroArt) : HeroKit(a) {
     override val bulk = 0.9f
-    override val head = 1.0f
+    override val head = 1.06f
     override val legs = 1.06f
     override val spine = 0.94f
     override val accent = RED
@@ -38,6 +38,39 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         l.legW = 0.88f
         l.armW = 0.86f
         l.feet = Look.FEET_BOOT
+        swagger()
+    }
+
+    private var sway = Float.NaN
+    private var swayY = Float.NaN
+
+    /**
+     * Standing tall with attitude: when the pose has her upright on both feet (idle, low ready,
+     * firing; not crouched, running or in the air), the hips go forward, the shoulders back
+     * and the chin up, with the hands and feet re-solved to where the pose put them. Called
+     * once per posed figure (a repeat draw of the same pose is left alone).
+     */
+    private fun swagger() {
+        if (!a.live || a.run > 0.08f || a.fall > 0f) return
+        if (k.headX == sway && k.headY == swayY) return
+        val legLen = k.legF.len1 + k.legF.len2
+        if (k.ground - k.hipY < legLen * k.standHip - 0.05f * k.hs) return
+        if (k.legF.ey < k.ground - 0.02f || k.legB.ey < k.ground - 0.02f) return
+        val dir = k.dir
+        val hd = k.neckLen + k.headR
+        val hl = kotlin.math.atan2(((k.headX - k.neckX) * dir - k.headFwd * k.hs) / hd, (k.neckY - k.headY) / hd)
+        val nod = hl - k.lean * k.headLean
+        val fx = k.armF.ex; val fy = k.armF.ey
+        val bx = k.armB.ex; val by = k.armB.ey
+        val lfx = k.legF.ex; val lbx = k.legB.ex
+        k.hip(k.hipX + 0.03f * dir * k.hs, k.hipY)
+        k.ik(k.legF, lfx, k.legF.ey.coerceAtMost(k.ground), true)
+        k.ik(k.legB, lbx, k.legB.ey.coerceAtMost(k.ground), true)
+        k.spine(k.lean - 0.07f, nod - 0.02f)
+        k.ik(k.armF, fx, fy, false)
+        k.ik(k.armB, bx, by, false)
+        sway = k.headX
+        swayY = k.headY
     }
 
     /** Leather sleeves shoved up past the elbow, bare forearms, red fingerless gloves. */
@@ -60,6 +93,8 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         frontOf(l.ax, l.ay, l.jx, l.jy)
         addLine(Rig.mix(l.ax, l.jx, 0.15f) + nrm[0] * aw * 0.22f, Rig.mix(l.ay, l.jy, 0.15f) + nrm[1] * aw * 0.22f, Rig.mix(l.ax, l.jx, 0.62f) + nrm[0] * aw * 0.2f, Rig.mix(l.ay, l.jy, 0.62f) + nrm[1] * aw * 0.2f, 0.014f * k.hs, 0x70FFB0A8)
         band(l.jx, l.jy, l.ex, l.ey, 0.88f, 0.91f, aw * 0.66f, GLOVE_DARK)
+        // The seam where the padded shoulder meets the sleeve.
+        band(l.ax, l.ay, l.jx, l.jy, 0.34f, 0.38f, aw * 0.98f, JACKET_DARK)
     }
 
     /** Fitted trousers into laced fighter boots up the shin, a red cuff at the top. */
@@ -86,7 +121,7 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         val aw = k.limbW * look.armW
         val sx = Rig.mix(l.ax, l.jx, 0.3f)
         val sy = Rig.mix(l.ay, l.jy, 0.3f)
-        p.bone(l.ax + k.ux * 0.01f, l.ay + k.uy * 0.01f, sx, sy, aw * 1.04f, aw * 0.94f, if (far) JACKET_FAR else JACKET, lit = !far)
+        p.bone(l.ax + k.ux * 0.015f, l.ay + k.uy * 0.015f, sx, sy, aw * 1.22f, aw * 0.98f, if (far) JACKET_FAR else JACKET, lit = !far, bulge = aw * 1.26f)
         if (far || !p.shading) return
         addLine(l.ax - k.nx * 0.04f + k.ux * 0.04f, l.ay - k.ny * 0.04f + k.uy * 0.04f, l.ax + k.nx * 0.04f + k.ux * 0.05f, l.ay + k.ny * 0.04f + k.uy * 0.05f, 0.018f * k.hs, 0x60FFB0A8)
     }
@@ -106,15 +141,19 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         contour(JACKET_PTS, c, w)
         if (p.ink) {
             p.shape(JACKET)
+            collar(c)
             return
         }
         // High-waisted trousers from the belt down.
         p.begin()
         tp(-0.15f, -w * 0.6f); tp(-0.17f, w * 0.44f); tp(0.04f, w * 0.52f); tp(0.34f, w * 0.42f); tp(0.34f, -w * 0.46f); tp(0.16f, -w * 0.6f); tp(0.0f, -w * 0.68f)
         p.shapeGradDetail(PANTS, ActorPaint.shade(PANTS), tx(0.1f, w * 0.5f), ty(0.1f, w * 0.5f), tx(0.1f, -w * 0.6f), ty(0.1f, -w * 0.6f))
-        // The belt, and a gold buckle.
-        p.detail(tx(0.32f, -w * 0.46f), ty(0.32f, -w * 0.46f), tx(0.32f, w * 0.42f), ty(0.32f, w * 0.42f), 0.042f * k.hs, BELT)
-        p.dot(tx(0.32f, w * 0.3f), ty(0.32f, w * 0.3f), 0.03f * k.hs, GOLD)
+        // A red belt with a small square silver buckle.
+        p.detail(tx(0.32f, -w * 0.46f), ty(0.32f, -w * 0.46f), tx(0.32f, w * 0.42f), ty(0.32f, w * 0.42f), 0.04f * k.hs, RED_DEEP)
+        p.begin()
+        tp(0.37f, w * 0.18f); tp(0.37f, w * 0.38f); tp(0.27f, w * 0.38f); tp(0.27f, w * 0.18f)
+        p.shapeDetail(SILVER)
+        p.detail(tx(0.32f, w * 0.23f), ty(0.32f, w * 0.23f), tx(0.32f, w * 0.33f), ty(0.32f, w * 0.33f), 0.02f * k.hs, BELT)
         contour(JACKET_PTS, c, w)
         p.shapeLit(JACKET, tx(1.04f, c * 0.2f), ty(1.04f, c * 0.2f), tx(0.5f, -c * 0.5f), ty(0.5f, -c * 0.5f))
         if (p.shading) {
@@ -122,6 +161,12 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
             addLine(tx(0.98f, -c * 0.36f), ty(0.98f, -c * 0.36f), tx(0.58f, -c * 0.36f), ty(0.58f, -c * 0.36f), 0.022f * k.hs, 0x80FFB4A8.toInt())
             addLine(tx(1.0f, -c * 0.1f), ty(1.0f, -c * 0.1f), tx(0.96f, c * 0.16f), ty(0.96f, c * 0.16f), 0.018f * k.hs, 0x70FFC8C0)
             p.detail(tx(0.9f, -c * 0.02f), ty(0.9f, -c * 0.02f), tx(0.54f, -c * 0.06f), ty(0.54f, -c * 0.06f), 0.012f * k.hs, JACKET_DARK)
+            // The underside of the jacket falling into shadow, a panel seam from the yoke.
+            p.begin()
+            tp(0.46f, -w * 0.54f); tp(0.66f, -c * 0.42f); tp(0.74f, -c * 0.1f); tp(0.62f, c * 0.3f); tp(0.47f, c * 0.42f)
+            p.shapeGradDetail(Col.alpha(JACKET_DARK, 0f), Col.alpha(JACKET_DARK, 0.75f), tx(0.72f, 0f), ty(0.72f, 0f), tx(0.47f, 0f), ty(0.47f, 0f))
+            p.detail(tx(0.94f, -c * 0.44f), ty(0.94f, -c * 0.44f), tx(0.9f, c * 0.3f), ty(0.9f, c * 0.3f), 0.01f * k.hs, JACKET_DARK)
+            addLine(tx(0.8f, c * 0.1f), ty(0.8f, c * 0.1f), tx(0.6f, c * 0.2f), ty(0.6f, c * 0.2f), 0.016f * k.hs, 0x90FFFFFF.toInt())
             // The top's lamp-lit curve at the front.
             p.detail(tx(0.86f, c * 0.46f), ty(0.86f, c * 0.46f), tx(0.66f, c * 0.5f), ty(0.66f, c * 0.5f), 0.014f * k.hs, Col.alpha(TOP_LIT, 0.8f))
         }
@@ -133,8 +178,25 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         p.detail(tx(1.06f, c * 0.24f), ty(1.06f, c * 0.24f), tx(0.9f, c * 0.42f), ty(0.9f, c * 0.42f), 0.024f * k.hs, JACKET_DARK)
         p.detail(tx(0.88f, c * 0.4f), ty(0.88f, c * 0.4f), tx(0.5f, c * 0.4f), ty(0.5f, c * 0.4f), 0.012f * k.hs, JACKET_DARK)
         p.detail(tx(0.47f, -w * 0.54f), ty(0.47f, -w * 0.54f), tx(0.48f, c * 0.42f), ty(0.48f, c * 0.42f), 0.03f * k.hs, JACKET_DARK)
-        p.dot(tx(0.5f, c * 0.38f), ty(0.5f, c * 0.38f), 0.013f * k.hs, SILVER)
+        // The open zip down the front edge, its pull at the hem.
+        p.detail(tx(1.0f, c * 0.32f), ty(1.0f, c * 0.32f), tx(0.9f, c * 0.44f), ty(0.9f, c * 0.44f), 0.01f * k.hs, SILVER)
+        p.detail(tx(0.9f, c * 0.44f), ty(0.9f, c * 0.44f), tx(0.5f, c * 0.44f), ty(0.5f, c * 0.44f), 0.01f * k.hs, SILVER)
+        p.detail(tx(0.5f, c * 0.44f), ty(0.5f, c * 0.44f), tx(0.42f, c * 0.46f), ty(0.42f, c * 0.46f), 0.018f * k.hs, SILVER)
+        collar(c)
         rimAlong(BODY, RIM_FROM, RIM_TO, c, w)
+    }
+
+    /** The collar popped up the back of the neck: a little swagger. */
+    private fun collar(c: Float) {
+        p.begin()
+        tp(0.96f, -c * 0.46f); tp(1.24f, -c * 0.6f); tp(1.32f, -c * 0.3f); tp(1.2f, -c * 0.04f); tp(1.06f, c * 0.04f)
+        if (p.ink) {
+            p.shape(JACKET)
+            return
+        }
+        p.shapeLit(JACKET, tx(1.3f, -c * 0.4f), ty(1.3f, -c * 0.4f), tx(1.0f, -c * 0.2f), ty(1.0f, -c * 0.2f))
+        p.detail(tx(1.02f, -c * 0.36f), ty(1.02f, -c * 0.36f), tx(1.22f, -c * 0.12f), ty(1.22f, -c * 0.12f), 0.014f * k.hs, JACKET_DARK)
+        if (p.shading) addLine(tx(1.24f, -c * 0.54f), ty(1.24f, -c * 0.54f), tx(1.3f, -c * 0.3f), ty(1.3f, -c * 0.3f), 0.012f * k.hs, 0x90FFC8C0.toInt())
     }
 
     override fun details(ghost: Boolean) {
@@ -163,6 +225,14 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         ponytail(ghost)
         hpoly(FACE).shapeLit(SKIN, hpX(0.55f), hpY(-0.95f), hpX(-0.5f), hpY(0.9f))
         hpoly(HAIR).shapeLit(COPPER, hpX(0.6f), hpY(-1.2f), hpX(-0.8f), hpY(0.2f))
+        // Side-swept bangs across the brow, framing the face.
+        hpoly(BANGS).shapeLit(COPPER, hpX(0.7f), hpY(-1.2f), hpX(0.9f), hpY(-0.3f))
+        if (!p.ink) {
+            // The sweep's lower edge, crisp over the skin.
+            p.detail(hpX(1.1f), hpY(-0.5f), hpX(1.02f), hpY(-0.3f), r * 0.07f, COPPER_DARK)
+            p.detail(hpX(1.02f), hpY(-0.3f), hpX(0.76f), hpY(-0.58f), r * 0.07f, COPPER_DARK)
+            p.detail(hpX(0.58f), hpY(-0.52f), hpX(0.5f), hpY(-0.18f), r * 0.06f, COPPER_DARK)
+        }
         // The hair tie at the crown.
         p.disc(hpX(TIE_U), hpY(TIE_V), r * 0.2f, RED)
         if (p.ink) return
@@ -177,25 +247,25 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
             p.dot(hpX(-0.15f), hpY(0.06f), r * 0.11f, SKIN)
             g.strokeCircle(hpX(-0.16f), hpY(0.5f), r * 0.24f, (r * 0.09f).coerceAtLeast(0.012f), p.c(GOLD))
             // A fine arched brow, the eye with a lash flick, red lips.
-            p.detail(hpX(0.5f), hpY(-0.4f), hpX(0.72f), hpY(-0.46f), r * 0.08f, COPPER_DARK)
-            p.detail(hpX(0.72f), hpY(-0.46f), hpX(0.9f), hpY(-0.38f), r * 0.07f, COPPER_DARK)
-            p.dot(hpX(0.74f), hpY(-0.16f), r * 0.12f, 0xFF0C0A12.toInt())
-            p.detail(hpX(0.6f), hpY(-0.24f), hpX(0.86f), hpY(-0.26f), r * 0.07f, 0xFF0C0A12.toInt())
-            p.detail(hpX(0.6f), hpY(-0.24f), hpX(0.5f), hpY(-0.32f), r * 0.06f, 0xFF0C0A12.toInt())
+            // A determined brow, angled down to the nose; a bold lash line with a flick.
+            p.detail(hpX(0.52f), hpY(-0.5f), hpX(0.92f), hpY(-0.34f), r * 0.11f, COPPER_DARK)
+            p.dot(hpX(0.75f), hpY(-0.15f), r * 0.14f, 0xFF0C0A12.toInt())
+            p.detail(hpX(0.58f), hpY(-0.25f), hpX(0.9f), hpY(-0.27f), r * 0.11f, 0xFF0C0A12.toInt())
+            p.detail(hpX(0.58f), hpY(-0.25f), hpX(0.44f), hpY(-0.38f), r * 0.09f, 0xFF0C0A12.toInt())
             p.detail(hpX(0.98f), hpY(0.5f), hpX(0.9f), hpY(0.56f), r * 0.13f, LIPS)
             p.detail(hpX(0.99f), hpY(0.62f), hpX(0.9f), hpY(0.6f), r * 0.12f, LIPS)
         }
         if (p.shading && !ghost) {
             // The eye's glint, the lamp on the crown and down the fringe.
-            p.dot(hpX(0.77f), hpY(-0.19f), r * 0.04f, 0xFFFFFFFF.toInt())
+            p.dot(hpX(0.79f), hpY(-0.18f), r * 0.05f, 0xFFFFFFFF.toInt())
             g.blend(Gfx.Blend.ADD)
             p.detail(hpX(0.56f), hpY(-1.06f), hpX(0.1f), hpY(-1.22f), r * 0.1f, Col.alpha(COPPER_LIT, 0.45f))
-            p.detail(hpX(0.9f), hpY(-0.8f), hpX(0.8f), hpY(-0.44f), r * 0.07f, Col.alpha(COPPER_LIT, 0.4f))
-            g.blend(Gfx.Blend.NORMAL)
+                        g.blend(Gfx.Blend.NORMAL)
             p.detail(hpX(0.94f), hpY(0.0f), hpX(1.06f), hpY(0.18f), r * 0.06f, Col.alpha(SKIN_LIT, 0.8f))
-            // The fringe's parted strands.
-            p.detail(hpX(0.62f), hpY(-0.96f), hpX(0.84f), hpY(-0.4f), r * 0.05f, Col.alpha(COPPER_DARK, 0.6f))
-            p.detail(hpX(0.4f), hpY(-0.9f), hpX(0.6f), hpY(-0.56f), r * 0.05f, Col.alpha(COPPER_DARK, 0.6f))
+            // The bangs' strands, and a gloss down the sweep.
+            p.detail(hpX(0.5f), hpY(-1.1f), hpX(0.94f), hpY(-0.44f), r * 0.05f, Col.alpha(COPPER_DARK, 0.7f))
+            p.detail(hpX(0.34f), hpY(-0.96f), hpX(0.52f), hpY(-0.34f), r * 0.05f, Col.alpha(COPPER_DARK, 0.7f))
+            addLine(hpX(0.66f), hpY(-1.12f), hpX(1.0f), hpY(-0.72f), r * 0.08f, Col.alpha(COPPER_LIT, 0.6f))
         }
     }
 
@@ -253,7 +323,7 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
             for (i in 0..h) strand(i, 0.14f)
             for (i in h downTo 0) strand(i, if (i == 0 || i == h) 0.14f else 0.34f)
             g.blend(Gfx.Blend.ADD)
-            p.shapeDetail(Col.alpha(COPPER_LIT, 0.45f))
+            p.shapeDetail(Col.alpha(COPPER_LIT, 0.6f))
             g.blend(Gfx.Blend.NORMAL)
         }
     }
@@ -327,21 +397,21 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         const val COPPER_DARK = 0xFF6E2410.toInt()
 
         /** Where the tie sits on the crown, in head units. */
-        private const val TIE_U = -0.56f
-        private const val TIE_V = -0.98f
+        private const val TIE_U = -0.6f
+        private const val TIE_V = -0.92f
         private const val PONY_N = 9
         /** The tail's length in head radii, and its width at each joint. */
-        private const val PONY_LEN = 3.6f
-        private val PONY_W = floatArrayOf(0.66f, 0.94f, 1.1f, 1.12f, 1.04f, 0.9f, 0.72f, 0.52f, 0.3f, 0.06f)
+        private const val PONY_LEN = 3.9f
+        private val PONY_W = floatArrayOf(0.74f, 1.3f, 1.46f, 1.4f, 1.26f, 1.06f, 0.84f, 0.6f, 0.34f, 0.06f)
 
         /**
          * The figure in profile (along the spine, toward the chest, 1 = chest units /
          * 0 = waist units): a narrow waist, a curve at the hip, a modest bust.
          */
         private val BODY = floatArrayOf(
-            -0.15f, -0.54f, 0f,
+            -0.15f, -0.56f, 0f,
             -0.16f, 0.42f, 0f,
-            0.04f, 0.5f, 0f,
+            0.04f, 0.55f, 0f,
             0.3f, 0.4f, 0f,
             0.52f, 0.42f, 1f,
             0.66f, 0.52f, 1f,
@@ -353,8 +423,8 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
             0.94f, -0.42f, 1f,
             0.7f, -0.38f, 1f,
             0.44f, -0.44f, 0f,
-            0.2f, -0.58f, 0f,
-            0.0f, -0.62f, 0f,
+            0.2f, -0.56f, 0f,
+            0.0f, -0.67f, 0f,
         )
         private const val RIM_FROM = 10
         private const val RIM_TO = 15
@@ -383,6 +453,12 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         private val JAW = floatArrayOf(
             -0.92f, 0.24f, -0.52f, 0.46f, -0.14f, 0.68f, 0.3f, 0.9f, 0.68f, 0.96f,
             0.66f, 0.88f, 0.3f, 0.82f, -0.06f, 0.6f, -0.44f, 0.36f, -0.8f, 0.14f,
+        )
+        /** A sweep of fringe from the parting, over the brow and past it, one lock down the temple. */
+        private val BANGS = floatArrayOf(
+            0.06f, -1.32f, 0.66f, -1.22f, 1.02f, -0.9f, 1.12f, -0.54f, 1.02f, -0.3f,
+            0.92f, -0.44f, 0.76f, -0.6f, 0.58f, -0.54f, 0.5f, -0.18f, 0.38f, -0.36f,
+            0.3f, -0.74f,
         )
         /** Pulled up tight to the tie, a swept fringe falling over the brow. */
         private val HAIR = floatArrayOf(

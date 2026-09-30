@@ -92,12 +92,12 @@ class Player {
     /** Seconds since a bullet that had you was dodged in the grace window ("CLOSE!"). */
     var sinceCloseCall = 9f
     /**
-     * VENT CRAWL: seconds left of arriving unseen out of a passage (guards can't see you; it
+     * CLOWN CAR: seconds left of arriving unseen out of a passage (guards can't see you; it
      * counts down only while you're out in the open, and firing ends it).
      */
     var unseenTime = 0f
-    /** CAMO: a hit just missed you; the camo shimmer shows this long (counts down from [World.CAMO_SHOW]). */
-    var camoTime = 0f
+    /** FRAGILE: a hit just missed you; the shimmer shows this long (counts down from [World.FRAGILE_SHOW]). */
+    var fragileTime = 0f
 
     val floor: Int get() = kotlin.math.floor(floorF + 0.001f).toInt()
     val grounded: Boolean get() = z <= 0f && vz == 0f
@@ -215,8 +215,6 @@ class Bullet(
 ) {
     var dead = false
     var life = 0f
-    /** LASER WATCH: this shot already sliced its lamp. */
-    var cutLamp = false
     val hitIds = HashSet<Int>(2)
     /**
      * Enemy bullets only: seconds since it touched the player (it hangs there
