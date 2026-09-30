@@ -56,16 +56,16 @@ enum class Hero(
         0xFFE8413A.toInt(),
         magSize = 8, reactionScale = 1.35f, fireScale = 0.85f,
     ),
-    /** A small-town sheriff in a big hat who will not stay down. */
-    BADGER(
-        "BADGER", "Small-town sheriff. Big hat.",
+    /** A bald small-town sheriff with a horseshoe moustache who will not stay down. */
+    WOLF(
+        "WOLF", "Small-town sheriff. Lone wolf.",
         "Shrugs off one fatal hit a run; +1 grenade", "Boots on. Stubborn required.",
-        0xFFFFD23C.toInt(),
+        0xFFDA8CFF.toInt(),
         secondWind = true, extraGrenades = 1,
     ),
-    /** A jungle commando in a boonie hat, fast and fearless. Lives in the box, unplugs the robots, never makes a sound. */
-    MONGOOSE(
-        "MONGOOSE", "Jungle commando. Snake-proof.",
+    /** A mohawked jungle commando, sharp-eyed and fearless. Lives in the box, unplugs the robots, never makes a sound. */
+    HAWK(
+        "HAWK", "Jungle commando. Eagle-eyed.",
         "Sneaks unseen, unplugs robots, sly box, fast reloads", "A box is a lifestyle.",
         0xFF58D25A.toInt(),
         boxPro = true, sabotage = true, sneakSight = 0.75f, reloadScale = 0.75f,
@@ -73,10 +73,14 @@ enum class Hero(
     ;
 
     companion object {
-        /** A hero saved by [name], or null if there's none by that name (MONGOOSE was once VIPER). */
+        /**
+         * A hero saved by [name], or null if there's none by that name. Older builds called
+         * HAWK "VIPER" (and, briefly, "MONGOOSE") and WOLF "BADGER".
+         */
         fun fromSaved(name: String?): Hero? = when (name) {
             null -> null
-            "VIPER" -> MONGOOSE
+            "VIPER", "MONGOOSE" -> HAWK
+            "BADGER" -> WOLF
             else -> entries.firstOrNull { it.name == name }
         }
     }

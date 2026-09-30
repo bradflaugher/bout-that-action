@@ -40,15 +40,15 @@ enum class Perk(
     LASER_WATCH("LASER WATCH", "Your shots cut lamps; one swat kills them all", 1, "It also tells the time.", Hero.FOX),
     DEAD_DROP("DEAD DROP", "SILENT kills drop loot 2x as often (LV 2: 3x)", 2, "Leave it under the fern.", Hero.FOX),
 
-    // ---- BADGER
-    KABOOM("KABOOM", "Bigger blasts that knock survivors flat", 1, "Everybody down.", Hero.BADGER),
-    VENT_CRAWL("VENT CRAWL", "Passages twice as quick; arrive unseen", 1, "Dusty, but right on time.", Hero.BADGER),
-    ADRENALINE("ADRENALINE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "Last heart, best heart.", Hero.BADGER),
+    // ---- WOLF
+    KABOOM("KABOOM", "Bigger blasts that knock survivors flat", 1, "Everybody down.", Hero.WOLF),
+    VENT_CRAWL("VENT CRAWL", "Passages twice as quick; arrive unseen", 1, "Dusty, but right on time.", Hero.WOLF),
+    ADRENALINE("ADRENALINE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "Last heart, best heart.", Hero.WOLF),
 
-    // ---- MONGOOSE
-    JAMMER("JAMMER", "Drones and turrets take twice as long to react", 1, "Static on every channel.", Hero.MONGOOSE),
-    CHAFF("CHAFF", "Grenades daze the whole hallway (LV 2: longer)", 2, "Shiny. Confusing. Effective.", Hero.MONGOOSE),
-    CAMO("CAMO", "1 in 4 hits miss you (LV 2: 1 in 3)", 2, "Just a very tall fern.", Hero.MONGOOSE),
+    // ---- HAWK
+    JAMMER("JAMMER", "Drones and turrets take twice as long to react", 1, "Static on every channel.", Hero.HAWK),
+    CHAFF("CHAFF", "Grenades daze the whole hallway (LV 2: longer)", 2, "Shiny. Confusing. Effective.", Hero.HAWK),
+    CAMO("CAMO", "1 in 4 hits miss you (LV 2: 1 in 3)", 2, "Just a very tall fern.", Hero.HAWK),
     ;
 
     /** Can [who] find this in a STASH? Everyone's perks, plus their own three. */

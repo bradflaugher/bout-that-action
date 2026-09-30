@@ -5,16 +5,16 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * BADGER: the small-town sheriff who will not quit. A wide-brimmed brown hat with a gold
- * band, a salt-and-pepper horseshoe moustache and a squint; a khaki uniform shirt with its
+ * WOLF: the small-town sheriff who will not quit. A shining bald dome, a salt-and-pepper
+ * horseshoe moustache and a squint; a khaki uniform shirt with its
  * sleeves rolled to the elbow, epaulettes, pocket flaps and a gold star on the chest; a wide
  * tooled belt with a big brass buckle; blue jeans over tall pointed boots with a stacked heel.
- * A yellow rim.
+ * An orchid rim.
  */
-internal class BadgerKit(a: HeroArt) : HeroKit(a) {
+internal class WolfKit(a: HeroArt) : HeroKit(a) {
     override val bulk = 1.0f
     override val head = 1.02f
-    override val accent = YELLOW
+    override val accent = PURPLE
     override val rim = RIM
     override val echo = 0xFFD04A6A.toInt()
     override val eyes = 0xFFFFC08A.toInt()
@@ -177,9 +177,9 @@ internal class BadgerKit(a: HeroArt) : HeroKit(a) {
             val rr = if (i % 2 == 0) r else r * 0.45f
             p.add(x + cos(ang) * rr, y + sin(ang) * rr)
         }
-        p.shapeGradDetail(STAR_LIT, YELLOW, x - r * 0.4f * k.dir, y - r * 0.6f, x + r * 0.4f * k.dir, y + r * 0.6f)
+        p.shapeGradDetail(STAR_LIT, GOLD, x - r * 0.4f * k.dir, y - r * 0.6f, x + r * 0.4f * k.dir, y + r * 0.6f)
         p.dot(x, y, r * 0.22f, BRASS)
-        addGlow(x, y, r * 1.6f, YELLOW, 0.35f)
+        addGlow(x, y, r * 1.6f, GOLD, 0.35f)
     }
 
     /** SILENT: the pistol stowed in a hip holster, grip forward. */
@@ -201,8 +201,6 @@ internal class BadgerKit(a: HeroArt) : HeroKit(a) {
         hpoly(FACE).shapeLit(SKIN, hpX(0.4f), hpY(-1.0f), hpX(-0.5f), hpY(0.9f))
         if (!p.ink) {
             if (p.shading) hpoly(JAW).shapeShade(SKIN)
-            // Grey sideburns down in front of the ear.
-            hpoly(SIDEBURN).shapeDetail(STACHE)
             if (p.hi) {
                 hpoly(STUBBLE).shapeDetail(Col.alpha(STACHE_DARK, 0.3f))
                 p.dot(hpX(-0.18f), hpY(0.06f), r * 0.21f, SKIN_FAR)
@@ -213,37 +211,22 @@ internal class BadgerKit(a: HeroArt) : HeroKit(a) {
                 // The horseshoe moustache: across the lip and down both sides of the chin.
                 hpoly(MOUSTACHE).shapeGradDetail(STACHE_LIT, STACHE, hpX(0.9f), hpY(0.3f), hpX(0.7f), hpY(0.9f))
             }
-            if (p.shading && !ghost) p.detail(hpX(0.9f), hpY(-0.02f), hpX(1.1f), hpY(0.2f), r * 0.07f, Col.alpha(SKIN_LIT, 0.8f))
-        }
-        hat(r, ghost)
-    }
-
-    /** The hat: a broad brim curling up front and back, a pinched crown, a gold band. */
-    private fun hat(r: Float, ghost: Boolean) {
-        hpoly(CROWN).shapeLit(HAT, hpX(0.3f), hpY(-1.7f), hpX(-0.6f), hpY(-0.7f), sep = true)
-        if (!p.ink) {
-            hpoly(BAND).shapeGradDetail(STAR_LIT, YELLOW, hpX(0.5f), hpY(-0.95f), hpX(-0.6f), hpY(-0.8f))
-            if (p.shading) {
-                // The crease down the crown, and the lamp on its front.
-                p.detail(hpX(0.1f), hpY(-1.66f), hpX(-0.3f), hpY(-1.12f), r * 0.07f, HAT_DARK)
-                p.detail(hpX(0.6f), hpY(-1.6f), hpX(0.74f), hpY(-1.08f), r * 0.08f, Col.alpha(HAT_LIT, 0.7f))
+            if (p.shading && !ghost) {
+                // The bald dome: a crisp sweep of lamp across the crown, a softer shine under it,
+                // and a shadow falling down the back of the skull.
+                p.begin()
+                hp(-0.3f, -0.96f); hp(-0.84f, -0.66f); hp(-1.02f, -0.1f); hp(-0.86f, 0.2f); hp(-0.66f, -0.3f); hp(-0.4f, -0.72f)
+                p.shapeGradDetail(Col.alpha(SKIN_FAR, 0.7f), Col.alpha(SKIN_FAR, 0f), hpX(-0.9f), hpY(-0.3f), hpX(-0.4f), hpY(-0.6f))
+                g.blend(Gfx.Blend.ADD)
+                g.strokeArc(hpX(0.02f), hpY(-0.1f), r * 0.82f, if (k.dir > 0) 226f else 254f, 60f, r * 0.16f, p.c(Col.alpha(0xFFFFF0DC.toInt(), 0.55f)))
+                g.blend(Gfx.Blend.NORMAL)
+                p.dot(hpX(0.34f), hpY(-0.72f), r * 0.1f, Col.alpha(0xFFFFF6EC.toInt(), 0.9f))
+                p.detail(hpX(0.9f), hpY(-0.02f), hpX(1.1f), hpY(0.2f), r * 0.07f, Col.alpha(SKIN_LIT, 0.8f))
             }
         }
-        hpoly(BRIM).shapeLit(HAT, hpX(0.6f), hpY(-0.95f), hpX(-0.4f), hpY(-0.6f), sep = true)
-        if (p.ink) return
-        if (p.shading) {
-            // The brim's shadow over the eyes.
-            p.begin()
-            hp(0.5f, -0.6f); hp(1.2f, -0.62f); hp(1.0f, -0.38f); hp(0.44f, -0.42f)
-            p.shapeDetail(Col.alpha(0xFF1A0C04.toInt(), 0.35f))
-            p.detail(hpX(1.5f), hpY(-0.86f), hpX(0.2f), hpY(-0.76f), r * 0.06f, Col.alpha(HAT_LIT, 0.8f))
-        }
-        if (look.rim != 0 && !ghost) {
+        if (look.rim != 0 && !ghost && !p.ink) {
             g.blend(Gfx.Blend.ADD)
-            val rc = p.c(look.rim)
-            val i = HeroArt.RIM_PX * 0.5f
-            g.line(hpX(-0.64f + i), hpY(-1.7f), hpX(-0.84f + i), hpY(-1.3f), HeroArt.RIM_PX, rc)
-            g.line(hpX(-0.84f + i), hpY(-1.3f), hpX(-0.88f + i), hpY(-1.06f), HeroArt.RIM_PX, rc)
+            g.strokeArc(hx, hpY(-0.14f), r * 1.1f - HeroArt.RIM_PX * 0.5f, if (k.dir > 0) 150f else 300f, 90f, HeroArt.RIM_PX, p.c(look.rim))
             g.blend(Gfx.Blend.NORMAL)
         }
     }
@@ -255,12 +238,15 @@ internal class BadgerKit(a: HeroArt) : HeroKit(a) {
         val x = tx(0.84f, c * 0.36f)
         val y = ty(0.84f, c * 0.36f)
         p.dot(x, y, 0.018f * k.hs, Col.alpha(STAR_LIT, 0.9f))
-        a.f.glowDot(x, y, 0.02f, YELLOW, 0.5f)
+        a.f.glowDot(x, y, 0.02f, GOLD, 0.5f)
     }
 
     companion object {
-        val YELLOW = Hero.BADGER.color
-        const val RIM = 0xFFFFEC9A.toInt()
+        /** His signature: a bright orchid, lighter and pinker than the zones' violets. */
+        val PURPLE = Hero.WOLF.color
+        const val RIM = 0xFFF0C8FF.toInt()
+        /** The star stays gold. */
+        const val GOLD = 0xFFFFD23C.toInt()
         /** The uniform shirt: sun-faded khaki. */
         const val SHIRT = 0xFFC2A36A.toInt()
         const val SHIRT_LIT = 0xFFF0DCA8.toInt()
@@ -289,10 +275,6 @@ internal class BadgerKit(a: HeroArt) : HeroKit(a) {
         const val STAR_LIT = 0xFFFFF6C8.toInt()
         const val LEATHER = 0xFF7A4626.toInt()
         const val LEATHER_LIT = 0xFFA8683E.toInt()
-        /** The hat: a deep saddle brown, a gold band. */
-        const val HAT = 0xFF6A4424.toInt()
-        const val HAT_LIT = 0xFFC8905A.toInt()
-        const val HAT_DARK = 0xFF3A2410.toInt()
 
         private val BODY = floatArrayOf(
             -0.13f, -0.5f, 0f,
@@ -330,27 +312,10 @@ internal class BadgerKit(a: HeroArt) : HeroKit(a) {
             0.04f, 0.3f, 0.4f, 0.56f, 0.8f, 0.72f, 1.0f, 0.68f, 1.02f, 0.8f,
             0.9f, 0.98f, 0.3f, 1.04f, -0.2f, 0.82f, -0.1f, 0.4f,
         )
-        private val SIDEBURN = floatArrayOf(
-            -0.02f, -0.62f, 0.14f, -0.6f, 0.1f, 0.2f, -0.02f, 0.24f,
-        )
         /** Over the lip, down past both corners of the mouth to the jaw. */
         private val MOUSTACHE = floatArrayOf(
             1.1f, 0.34f, 1.06f, 0.5f, 0.86f, 0.52f, 0.78f, 0.96f, 0.64f, 0.98f,
             0.62f, 0.5f, 0.66f, 0.34f, 0.86f, 0.3f,
-        )
-        /** The crown: pinched in front, a dent along the top, sitting down on the brow. */
-        private val CROWN = floatArrayOf(
-            0.86f, -0.78f, 0.8f, -1.3f, 0.62f, -1.74f, 0.3f, -1.84f, 0.02f, -1.68f,
-            -0.3f, -1.82f, -0.64f, -1.72f, -0.84f, -1.3f, -0.9f, -0.8f,
-        )
-        private val BAND = floatArrayOf(
-            0.86f, -0.8f, 0.83f, -1.04f, -0.87f, -1.04f, -0.9f, -0.8f,
-        )
-        /** The brim, seen edge-on: broad and flat, curling up at the front and the back. */
-        private val BRIM = floatArrayOf(
-            1.74f, -1.0f, 1.64f, -0.86f, 1.2f, -0.72f, 0.2f, -0.66f, -0.8f, -0.68f,
-            -1.32f, -0.76f, -1.7f, -0.96f, -1.64f, -0.82f, -1.24f, -0.84f, -0.2f, -0.8f,
-            0.8f, -0.78f, 1.3f, -0.82f,
         )
     }
 }

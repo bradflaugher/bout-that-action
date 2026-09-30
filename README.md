@@ -127,7 +127,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 
 ## Heroes
 
-<p align="center"><img src="docs/screenshots/lineup.png" alt="The four heroes: BULL, FOX, BADGER and MONGOOSE" width="720"></p>
+<p align="center"><img src="docs/screenshots/lineup.png" alt="The four heroes: BULL, FOX, WOLF and HAWK" width="720"></p>
 
 Pick who's going down on the title screen. Every hero plays the same
 building, but with a different body: an always-on trait, three perks only
@@ -138,8 +138,8 @@ music.
 |---|---|---|
 | **BULL** | A heavyweight in a quilted bomber, shades and a gold chain. Tough, fast, bulldozes. | +1 heart, runs 10% faster, tackles Heavies head-on (no bouncing off the armor) |
 | **FOX** | A silver-haired gentleman spy in a long crimson coat. | An 8-round magazine (instead of 6) and a 15% quicker trigger; guards take 35% longer to react once they spot him |
-| **BADGER** | A small-town sheriff in a big hat and boots, too stubborn to stay down. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
-| **MONGOOSE** | A fast, fearless jungle commando in a boonie hat and chest rig who lives in his cardboard box: the SILENT specialist. | Unplugs drones and turrets by hand, like a takedown (quiet, and not while one is aiming at him); in SILENT guards spot him from a quarter less far; the box glides (2.2 u/s instead of 1.3) and never looks suspicious moving; reloads 25% faster |
+| **WOLF** | A bald small-town sheriff with a horseshoe moustache and a gold star, too stubborn to stay down. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
+| **HAWK** | A fast, fearless jungle commando with a mohawk and a chest rig who lives in his cardboard box: the SILENT specialist. | Unplugs drones and turrets by hand, like a takedown (quiet, and not while one is aiming at him); in SILENT guards spot him from a quarter less far; the box glides (2.2 u/s instead of 1.3) and never looks suspicious moving; reloads 25% faster |
 
 Their perks:
 
@@ -152,12 +152,12 @@ Their perks:
   *Laser Watch*: every shot slices the first lamp it passes under, and one
   jump-swat kills every lamp in the hallway. *Dead Drop* (2 levels): SILENT
   kills drop loot twice as often (three times at LV 2).
-- **BADGER.** *Kaboom*: bigger blasts, and anyone within twice the blast who
+- **WOLF.** *Kaboom*: bigger blasts, and anyone within twice the blast who
   survives is knocked flat for 2.5 s. *Vent Crawl*: passages take half the
   time and nobody can see you for 1.5 s once you're out in the open (firing
   gives you away). *Adrenaline* (2 levels): on your last heart you shoot,
   reload and run 30% faster (50% at LV 2).
-- **MONGOOSE.** *Jammer*: drones and turrets take twice as long to react to
+- **HAWK.** *Jammer*: drones and turrets take twice as long to react to
   him. *Chaff* (2 levels): a grenade also dazes everyone in the hallway,
   machines too, for 2 s (3.5 s at LV 2). *Camo* (2 levels): 1 in 4 hits miss
   you (1 in 3 at LV 2).
@@ -255,9 +255,9 @@ the game over in their own style. **BULL** plays hip-hop: a dusty, swung
 boom-bap beat on a crackly record while sneaking, then half-time trap with
 sliding 808s and rolling hats when the guns come out. **FOX** plays classical:
 pizzicato strings and a clarinet on tiptoe, then a harpsichord-and-violins
-presto with timpani. **BADGER** plays country: a slow brushed shuffle with
+presto with timpani. **WOLF** plays country: a slow brushed shuffle with
 fingerpicked guitar and a harmonica, then a train-beat hoedown with banjo rolls
-and a fiddle. **MONGOOSE** plays jungle drums: hand drums, shakers, a marimba, a
+and a fiddle. **HAWK** plays jungle drums: hand drums, shakers, a marimba, a
 wooden flute and crickets, then pounding war drums in threes against the beat.
 The hero picker plays each one's theme. Every tune is original.
 

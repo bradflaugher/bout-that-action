@@ -46,11 +46,11 @@ object Popup {
     const val TACKLE = "TACKLE!"
     /** BULL's STIFF ARM: a guard flattened on the run. */
     const val FLATTENED = "FLATTENED"
-    /** BADGER's once-a-run shrug-off of a fatal hit. */
+    /** WOLF's once-a-run shrug-off of a fatal hit. */
     const val SECOND_WIND = "SECOND WIND"
-    /** MONGOOSE's SABOTAGE: a drone or turret unplugged by hand. */
+    /** HAWK's SABOTAGE: a drone or turret unplugged by hand. */
     const val UNPLUGGED = "UNPLUGGED"
-    /** MONGOOSE's CAMO: a hit that missed him. */
+    /** HAWK's CAMO: a hit that missed him. */
     const val MISSED = "MISSED"
     /** Guards stunned by CHAFF, an AFTERSHOCK or a KABOOM blast. */
     const val DAZED = "DAZED"

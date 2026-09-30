@@ -86,8 +86,8 @@ class MenuShotsTest {
             shot("$device-title-intro", 450, world()) {
                 TitleScreen(s, Records(), insets, {}, {}, {}, {}, {})
             }
-            shot("$device-title-mongoose", 1800, world(Hero.MONGOOSE)) {
-                TitleScreen(s.copy(hero = Hero.MONGOOSE), records, insets, {}, {}, {}, {}, {})
+            shot("$device-title-hawk", 1800, world(Hero.HAWK)) {
+                TitleScreen(s.copy(hero = Hero.HAWK), records, insets, {}, {}, {}, {}, {})
             }
             for (hero in Hero.entries) {
                 shot("$device-heroes-${hero.name.lowercase()}", 1200, world(hero)) {

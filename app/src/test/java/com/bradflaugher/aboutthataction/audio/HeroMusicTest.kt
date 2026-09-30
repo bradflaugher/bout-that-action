@@ -99,8 +99,8 @@ class HeroMusicTest {
     /** Each hero plays their own genre at its own tempo; sneaking is always the slower one. */
     @Test
     fun eachHeroPlaysTheirGenreAtItsTempo() {
-        val hot = mapOf(Hero.BULL to 130f..155f, Hero.FOX to 145f..175f, Hero.BADGER to 145f..180f, Hero.MONGOOSE to 115f..150f)
-        val sneak = mapOf(Hero.BULL to 80f..95f, Hero.FOX to 88f..108f, Hero.BADGER to 75f..95f, Hero.MONGOOSE to 85f..105f)
+        val hot = mapOf(Hero.BULL to 130f..155f, Hero.FOX to 145f..175f, Hero.WOLF to 145f..180f, Hero.HAWK to 115f..150f)
+        val sneak = mapOf(Hero.BULL to 80f..95f, Hero.FOX to 88f..108f, Hero.WOLF to 75f..95f, Hero.HAWK to 85f..105f)
         for (h in Hero.entries) for (z in Zone.entries) {
             val loud = HeroSongs.forZone(h, z, false)
             val quiet = HeroSongs.forZone(h, z, true)
@@ -149,11 +149,11 @@ class HeroMusicTest {
         }
     }
 
-    /** BADGER: country in the major key — a brushed shuffle sneaking, a train beat and banjo rolls hot. */
+    /** WOLF: country in the major key — a brushed shuffle sneaking, a train beat and banjo rolls hot. */
     @Test
-    fun badgerIsCountry() {
+    fun wolfIsCountry() {
         for (z in Zone.entries) for (silent in listOf(false, true)) {
-            val spec = HeroSongs.forZone(Hero.BADGER, z, silent)
+            val spec = HeroSongs.forZone(Hero.WOLF, z, silent)
             val what = "$z${if (silent) " sneak" else ""}"
             assertTrue("$what: a major key", spec.scale.contentEquals(Scales.IONIAN))
             val degrees = (spec.progA + spec.progB).map { it.degree }.toSet()
@@ -169,11 +169,11 @@ class HeroMusicTest {
         }
     }
 
-    /** MONGOOSE: jungle drums — hand drums, shakers and crickets sneaking; war drums in threes over fours. */
+    /** HAWK: jungle drums — hand drums, shakers and crickets sneaking; war drums in threes over fours. */
     @Test
-    fun mongooseIsJungleDrums() {
+    fun hawkIsJungleDrums() {
         for (z in Zone.entries) for (silent in listOf(false, true)) {
-            val spec = HeroSongs.forZone(Hero.MONGOOSE, z, silent)
+            val spec = HeroSongs.forZone(Hero.HAWK, z, silent)
             val what = "$z${if (silent) " sneak" else ""}"
             for (p in listOf(spec.drumsA, spec.drumsB)) assertEquals("$what: no hi-hats", 0, hits(p.hat) + hits(p.open))
             assertTrue("$what: shakers", hits(spec.drumsB.jingle) >= 8 && spec.kit.jingleNoise >= 1f)
@@ -202,7 +202,7 @@ class HeroMusicTest {
             println("$z: " + stats.entries.joinToString { "%s sub=%.2f centroid=%.0f".format(it.key, it.value.first, it.value.second) })
             val bull = stats.getValue(Hero.BULL)
             for (h in Hero.entries - Hero.BULL) assertTrue("$z: BULL's 808s outweigh $h's bass", bull.first > stats.getValue(h).first)
-            assertTrue("$z: MONGOOSE's drums sit darker than BADGER's banjo", stats.getValue(Hero.MONGOOSE).second < stats.getValue(Hero.BADGER).second)
+            assertTrue("$z: HAWK's drums sit darker than WOLF's banjo", stats.getValue(Hero.HAWK).second < stats.getValue(Hero.WOLF).second)
         }
     }
 
@@ -239,10 +239,10 @@ class HeroMusicTest {
         assertEquals("a new zone still waits for the bar", "tower-fox", e.songName)
         render(e, 5f)
         assertEquals("labs-fox", e.songName)
-        e.setHero(Hero.MONGOOSE)
+        e.setHero(Hero.HAWK)
         e.setZone(Zone.LABS)
         render(e, 6f)
-        assertEquals("labs-mongoose", e.songName)
+        assertEquals("labs-hawk", e.songName)
         e.setHero(null)
         e.setZone(Zone.LABS)
         render(e, 6f)
@@ -287,7 +287,7 @@ class HeroMusicTest {
         // playHeroTheme also picks the hero for the run.
         e.setZone(Zone.ROOFTOP)
         render(e, 8f)
-        assertEquals("rooftop-mongoose", e.songName)
+        assertEquals("rooftop-hawk", e.songName)
     }
 
     @Test
@@ -384,7 +384,7 @@ class HeroMusicTest {
             assertEquals(what, base.kickThreshold, spec.kickThreshold, 0f)
             assertEquals(what, base.wind, spec.wind, 0f)
             assertEquals(what, base.glitch, spec.glitch)
-            if (h == Hero.BADGER) {
+            if (h == Hero.WOLF) {
                 // Country in the parallel major: its own chords, all in that key.
                 assertTrue(what, spec.scale.contentEquals(Scales.IONIAN))
                 for (c in spec.progA + spec.progB) for (iv in c.intervals) {

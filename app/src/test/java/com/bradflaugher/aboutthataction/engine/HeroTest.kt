@@ -364,11 +364,11 @@ class HeroTest {
         assertTrue("GUNS HOT kills aren't quiet: $loud", loud in 35..95)
     }
 
-    // ------------------------------------------------------------ BADGER
+    // ------------------------------------------------------------ WOLF
 
     @Test
-    fun badgerShrugsOffOneFatalHitARun() {
-        val w = world(Hero.BADGER, hearts = 1)
+    fun wolfShrugsOffOneFatalHitARun() {
+        val w = world(Hero.WOLF, hearts = 1)
         assertEquals(1, w.player.maxHp)
         w.player.x = 5f
         bullet(w, 8f, Body.HIGH, -9f)
@@ -388,19 +388,19 @@ class HeroTest {
     }
 
     @Test
-    fun badgerCarriesAnExtraGrenade() {
+    fun wolfCarriesAnExtraGrenade() {
         for (hero in Hero.entries) {
             val w = World(RunConfig(1L, hero = hero))
-            val badger = hero == Hero.BADGER
-            assertEquals(if (badger) 2 else 1, w.player.grenades)
-            assertEquals(if (badger) 4 else 3, w.maxGrenades)
+            val wolf = hero == Hero.WOLF
+            assertEquals(if (wolf) 2 else 1, w.player.grenades)
+            assertEquals(if (wolf) 4 else 3, w.maxGrenades)
         }
     }
 
     @Test
     fun kaboomBlastsReachFurtherAndKnockSurvivorsFlat() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.BADGER)
+            val w = world(Hero.WOLF)
             if (perk) w.perks[Perk.KABOOM] = 1
             park(w)
             val edge = enemy(w, EnemyKind.AGENT, 7f + 2.7f)
@@ -424,7 +424,7 @@ class HeroTest {
     @Test
     fun ventCrawlPassagesAreQuickAndYouArriveUnseen() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.BADGER, silent = false)
+            val w = world(Hero.WOLF, silent = false)
             if (perk) w.perks[Perk.VENT_CRAWL] = 1
             assertEquals(World.PASSAGE_TIME * if (perk) World.VENT_CRAWL_SCALE else 1f, w.passageTime, 1e-5f)
             val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
@@ -454,7 +454,7 @@ class HeroTest {
     @Test
     fun adrenalineKicksInOnTheLastHeart() {
         for (level in 1..2) {
-            val w = world(Hero.BADGER)
+            val w = world(Hero.WOLF)
             w.perks[Perk.ADRENALINE] = level
             val boost = if (level >= 2) 1.5f else 1.3f
             assertFalse(w.adrenaline)
@@ -472,31 +472,31 @@ class HeroTest {
         }
     }
 
-    // ------------------------------------------------------------ MONGOOSE
+    // ------------------------------------------------------------ HAWK
 
     @Test
-    fun mongooseGlidesInTheBoxUnsuspected() {
-        for (hero in listOf(Hero.MONGOOSE, Hero.BULL)) {
+    fun hawkGlidesInTheBoxUnsuspected() {
+        for (hero in listOf(Hero.HAWK, Hero.BULL)) {
             val w = world(hero)
             w.player.x = 3f
             w.player.state = PlayerState.BOX
             w.player.stateTime = 1f
-            assertEquals(hero == Hero.MONGOOSE, w.boxPro)
+            assertEquals(hero == Hero.HAWK, w.boxPro)
             val guard = enemy(w, EnemyKind.AGENT, 10f, facing = -1)
             var suspicious = false
             run(w, 0.8f) {
                 it.moveAxis = 1
                 if (guard.state != EnemyState.PATROL) suspicious = true
             }
-            assertEquals("$hero box speed", if (hero == Hero.MONGOOSE) 2.2f else 1.3f, abs(w.player.vx), 0.05f)
-            assertEquals("$hero looked suspicious", hero != Hero.MONGOOSE, suspicious)
+            assertEquals("$hero box speed", if (hero == Hero.HAWK) 2.2f else 1.3f, abs(w.player.vx), 0.05f)
+            assertEquals("$hero looked suspicious", hero != Hero.HAWK, suspicious)
         }
     }
 
     @Test
-    fun mongooseUnplugsDronesAndTurretsByHandQuietly() {
+    fun hawkUnplugsDronesAndTurretsByHandQuietly() {
         for (kind in listOf(EnemyKind.DRONE, EnemyKind.TURRET)) {
-            for (hero in listOf(Hero.MONGOOSE, Hero.BULL)) {
+            for (hero in listOf(Hero.HAWK, Hero.BULL)) {
                 val w = world(hero)
                 w.player.x = 4f
                 w.player.facing = 1
@@ -505,8 +505,8 @@ class HeroTest {
                 e.fireCooldown = 99f
                 e.timer = 99f
                 run(w, 0.1f) { e.fireCooldown = 99f }
-                assertEquals("$hero vs $kind", hero != Hero.MONGOOSE, e.alive)
-                if (hero == Hero.MONGOOSE) {
+                assertEquals("$hero vs $kind", hero != Hero.HAWK, e.alive)
+                if (hero == Hero.HAWK) {
                     assertEquals(1, w.stats.unplugged)
                     assertEquals("a quiet kill in SILENT", 1, w.silentKills)
                     assertTrue(w.fx.texts.any { it.text == Popup.UNPLUGGED })
@@ -514,7 +514,7 @@ class HeroTest {
             }
         }
         // Not while it's drawing a bead on you.
-        val w = world(Hero.MONGOOSE)
+        val w = world(Hero.HAWK)
         w.player.x = 4f
         val drone = enemy(w, EnemyKind.DRONE, 4.5f)
         drone.state = EnemyState.AIM
@@ -524,8 +524,8 @@ class HeroTest {
     }
 
     @Test
-    fun guardsSpotMongooseFromCloserInSilent() {
-        for (hero in listOf(Hero.MONGOOSE, Hero.BULL)) {
+    fun guardsSpotHawkFromCloserInSilent() {
+        for (hero in listOf(Hero.HAWK, Hero.BULL)) {
             val w = world(hero, silent = true)
             w.floor(w.player.floor)!!.halls.forEach { it.lightAlive.fill(true) }
             w.player.x = 2f
@@ -533,13 +533,13 @@ class HeroTest {
             val guard = enemy(w, EnemyKind.AGENT, 2f + World.SILENT_SIGHT_RANGE * 0.87f, facing = -1)
             guard.vx = 0f
             run(w, 0.3f) { guard.x = 2f + World.SILENT_SIGHT_RANGE * 0.87f }
-            assertEquals("$hero", hero != Hero.MONGOOSE, guard.state != EnemyState.PATROL)
+            assertEquals("$hero", hero != Hero.HAWK, guard.state != EnemyState.PATROL)
         }
     }
 
     @Test
     fun jammerSlowsTheMachinesOnly() {
-        val w = world(Hero.MONGOOSE)
+        val w = world(Hero.HAWK)
         val drone = enemy(w, EnemyKind.DRONE, 9f)
         val guard = enemy(w, EnemyKind.AGENT, 11f)
         val base = w.reactionScale(drone)
@@ -552,7 +552,7 @@ class HeroTest {
     @Test
     fun chaffDazesTheWholeHallway() {
         for (level in 0..2) {
-            val w = world(Hero.MONGOOSE)
+            val w = world(Hero.HAWK)
             if (level > 0) w.perks[Perk.CHAFF] = level
             park(w)
             val far = enemy(w, EnemyKind.AGENT, 12.5f)
@@ -570,7 +570,7 @@ class HeroTest {
 
     /** Hits that missed out of [trials] bullets to the chest. */
     private fun camoMisses(level: Int, trials: Int = 200): Int {
-        val w = world(Hero.MONGOOSE)
+        val w = world(Hero.HAWK)
         if (level > 0) w.perks[Perk.CAMO] = level
         repeat(trials) {
             val p = w.player
@@ -595,7 +595,7 @@ class HeroTest {
         assertTrue("LV 2: $two / 200", two in 45..90)
         assertEquals("seeded: the same run misses the same", one, camoMisses(1))
         // A miss is a blocked hit: no heart lost, a MISSED popup.
-        val w = world(Hero.MONGOOSE)
+        val w = world(Hero.HAWK)
         w.perks[Perk.CAMO] = 2
         var missed = false
         var tries = 0
@@ -617,11 +617,13 @@ class HeroTest {
         assertTrue(missed)
     }
 
-    /** Installs that picked the jungle commando before he was MONGOOSE keep him; unknown names fall back. */
+    /** Installs that picked a hero under an old name keep him; unknown names fall back. */
     @Test
     fun savedHeroNamesSurviveTheRename() {
         for (h in Hero.entries) assertEquals(h, Hero.fromSaved(h.name))
-        assertEquals(Hero.MONGOOSE, Hero.fromSaved("VIPER"))
+        assertEquals(Hero.HAWK, Hero.fromSaved("VIPER"))
+        assertEquals(Hero.HAWK, Hero.fromSaved("MONGOOSE"))
+        assertEquals(Hero.WOLF, Hero.fromSaved("BADGER"))
         assertEquals(null, Hero.fromSaved(null))
         assertEquals(null, Hero.fromSaved("NOBODY"))
     }

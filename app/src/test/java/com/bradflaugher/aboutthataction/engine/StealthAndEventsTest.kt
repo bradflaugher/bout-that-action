@@ -538,8 +538,8 @@ class StealthAndEventsTest {
     }
 
     @Test
-    fun mongooseCantUnplugADroneThatWatchedHimBoxUp() {
-        val w = World(RunConfig(11L, Difficulty(startFloor = 3), silent = true, hero = Hero.MONGOOSE))
+    fun hawkCantUnplugADroneThatWatchedHimBoxUp() {
+        val w = World(RunConfig(11L, Difficulty(startFloor = 3), silent = true, hero = Hero.HAWK))
         run(w, 1.5f)
         w.enemies.clear()
         w.bullets.clear()

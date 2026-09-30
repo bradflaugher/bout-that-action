@@ -502,7 +502,7 @@ class ScreenshotTest {
 
     /** SILENT: sneaking up behind a patrol while another guard looks the other way. */
     private fun silent(): World {
-        val w = newWorld(seedWithHalls(19, calmSeed(19, 1000), 3), 19, silent = true, hero = Hero.MONGOOSE)
+        val w = newWorld(seedWithHalls(19, calmSeed(19, 1000), 3), 19, silent = true, hero = Hero.HAWK)
         w.run(1.6f)
         w.settle(X(3.2f), 2.0f)
         val f = w.player.floor
@@ -634,7 +634,7 @@ class ScreenshotTest {
     }
 
     private fun magma(): World {
-        val w = newWorld(calmSeed(108, 500), 108, hero = Hero.BADGER)
+        val w = newWorld(calmSeed(108, 500), 108, hero = Hero.WOLF)
         w.run(1.6f)
         w.settle(X(3.0f), 0.8f)
         val f = w.player.floor
@@ -666,7 +666,7 @@ class ScreenshotTest {
     }
 
     private fun hell(): World {
-        val w = newWorld(calmSeed(165, 600), 165, hero = Hero.BADGER)
+        val w = newWorld(calmSeed(165, 600), 165, hero = Hero.WOLF)
         w.run(1.6f)
         w.settle(X(3.2f), 2.4f)
         val f = w.player.floor
@@ -720,7 +720,7 @@ class ScreenshotTest {
     }
 
     private fun darkness(): World {
-        val w = newWorld(calmSeed(18, 800), 18, silent = true, hero = Hero.MONGOOSE)
+        val w = newWorld(calmSeed(18, 800), 18, silent = true, hero = Hero.HAWK)
         w.run(1.6f)
         w.settle(X(4.2f), 2.2f)
         val f = w.player.floor

@@ -345,7 +345,7 @@ private fun RosterTile(hero: Hero, selected: Boolean, modifier: Modifier, time: 
             Modifier.fillMaxWidth().weight(1f).graphicsLayer { alpha = 0.5f + 0.5f * on },
             height = 0.86f, foot = 0.97f, time = time,
         )
-        // Shrinks to the tile: MONGOOSE is a long name on a narrow phone.
+        // Shrinks to the tile if a name is ever too long for a narrow phone.
         FitText(hero.title, Type.micro, lerp(Neon.dim, c, on), Modifier.fillMaxWidth().padding(horizontal = 4.dp), letterSpacing = 1.5.sp, glow = 0.5f * on)
     }
 }

@@ -6,13 +6,13 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * MONGOOSE: the jungle commando. A floppy camo boonie hat with a chin cord, a hard jaw and
+ * HAWK: the jungle commando. A short dark mohawk over shaved sides, a hard jaw and
  * black-and-green stripes of face paint; camo fatigues with the sleeves rolled above the
- * elbow over wiry forearms; a green load-bearing chest rig with magazine pouches and a
- * radio on the back, its whip antenna swaying over his shoulder; a machete slung across the
- * back, handle up; camo cargo pants bloused into canvas-and-leather jungle boots. A green rim.
+ * elbow over wiry forearms; a green load-bearing chest rig with magazine pouches, a webbing
+ * yoke and a knife on the strap; a machete slung low on the hip; camo cargo pants bloused into
+ * canvas-and-leather jungle boots. A green rim.
  */
-internal class MongooseKit(a: HeroArt) : HeroKit(a) {
+internal class HawkKit(a: HeroArt) : HeroKit(a) {
     override val bulk = 1.06f
     override val head = 1.0f
     override val accent = GREEN
@@ -131,15 +131,12 @@ internal class MongooseKit(a: HeroArt) : HeroKit(a) {
         p.lightFrom(k.dir)
         val w = k.waistD * 0.98f
         val c = k.chestD * 1.06f
-        // The machete across the back first: blade down behind the hip, handle up past the shoulder.
-        machete(c, w)
         contour(BODY, c, w)
         p.shapeLit(CAMO, tx(1.0f, c * 0.4f), ty(1.0f, c * 0.4f), tx(0.3f, -w * 0.6f), ty(0.3f, -w * 0.6f))
-        // The radio pack on the back.
-        p.begin()
-        tp(0.92f, -c * 0.38f); tp(0.94f, -c * 0.72f); tp(0.5f, -c * 0.74f); tp(0.46f, -c * 0.4f)
-        p.shapeLit(RIG, tx(0.94f, -c * 0.5f), ty(0.94f, -c * 0.5f), tx(0.5f, -c * 0.7f), ty(0.5f, -c * 0.7f), sep = true)
-        if (p.ink) return
+        if (p.ink) {
+            machete(w)
+            return
+        }
         if (p.shading) {
             // Camo blotches, the back in shadow.
             blotch(0.3f, c * 0.1f, 0.46f, c * 0.4f, CAMO_DARK)
@@ -148,10 +145,6 @@ internal class MongooseKit(a: HeroArt) : HeroKit(a) {
             p.begin()
             tp(0.06f, -w * 0.58f); tp(0.5f, -w * 0.58f); tp(0.9f, -c * 0.44f); tp(0.98f, -c * 0.34f); tp(0.6f, -c * 0.16f); tp(0.1f, -w * 0.18f)
             p.shapeGradDetail(Col.alpha(0xFF050A04.toInt(), 0.55f), 0x00050A04, tx(0.5f, -c * 0.5f), ty(0.5f, -c * 0.5f), tx(0.5f, -c * 0.1f), ty(0.5f, -c * 0.1f))
-            // The radio's dials and seams.
-            p.detail(tx(0.84f, -c * 0.44f), ty(0.84f, -c * 0.44f), tx(0.84f, -c * 0.68f), ty(0.84f, -c * 0.68f), 0.012f * k.hs, RIG_DARK)
-            p.dot(tx(0.72f, -c * 0.58f), ty(0.72f, -c * 0.58f), 0.016f * k.hs, RIG_DARK)
-            p.dot(tx(0.6f, -c * 0.58f), ty(0.6f, -c * 0.58f), 0.012f * k.hs, GREEN)
         }
         // The shirt's open collar.
         p.begin()
@@ -187,21 +180,22 @@ internal class MongooseKit(a: HeroArt) : HeroKit(a) {
         p.detail(tx(0.08f, -w * 0.56f), ty(0.08f, -w * 0.56f), tx(0.08f, w * 0.5f), ty(0.08f, w * 0.5f), 0.036f * k.hs, RIG)
         p.dot(tx(0.08f, w * 0.34f), ty(0.08f, w * 0.34f), 0.022f * k.hs, BUCKLE)
         rimAlong(BODY, RIM_FROM, RIM_TO, c, w)
+        machete(w)
     }
 
-    /** The machete across the back: a long dark blade in a sheath, the grip over the shoulder. */
-    private fun machete(c: Float, w: Float) {
-        val hx = tx(1.18f, -c * 0.66f)
-        val hy = ty(1.18f, -c * 0.66f)
-        val gx = tx(0.98f, -c * 0.58f)
-        val gy = ty(0.98f, -c * 0.58f)
-        val bx = tx(0.2f, -w * 0.84f)
-        val by = ty(0.2f, -w * 0.84f)
-        p.seg(gx, gy, bx, by, 0.07f * k.hs, SHEATH)
+    /** The machete, slung low on the hip: the grip up at the belt, the sheathed blade down the back of the thigh. */
+    private fun machete(w: Float) {
+        val hx = tx(0.26f, -w * 0.52f)
+        val hy = ty(0.26f, -w * 0.52f)
+        val gx = tx(0.06f, -w * 0.6f)
+        val gy = ty(0.06f, -w * 0.6f)
+        val bx = tx(-0.5f, -w * 0.5f)
+        val by = ty(-0.5f, -w * 0.5f)
+        p.seg(gx, gy, bx, by, 0.066f * k.hs, SHEATH)
         p.seg(hx, hy, gx, gy, 0.04f * k.hs, BLADE_HANDLE)
         if (p.ink || !p.shading) return
-        p.detail(Rig.mix(gx, bx, 0.06f), Rig.mix(gy, by, 0.06f), Rig.mix(gx, bx, 0.94f), Rig.mix(gy, by, 0.94f), 0.012f * k.hs, SHEATH_LIT)
-        p.detail(gx - (hy - gy) * 0.3f, gy + (hx - gx) * 0.3f, gx + (hy - gy) * 0.3f, gy - (hx - gx) * 0.3f, 0.02f * k.hs, BUCKLE)
+        p.detail(Rig.mix(gx, bx, 0.08f), Rig.mix(gy, by, 0.08f), Rig.mix(gx, bx, 0.92f), Rig.mix(gy, by, 0.92f), 0.012f * k.hs, SHEATH_LIT)
+        p.detail(gx - (hy - gy) * 0.4f, gy + (hx - gx) * 0.4f, gx + (hy - gy) * 0.4f, gy - (hx - gx) * 0.4f, 0.02f * k.hs, BUCKLE)
     }
 
     /** A magazine pouch on the rig at [along], from [s0] to [s1] (chest side). */
@@ -230,8 +224,8 @@ internal class MongooseKit(a: HeroArt) : HeroKit(a) {
         if (!p.ink) {
             if (p.shading) hpoly(JAW).shapeShade(SKIN)
             if (p.hi) {
-                // Short dark hair at the nape under the hat.
-                hpoly(NAPE).shapeDetail(HAIR)
+                // The shaved sides: a dark shadow of stubble round the skull.
+                hpoly(SHAVED).shapeDetail(Col.alpha(HAIR, 0.5f))
                 // Face paint: green and black stripes slashed across the cheek and the brow.
                 p.detail(hpX(0.3f), hpY(0.02f), hpX(0.96f), hpY(0.26f), r * 0.14f, Col.alpha(PAINT_GREEN, 0.9f))
                 p.detail(hpX(0.24f), hpY(0.3f), hpX(0.9f), hpY(0.54f), r * 0.12f, Col.alpha(PAINT_BLACK, 0.85f))
@@ -246,100 +240,40 @@ internal class MongooseKit(a: HeroArt) : HeroKit(a) {
                 p.dot(hpX(-0.13f), hpY(0.04f), r * 0.13f, SKIN)
             }
             if (p.shading && !ghost) p.detail(hpX(0.92f), hpY(-0.02f), hpX(1.1f), hpY(0.2f), r * 0.06f, Col.alpha(SKIN_LIT, 0.7f))
-            // The chin cord, down from the brim to under the jaw.
-            if (p.hi) p.detail(hpX(-0.3f), hpY(-0.6f), hpX(0.4f), hpY(0.98f), r * 0.05f, STRAP)
         }
-        boonie(r, ghost)
-    }
-
-    /** The boonie: a soft round crown with a band of loops, a floppy brim all the way round. */
-    private fun boonie(r: Float, ghost: Boolean) {
-        val sw = a.run * 0.1f + a.bob
-        hpoly(CROWN).shapeLit(HAT, hpX(0.3f), hpY(-1.6f), hpX(-0.6f), hpY(-0.7f), sep = true)
-        if (!p.ink) {
-            hpoly(BAND).shapeDetail(HAT_DARK)
-            if (p.shading) {
-                blotchHead(0.1f, -1.4f, 0.5f, -1.2f)
-                blotchHead(-0.6f, -1.3f, -0.3f, -1.0f)
-                // The loops on the band.
-                for (i in 0 until 4) {
-                    val u = 0.66f - i * 0.44f
-                    p.detail(hpX(u), hpY(-1.0f), hpX(u), hpY(-0.84f), r * 0.07f, HAT_LIT)
-                }
-            }
-        }
-        p.begin()
-        hp(1.5f, -0.64f + sw); hp(1.26f, -0.8f); hp(0.4f, -0.9f); hp(-0.5f, -0.88f); hp(-1.3f, -0.8f)
-        hp(-1.54f, -0.56f - sw); hp(-1.3f, -0.62f); hp(-0.5f, -0.72f); hp(0.4f, -0.74f); hp(1.2f, -0.64f)
-        p.shapeLit(HAT, hpX(0.6f), hpY(-0.9f), hpX(-0.4f), hpY(-0.6f), sep = true)
+        // The mohawk: a short, stiff strip from the brow to the crown, standing proud.
+        hpoly(MOHAWK).shapeLit(HAIR, hpX(0.3f), hpY(-1.4f), hpX(-0.6f), hpY(-0.8f), sep = true)
         if (p.ink) return
-        if (p.shading) {
-            // The brim's shadow over the eyes, and the lamp along its edge.
-            p.begin()
-            hp(0.5f, -0.64f); hp(1.2f, -0.6f); hp(1.0f, -0.4f); hp(0.44f, -0.44f)
-            p.shapeDetail(Col.alpha(0xFF0A1006.toInt(), 0.35f))
-            p.detail(hpX(1.36f), hpY(-0.8f), hpX(0.1f), hpY(-0.88f), r * 0.06f, Col.alpha(HAT_LIT, 0.8f))
+        if (p.shading && !ghost) {
+            for (i in 0 until 4) {
+                val u = 0.34f - i * 0.36f
+                p.detail(hpX(u), hpY(-1.1f + i * 0.02f), hpX(u - 0.12f), hpY(-1.44f + i * 0.04f), r * 0.07f, Col.alpha(HAIR_LIT, 0.9f))
+            }
         }
         if (look.rim != 0 && !ghost) {
             g.blend(Gfx.Blend.ADD)
-            val rc = p.c(look.rim)
-            val i = HeroArt.RIM_PX * 0.5f
-            g.line(hpX(-0.62f + i), hpY(-1.4f), hpX(-0.9f + i), hpY(-0.9f), HeroArt.RIM_PX, rc)
-            g.line(hpX(-1.3f), hpY(-0.8f + i), hpX(-1.54f), hpY(-0.56f - sw + i), HeroArt.RIM_PX, rc)
+            g.strokeArc(hx, hpY(-0.1f), r * 1.02f - HeroArt.RIM_PX * 0.5f, if (k.dir > 0) 150f else 300f, 90f, HeroArt.RIM_PX, p.c(look.rim))
             g.blend(Gfx.Blend.NORMAL)
         }
     }
 
-    private fun blotchHead(u0: Float, v0: Float, u1: Float, v1: Float) {
-        p.begin()
-        hp(u0, (v0 + v1) * 0.5f); hp((u0 + u1) * 0.5f, v0); hp(u1, (v0 + v1) * 0.5f); hp((u0 + u1) * 0.5f, v1)
-        p.shapeDetail(HAT_DARK)
-    }
-
-    /** The radio's whip antenna, swaying up over the back of the shoulder. */
-    override fun hair() {
-        val c = k.chestD * 1.06f
-        val bx = tx(0.92f, -c * 0.64f)
-        val by = ty(0.92f, -c * 0.64f)
-        val live = if (a.live) 1f else 0f
-        val sway = (sin(a.f.t * 5.5f) * 0.05f + a.run * 0.2f) * live + a.idle * 2f + a.fall * 0.4f
-        val len = 0.5f * k.hs
-        // Up the spine, leaning back with the sway.
-        val ux = k.ux
-        val uy = k.uy
-        val backX = -k.nx
-        val backY = -k.ny
-        val mx = bx + ux * len * 0.5f + backX * len * (0.08f + sway * 0.3f)
-        val my = by + uy * len * 0.5f + backY * len * (0.08f + sway * 0.3f)
-        val tx2 = bx + ux * len + backX * len * (0.18f + sway)
-        val ty2 = by + uy * len + backY * len * (0.18f + sway)
-        p.seg(bx, by, mx, my, 0.014f * k.hs, ANTENNA)
-        p.seg(mx, my, tx2, ty2, 0.01f * k.hs, ANTENNA)
-        if (p.ink) return
-        p.dot(tx2, ty2, 0.016f * k.hs, GREEN)
-        addGlow(tx2, ty2, 0.05f * k.hs, GREEN, 0.5f)
-        // Hide the tiny gap over the pack.
-        val d = sqrt((tx2 - bx) * (tx2 - bx) + (ty2 - by) * (ty2 - by))
-        if (d > 0f && look.rim != 0 && p.shading) addLine(bx, by, mx, my, HeroArt.RIM_PX * 0.6f, Col.alpha(RIM, 0.5f))
-    }
-
     override fun doorGlint(time: Float) {
-        // The radio's green diode, blinking in the dark.
-        if (fract(time * 0.5f) > 0.5f) return
-        val c = k.chestD * 1.06f
-        val x = tx(0.6f, -c * 0.58f)
-        val y = ty(0.6f, -c * 0.58f)
-        p.dot(x, y, 0.014f * k.hs, Col.alpha(0xFFE0FFD8.toInt(), 0.9f))
-        a.f.glowDot(x, y, 0.022f, GREEN, 0.6f)
+        // An eye in the dark: a hard white glint with a green edge.
+        if (fract(time * 0.25f) > 0.95f) return
+        val x = hpX(0.78f)
+        val y = hpY(-0.12f)
+        p.dot(x, y, 0.014f * k.hs, Col.alpha(0xFFFFF4F0.toInt(), 0.9f))
+        a.f.glowDot(x, y, 0.018f, GREEN, 0.5f)
     }
 
     companion object {
-        val GREEN = Hero.MONGOOSE.color
+        val GREEN = Hero.HAWK.color
         const val RIM = 0xFFA8F29C.toInt()
         const val SKIN = 0xFFB07A52.toInt()
         const val SKIN_LIT = 0xFFEAB48A.toInt()
         const val SKIN_FAR = 0xFF6E4630.toInt()
         const val HAIR = 0xFF1E1610.toInt()
+        const val HAIR_LIT = 0xFF8A6A4E.toInt()
         /** The fatigues: woodland greens, bright enough to read on dark walls. */
         const val CAMO = 0xFF4A6A34.toInt()
         const val CAMO_LIT = 0xFF8EB468.toInt()
@@ -352,9 +286,6 @@ internal class MongooseKit(a: HeroArt) : HeroKit(a) {
         const val RIG = 0xFF3A4A28.toInt()
         const val RIG_LIT = 0xFF7E9A50.toInt()
         const val RIG_DARK = 0xFF1A2210.toInt()
-        const val HAT = 0xFF56703A.toInt()
-        const val HAT_LIT = 0xFF9CB870.toInt()
-        const val HAT_DARK = 0xFF2A3A1C.toInt()
         const val CANVAS = 0xFF4A5236.toInt()
         const val BOOT = 0xFF1E1C16.toInt()
         const val STRAP = 0xFF1A1A14.toInt()
@@ -362,7 +293,6 @@ internal class MongooseKit(a: HeroArt) : HeroKit(a) {
         const val SHEATH = 0xFF2A2418.toInt()
         const val SHEATH_LIT = 0xFF5A4E36.toInt()
         const val BLADE_HANDLE = 0xFF3A2A1A.toInt()
-        const val ANTENNA = 0xFF1A1C18.toInt()
 
         /** Lean and hard: a deep chest over a narrow waist. */
         private val BODY = floatArrayOf(
@@ -400,16 +330,16 @@ internal class MongooseKit(a: HeroArt) : HeroKit(a) {
             0.04f, 0.34f, 0.4f, 0.58f, 0.8f, 0.72f, 0.99f, 0.7f, 1.01f, 0.8f,
             0.9f, 0.98f, 0.3f, 1.04f, -0.2f, 0.82f, -0.1f, 0.42f,
         )
-        private val NAPE = floatArrayOf(
-            -0.4f, -0.7f, -1.02f, -0.6f, -1.06f, 0.0f, -0.9f, 0.3f, -0.66f, 0.0f, -0.4f, -0.3f,
+        /** The shaved sides of the skull, under the mohawk. */
+        private val SHAVED = floatArrayOf(
+            0.6f, -0.84f, 0.1f, -1.04f, -0.5f, -0.98f, -0.94f, -0.66f, -1.02f, -0.1f,
+            -0.86f, 0.24f, -0.6f, 0.0f, -0.36f, -0.3f, 0.06f, -0.46f, 0.3f, -0.6f,
         )
-        /** The boonie's soft crown. */
-        private val CROWN = floatArrayOf(
-            0.86f, -0.76f, 0.82f, -1.16f, 0.6f, -1.46f, 0.1f, -1.56f, -0.4f, -1.52f,
-            -0.78f, -1.3f, -0.9f, -0.96f, -0.9f, -0.76f,
-        )
-        private val BAND = floatArrayOf(
-            0.86f, -0.78f, 0.84f, -1.0f, -0.9f, -1.0f, -0.9f, -0.78f,
+        /** A short strip from the brow back over the crown, spiked a little along the top. */
+        private val MOHAWK = floatArrayOf(
+            0.66f, -0.84f, 0.66f, -1.2f, 0.5f, -1.4f, 0.32f, -1.34f, 0.16f, -1.56f,
+            -0.04f, -1.42f, -0.26f, -1.58f, -0.44f, -1.4f, -0.68f, -1.46f, -0.8f, -1.18f,
+            -1.02f, -1.1f, -0.96f, -0.8f, -0.64f, -0.92f, -0.2f, -1.04f, 0.22f, -1.02f,
         )
     }
 }

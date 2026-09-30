@@ -50,8 +50,8 @@ data class RunReport(
         val HERO_QUIPS = mapOf(
             Hero.BULL to "Chain still shiny. Good game.",
             Hero.FOX to "The coat survived. Mostly.",
-            Hero.BADGER to "Hat stayed on. Stubborn to the end.",
-            Hero.MONGOOSE to "Back to the box.",
+            Hero.WOLF to "Stubborn to the very end.",
+            Hero.HAWK to "Back to the box.",
         )
 
         fun of(w: World): RunReport {
