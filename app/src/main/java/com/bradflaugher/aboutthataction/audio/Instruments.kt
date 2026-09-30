@@ -434,6 +434,9 @@ internal class Instrument(private val sr: Int, voices: Int, seed: Int) {
         pick.noteOn(note, vel, gateSamples, legato = false, age = counter)
     }
 
+    /** Any voice still sounding. */
+    val active: Boolean get() = pool.any { it.active }
+
     fun releaseAll() = pool.forEach { it.release() }
     fun kill() = pool.forEach { it.kill() }
     fun sanitize() = pool.forEach { it.sanitize() }

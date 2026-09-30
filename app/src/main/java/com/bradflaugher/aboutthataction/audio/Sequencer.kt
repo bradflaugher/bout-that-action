@@ -18,6 +18,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private val bass = Instrument(sr, 1, id * 8 + 2)
     private val arp = Instrument(sr, 4, id * 8 + 3)
     private val lead = Instrument(sr, 1, id * 8 + 4)
+    /** The harmony voice under the lead ([Phrase.harmony]). */
+    private val harm = Instrument(sr, 1, id * 8 + 5)
     private val kit = DrumKit(sr)
     private val wind = Wind(sr)
     private val rotor = Rotor(sr)
@@ -95,6 +97,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private val arpR = FloatArray(c)
     private val leadL = FloatArray(c)
     private val leadR = FloatArray(c)
+    private val harmL = FloatArray(c)
+    private val harmR = FloatArray(c)
     private val drL = FloatArray(c)
     private val drR = FloatArray(c)
     private val drRev = FloatArray(c)
@@ -107,8 +111,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         spec = s
         composer = comp
         comp.reset()
-        pad.kill(); bass.kill(); arp.kill(); lead.kill()
-        pad.patch = s.pad; bass.patch = s.bass; arp.patch = s.arp; lead.patch = s.lead
+        pad.kill(); bass.kill(); arp.kill(); lead.kill(); harm.kill()
+        pad.patch = s.pad; bass.patch = s.bass; arp.patch = s.arp; lead.patch = s.lead; harm.patch = s.lead
         kit.setTuning(s.kit)
         absStep = -1L; stepPos = 1.0
         swingPending = false; stutterPending = false; rollPending = false; hatRollN = 0
@@ -136,13 +140,13 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     fun stop(fadeSeconds: Float) {
         if (!audible) return
         sequencing = false
-        pad.releaseAll(); bass.releaseAll(); arp.releaseAll(); lead.releaseAll()
+        pad.releaseAll(); bass.releaseAll(); arp.releaseAll(); lead.releaseAll(); harm.releaseAll()
         fadeTarget = 0f
         fadeCoef = Dsp.onePole(fadeSeconds / 5f, sr)
     }
 
     fun sanitize() {
-        pad.sanitize(); bass.sanitize(); arp.sanitize(); lead.sanitize(); whistle.sanitize()
+        pad.sanitize(); bass.sanitize(); arp.sanitize(); lead.sanitize(); harm.sanitize(); whistle.sanitize()
     }
 
     private fun samplesPerStep(): Double = sr * 60.0 / (bpm * 4.0)
@@ -189,7 +193,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         time += n.toDouble() / sr
         if (!sequencing && fade < 1e-4f) {
             fade = 0f
-            pad.kill(); bass.kill(); arp.kill(); lead.kill()
+            pad.kill(); bass.kill(); arp.kill(); lead.kill(); harm.kill()
         }
     }
 
@@ -301,14 +305,14 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
                     dropOn = false
                 }
             }
-            val nextSec = if (phraseBar == 7) sp.sections[(bar / 8 + 1) % sp.sections.size] else sec
+            val nextSec = if (phraseBar != 7) sec else sp.phrases?.let { it[(bar / 8 + 1) % it.size].section } ?: sp.sections[(bar / 8 + 1) % sp.sections.size]
             dropped = dropOn && sec != Section.BREAK
             if (s == 12 && !dropped && !dropGap && endStep == Long.MAX_VALUE && nextSec != Section.BREAK &&
                 (i >= sp.dropThreshold || (dropOn && !cool))
             ) {
                 // Hold your breath: the last beat cuts out under a swell.
                 dropGap = true
-                bass.releaseAll(); pad.releaseAll(); arp.releaseAll(); lead.releaseAll()
+                bass.releaseAll(); pad.releaseAll(); arp.releaseAll(); lead.releaseAll(); harm.releaseAll()
                 dropFx.swell((4 * stepSamples).toInt(), 0.35f)
             }
             gap = dropGap
@@ -320,7 +324,9 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             (phraseBar == 7 && s >= 12 && lSnare > 0.3f) ||
             (bar % 16 == 15 && s >= 8 && lSnare > 0.5f)
         val brk = sec == Section.BREAK && !fill
-        val pat = if (fill) sp.fill else if (isB) sp.drumsB else sp.drumsA
+        val plan = comp.phrase
+        val build = plan?.build?.takeIf { phraseBar >= 6 }
+        val pat = if (fill) plan?.fill ?: sp.fill else build ?: plan?.drums ?: if (isB) sp.drumsB else sp.drumsA
         val kMul = if (transitionFill) max(lKick, 0.6f) else if (dropped) lKick else 0f
         val sMul = if (transitionFill) max(lSnare, 0.6f) else lSnare
         if (!brk && !gap) {
@@ -402,7 +408,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         }
 
         // ---- Bass
-        val brow = if (isB) sp.bassB else sp.bassA
+        val brow = plan?.bass ?: if (isB) sp.bassB else sp.bassA
         val bc = brow[s]
         // Before the drop the bass only teases: a soft note on the downbeat.
         if (bc != '.' && bc != '~' && !gap && (dropped || s == 0)) {
@@ -448,7 +454,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
 
         // ---- Arp
         if (lArp > 0.02f) {
-            val arow = if (isB) sp.arpB else sp.arpA
+            val arow = plan?.arp ?: if (isB) sp.arpB else sp.arpA
             val ac = arow[s]
             if (ac in '0'..'9') {
                 val root = nearest(key + chord.root, sp.arpCenter)
@@ -466,6 +472,10 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
                 val legato = if (sp.lead.glide > 0f) 1.04f else 0.85f
                 val accent = if (s % 4 == 0) 1f else 0.85f
                 if (!gap) lead.noteOn(note, lLead * accent, (comp.leadLen * stepSamples * legato).toInt())
+                if (!gap && plan != null && plan.harmony) {
+                    val h = comp.harmonyFor(note, chord)
+                    if (h >= 0) harm.noteOn(h, lLead * accent, (comp.leadLen * stepSamples * legato).toInt())
+                }
             }
         }
 
@@ -491,6 +501,12 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         bass.render(bassL, bassR, n, pm, cutMul(sp.bass))
         arp.render(arpL, arpR, n, pm, cutMul(sp.arp))
         lead.render(leadL, leadR, n, pm, cutMul(sp.lead))
+        val harmOn = harm.active
+        if (harmOn) {
+            harm.render(harmL, harmR, n, pm, cutMul(sp.lead))
+            val hg = sp.mix.harmony
+            for (i in 0 until n) leadL[i] += harmL[i] * hg
+        }
         kit.render(drL, drR, drRev, n, pm)
         ambL.fill(0f, 0, n); ambR.fill(0f, 0, n)
         wind.render(ambL, ambR, n, sp.wind)
