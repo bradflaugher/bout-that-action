@@ -322,6 +322,11 @@ internal class StereoDelay(private val sr: Int) {
     private val dampR = OnePole().apply { setHz(3800f, sr) }
     private var time = sr * 0.3f
     private var target = time
+    // A jump in time (a new song's tempo) crossfades to a second tap instead of sliding the
+    // one tap there, which would chirp every echo still ringing.
+    private var nextTime = time
+    private var xf = 1f
+    private val xfStep = 1f / (0.05f * sr)
     var feedback = 0.42f
     var outL = 0f; private set
     var outR = 0f; private set
@@ -331,9 +336,22 @@ internal class StereoDelay(private val sr: Int) {
     }
 
     fun process(inL: Float, inR: Float) {
-        time += (target - time) * 0.0004f
-        val dl = left.read(time)
-        val dr = right.read(time)
+        if (xf >= 1f && kotlin.math.abs(target - time) > time * 0.02f) {
+            nextTime = target; xf = 0f
+        }
+        val dl: Float
+        val dr: Float
+        if (xf < 1f) {
+            nextTime += (target - nextTime) * 0.0004f
+            xf = kotlin.math.min(1f, xf + xfStep)
+            dl = left.read(time) * (1f - xf) + left.read(nextTime) * xf
+            dr = right.read(time) * (1f - xf) + right.read(nextTime) * xf
+            if (xf >= 1f) time = nextTime
+        } else {
+            time += (target - time) * 0.0004f
+            dl = left.read(time)
+            dr = right.read(time)
+        }
         left.write((inL + inR) * 0.5f + Dsp.flush(dampR.lp(dr)) * feedback)
         right.write(Dsp.flush(dampL.lp(dl)) * feedback)
         outL = dl

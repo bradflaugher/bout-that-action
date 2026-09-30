@@ -297,10 +297,10 @@ class HeroMusicTest {
         render(e, 2f)
         assertEquals("tower-fox", e.songName)
         e.setZone(Zone.TOWER, silent = true)
-        render(e, 0.2f)
-        assertEquals("the mode flip doesn't wait for the bar line", "tower-fox-sneak", e.songName)
+        render(e, 0.46f) // a beat at 134 BPM
+        assertEquals("the mode flip doesn't wait for the bar line, just the beat", "tower-fox-sneak", e.songName)
         e.setZone(Zone.TOWER, silent = false)
-        render(e, 0.2f)
+        render(e, 0.6f) // a beat of the sneak mix, locked at 3:4
         assertEquals("tower-fox", e.songName)
         e.setZone(Zone.LABS)
         render(e, 0.2f)
@@ -330,8 +330,8 @@ class HeroMusicTest {
         val themes = ArrayList<FloatArray>()
         for (h in Hero.entries) {
             e.playHeroTheme(h)
-            // Browsing: from the title it waits for the bar; from theme to theme it's immediate.
-            val x = render(e, if (h == Hero.BULL) 6f else 0.1f)
+            // Browsing: from the title, and from theme to theme, it comes in on the next beat.
+            val x = render(e, 0.6f)
             assertEquals("${h.name.lowercase()}-theme", e.songName)
             assertSane(x, "$h theme")
         }
@@ -366,11 +366,12 @@ class HeroMusicTest {
             e.setHero(h)
             e.setZone(Zone.TOWER)
             render(e, 2f)
+            // The sign-off rings after the chord (the music, which swells up under it, muted).
+            e.setMusicVolume(0f)
             e.gameOver()
             val x = render(e, 3.5f)
             assertSane(x, "$h game over")
             assertEquals("gameover", e.songName)
-            // The sign-off rings between the chord and the ambient loop.
             levels[h] = rms(x, AudioTestUtil.SR * 2, AudioTestUtil.SR * 2 * 3)
         }
         println("game over 1-3 s: " + levels.entries.joinToString { "%s=%.3f".format(it.key, it.value) })

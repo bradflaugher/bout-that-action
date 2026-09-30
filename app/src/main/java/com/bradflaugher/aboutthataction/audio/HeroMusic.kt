@@ -796,6 +796,7 @@ internal fun SongSpec.derive(
     whistleFrom: Int = this.whistleFrom,
     whistleRange: Float = this.whistleRange,
     dropThreshold: Float = this.dropThreshold,
+    tempoLock: Float = this.tempoLock,
 ) = SongSpec(
     name = name, bpm = bpm, tonic = tonic, scale = scale, progA = progA, progB = progB, barsPerChord = barsPerChord,
     swing = swing, drumsA = drumsA, drumsB = drumsB, fill = fill, kit = kit, bassA = bassA, bassB = bassB,
@@ -808,5 +809,5 @@ internal fun SongSpec.derive(
     padPower = padPower, crowd = crowd, jungle = jungle, signature = signature,
     answer = answer, gain = gain, bassSlide = bassSlide, vinyl = vinyl, dropThreshold = dropThreshold,
     slideWhistle = slideWhistle,
-    whistleFrom = whistleFrom, whistleRange = whistleRange,
+    whistleFrom = whistleFrom, whistleRange = whistleRange, tempoLock = tempoLock,
 )

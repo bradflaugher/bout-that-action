@@ -587,7 +587,7 @@ internal class Riser(private val sr: Int) {
         val hz = 180f * 8f.pow(p)
         val step = (targetLevel - level) / n
         for (i in 0 until n) {
-            level += if (on) step else -level * 0.02f
+            level += if (on) step else -level * 0.002f
             phase += hz / sr; if (phase >= 1f) phase -= 1f
             val x = (bp.bp(noise.next()) * 1.6f + Dsp.sin01(phase) * 0.12f) * level
             l[off + i] += x

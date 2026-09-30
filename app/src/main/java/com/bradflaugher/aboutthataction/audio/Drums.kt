@@ -60,6 +60,11 @@ internal abstract class DrumVoice(protected val sr: Int) {
     var send = 0f
 
     abstract fun trigger(v: Float)
+
+    /** Cut it dead (only ever while its output is faded to nothing). */
+    fun silence() {
+        active = false
+    }
     abstract fun render(l: FloatArray, r: FloatArray, rev: FloatArray, n: Int, pitchMul: Float)
 
     protected fun out(l: FloatArray, r: FloatArray, rev: FloatArray, i: Int, x: Float) {
@@ -421,6 +426,12 @@ internal class DrumKit(private val sr: Int) {
         toms.forEach { it.level = t.tomLevel; it.send = 0.25f }
         percs.forEach { it.level = t.percLevel; it.send = 0.3f }
         snare.send = t.snareVerb; clap.send = t.snareVerb * 0.8f; crash.send = 0.2f; hat.send = 0.04f
+    }
+
+    /** Cut every drum (a restart: tails frozen under a finished fade must not come back). */
+    fun kill() {
+        for (v in all) v.silence()
+        busL.reset(); busR.reset(); held = 0f; heldR = 0f
     }
 
     fun tom(v: Float, pitch: Int) {

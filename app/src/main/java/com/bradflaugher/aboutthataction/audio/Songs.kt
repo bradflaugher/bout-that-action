@@ -146,6 +146,13 @@ internal class SongSpec(
     /** Where the slide whistle starts (the key's tonic nearest this MIDI note) and how far up it goes (a ratio). */
     val whistleFrom: Int = 74,
     val whistleRange: Float = 4f,
+    /**
+     * How far (a fraction) a transition may bend this song's tempo so it starts locked to the
+     * old song's grid at a simple ratio (1:2, 2:3, 3:4, 1:1 and back), before it glides home to
+     * [bpm] over a few seconds. Sneak and hot mixes a simple ratio apart need no bend at all;
+     * 0 never bends.
+     */
+    val tempoLock: Float = 0.13f,
 ) {
     /** A single strike at step 0 means "sustain for the whole chord". */
     val padSustain = sustains(padRhythm)
