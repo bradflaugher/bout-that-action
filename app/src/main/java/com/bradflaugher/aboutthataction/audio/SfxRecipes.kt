@@ -905,7 +905,7 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                     vibRate = 7f; vibDepth = 0.005f; gain = 0.1f; reverb = 0.3f; delay = 2.1f; priority = 4f
                 }
                 for (k in 0 until 2) voice {
-                    wave = Wave.SAW; wave2 = Wave.SQUARE; ratio2 = 1.01f; level2 = 0.5f; f0 = 370f; f1 = 340f; sweep = 0.15f
+                    wave = Wave.SAW; wave2 = Wave.SQUARE; ratio2 = 1.01f; level2 = 0.5f; f0 = 330f; f1 = 294f; sweep = 0.15f
                     filter = FilterMode.BAND; cut0 = 1400f; cut1 = 1100f; cutTime = 0.15f; q = 1.4f; drive = 0.4f
                     attack = 0.008f; hold = 0.1f; decay = 0.08f; gain = 0.16f; pan = if (k == 0) -0.25f else 0.25f
                     reverb = 0.25f; delay = 2.85f + k * 0.26f; priority = 4f

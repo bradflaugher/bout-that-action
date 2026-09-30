@@ -806,6 +806,32 @@ class HeroInstrumentsTest {
         assertTrue("then it lands, on the bar", lv[8] > lv[0] * 1.5 && (9..11).all { lv[it] > lv[5] * 3 })
     }
 
+    /** LION's slide whistle swoops up (slow, then a rush to the top), then stops; silent unless asked. */
+    @Test
+    fun slideWhistleSwoopsUp() {
+        val w = SlideWhistle(sr)
+        val n = 64
+        val l = FloatArray(n)
+        val r = FloatArray(n)
+        w.trigger(440f, 1760f, 0.5f, 1f)
+        w.render(l, r, n, 0f, 1f)
+        assertEquals(0.0, rms(l), 0.0)
+        val out = FloatArray(sr * 3 / 4)
+        var i = 0
+        while (i + n <= out.size) {
+            l.fill(0f); r.fill(0f)
+            w.render(l, r, n, 0.5f, 1f)
+            System.arraycopy(l, 0, out, i, n); i += n
+        }
+        val early = pitch(out, sr / 20, sr / 8)
+        val late = pitch(out, sr * 2 / 5, sr * 12 / 25)
+        println("slide whistle: %.0f Hz early, %.0f Hz late".format(early, late))
+        for (v in out) assertTrue(v.isFinite() && abs(v) < 1f)
+        assertTrue("starts near the bottom ($early)", early in 400.0..600.0)
+        assertTrue("rushes up ($late)", late > early * 2.2)
+        assertTrue("and stops", rms(out, sr * 7 / 10, sr * 3 / 4) < rms(out, sr / 5, sr / 4) * 0.05)
+    }
+
     @Test
     fun vinylCracklesOnlyWhenAsked() {
         val v = Vinyl(sr)

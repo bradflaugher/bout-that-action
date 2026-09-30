@@ -137,16 +137,16 @@ internal object HeroSongs {
     private val HOT_TRIM = arrayOf(
         floatArrayOf(0.78f, 0.78f, 0.77f, 0.79f, 0.79f, 0.82f, 0.86f, 0.75f), // BULL
         floatArrayOf(1.16f, 1.15f, 1.08f, 1.11f, 1.14f, 1.14f, 1.17f, 1.07f), // FOX
-        floatArrayOf(1.22f, 1.16f, 1.19f, 1.19f, 1.20f, 1.20f, 1.29f, 1.12f), // LION
+        floatArrayOf(1.38f, 1.32f, 1.34f, 1.34f, 1.36f, 1.41f, 1.46f, 1.23f), // LION
         floatArrayOf(0.98f, 0.93f, 0.95f, 0.95f, 0.99f, 0.96f, 1.09f, 0.92f), // HAWK
     )
     private val SNEAK_TRIM = arrayOf(
         floatArrayOf(0.75f, 0.71f, 0.70f, 0.70f, 0.72f, 0.74f, 0.70f, 0.73f), // BULL
         floatArrayOf(1.02f, 1.05f, 1.01f, 1.05f, 1.05f, 1.07f, 1.10f, 1.07f), // FOX
-        floatArrayOf(1.01f, 1.01f, 1.05f, 1.06f, 1.17f, 1.00f, 1.11f, 1.12f), // LION
+        floatArrayOf(1.08f, 1.09f, 1.05f, 1.11f, 1.21f, 1.14f, 1.16f, 1.15f), // LION
         floatArrayOf(0.93f, 0.90f, 0.92f, 0.89f, 0.91f, 0.94f, 0.92f, 0.93f), // HAWK
     )
-    private val THEME_TRIM = floatArrayOf(0.73f, 1.11f, 1.16f, 0.91f)
+    private val THEME_TRIM = floatArrayOf(0.73f, 1.11f, 1.33f, 0.91f)
 
     /** A drum tuned to the zone's key: its tonic, on or above MIDI note [lo]. */
     private fun keyed(base: SongSpec, lo: Int): Float = Dsp.midiToHz((lo + Math.floorMod(base.tonic - lo, 12)).toFloat())
@@ -379,12 +379,12 @@ internal object HeroSongs {
 
     private fun lionKit(base: SongSpec, t: Tint, hot: Boolean) = DrumTuning(
         kickHi = if (hot) 115f else 88f, kickLo = if (hot) 55f else 48f, kickPitchDecay = 0.05f, kickDecay = if (hot) 0.3f else 0.38f,
-        kickClick = if (hot) 0.08f else 0.03f, kickDrive = if (hot) 0.15f else 0f, kickLevel = if (hot) 0.7f else 0.95f,
+        kickClick = if (hot) 0.08f else 0.03f, kickDrive = if (hot) 0.15f else 0f, kickLevel = if (hot) 0.6f else 0.95f,
         // A tight marching snare (brushed-soft when sneaking).
-        snareTone = keyed(base, 55), snareNoiseHz = 5200f, snareDecay = if (hot) 0.1f else 0.07f, snareToneMix = 0.25f,
-        snareLevel = if (hot) 0.55f else 0.22f, snareVerb = 0.2f,
+        snareTone = keyed(base, 60), snareNoiseHz = 5200f, snareDecay = if (hot) 0.1f else 0.07f, snareToneMix = 0.12f,
+        snareLevel = if (hot) 0.75f else 0.22f, snareVerb = 0.2f,
         // The "hats" are a pair of clash cymbals on the backbeat.
-        hatTone = 0.7f, hatDecay = 0.05f, openDecay = 0.22f, hatLevel = 0.2f, crashDecay = 1.4f, crashLevel = 0.28f,
+        hatTone = 0.6f, hatDecay = 0.05f, openDecay = 0.3f, hatLevel = 0.32f, crashDecay = 1.4f, crashLevel = 0.28f,
         // Temple blocks, tuned to the key; the perc is a clown's bulb horn.
         tomHz = keyed(base, 72), tomDecay = 0.07f, tomBend = 0.04f, tomLevel = 0.45f,
         percHz = keyed(base, 57) * 1.5f, percRatio = 1f, percDecay = 0.16f, percFm = 2.2f, percNoise = 0.08f,
@@ -393,8 +393,8 @@ internal object HeroSongs {
 
     private fun lionSneak(base: SongSpec, t: Tint, name: String, bpm: Float) = base.derive(
         name = name, bpm = bpm, swing = 0f, scale = HARMONIC_MINOR, progA = carnival(base.progA), progB = carnival(base.progB),
-        drumsA = DrumPattern(kick = "X.......X.......", tom = "..3.......3....."),
-        drumsB = DrumPattern(kick = "X.......X.......", tom = "..3...2...3...1.", perc = "..............x."),
+        drumsA = DrumPattern(kick = "X.......X.......", tom = "..3.......3.....", perc = "..............o."),
+        drumsB = DrumPattern(kick = "X.......X.......", tom = "..3...2...3...1.", perc = "......o.......x."),
         fill = DrumPattern(kick = "X.......X.......", snare = "........o.o.rrrr", tom = "..3...2...3.2.1."),
         kit = lionKit(base, t, hot = false),
         bassA = "R...F...R...F...", bassB = "R...F...R...A...", bassCenter = base.bassCenter + 12,
@@ -404,7 +404,7 @@ internal object HeroSongs {
         signature = lionSig, answer = lionAns, leadOctave = leadOctave(base, 60), leadThreshold = -0.3f,
         pad = pizzPah.tinted(t, 0.05f), bass = bassoon.tinted(t, 0.1f), arp = musicBox, lead = wobblyCalliope.tinted(t, 0.1f),
         mix = Mix(
-            pad = 1f, bass = 1f, arp = 1f, lead = 0.8f, drums = 0.75f, padVerb = 0.3f, arpDelay = 0.45f, arpVerb = 0.4f,
+            pad = 1f, bass = 0.85f, arp = 1.6f, lead = 1.3f, drums = 0.75f, padVerb = 0.3f, arpDelay = 0.45f, arpVerb = 0.4f,
             leadDelay = 0.2f, leadVerb = 0.35f, padDuck = 0.1f, bassDuck = 0.05f, arpDuck = 0f, arpPan = 0.3f,
         ),
         crowd = 0f,
@@ -429,7 +429,7 @@ internal object HeroSongs {
     )
     /** A steam calliope: shrill whistle pipes, a touch out of tune, hissing and pumping. */
     private val calliope = Patch(
-        wave1 = Wave.TRIANGLE, wave2 = Wave.SQUARE, osc2Semi = 12f, osc2Level = 0.3f, detune = 0.16f, noise = 0.05f,
+        wave1 = Wave.TRIANGLE, wave2 = Wave.SQUARE, osc2Semi = 12f, osc2Level = 0.3f, detune = 0.16f, noise = 0.035f,
         cutoff = 3600f, q = 0.9f, envAmt = 0.4f, a = 0.012f, d = 0.3f, s = 0.8f, r = 0.1f, fa = 0.01f, fd = 0.2f, fs = 0.6f,
         vibrato = 0.22f, vibRate = 6.5f, trem = 0.25f, tremRate = 7.5f, gain = 0.15f, bright = 0.5f,
     )
@@ -440,9 +440,9 @@ internal object HeroSongs {
         return base.derive(
             name = name, bpm = bpm, swing = 0f, scale = IONIAN,
             progA = if (own) base.progA else circus(0, 3, 4, 0), progB = if (own) base.progB else circus(5, 1, 4, 0),
-            drumsA = DrumPattern(kick = "X...x...X...x...", snare = "..x...x...x...x.", open = "....o.......o...", perc = "..............x."),
+            drumsA = DrumPattern(kick = "X...x...X...x...", snare = "..x...x...x...x.", open = "....x.......x...", perc = "..............x."),
             drumsB = DrumPattern(
-                kick = "X...x...X...x.x.", snare = "..x...x.rrrrx.x.", open = "....o.......o...", perc = "......x.......x.",
+                kick = "X...x...X...x.x.", snare = "..x...x.rrrrx.x.", open = "....x.......x...", perc = "......x.......x.",
                 crash = "X...............",
             ),
             fill = DrumPattern(kick = "X...x...X.X.X.X.", snare = "rrrrrrrrrrrrrrrX", tom = "........3.2.1.3."),
@@ -458,7 +458,7 @@ internal object HeroSongs {
                 pad = 1.4f, bass = 0.95f, arp = 1.2f, lead = 1.35f, drums = 0.5f * zoneDrums(base), padVerb = 0.2f, arpDelay = 0.1f,
                 arpVerb = 0.3f, leadDelay = 0.15f, leadVerb = 0.3f, padDuck = 0.1f, bassDuck = 0.1f, arpDuck = 0.05f, arpPan = -0.3f,
             ),
-            crowd = 0f, slideWhistle = 0.06f,
+            crowd = 0f, slideWhistle = 0.1f,
         )
     }
 
