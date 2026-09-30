@@ -139,7 +139,7 @@ music.
 | **BULL** | A heavyweight in a quilted bomber, shades and a gold chain. Tough, fast, bulldozes. | +1 heart, runs 10% faster, tackles Heavies head-on (no bouncing off the armor) |
 | **FOX** | A street-brawler heroine in a cropped red leather jacket and fighter boots, a long copper ponytail whipping behind her. Kicks first, questions never: the takedown specialist. | Takedowns reach 0.35 u further (long legs), a 15% quicker trigger; guards take 35% longer to react once they spot her |
 | **LION** | A huge circus strongman on the run from the big top: clown greasepaint, a red nose, a golden lion's mane, a curled moustache and giant clown shoes. The show must go on. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
-| **HAWK** | A deadpan parcel courier in brown shorts, knee socks and a cap, mohawk poking out and scanner glowing, who lives in a cardboard box (naturally): the SILENT specialist. Goes postal, politely. | Unplugs drones and turrets by hand, like a takedown (quiet, and not while one is aiming at him); in SILENT guards spot him from a quarter less far; the box glides (2.2 u/s instead of 1.3) and never looks suspicious moving; reloads 25% faster |
+| **HAWK** | A deadpan parcel courier in brown shorts, knee socks and a cap, scanner glowing, who lives in a cardboard box (naturally): the SILENT specialist. Goes postal, politely. | Unplugs drones and turrets by hand, like a takedown (quiet, and not while one is aiming at him); in SILENT guards spot him from a quarter less far; the box glides (2.2 u/s instead of 1.3) and never looks suspicious moving; reloads 25% faster |
 
 Their perks:
 

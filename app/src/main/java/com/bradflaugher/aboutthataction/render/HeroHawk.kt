@@ -10,8 +10,8 @@ import kotlin.math.sin
  * piping and a lime hi-vis armband on the sleeves) tucked into darker brown shorts; an olive
  * canvas messenger bag low on the hip, its strap slung across the chest; white knee socks with
  * lime bands, sturdy work boots on tan wedge soles. A brown cap pulled low over a heavy brow, a
- * big nose, a square stubbled jaw and a half-lidded stare, a pencil behind the ear, and his
- * mohawk as a neat swept-back fin through the cap's strap opening. A handheld parcel scanner
+ * big nose, a square stubbled jaw and a half-lidded stare, a pencil behind the ear, short dark
+ * hair tucked under the cap at the nape. A handheld parcel scanner
  * glowing lime in his free hand (poking out of the bag's pocket when his hands are busy), and
  * a chunky watch. No logos, no company: just a guy with a parcel. A lime rim.
  */
@@ -333,14 +333,12 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
 
     /**
      * A clean face under the brown cap: a straight nose, a stubbled jaw and a half-lidded,
-     * unimpressed stare in the shade of the bill; the mohawk tuft sprouting through the back.
+     * unimpressed stare in the shade of the bill; short hair tucked under the cap, nothing sticking out.
      */
     override fun head(ghost: Boolean) {
         val r = k.headR
         pen(k.headX, k.headY, r)
         p.lightFrom(k.dir)
-        // The mohawk behind the cap, so the cap's own edge cuts it cleanly.
-        hpoly(TUFT).shapeLit(HAIR, hpX(-0.9f), hpY(-1.1f), hpX(-1.3f), hpY(-0.5f))
         hpoly(FACE).shapeLit(SKIN, hpX(0.4f), hpY(-1.0f), hpX(-0.5f), hpY(0.9f))
         if (!p.ink) {
             if (p.shading) hpoly(JAW).shapeShade(SKIN)
@@ -381,14 +379,8 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
             // The seam down the crown and the lamp across the top.
             p.detail(hpX(0.1f), hpY(-1.26f), hpX(0.6f), hpY(-0.6f), r * 0.05f, CAP_DARK)
             if (!ghost) p.detail(hpX(0.44f), hpY(-1.14f), hpX(-0.4f), hpY(-1.26f), r * 0.1f, Col.alpha(CAP_LIT, 0.7f))
-            // The adjuster strap at the back, where the tuft comes through.
+            // The adjuster strap at the back.
             p.detail(hpX(-0.72f), hpY(-0.62f), hpX(-0.98f), hpY(-0.56f), r * 0.08f, CAP_DARK)
-        }
-        if (p.shading && !ghost) {
-            // A few lit strands in the tuft.
-            for (i in 0 until 2) {
-                p.detail(hpX(-1.06f - i * 0.06f), hpY(-0.86f + i * 0.18f), hpX(-1.24f - i * 0.06f), hpY(-0.96f + i * 0.2f), r * 0.06f, Col.alpha(HAIR_LIT, 0.8f))
-            }
         }
         if (look.rim != 0 && !ghost) {
             g.blend(Gfx.Blend.ADD)
@@ -445,7 +437,6 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
         const val SKIN_LIT = 0xFFFFD6B4.toInt()
         const val SKIN_FAR = 0xFF94583C.toInt()
         const val HAIR = 0xFF1A120C.toInt()
-        const val HAIR_LIT = 0xFF6E5442.toInt()
         const val STUBBLE_C = 0xFF3A2E36.toInt()
         /** The uniform: a warm mid brown, bright enough to read on dark walls. */
         const val SHIRT = 0xFFA06E40.toInt()
@@ -540,11 +531,6 @@ internal class HawkKit(a: HeroArt) : HeroKit(a) {
         private val BILL = floatArrayOf(
             0.7f, -0.56f, 1.2f, -0.56f, 1.52f, -0.48f, 1.58f, -0.4f, 1.46f, -0.33f,
             0.86f, -0.34f,
-        )
-        /** The mohawk: a neat fin of four short spikes swept back out of the cap's strap opening. */
-        private val TUFT = floatArrayOf(
-            -0.72f, -0.84f, -0.86f, -1.16f, -0.98f, -0.94f, -1.2f, -1.1f, -1.14f, -0.84f,
-            -1.4f, -0.9f, -1.2f, -0.68f, -1.38f, -0.64f, -1.1f, -0.5f, -0.86f, -0.56f,
         )
     }
 }

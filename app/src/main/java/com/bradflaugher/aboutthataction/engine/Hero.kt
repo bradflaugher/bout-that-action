@@ -72,8 +72,7 @@ enum class Hero(
         secondWind = true, extraGrenades = 1,
     ),
     /**
-     * A deadpan parcel courier in brown shorts and a cap, mohawk poking out, scanner glowing
-     * lime. Lives in a box (of course), unplugs the robots, and is always on time.
+     * A deadpan parcel courier in brown shorts and a cap, scanner glowing lime. Lives in a box (of course), unplugs the robots, and is always on time.
      */
     HAWK(
         "HAWK", "Parcel courier. Always on time.",
