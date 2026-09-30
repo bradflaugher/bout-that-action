@@ -298,12 +298,6 @@ internal class Effects(private val f: Frame) {
                     spinQuad(p.x, p.y, p.size * 0.8f, p.size * 0.14f, a, Col.alpha(0xFFFFE08A.toInt(), fade))
                 }
                 ParticleKind.CARDBOARD -> spinQuad(p.x, p.y, p.size, p.size * 0.7f, p.spin * age, Col.alpha(0xFFC08A52.toInt(), fade))
-                ParticleKind.CONFETTI -> {
-                    // Paper squares tumbling: the flat side flickers as each one turns.
-                    val c = CONFETTI[i % CONFETTI.size]
-                    val turn = 0.25f + 0.75f * abs(sin(p.spin * age * 0.7f))
-                    spinQuad(p.x, p.y, p.size, p.size * 0.6f * turn, p.spin * age, Col.alpha(c, min(1f, fade * 2f)))
-                }
                 ParticleKind.PEANUT -> {
                     // A foam packing peanut: a fat off-white squiggle, turning.
                     val a = p.spin * age
@@ -742,7 +736,5 @@ internal class Effects(private val f: Frame) {
         const val KILL_TIME = 0.2f
         /** The engine's near-miss popup label. */
         const val CLOSE_LABEL = Popup.CLOSE
-        /** Big-top confetti: circus gold, red, white, sky blue and pink. */
-        val CONFETTI = intArrayOf(0xFFFFC23A.toInt(), 0xFFFF3B4E.toInt(), 0xFFFFFFFF.toInt(), 0xFF4DC8FF.toInt(), 0xFFFF7AC8.toInt())
     }
 }

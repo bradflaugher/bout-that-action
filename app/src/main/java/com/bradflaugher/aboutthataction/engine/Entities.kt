@@ -94,11 +94,6 @@ class Player {
     var holdAxis = 0
     /** Seconds since a bullet that had you was dodged in the grace window ("CLOSE!"). */
     var sinceCloseCall = 9f
-    /**
-     * CLOWN CAR: seconds left of arriving unseen out of a passage (guards can't see you; it
-     * counts down only while you're out in the open, and firing ends it).
-     */
-    var unseenTime = 0f
     /** FRAGILE: a hit just missed you; the shimmer shows this long (counts down from [World.FRAGILE_SHOW]). */
     var fragileTime = 0f
 
@@ -218,6 +213,8 @@ class Bullet(
 ) {
     var dead = false
     var life = 0f
+    /** MONKEY: this shot already sailed over his head (counted once). */
+    var overhead = false
     val hitIds = HashSet<Int>(2)
     /**
      * Enemy bullets only: seconds since it touched the player (it hangs there

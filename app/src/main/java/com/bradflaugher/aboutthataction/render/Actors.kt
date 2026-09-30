@@ -87,10 +87,6 @@ internal class Actors(private val f: Frame) {
                 p.alphaMul = 0.8f
             }
         }
-        // CLOWN CAR: out of the passage unseen, a shimmering see-through figure until it wears off.
-        if (pl.unseenTime > 0f && pl.state != PlayerState.DEAD) {
-            p.alphaMul *= 0.42f + 0.08f * sin(f.t * 9f) + 0.5f * (1f - min(1f, pl.unseenTime / 0.35f))
-        }
 
         // SILENT: once through a passage you stay in the far doorway's shadow (you arrive
         // hidden), rather than walking out lit and then vanishing into it.
@@ -295,15 +291,6 @@ internal class Actors(private val f: Frame) {
             g.scale(1f, 0.24f)
             g.glow(0f, 0f, r * 1.7f, Col.alpha(accent, 0.4f * a * fz))
             g.strokeCircle(0f, 0f, r, 0.1f, Col.alpha(art.kit.rim, 0.55f * a * fz * pulse))
-            g.restore()
-        }
-        if (f.w.encore && !boxed) {
-            // ENCORE: a hot spotlight aura beating round him on his last heart.
-            val beat = 0.5f + 0.5f * sin(f.t * 11f)
-            g.save()
-            g.translate(x, cy)
-            g.scale(0.7f, 1f)
-            g.glow(0f, 0f, 1.5f + 0.15f * beat, Col.alpha(0xFFFF6A2A.toInt(), (0.22f + 0.2f * beat) * a))
             g.restore()
         }
         g.blend(Gfx.Blend.NORMAL)

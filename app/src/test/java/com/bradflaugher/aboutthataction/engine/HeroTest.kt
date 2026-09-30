@@ -104,6 +104,12 @@ class HeroTest {
         val hawk = world(Hero.HAWK)
         hawk.stats.fragileMisses = 4
         assertEquals("HANDLED WITH CARE", RunReport.title(hawk))
+        val monkey = world(Hero.MONKEY)
+        monkey.stats.shotKills = 40
+        assertEquals("BIG GUN, SMALL MONKEY", RunReport.title(monkey))
+        monkey.stats.overheads = 12
+        assertEquals("TOO SHORT TO HIT", RunReport.title(monkey))
+        assertTrue(RunReport.of(monkey).highlights.any { it.first == "OVER HIS HEAD" && it.second == "12" })
     }
 
     // ------------------------------------------------------------ the pool
@@ -114,7 +120,7 @@ class HeroTest {
             val own = Perk.entries.filter { it.hero == hero }
             assertEquals(3, own.size)
             for (p in Perk.entries) {
-                val expected = p.hero == null || p.hero == hero
+                val expected = (p.hero == null || p.hero == hero) && (hero.melee || !p.melee)
                 assertEquals("$p for $hero", expected, p.offeredTo(hero))
             }
             // Everyone's perks maxed out: a STASH can only offer this hero's own three.
@@ -236,7 +242,7 @@ class HeroTest {
 
     @Test
     fun foxKicksFromFurtherAway() {
-        for (hero in Hero.entries) assertEquals("everyone carries six", 6, World(RunConfig(1L, hero = hero)).player.magSize)
+        for (hero in Hero.entries.filter { it != Hero.MONKEY }) assertEquals("everyone else carries six", 6, World(RunConfig(1L, hero = hero)).player.magSize)
         for (hero in listOf(Hero.FOX, Hero.BULL)) {
             val w = world(hero)
             w.player.x = 3f
@@ -410,109 +416,251 @@ class HeroTest {
     // ------------------------------------------------------------ MONKEY
 
     @Test
-    fun monkeyShrugsOffOneFatalHitARun() {
-        val w = world(Hero.MONKEY, hearts = 1)
-        assertEquals(1, w.player.maxHp)
-        w.player.x = 5f
-        bullet(w, 8f, Body.HIGH, -9f)
-        run(w, 1.2f)
-        assertEquals(Phase.PLAYING, w.phase)
-        assertEquals(1, w.player.hp)
-        assertTrue(w.secondWindUsed)
-        assertEquals(1, w.stats.secondWinds)
-        assertTrue(w.events.contains(GameEvent.PlayerHurt(1, secondWind = true)))
-        assertFalse(w.events.contains(GameEvent.PlayerDied))
-        assertTrue(w.fx.texts.any { it.text == Popup.SECOND_WIND })
-        // Only once.
-        run(w, World.SECOND_WIND_INVULN)
-        bullet(w, 8f, Body.HIGH, -9f)
-        run(w, 4f)
-        assertEquals(Phase.OVER, w.phase)
-    }
-
-    @Test
-    fun monkeyCarriesAnExtraGrenade() {
-        for (hero in Hero.entries) {
-            val w = World(RunConfig(1L, hero = hero))
-            val lion = hero == Hero.MONKEY
-            assertEquals(if (lion) 2 else 1, w.player.grenades)
-            assertEquals(if (lion) 4 else 3, w.maxGrenades)
-        }
-    }
-
-    @Test
-    fun confettiBlastsReachFurtherAndKnockSurvivorsFlat() {
-        for (perk in listOf(true, false)) {
-            val w = world(Hero.MONKEY)
-            if (perk) w.perks[Perk.CONFETTI] = 1
-            park(w)
-            val edge = enemy(w, EnemyKind.AGENT, 7f + 2.7f)
-            val tank = enemy(w, EnemyKind.HEAVY, 7.5f)
-            tank.hp = 20
-            val bystander = enemy(w, EnemyKind.AGENT, 2f)
-            blast(w, 7f)
-            assertEquals("the finale's confetti", perk, w.fx.particles.any { it.kind == ParticleKind.CONFETTI })
-            if (perk) {
-                assertFalse("the bigger blast reaches him", edge.alive)
-                assertEquals(EnemyState.STUNNED, tank.state)
-                assertEquals(World.CONFETTI_STUN, tank.stunFor, 1e-4f)
-                assertEquals("twice the radius knocks you flat", EnemyState.STUNNED, bystander.state)
+    fun highShotsSailOverTheMonkeyAndLowOnesStillHit() {
+        assertTrue(Hero.MONKEY.height < Body.HIGH)
+        assertTrue(Hero.entries.filter { it != Hero.MONKEY }.all { it.height == Body.HEIGHT })
+        for (hero in listOf(Hero.MONKEY, Hero.BULL)) {
+            val w = world(hero)
+            w.player.x = 5f
+            val hp = w.player.hp
+            bullet(w, 8f, Body.HIGH, -9f)
+            run(w, 1.2f)
+            if (hero == Hero.MONKEY) {
+                assertEquals("over his head", hp, w.player.hp)
+                assertEquals(1, w.stats.overheads)
             } else {
-                assertTrue(edge.alive)
-                assertEquals(EnemyState.ALERT, tank.state)
-                assertEquals(EnemyState.PATROL, bystander.state)
+                assertEquals(hp - 1, w.player.hp)
+                assertEquals(0, w.stats.overheads)
             }
+            run(w, 1.5f)
+            val before = w.player.hp
+            bullet(w, 8f, Body.LOW, -9f)
+            run(w, 1.2f)
+            assertEquals("$hero: a low shot hits anyone", before - 1, w.player.hp)
         }
     }
 
     @Test
-    fun clownCarPassagesAreQuickAndYouArriveUnseen() {
+    fun guardsAimLowAndDronesDipForTheMonkey() {
+        val monkey = world(Hero.MONKEY)
+        val bull = world(Hero.BULL)
+        for (heat in listOf(0f, 1f, 99f)) {
+            assertEquals(kotlin.math.max(World.SHORT_LOW_SHOT, Heat.lowShotChance(heat)), monkey.lowShotChance(heat), 1e-6f)
+            assertEquals(Heat.lowShotChance(heat), bull.lowShotChance(heat), 1e-6f)
+        }
+        assertTrue(World.SHORT_LOW_SHOT > Heat.lowShotChance(0f))
+        for ((hero, w) in listOf(Hero.MONKEY to monkey, Hero.BULL to bull)) {
+            w.player.x = 3f
+            val drone = enemy(w, EnemyKind.DRONE, 7f, facing = -1)
+            drone.state = EnemyState.ALERT
+            drone.timer = 0f
+            drone.fireCooldown = 0f
+            drone.hp = 999
+            var shot: Bullet? = null
+            var n = 0
+            while (shot == null && n++ < 600) {
+                w.player.hp = w.player.maxHp
+                w.player.invuln = 9f
+                w.step(dt)
+                shot = w.bullets.firstOrNull { !it.byPlayer }
+            }
+            assertTrue("$hero: the drone fired", shot != null)
+            if (hero == Hero.MONKEY) assertTrue("dips to his height: ${shot!!.z}", shot.z < hero.height)
+            else assertTrue(shot!!.z > Body.HIGH)
+        }
+    }
+
+    @Test
+    fun monkeyCarriesABigFastRifle() {
+        val gaps = HashMap<Hero, Float>()
+        for (hero in listOf(Hero.MONKEY, Hero.BULL)) {
+            val w = world(hero, silent = false)
+            assertEquals(if (hero == Hero.MONKEY) 12 else 6, w.player.magSize)
+            w.player.ammo = w.player.magSize
+            w.player.reloadTime = 0f
+            w.player.x = 1f
+            w.player.facing = 1
+            val e = enemy(w, EnemyKind.HEAVY, 7.5f, facing = -1)
+            e.state = EnemyState.ALERT
+            e.hp = 999
+            var shots = 0
+            var reloaded = false
+            val times = ArrayList<Float>()
+            run(w, 5f) {
+                it.player.hp = it.player.maxHp
+                e.fireCooldown = 99f
+                e.hp = 999
+                if (e.state != EnemyState.AIM) e.state = EnemyState.ALERT
+                e.x = 7.5f
+                e.vx = 0f
+                for (ev in it.events) {
+                    if (ev == GameEvent.Reload) reloaded = true
+                    if (ev is GameEvent.Shot && ev.byPlayer && !reloaded) { shots++; times += it.time }
+                }
+                it.events.clear()
+            }
+            assertTrue(reloaded)
+            assertEquals("$hero", w.player.magSize, shots)
+            gaps[hero] = times[1] - times[0]
+        }
+        assertEquals(World.GUN_COOLDOWN * Hero.MONKEY.fireScale, gaps.getValue(Hero.MONKEY), 2 * dt)
+        // Pickup guns last half as long again in his hands.
+        for (hero in listOf(Hero.MONKEY, Hero.BULL)) {
+            val w = world(hero)
+            w.pickups += Pickup(PickupKind.SHOTGUN, w.player.x, w.player.floor, w.player.hall)
+            run(w, 0.4f)
+            assertEquals(PickupKind.SHOTGUN, w.player.weapon)
+            val full = PickupKind.SHOTGUN.seconds * if (hero == Hero.MONKEY) 1.5f else 1f
+            assertEquals("$hero", full, w.player.weaponTime, 0.5f)
+        }
+    }
+
+    @Test
+    fun monkeyHasNoTakedownsAndNoStomps() {
+        for (hero in listOf(Hero.MONKEY, Hero.BULL)) {
+            val w = world(hero)
+            w.player.x = 3f
+            val guard = enemy(w, EnemyKind.AGENT, 4.2f, facing = 1)
+            if (hero == Hero.MONKEY) guard.hp = 999
+            run(w, 0.6f) {
+                it.moveAxis = 1
+                it.player.hp = it.player.maxHp
+                guard.x = 4.2f
+                guard.vx = 0f
+                guard.timer = 99f
+            }
+            if (hero == Hero.MONKEY) {
+                assertTrue("he's a wall (the gun's working on him, though)", guard.alive)
+                assertEquals(0, w.takedowns)
+                assertTrue("can't walk through him", w.player.x < guard.x)
+                assertEquals("and he noticed", EnemyState.ALERT, guard.state)
+            } else {
+                assertFalse(guard.alive)
+            }
+        }
+        // Landing on a head: a hop off it, and he's awake.
+        val w = world(Hero.MONKEY)
+        val e = enemy(w, EnemyKind.AGENT, 6f)
+        e.asleep = true
+        w.player.x = 6f
+        w.player.z = e.height + 0.02f
+        w.player.vz = -3f
+        w.player.jumpsUsed = 1
+        run(w, 0.05f)
+        assertTrue(e.alive)
+        assertEquals(0, w.stats.stomps)
+        assertTrue(w.player.vz > 0f)
+        assertFalse(e.asleep)
+        // No coaching him to walk into guards, and no melee perks in his STASH.
+        assertFalse(Perk.CQC.offeredTo(Hero.MONKEY))
+        assertFalse(Perk.SHOCKWAVE.offeredTo(Hero.MONKEY))
+        assertTrue(Perk.RAPID_FIRE.offeredTo(Hero.MONKEY))
+        assertTrue(Perk.CQC.offeredTo(Hero.FOX))
+    }
+
+    @Test
+    fun inSilentTheMonkeyShootsBackLoudly() {
+        for (hero in listOf(Hero.MONKEY, Hero.BULL)) {
+            val w = world(hero, silent = true)
+            w.player.x = 3f
+            w.player.facing = 1
+            val sleeper = enemy(w, EnemyKind.AGENT, 1f, facing = -1)
+            sleeper.asleep = true
+            val onto = enemy(w, EnemyKind.AGENT, 6f, facing = -1)
+            onto.state = EnemyState.AIM
+            onto.hp = 99
+            var fired = false
+            run(w, 1f) {
+                it.player.hp = it.player.maxHp
+                it.player.invuln = 9f
+                onto.fireCooldown = 99f
+                onto.state = EnemyState.AIM
+                if (it.events.any { ev -> ev is GameEvent.Shot && ev.byPlayer }) fired = true
+                it.events.clear()
+            }
+            assertEquals("$hero", hero == Hero.MONKEY, fired)
+        }
+        // An unaware guard is left alone, in either mode.
+        for (silent in listOf(true, false)) {
+            val w = world(Hero.MONKEY, silent = silent)
+            w.player.x = 3f
+            val back = enemy(w, EnemyKind.AGENT, 5f, facing = 1)
+            back.vx = 0f
+            run(w, 0.3f) { back.x = 5f }
+            assertEquals(null, w.aimTarget())
+        }
+    }
+
+    @Test
+    fun bananaClipPacksMoreRoundsAndReloadsFaster() {
+        val w = world(Hero.MONKEY, floor = 1)
+        for (p in Perk.entries) if (p.hero == null) w.perks[p] = p.maxStacks
+        toStash(w)
+        assertEquals(Phase.PERK_CHOICE, w.phase)
+        w.choosePerk(w.perkOffer.indexOf(Perk.BANANA_CLIP))
+        assertEquals(18, w.player.magSize)
+        assertEquals(18, w.player.ammo)
+        w.perks[Perk.BANANA_CLIP] = 2
+        assertEquals(24, w.magSize)
+        w.perks.remove(Perk.RAPID_FIRE)
+        w.player.ammo = 0
+        w.player.sinceShot = 9f
+        w.player.reloadTime = 0f
+        w.step(dt)
+        assertEquals(World.RELOAD_TIME * 0.75f * 0.75f, w.player.reloadTotal, 1e-4f)
+    }
+
+    /** Guns among the loot from [n] kills. */
+    private fun gunDrops(see: Boolean, n: Int = 400): Int {
+        val w = world(Hero.MONKEY, silent = false)
+        if (see) w.perks[Perk.MONKEY_SEE] = 1
+        var guns = 0
+        repeat(n) {
+            w.pickups.clear()
+            takedownKill(w)
+            guns += w.pickups.count { it.kind == PickupKind.SHOTGUN || it.kind == PickupKind.MINIGUN }
+        }
+        return guns
+    }
+
+    @Test
+    fun monkeySeeGunsLastTwiceAsLongAndDropMore() {
+        val w = world(Hero.MONKEY)
+        w.perks[Perk.MONKEY_SEE] = 1
+        w.pickups += Pickup(PickupKind.MINIGUN, w.player.x, w.player.floor, w.player.hall)
+        run(w, 0.4f)
+        assertEquals(PickupKind.MINIGUN.seconds * 1.5f * World.MONKEY_SEE_TIME, w.player.weaponTime, 0.5f)
+        val base = gunDrops(see = false)
+        val see = gunDrops(see = true)
+        assertTrue("guns $base -> $see", see > base * 1.6f)
+    }
+
+    @Test
+    fun shushPicksOffGuardsQuietly() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.MONKEY, silent = false)
-            if (perk) w.perks[Perk.CLOWN_CAR] = 1
-            assertEquals(World.PASSAGE_TIME * if (perk) World.CLOWN_CAR_SCALE else 1f, w.passageTime, 1e-5f)
-            val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
-            w.player.x = door.x + 0.3f
-            w.commands += Command.TAP
-            w.step(dt)
-            assertEquals(PlayerState.PASSAGE, w.player.state)
-            run(w, World.PASSAGE_TIME * World.CLOWN_CAR_SCALE + 0.03f)
-            if (!perk) {
-                assertEquals(PlayerState.PASSAGE, w.player.state)
-                continue
+            val w = world(Hero.MONKEY, silent = true)
+            if (perk) w.perks[Perk.SHUSH] = 1
+            w.player.x = 3f
+            w.player.facing = 1
+            val back = enemy(w, EnemyKind.AGENT, 6f, facing = 1)
+            // Behind him, facing away: well inside earshot of an ordinary shot.
+            val bystander = enemy(w, EnemyKind.AGENT, 1f, facing = -1)
+            var n = 0
+            while (back.alive && n++ < 150) {
+                back.vx = 0f
+                bystander.vx = 0f
+                back.x = 6f
+                bystander.x = 1f
+                w.step(dt)
             }
-            assertEquals(PlayerState.NORMAL, w.player.state)
-            assertEquals(door.to, w.player.hall)
-            assertTrue(w.player.unseenTime > World.CLOWN_CAR_UNSEEN - 0.1f)
-            // A guard looking right at the door can't make you out yet...
-            val side = if (w.player.x < Geo.FLOOR_W / 2f) 1 else -1
-            val guard = enemy(w, EnemyKind.AGENT, w.player.x + side * 4f, facing = -side)
-            run(w, 1f)
-            assertEquals(EnemyState.PATROL, guard.state)
-            // ...until it wears off.
-            run(w, 1f)
-            assertNotEquals(EnemyState.PATROL, guard.state)
-        }
-    }
-
-    @Test
-    fun encoreKicksInOnTheLastHeart() {
-        for (level in 1..2) {
-            val w = world(Hero.MONKEY)
-            w.perks[Perk.ENCORE] = level
-            val boost = if (level >= 2) 1.5f else 1.3f
-            assertFalse(w.encore)
-            assertEquals(World.RUN_SPEED, w.runSpeed, 1e-4f)
-            w.player.hp = 1
-            assertTrue(w.encore)
-            assertEquals(World.RUN_SPEED * boost, w.runSpeed, 1e-4f)
-            w.player.ammo = 0
-            w.player.sinceShot = 9f
-            w.step(dt)
-            assertEquals(World.RELOAD_TIME / boost, w.player.reloadTotal, 1e-4f)
-            w.player.x = 2f
-            run(w, 0.5f) { it.moveAxis = 1 }
-            assertEquals(World.RUN_SPEED * boost, w.player.vx, 1e-3f)
+            if (perk) {
+                assertFalse("an unaware guard, shot", back.alive)
+                assertEquals(KillMethod.SHOT, back.killedBy)
+                assertEquals("a quiet kill in SILENT", 1, w.silentKills)
+                assertEquals("nobody heard a thing", EnemyState.PATROL, bystander.state)
+            } else {
+                assertTrue(back.alive)
+            }
         }
     }
 

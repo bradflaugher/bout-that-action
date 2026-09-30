@@ -191,9 +191,9 @@ internal class Hud(private val f: Frame) {
             Perk.SHOWSTOPPER -> "ST"
             Perk.SPIN_KICK -> "SK"
             Perk.FLYING_KICK -> "FK"
-            Perk.CONFETTI -> "CF"
-            Perk.CLOWN_CAR -> "CC"
-            Perk.ENCORE -> "EN"
+            Perk.BANANA_CLIP -> "BC"
+            Perk.MONKEY_SEE -> "MS"
+            Perk.SHUSH -> "SH"
             Perk.SIGNED_FOR -> "SF"
             Perk.PACKING_PEANUTS -> "PP"
             Perk.FRAGILE -> "FG"
@@ -210,7 +210,7 @@ internal class Hud(private val f: Frame) {
             // A hero's own perks wear the hero's colour.
             Perk.STIFF_ARM, Perk.AFTERSHOCK, Perk.CANDY_RAIN,
             Perk.SHOWSTOPPER, Perk.SPIN_KICK, Perk.FLYING_KICK,
-            Perk.CONFETTI, Perk.CLOWN_CAR, Perk.ENCORE,
+            Perk.BANANA_CLIP, Perk.MONKEY_SEE, Perk.SHUSH,
             Perk.SIGNED_FOR, Perk.PACKING_PEANUTS, Perk.FRAGILE,
             -> p.hero?.color ?: STASH_GOLD
         }
@@ -222,7 +222,7 @@ internal class Hud(private val f: Frame) {
             Perk.DEMOLITION, Perk.MAGNET, Perk.LUCKY -> "UTILITY"
             Perk.STIFF_ARM, Perk.AFTERSHOCK, Perk.CANDY_RAIN,
             Perk.SHOWSTOPPER, Perk.SPIN_KICK, Perk.FLYING_KICK,
-            Perk.CONFETTI, Perk.CLOWN_CAR, Perk.ENCORE,
+            Perk.BANANA_CLIP, Perk.MONKEY_SEE, Perk.SHUSH,
             Perk.SIGNED_FOR, Perk.PACKING_PEANUTS, Perk.FRAGILE,
             -> p.hero?.title ?: "HERO"
         }
