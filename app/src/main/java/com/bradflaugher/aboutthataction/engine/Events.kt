@@ -27,7 +27,7 @@ sealed interface GameEvent {
     data class ModeToggled(val silent: Boolean) : GameEvent
     /** [secondWind]: LION shrugged off what would have been the fatal hit ([hpLeft] is 1). */
     data class PlayerHurt(val hpLeft: Int, val secondWind: Boolean = false) : GameEvent
-    /** A shield or VEST ate a hit, or (HAWK's CAMO) a hit missed: nothing landed. */
+    /** A shield or VEST ate a hit, or (HAWK's FRAGILE) a hit missed: nothing landed. */
     data object ShieldBlock : GameEvent
     data object PlayerDied : GameEvent
     data class Pickup(val kind: PickupKind) : GameEvent

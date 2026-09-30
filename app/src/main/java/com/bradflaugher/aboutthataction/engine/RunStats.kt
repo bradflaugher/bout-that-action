@@ -58,9 +58,13 @@ class RunStats {
     var secondWinds = 0
     /** SABOTAGE: drones and turrets unplugged by hand. */
     var unplugged = 0
-    /** CAMO: hits that missed. */
-    var camoMisses = 0
-    /** Guards dazed by an EMP, an AFTERSHOCK or a KABOOM blast. */
+    /** FRAGILE: hits that missed. */
+    var fragileMisses = 0
+    /** FLYING KICK: guards kicked flat from the air. */
+    var flyingKicks = 0
+    /** SPIN KICK: guards kicked flat on the back of a takedown. */
+    var spinKicks = 0
+    /** Guards dazed by PACKING PEANUTS, an AFTERSHOCK or a CONFETTI blast. */
     var dazed = 0
     var hurts = 0
     /** Every hit taken, oldest first (capped; a run rarely takes more than a dozen). */
