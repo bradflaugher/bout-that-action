@@ -27,8 +27,8 @@ is read on its own, so one thumb can run while the other taps.
 | **Drag ← →** and hold | Run. Nudge back a little to turn around instantly. Lift to stop. A held run won't pull you out of a doorway or elevator: lift and drag again to step out. |
 | **Tap** | Interact with what you're standing at: go through a green **passage** door into another hallway, enter a gold **STASH** door (locked while you're being hunted), ride an open **elevator** down, or call a closed one. With nothing in reach, a tap does nothing. |
 | **Swipe ↓** | Hide: press into a nearby **doorway**, otherwise pop the **cardboard box**. In an elevator, box up in the car. Swipe ↓ again to stand up. In a doorway, a tap or a swipe ↑ also steps you out. |
-| **Swipe ↑** | Jump. Clears low shots; land on heads to stomp (the MONKEY just hops off). Works mid-run. |
-| **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind (the BULL tackles them head-on); a napping guard from anywhere. Works in GUNS HOT too: the gun never shoots a guard with his back to you. (Not the MONKEY: he has no takedowns, and walking into a guard just gets him noticed.) |
+| **Swipe ↑** | Jump. Clears low shots. Land on a head to **BONK** him: he's dazed for 1.6 s and yours to take down from any side (the BULL stomps him flat instead; a drone breaks under anyone; the MONKEY just hops off). Works mid-run. |
+| **Walk into an enemy's back** | Instant silent **takedown**. Face to face only when he can't fight it: asleep, dazed, or walking into your box. The FOX, and the BULL with STIFF ARM, take guards down face to face anyway; Heavies always want their back (or STIFF ARM). Walk into anyone else's front and he's onto you. Works in GUNS HOT too: the gun never shoots a guard with his back to you. (Not the MONKEY: he has no takedowns, and walking into a guard just gets him noticed.) |
 | **Grenade button** (under the mode button) | Throw a grenade, in either mode. The lime button shows how many you carry and greys out when you're empty. Taps never throw one, so hammering a door is always just the door. |
 | **Jump + tap** | Under a ceiling lamp: swat it out by hand. The hallway gets darker, the fixture drops on anyone right under it (never on you), and the crash of glass brings nearby guards over to look: lure them in, then grab them from the shadows. Works in both modes. |
 | **Mode button** (under pause) | **GUNS HOT**: you auto-fire at threats in range. **SILENT**: you never fire (the MONKEY still shoots back at anyone onto him); guards only notice what they see, and quiet kills pay double. Flip it any time (it's the only place to); your choice sticks between runs. |
@@ -61,8 +61,8 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 - **Guns hot or silent.** In GUNS HOT the gun fires itself at whoever is about
   to hurt you first (it answers a raised gun, so a guard across the hallway
   who spots you gets his shot), and leaves guards who haven't spotted you to
-  you. In SILENT you never fire (except the MONKEY, who has no other way to fight back): take guards from behind, drop
-  from above, wait them out in a doorway or under the box, lure them into
+  you. In SILENT you never fire (except the MONKEY, who has no other way to fight back): take guards from behind, bonk
+  them from above, wait them out in a doorway or under the box, lure them into
   hazards, or black out the lights. Guards take longer to react to a shadow,
   and every quiet kill is worth double. Flip modes any time.
 - **Patrols you can time.** Guards walk a regular beat and stop to look
@@ -89,7 +89,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   drop them or lose them first), and they
   stack: Rapid Fire, Hollow Point, Pierce, Ricochet, Split Shot, Vitality,
   CQC Master, Ghost Box, Double Jump, Demolition, Magnet, Reflex (auto
-  slow-mo), Vest, Lucky and Shockwave stomps, plus three that only your
+  slow-mo), Vest, Lucky and Shockwave landings, plus three that only your
   [hero](#heroes) ever finds. Enemies drop shotguns,
   miniguns, shields, slow-mo, grenades, medkits and cash. The gun perks
   and gun drops only matter in GUNS HOT; SILENT never fires (except for the MONKEY).
@@ -137,15 +137,16 @@ music.
 
 | Hero | Who | Trait (always on) |
 |---|---|---|
-| **BULL** | A heavyweight in a quilted bomber, shades and a gold chain. Tough, fast, bulldozes. | +1 heart, runs 10% faster, tackles Heavies head-on (no bouncing off the armor) |
-| **FOX** | A martial-arts brawler in a black sports bra, baggy grey fighting pants, red gloves and red shoes, a long, glossy black ponytail whipping behind her. Kicks first, questions never: the takedown specialist. | Takedowns reach 0.35 u further (long legs), a 15% quicker trigger; guards take 35% longer to react once they spot her |
+| **BULL** | A heavyweight in a quilted bomber, shades and a gold chain. Tough, fast, bulldozes. | +1 heart, runs 10% faster, and the only one who stomps heads flat (everyone else's landing just dazes a guard) |
+| **FOX** | A martial-arts brawler in a black sports bra, baggy grey fighting pants, red gloves and red shoes, a long, glossy black ponytail whipping behind her. Kicks first, questions never: the takedown specialist. | Takes guards down face to face (Heavies still only from behind), takedowns reach 0.35 u further (long legs), a 15% quicker trigger; guards take 35% longer to react once they spot her |
 | **HAWK** | A deadpan parcel courier in brown shorts, knee socks and a cap, scanner glowing, who lives in a cardboard box (naturally): the SILENT specialist. Goes postal, politely. | Unplugs drones and turrets by hand, like a takedown (quiet, and not while one is aiming at him); in SILENT guards spot him from a quarter less far; the box glides (2.2 u/s instead of 1.3) and never looks suspicious moving; reloads 25% faster |
 | **MONKEY** | A small monkey with a very big gun, on the run from the circus: the weapons specialist. Oo oo. Ah ah. Pew pew. | A 12-round rifle (instead of a 6-round pistol) and pickup guns last 50% longer. He's short (0.95 u), so guards' straight high shots sail over his head (fireballs still come down on him); they know it and aim low more often (at least 70% of the time), and drones dip to his height. No takedowns, no stomps: walking into a guard just gets him noticed, landing on a head is a hop off it. In SILENT his gun still answers anyone onto him, loudly |
 
 Their perks:
 
-- **BULL.** *Stiff Arm*: run into a guard and he's flattened on the spot,
-  even mid-swing, and you keep running. *Aftershock* (2 levels): every
+- **BULL.** *Stiff Arm*: takedowns face to face, Heavies too (a head-on
+  tackle), and run into a guard and he's flattened on the spot, even
+  mid-swing, and you keep running. *Aftershock* (2 levels): every
   takedown dazes everyone within a quarter of the hallway for 1.8 s
   (nearly half of it at LV 2). *Candy
   Rain* (2 levels): every 8th kill heals a heart (every 5th at LV 2).
@@ -153,13 +154,13 @@ Their perks:
   *Spin Kick* (2 levels): every takedown also kicks the nearest guard
   within 2.2 u flat (the nearest two at LV 2). *Flying Kick*: jump into a
   guard and your boots knock him out cold, Heavies from the front and ninjas
-  mid-swing too (come down on his head and it's still a stomp).
+  mid-swing too (come down on his head and it's just a bonk).
 - **MONKEY.** *Banana Clip* (2 levels): +6 rounds a magazine and reloads
   25% faster, per level. *Monkey See*: pickup guns last twice as long, and
   guards drop them two and a half times as often. *Shush*: quiet shots. They
   don't alarm anyone, they count as quiet kills in SILENT, and his gun picks
   off guards who haven't noticed him (sleepers too). He's never offered CQC
-  MASTER or SHOCKWAVE, which need takedowns and stomps.
+  MASTER or SHOCKWAVE, which need takedowns and head landings.
 - **HAWK.** *Signed For*: drones and turrets take twice as long to react to
   him. *Packing Peanuts* (2 levels): a grenade also bursts into peanuts that
   daze everyone in the hallway, machines too, for 2 s (3.5 s at LV 2).

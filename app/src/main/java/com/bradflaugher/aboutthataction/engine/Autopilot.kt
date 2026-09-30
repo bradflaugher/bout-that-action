@@ -81,9 +81,9 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
                 return
             }
             PlayerState.DOOR -> {
-                // Lift, then drag out once the coast is clear.
-                w.moveAxis = if (p.stateTime > 0.6f && safe(w) && p.holdAxis == 0) goalDir(w) else 0
-                if (p.stateTime > 0.6f && safe(w) && p.holdAxis != 0) w.moveAxis = 0
+                // Lift, then drag out once the coast is clear (or give up waiting: a turret never looks away).
+                val clear = p.stateTime > 0.6f && (safe(w) || p.stateTime > 6f)
+                w.moveAxis = if (clear && p.holdAxis == 0) goalDir(w) else 0
                 return
             }
             PlayerState.NORMAL -> Unit
@@ -117,7 +117,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         // Crowds eat a grenade in either mode; SILENT also grenades what it can't choke.
         if (grenadeCooldown <= 0f && p.grenades > 0 && w.grenades.isEmpty()) {
             val near = enemies.filter { !it.asleep && abs(it.x - p.x) in 1.5f..6f }
-            val unchokeable = w.silent && near.any { it.kind == EnemyKind.TURRET && !w.hero.sabotage || (it.kind == EnemyKind.HEAVY && !w.hero.tacklesHeavies && it.state != EnemyState.PATROL) }
+            val unchokeable = w.silent && near.any { it.kind == EnemyKind.TURRET && !w.hero.sabotage || (it.kind == EnemyKind.HEAVY && w.stacks(Perk.STIFF_ARM) == 0 && it.state != EnemyState.PATROL) }
             if (near.size >= 2 || unchokeable) {
                 w.commands += Command.GRENADE
                 grenadeCooldown = 1.5f
@@ -149,7 +149,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
             if (nearest != null && abs(nearest.x - p.x) < World.AUTO_FIRE_RANGE && holdTime < 4f) {
                 holdTime += dt
                 val d = abs(nearest.x - p.x)
-                w.moveAxis = if (d < 1.5f && (nearest.kind != EnemyKind.HEAVY || w.hero.tacklesHeavies) && nearest.kind != EnemyKind.DRONE && nearest.kind != EnemyKind.TURRET) {
+                w.moveAxis = if (d < 1.5f && (w.takedownWorks(nearest) || nearest.kind == EnemyKind.HEAVY && w.stacks(Perk.STIFF_ARM) > 0)) {
                     if (nearest.x > p.x) 1 else -1
                 } else 0
                 return
@@ -199,9 +199,9 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         val toward = if (blocker.x > p.x) 1 else -1
         val facingMe = blocker.facing == -toward
         val alert = blocker.state == EnemyState.ALERT || blocker.state == EnemyState.AIM || blocker.state == EnemyState.WINDUP
-        if (blocker.asleep) {
-            // Night night.
-            w.moveAxis = toward
+        if (blocker.asleep || blocker.state == EnemyState.STUNNED && blocker.kind != EnemyKind.DRONE && blocker.kind != EnemyKind.TURRET) {
+            // Night night (or finish off the one seeing stars: off his head first, then walk in).
+            w.moveAxis = if (!p.grounded && d < 1.2f) -toward else toward
             return true
         }
         // HAWK walks up to a machine and pulls the plug (not into one drawing a bead: wait it out).
@@ -209,8 +209,8 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
             w.moveAxis = if (blocker.state == EnemyState.AIM && d < 3f) 0 else toward
             return true
         }
-        // The BULL takes a Heavy head-on, like anyone else.
-        when (if (blocker.kind == EnemyKind.HEAVY && w.hero.tacklesHeavies) EnemyKind.AGENT else blocker.kind) {
+        // STIFF ARM takes a Heavy head-on, like anyone else.
+        when (if (blocker.kind == EnemyKind.HEAVY && w.stacks(Perk.STIFF_ARM) > 0) EnemyKind.AGENT else blocker.kind) {
             EnemyKind.TURRET -> return false // run past it (a grenade goes first if there is one)
             EnemyKind.DRONE -> {
                 // Stomp it: jump as it comes overhead.
@@ -220,7 +220,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
             }
             EnemyKind.HEAVY -> if (facingMe) {
                 if (alert && d < 2.8f) {
-                    // Too close to hide from: jump on his head (a stomp drops anyone).
+                    // Too close to hide from: jump on his head (BULL flattens him, anyone else dazes him).
                     w.moveAxis = toward
                     if (d < 1.9f && p.grounded) w.commands += Command.SWIPE_UP
                     return true
@@ -237,6 +237,12 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
                 }
                 if (facingMe && !alert && d > 1.2f) {
                     if (d < sight(w) + 1.2f) hide(w) else w.moveAxis = 0
+                    return true
+                }
+                if (facingMe && !w.takedownWorks(blocker)) {
+                    // Face to face and no way to take him from the front: jump on his head.
+                    w.moveAxis = toward
+                    if (d < 1.9f && p.grounded) w.commands += Command.SWIPE_UP
                     return true
                 }
             }

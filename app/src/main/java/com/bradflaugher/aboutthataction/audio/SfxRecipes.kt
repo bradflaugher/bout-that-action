@@ -93,9 +93,23 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
             is GameEvent.FloorEventStarted -> floorEvent(e.event)
             GameEvent.Muzak -> muzak()
             is GameEvent.Snore -> snore(e.pan)
+            is GameEvent.Bonk -> bonk(e.pan, 1f)
             GameEvent.BoxKicked -> boxKicked()
             GameEvent.FoundHiding -> hideDoor()
             GameEvent.StashLocked -> emptyClick()
+        }
+    }
+
+    /** A boot on a head: a thump and a cartoon boing (a stomp, or just a dazing bonk). */
+    private fun bonk(pan: Float, up: Float) {
+        voice { wave = Wave.SINE; f0 = 230f * up * j(); f1 = 55f; sweep = 0.06f; decay = 0.13f; gain = 0.55f; this.pan = pan }
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.BAND; cut0 = 1300f; cut1 = 700f; cutTime = 0.04f; decay = 0.05f
+            gain = 0.35f; this.pan = pan
+        }
+        voice {
+            wave = Wave.SQUARE; f0 = 330f * up; f1 = 700f * up; sweep = 0.08f; decay = 0.11f; filter = FilterMode.LOW
+            cut0 = 3000f; cut1 = 3000f; gain = 0.1f; this.pan = pan; delay = 0.03f; reverb = 0.15f
         }
     }
 
@@ -201,17 +215,7 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                 takedownCrunch(pan, up)
                 koExhale(pan)
             }
-            KillMethod.STOMP -> {
-                voice { wave = Wave.SINE; f0 = 230f * up * j(); f1 = 55f; sweep = 0.06f; decay = 0.13f; gain = 0.55f; this.pan = pan }
-                voice {
-                    level1 = 0f; noise = 1f; filter = FilterMode.BAND; cut0 = 1300f; cut1 = 700f; cutTime = 0.04f; decay = 0.05f
-                    gain = 0.35f; this.pan = pan
-                }
-                voice {
-                    wave = Wave.SQUARE; f0 = 330f * up; f1 = 700f * up; sweep = 0.08f; decay = 0.11f; filter = FilterMode.LOW
-                    cut0 = 3000f; cut1 = 3000f; gain = 0.1f; this.pan = pan; delay = 0.03f; reverb = 0.15f
-                }
-            }
+            KillMethod.STOMP -> bonk(pan, up)
             KillMethod.LIGHT -> {
                 lightCrash(pan)
                 voice { wave = Wave.SINE; f0 = 90f * j(); f1 = 40f; sweep = 0.12f; decay = 0.2f; gain = 0.4f; this.pan = pan; delay = 0.04f }

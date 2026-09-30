@@ -26,11 +26,11 @@ Every verb has exactly one gesture, and no gesture means two things:
 | Gesture | Verb |
 |---|---|
 | Drag | Run |
-| Swipe ↑ | Jump (stomp from above) |
+| Swipe ↑ | Jump (bonk a head from above) |
 | Swipe ↓ | Hide: a doorway in reach, else the box; in a lift, the box in the car |
 | Tap | Interact: a passage, a live STASH door (not while it's LOCKED), an elevator (ride it if it's open, call it if not) |
 | Grenade button | Grenade |
-| Walk into a guard | Takedown |
+| Walk into a guard's back | Takedown |
 | Jump + tap | Swat out the ceiling lamp overhead |
 | Mode button | GUNS HOT ⇄ SILENT |
 
@@ -98,10 +98,10 @@ a full turnaround takes about 90 ms: one snap, not a skid. The hallway is
 
 **Jump arc.** Full gravity on the way up (you clear the low lane in about
 40 ms), 0.55× through the apex for hang time (aim at a light, line up a
-stomp), 1.3× falling for a snappy landing. Airtime is about 0.79 s, peak
+bonk), 1.3× falling for a snappy landing. Airtime is about 0.79 s, peak
 1.87 u: enough to land on a Heavy's head (1.7 u).
 
-**Swipe down in mid-air.** High up, it's a ground pound (a stomp). Below
+**Swipe down in mid-air.** High up, it's a ground pound (onto a head, a bonk). Below
 0.6 u while falling (`LATE_POUND_Z`), a pound is pointless, so the swipe is
 treated as an early hide: it's buffered and runs on landing.
 
@@ -158,8 +158,16 @@ held drag, steps you out.
 
 **Takedown magnet (`TAKEDOWN_MAGNET` = 0.3 u).** While you push toward a
 chokeable guard, takedown reach grows by 0.3 u and the choke snaps you into
-place. Heavies still bounce off from the front; a napping guard can be taken
-from any side. A guard only senses you behind him inside 1.0 u
+place. Chokeable means his back is to you, or he's napping, dazed, or walked
+into your box; the FOX and STIFF ARM take guards from the front too. Walk into
+anyone else's front and you stop dead (`BUMP_GAP`) and he's alerted; Heavies
+bounce you off their armor.
+
+**Bonks (`BONK_STUN` = 1.6 s).** Landing on a head dazes the guard and hops
+you off him the way you were going, so you land in reach for the takedown.
+A second landing on a guard who's already seeing stars only hops you off:
+no pinning him from up there. The BULL's landing knocks him out cold instead,
+and a drone breaks under anyone. A guard only senses you behind him inside 1.0 u
 (`BEHIND_SENSE`), which is inside the lunge, so pushing into a guard's back
 always wins the race, even in GUNS HOT.
 
