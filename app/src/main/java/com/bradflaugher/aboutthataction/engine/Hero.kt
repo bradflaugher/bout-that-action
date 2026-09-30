@@ -52,8 +52,9 @@ enum class Hero(
         extraHearts = 1, runSpeed = 1.1f, tacklesHeavies = true,
     ),
     /**
-     * A street-brawler heroine in a cropped red leather jacket, a long copper ponytail whipping
-     * behind her. Fights with her feet: the longest takedown reach in the building.
+     * A martial-arts brawler in a black sports bra, baggy grey fighting pants and red gloves, a
+     * long, glossy black ponytail whipping behind her. Fights with her feet: the longest
+     * takedown reach in the building.
      */
     FOX(
         "FOX", "Street brawler. Ponytail of doom.",
@@ -72,8 +73,7 @@ enum class Hero(
         secondWind = true, extraGrenades = 1,
     ),
     /**
-     * A deadpan parcel courier in brown shorts and a cap, mohawk poking out, scanner glowing
-     * lime. Lives in a box (of course), unplugs the robots, and is always on time.
+     * A deadpan parcel courier in brown shorts and a cap, scanner glowing lime. Lives in a box (of course), unplugs the robots, and is always on time.
      */
     HAWK(
         "HAWK", "Parcel courier. Always on time.",

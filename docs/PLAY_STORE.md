@@ -75,7 +75,7 @@ them. The game leans on a few:
   quotes or names a real athlete: BULL is an original heavyweight in a
   quilted bomber and shades, with no number, team colours, logo or name, and
   the sign-offs and perk names are all original. Keep it that way.
-- FOX (a ponytailed street brawler in a red jacket), LION (a runaway circus
+- FOX (a ponytailed martial-arts brawler in baggy fighting pants), LION (a runaway circus
   strongman in clown paint) and HAWK (a parcel courier with no company name
   or logo) are original characters on genre archetypes, drawn to look like nobody else's: no film or game quotes,
   names, catchphrases or signature costumes.

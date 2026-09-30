@@ -1,18 +1,22 @@
 package com.bradflaugher.aboutthataction.render
 
 import com.bradflaugher.aboutthataction.engine.Hero
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
- * FOX: the street brawler. A cropped red leather jacket with the sleeves shoved up, open over
- * a fitted black top; high-waisted dark fighter trousers with a red side stripe, laced
- * fighter boots, red fingerless gloves; gold hoops, a hint of red lipstick, a copper fringe
- * and a long high copper ponytail that streams and whips behind her when she runs, flies up
- * when she drops and sways when she stands. Slimmer and longer in the leg than the men. A red rim.
+ * FOX: the martial-arts brawler. A black sports bra and a bare, toned midriff nipped in to a
+ * tiny waist; baggy grey fighting pants riding low on full hips, loose through the leg and
+ * gathered at the ankle over sleek red shoes; red fighting gloves over wrapped wrists; gold
+ * hoops, full lips, big lashed eyes; long, glossy near-black hair pulled clean off the
+ * forehead into a long ponytail at the back of the head (a red tie) that streams and whips
+ * behind her when she runs, flies up when she drops and sways when she stands. Narrow
+ * shoulders, long legs, curvy in profile. A red rim.
  */
 internal class FoxKit(a: HeroArt) : HeroKit(a) {
-    override val bulk = 0.9f
+    override val bulk = 0.88f
     override val head = 1.06f
     override val legs = 1.06f
     override val spine = 0.94f
@@ -20,24 +24,24 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
     override val rim = RIM
     override val echo = 0xFFFF9A3A.toInt()
     override val eyes = 0xFFFFD0A0.toInt()
-    override val boxFeet = BOOT
+    override val boxFeet = SHOE
     override val pistolScale = 1.22f
     override val flashSize = 0.13f
 
     override fun look(l: Look, ghost: Boolean) {
-        l.torso = TOP
-        l.torsoLit = TOP_LIT
+        l.torso = SKIN
+        l.torsoLit = SKIN_LIT
         l.legs = PANTS
         l.legsFar = PANTS_FAR
-        l.arms = JACKET
-        l.armsFar = JACKET_FAR
-        l.boots = BOOT
+        l.arms = SKIN
+        l.armsFar = SKIN_FAR
+        l.boots = SHOE
         l.gloves = GLOVE
         l.skin = SKIN
         l.rim = if (ghost) 0 else RIM
-        l.legW = 0.88f
-        l.armW = 0.86f
-        l.feet = Look.FEET_BOOT
+        l.legW = 1.12f
+        l.armW = 0.74f
+        l.feet = Look.FEET_DRESS
     }
 
     override fun pose() = swagger()
@@ -74,130 +78,155 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         swayY = k.headY
     }
 
-    /** Leather sleeves shoved up past the elbow, bare forearms, red fingerless gloves. */
+    /** Bare, toned arms; red fighting gloves over a wrapped wrist. */
     override fun arm(l: Limb, far: Boolean) {
         val aw = k.limbW * look.armW
-        val skin = if (far) SKIN_FAR else SKIN
-        // The bare forearm over the sleeve colour the body pen laid down.
-        p.bone(l.jx, l.jy, Rig.mix(l.jx, l.ex, 0.86f), Rig.mix(l.jy, l.ey, 0.86f), aw * 0.74f, aw * 0.58f, skin, sep = false, bulge = aw * 0.8f, lit = !far)
-        // The wrist wrap, then the sleeve bunched over the elbow.
-        p.bone(Rig.mix(l.jx, l.ex, 0.8f), Rig.mix(l.jy, l.ey, 0.8f), l.ex, l.ey, aw * 0.66f, aw * 0.64f, if (far) GLOVE_FAR else GLOVE, lit = !far)
-        p.bone(Rig.mix(l.ax, l.jx, 0.72f), Rig.mix(l.ay, l.jy, 0.72f), Rig.mix(l.jx, l.ex, 0.14f), Rig.mix(l.jy, l.ey, 0.14f), aw * 0.98f, aw * 0.9f, if (far) JACKET_FAR else JACKET, lit = !far)
-        if (p.ink || !p.hi) return
-        if (!far) smoothJoint(l, aw * 0.8f, JACKET)
-        // Fingertips poking out of the glove.
-        handOf(l)
-        val r = 0.05f * k.hs
-        p.dot(handX + handUx * r * 1.0f, handY + handUy * r * 1.0f, r * 0.42f, skin)
-        if (far || !p.shading) return
-        // A leather shine down the sleeve and the wrap's turns.
+        if (!far) smoothJoint(l, aw * 0.78f, SKIN)
+        // The wrist wrap under the glove.
+        p.bone(Rig.mix(l.jx, l.ex, 0.8f), Rig.mix(l.jy, l.ey, 0.8f), l.ex, l.ey, aw * 0.7f, aw * 0.68f, if (far) GLOVE_FAR else GLOVE, lit = !far)
+        if (p.ink || !p.hi || far || !p.shading) return
+        // The lamp down the upper arm, a crease at the wrap.
         frontOf(l.ax, l.ay, l.jx, l.jy)
-        addLine(Rig.mix(l.ax, l.jx, 0.15f) + nrm[0] * aw * 0.22f, Rig.mix(l.ay, l.jy, 0.15f) + nrm[1] * aw * 0.22f, Rig.mix(l.ax, l.jx, 0.62f) + nrm[0] * aw * 0.2f, Rig.mix(l.ay, l.jy, 0.62f) + nrm[1] * aw * 0.2f, 0.014f * k.hs, 0x70FFB0A8)
-        band(l.jx, l.jy, l.ex, l.ey, 0.88f, 0.91f, aw * 0.66f, GLOVE_DARK)
-        // The seam where the padded shoulder meets the sleeve.
-        band(l.ax, l.ay, l.jx, l.jy, 0.34f, 0.38f, aw * 0.98f, JACKET_DARK)
+        addLine(Rig.mix(l.ax, l.jx, 0.1f) + nrm[0] * aw * 0.24f, Rig.mix(l.ay, l.jy, 0.1f) + nrm[1] * aw * 0.24f, Rig.mix(l.ax, l.jx, 0.55f) + nrm[0] * aw * 0.2f, Rig.mix(l.ay, l.jy, 0.55f) + nrm[1] * aw * 0.2f, 0.014f * k.hs, 0x50FFE8D8)
+        band(l.jx, l.jy, l.ex, l.ey, 0.88f, 0.91f, aw * 0.7f, GLOVE_DARK)
     }
 
-    /** Fitted trousers into laced fighter boots up the shin, a red cuff at the top. */
+    /**
+     * Baggy grey fighting pants over the body pen's leg: loose and wide from the hip, soft
+     * folds, the cloth sagging under the leg when it's held out level (a kick), gathered into
+     * a cuff at the ankle over a sleek red shoe.
+     */
     override fun leg(l: Limb, far: Boolean) {
         val lw = k.limbW * look.legW
-        if (!far && !p.ink) smoothJoint(l, lw * 0.92f, PANTS)
-        val bc = if (far) BOOT_FAR else BOOT
-        p.bone(Rig.mix(l.jx, l.ex, 0.34f), Rig.mix(l.jy, l.ey, 0.34f), l.ex, l.ey, lw * 1.0f, lw * 0.76f, bc, lit = !far)
+        val col = if (far) PANTS_FAR else PANTS
+        val sep = !far
+        val cx = Rig.mix(l.jx, l.ex, 0.84f)
+        val cy = Rig.mix(l.jy, l.ey, 0.84f)
+        p.bone(l.ax, l.ay, l.jx, l.jy, lw * 1.36f, lw * 1.14f, col, sep, lit = !far)
+        p.bone(l.jx, l.jy, cx, cy, lw * 1.14f, lw * 1.0f, col, sep, bulge = lw * 1.24f, lit = !far)
+        // The drape: loose cloth hanging below a leg held out level.
+        drape(l.ax, l.ay, l.jx, l.jy, lw * 1.3f, col, sep)
+        drape(l.jx, l.jy, cx, cy, lw * 1.16f, col, sep)
+        // The gathered cuff at the ankle.
+        p.bone(cx, cy, Rig.mix(l.jx, l.ex, 0.97f), Rig.mix(l.jy, l.ey, 0.97f), lw * 0.76f, lw * 0.68f, if (far) CUFF_FAR else CUFF, sep, lit = !far)
         if (p.ink || !p.hi) return
-        band(l.jx, l.jy, l.ex, l.ey, 0.3f, 0.4f, lw * 1.04f, if (far) Col.mul(RED_DEEP, 0.6f) else RED_DEEP)
-        if (far || !p.shading) return
-        // Laces up the front of the boot, and the lamp on the shaft.
-        frontOf(l.jx, l.jy, l.ex, l.ey)
-        for (i in 0 until 3) {
-            val t = 0.5f + i * 0.14f
-            p.dot(Rig.mix(l.jx, l.ex, t) + nrm[0] * lw * 0.38f, Rig.mix(l.jy, l.ey, t) + nrm[1] * lw * 0.38f, 0.011f * k.hs, RED)
+        if (!far) {
+            // One continuous pant leg: hide the knee's seam.
+            p.bone(Rig.mix(l.jx, l.ax, 0.3f), Rig.mix(l.jy, l.ay, 0.3f), l.jx, l.jy, lw * 1.12f, lw * 1.12f, col)
         }
-        addLine(Rig.mix(l.jx, l.ex, 0.44f) + nrm[0] * lw * 0.2f, Rig.mix(l.jy, l.ey, 0.44f) + nrm[1] * lw * 0.2f, Rig.mix(l.jx, l.ex, 0.9f) + nrm[0] * lw * 0.16f, Rig.mix(l.jy, l.ey, 0.9f) + nrm[1] * lw * 0.16f, 0.012f * k.hs, 0x40FFFFFF)
+        if (!p.shading) return
+        // Soft folds: one down the thigh, the bunch at the knee, the pull above the cuff.
+        val fc = if (far) Col.mul(PANTS_FOLD, 0.7f) else PANTS_FOLD
+        frontOf(l.ax, l.ay, l.jx, l.jy)
+        p.detail(Rig.mix(l.ax, l.jx, 0.25f) - nrm[0] * lw * 0.1f, Rig.mix(l.ay, l.jy, 0.25f) - nrm[1] * lw * 0.1f, Rig.mix(l.ax, l.jx, 0.85f) + nrm[0] * lw * 0.12f, Rig.mix(l.ay, l.jy, 0.85f) + nrm[1] * lw * 0.12f, 0.014f * k.hs, fc)
+        if (!far) addLine(Rig.mix(l.ax, l.jx, 0.2f) + nrm[0] * lw * 0.42f, Rig.mix(l.ay, l.jy, 0.2f) + nrm[1] * lw * 0.42f, Rig.mix(l.ax, l.jx, 0.9f) + nrm[0] * lw * 0.4f, Rig.mix(l.ay, l.jy, 0.9f) + nrm[1] * lw * 0.4f, 0.016f * k.hs, 0x30FFFFFF)
+        frontOf(l.jx, l.jy, l.ex, l.ey)
+        p.detail(Rig.mix(l.jx, l.ex, 0.1f) + nrm[0] * lw * 0.3f, Rig.mix(l.jy, l.ey, 0.1f) + nrm[1] * lw * 0.3f, Rig.mix(l.jx, l.ex, 0.3f) - nrm[0] * lw * 0.2f, Rig.mix(l.jy, l.ey, 0.3f) - nrm[1] * lw * 0.2f, 0.014f * k.hs, fc)
+        p.detail(Rig.mix(l.jx, l.ex, 0.6f) + nrm[0] * lw * 0.36f, Rig.mix(l.jy, l.ey, 0.6f) + nrm[1] * lw * 0.36f, Rig.mix(l.jx, l.ex, 0.8f) - nrm[0] * lw * 0.1f, Rig.mix(l.jy, l.ey, 0.8f) - nrm[1] * lw * 0.1f, 0.012f * k.hs, fc)
+        shoe(l, far)
     }
 
-    /** A neat, rounded leather shoulder: narrower than the men's. */
+    /** The sag under a stretch of pant leg: nothing while it hangs, a soft belly when level. */
+    private fun drape(x1: Float, y1: Float, x2: Float, y2: Float, w: Float, col: Int, sep: Boolean) {
+        val dx = x2 - x1
+        val dy = y2 - y1
+        val len = sqrt(dx * dx + dy * dy).coerceAtLeast(1e-4f)
+        val level = abs(dx) / len
+        if (level < 0.6f) return
+        val sag = (level - 0.6f) / 0.4f * w * 0.5f
+        val h = w * 0.42f
+        p.begin()
+            .add(x1, y1 + h * 0.5f)
+            .add(Rig.mix(x1, x2, 0.4f), Rig.mix(y1, y2, 0.4f) + h + sag)
+            .add(Rig.mix(x1, x2, 0.8f), Rig.mix(y1, y2, 0.8f) + h + sag * 0.6f)
+            .add(x2, y2 + h * 0.5f)
+            .add(x2, y2 - h * 0.3f)
+            .add(x1, y1 - h * 0.3f)
+            .shape(col, sep)
+    }
+
+    /** The sleek red shoe the body pen laid down, with a white sole and a lace glint. */
+    private fun shoe(l: Limb, far: Boolean) {
+        val sc = k.hs
+        val fx = cos(l.pitch) * k.dir
+        val fy = sin(l.pitch)
+        val ux = fy * k.dir
+        val uy = -cos(l.pitch)
+        val ox = l.ex
+        val oy = l.ey + 0.045f * sc
+        fun bx(a: Float, u: Float) = ox + (fx * a + ux * u) * sc
+        fun by(a: Float, u: Float) = oy + (fy * a + uy * u) * sc
+        val dim = if (far) 0.6f else 1f
+        p.detail(bx(-0.07f, 0.012f), by(-0.07f, 0.012f), bx(0.19f, 0.012f), by(0.19f, 0.012f), 0.024f * sc, Col.mul(SOLE, dim))
+        if (!far) p.detail(bx(0.02f, 0.08f), by(0.02f, 0.08f), bx(0.1f, 0.06f), by(0.1f, 0.06f), 0.014f * sc, Col.alpha(SOLE, 0.8f))
+    }
+
+    /** A small, round, toned shoulder. */
     override fun shoulder(l: Limb, far: Boolean) {
         if (p.ink) return
         val aw = k.limbW * look.armW
         val sx = Rig.mix(l.ax, l.jx, 0.3f)
         val sy = Rig.mix(l.ay, l.jy, 0.3f)
-        p.bone(l.ax + k.ux * 0.015f, l.ay + k.uy * 0.015f, sx, sy, aw * 1.22f, aw * 0.98f, if (far) JACKET_FAR else JACKET, lit = !far, bulge = aw * 1.26f)
+        p.bone(l.ax + k.ux * 0.01f, l.ay + k.uy * 0.01f, sx, sy, aw * 1.1f, aw * 0.98f, if (far) SKIN_FAR else SKIN, lit = !far, bulge = aw * 1.14f)
         if (far || !p.shading) return
-        addLine(l.ax - k.nx * 0.04f + k.ux * 0.04f, l.ay - k.ny * 0.04f + k.uy * 0.04f, l.ax + k.nx * 0.04f + k.ux * 0.05f, l.ay + k.ny * 0.04f + k.uy * 0.05f, 0.018f * k.hs, 0x60FFB0A8)
+        addLine(l.ax - k.nx * 0.03f + k.ux * 0.03f, l.ay - k.ny * 0.03f + k.uy * 0.03f, l.ax + k.nx * 0.03f + k.ux * 0.04f, l.ay + k.ny * 0.03f + k.uy * 0.04f, 0.016f * k.hs, 0x60FFE8D8)
     }
 
     override fun neck() {
-        p.seg(k.neckX, k.neckY + 0.02f * k.hs, Rig.mix(k.neckX, k.headX, 0.55f), Rig.mix(k.neckY, k.headY, 0.55f), 0.085f * k.hs, SKIN_FAR)
+        p.seg(k.neckX, k.neckY + 0.02f * k.hs, Rig.mix(k.neckX, k.headX, 0.55f), Rig.mix(k.neckY, k.headY, 0.55f), 0.08f * k.hs, SKIN_FAR)
     }
 
+    /**
+     * The figure in profile: a black sports bra over a normal chest, the bare midriff nipped
+     * in to a tiny waist, and the baggy pants' seat riding low over a full, round backside.
+     */
     override fun torso() {
         p.lightFrom(k.dir)
-        val w = k.waistD
-        val c = k.chestD
-        // The fitted black top: the whole figure's contour, waist nipped in.
+        val w = k.waistD * 0.86f
+        val c = k.chestD * 0.96f
         contour(BODY, c, w)
-        p.shapeLit(TOP, tx(1.0f, c * 0.5f), ty(1.0f, c * 0.5f), tx(0.1f, -w * 0.6f), ty(0.1f, -w * 0.6f))
-        // The cropped jacket, open at the front.
-        contour(JACKET_PTS, c, w)
-        if (p.ink) {
-            p.shape(JACKET)
-            collar(c)
-            return
-        }
-        // High-waisted trousers from the belt down.
-        p.begin()
-        tp(-0.15f, -w * 0.6f); tp(-0.17f, w * 0.44f); tp(0.04f, w * 0.52f); tp(0.34f, w * 0.42f); tp(0.34f, -w * 0.46f); tp(0.16f, -w * 0.6f); tp(0.0f, -w * 0.68f)
-        p.shapeGradDetail(PANTS, ActorPaint.shade(PANTS), tx(0.1f, w * 0.5f), ty(0.1f, w * 0.5f), tx(0.1f, -w * 0.6f), ty(0.1f, -w * 0.6f))
-        // A red belt with a small square silver buckle.
-        p.detail(tx(0.32f, -w * 0.46f), ty(0.32f, -w * 0.46f), tx(0.32f, w * 0.42f), ty(0.32f, w * 0.42f), 0.04f * k.hs, RED_DEEP)
-        p.begin()
-        tp(0.37f, w * 0.18f); tp(0.37f, w * 0.38f); tp(0.27f, w * 0.38f); tp(0.27f, w * 0.18f)
-        p.shapeDetail(SILVER)
-        p.detail(tx(0.32f, w * 0.23f), ty(0.32f, w * 0.23f), tx(0.32f, w * 0.33f), ty(0.32f, w * 0.33f), 0.02f * k.hs, BELT)
-        contour(JACKET_PTS, c, w)
-        p.shapeLit(JACKET, tx(1.04f, c * 0.2f), ty(1.04f, c * 0.2f), tx(0.5f, -c * 0.5f), ty(0.5f, -c * 0.5f))
+        p.shapeLit(SKIN, tx(0.9f, c * 0.5f), ty(0.9f, c * 0.5f), tx(0.3f, -w * 0.6f), ty(0.3f, -w * 0.6f))
+        if (p.ink) return
         if (p.shading) {
-            // Leather: a hard lamp-lit sheen down the back, a shadow seam, the zip edge.
-            addLine(tx(0.98f, -c * 0.36f), ty(0.98f, -c * 0.36f), tx(0.58f, -c * 0.36f), ty(0.58f, -c * 0.36f), 0.022f * k.hs, 0x80FFB4A8.toInt())
-            addLine(tx(1.0f, -c * 0.1f), ty(1.0f, -c * 0.1f), tx(0.96f, c * 0.16f), ty(0.96f, c * 0.16f), 0.018f * k.hs, 0x70FFC8C0)
-            p.detail(tx(0.9f, -c * 0.02f), ty(0.9f, -c * 0.02f), tx(0.54f, -c * 0.06f), ty(0.54f, -c * 0.06f), 0.012f * k.hs, JACKET_DARK)
-            // The underside of the jacket falling into shadow, a panel seam from the yoke.
+            // The toned midriff: the back of the waist turning from the lamp, a soft line
+            // down the abs, the navel.
             p.begin()
-            tp(0.46f, -w * 0.54f); tp(0.66f, -c * 0.42f); tp(0.74f, -c * 0.1f); tp(0.62f, c * 0.3f); tp(0.47f, c * 0.42f)
-            p.shapeGradDetail(Col.alpha(JACKET_DARK, 0f), Col.alpha(JACKET_DARK, 0.75f), tx(0.72f, 0f), ty(0.72f, 0f), tx(0.47f, 0f), ty(0.47f, 0f))
-            p.detail(tx(0.94f, -c * 0.44f), ty(0.94f, -c * 0.44f), tx(0.9f, c * 0.3f), ty(0.9f, c * 0.3f), 0.01f * k.hs, JACKET_DARK)
-            addLine(tx(0.8f, c * 0.1f), ty(0.8f, c * 0.1f), tx(0.6f, c * 0.2f), ty(0.6f, c * 0.2f), 0.016f * k.hs, 0x90FFFFFF.toInt())
-            // The top's lamp-lit curve at the front.
-            p.detail(tx(0.86f, c * 0.46f), ty(0.86f, c * 0.46f), tx(0.66f, c * 0.5f), ty(0.66f, c * 0.5f), 0.014f * k.hs, Col.alpha(TOP_LIT, 0.8f))
+            tp(0.14f, -w * 0.62f); tp(0.3f, -w * 0.48f); tp(0.48f, -w * 0.4f); tp(0.62f, -c * 0.34f); tp(0.62f, -c * 0.05f); tp(0.34f, -w * 0.02f); tp(0.14f, -w * 0.1f)
+            p.shapeGradDetail(Col.alpha(ActorPaint.shade(SKIN), 0.75f), Col.alpha(SKIN, 0f), tx(0.4f, -w * 0.5f), ty(0.4f, -w * 0.5f), tx(0.4f, w * 0.1f), ty(0.4f, w * 0.1f))
+            p.detail(tx(0.54f, w * 0.3f), ty(0.54f, w * 0.3f), tx(0.24f, w * 0.34f), ty(0.24f, w * 0.34f), 0.012f * k.hs, Col.alpha(SKIN_FAR, 0.5f))
+            p.detail(tx(0.5f, w * 0.1f), ty(0.5f, w * 0.1f), tx(0.3f, w * 0.16f), ty(0.3f, w * 0.16f), 0.01f * k.hs, Col.alpha(SKIN_FAR, 0.35f))
+            p.dot(tx(0.2f, w * 0.4f), ty(0.2f, w * 0.4f), 0.01f * k.hs, SKIN_FAR)
+            addLine(tx(0.46f, w * 0.34f), ty(0.46f, w * 0.34f), tx(0.3f, w * 0.38f), ty(0.3f, w * 0.38f), 0.014f * k.hs, 0x50FFE8D8)
         }
-        // The lapel and the jacket's open edge, a silver zip glint at the hem.
-        // The black top in the open V of the collar, the lapel, the zip and the hem.
+        // The baggy pants' seat and hips, riding low under a drawstring waistband.
         p.begin()
-        tp(1.05f, c * 0.06f); tp(1.04f, c * 0.24f); tp(0.9f, c * 0.42f); tp(0.9f, c * 0.3f)
-        p.shapeDetail(TOP)
-        p.detail(tx(1.06f, c * 0.24f), ty(1.06f, c * 0.24f), tx(0.9f, c * 0.42f), ty(0.9f, c * 0.42f), 0.024f * k.hs, JACKET_DARK)
-        p.detail(tx(0.88f, c * 0.4f), ty(0.88f, c * 0.4f), tx(0.5f, c * 0.4f), ty(0.5f, c * 0.4f), 0.012f * k.hs, JACKET_DARK)
-        p.detail(tx(0.47f, -w * 0.54f), ty(0.47f, -w * 0.54f), tx(0.48f, c * 0.42f), ty(0.48f, c * 0.42f), 0.03f * k.hs, JACKET_DARK)
-        // The open zip down the front edge, its pull at the hem.
-        p.detail(tx(1.0f, c * 0.32f), ty(1.0f, c * 0.32f), tx(0.9f, c * 0.44f), ty(0.9f, c * 0.44f), 0.01f * k.hs, SILVER)
-        p.detail(tx(0.9f, c * 0.44f), ty(0.9f, c * 0.44f), tx(0.5f, c * 0.44f), ty(0.5f, c * 0.44f), 0.01f * k.hs, SILVER)
-        p.detail(tx(0.5f, c * 0.44f), ty(0.5f, c * 0.44f), tx(0.42f, c * 0.46f), ty(0.42f, c * 0.46f), 0.018f * k.hs, SILVER)
-        collar(c)
+        for (i in SEAT_FROM..SEAT_TO) {
+            val j = i % (BODY.size / 3)
+            tp(cA(BODY, j), cS(BODY, j, c, w))
+        }
+        tp(0.1f, w * 0.52f)
+        p.shapeGradDetail(PANTS_LIT, ActorPaint.shade(PANTS), tx(0.1f, w * 0.4f), ty(0.1f, w * 0.4f), tx(-0.1f, -w * 0.8f), ty(-0.1f, -w * 0.8f))
+        if (p.shading) {
+            // The round of the seat catching the lamp, a fold under it.
+            p.detail(tx(-0.12f, -w * 0.5f), ty(-0.12f, -w * 0.5f), tx(0.02f, -w * 0.2f), ty(0.02f, -w * 0.2f), 0.014f * k.hs, PANTS_FOLD)
+            addLine(tx(0.06f, -w * 0.72f), ty(0.06f, -w * 0.72f), tx(-0.08f, -w * 0.78f), ty(-0.08f, -w * 0.78f), 0.016f * k.hs, 0x38FFFFFF)
+        }
+        p.detail(tx(0.15f, -w * 0.62f), ty(0.15f, -w * 0.62f), tx(0.1f, w * 0.52f), ty(0.1f, w * 0.52f), 0.05f * k.hs, WAIST)
+        // The drawstring, knotted at the front, its ends hanging.
+        val kx = tx(0.1f, w * 0.44f)
+        val ky = ty(0.1f, w * 0.44f)
+        p.detail(kx, ky, tx(-0.05f, w * 0.4f), ty(-0.05f, w * 0.4f), 0.01f * k.hs, CORD)
+        p.detail(kx, ky, tx(-0.03f, w * 0.52f), ty(-0.03f, w * 0.52f), 0.01f * k.hs, CORD)
+        // The sports bra.
+        contour(BRA, c, w)
+        p.shapeLit(BRA_C, tx(0.9f, c * 0.5f), ty(0.9f, c * 0.5f), tx(0.6f, -c * 0.4f), ty(0.6f, -c * 0.4f))
+        if (p.shading) {
+            // The band, a red trim at the neckline, the lamp across the cup.
+            p.detail(tx(0.6f, -c * 0.32f), ty(0.6f, -c * 0.32f), tx(0.6f, c * 0.44f), ty(0.6f, c * 0.44f), 0.03f * k.hs, BRA_BAND)
+            p.detail(tx(0.9f, c * 0.42f), ty(0.9f, c * 0.42f), tx(1.0f, c * 0.12f), ty(1.0f, c * 0.12f), 0.012f * k.hs, RED)
+            addLine(tx(0.84f, c * 0.42f), ty(0.84f, c * 0.42f), tx(0.7f, c * 0.5f), ty(0.7f, c * 0.5f), 0.016f * k.hs, 0x70C8D4FF)
+        }
         rimAlong(BODY, RIM_FROM, RIM_TO, c, w)
-    }
-
-    /** The collar popped up the back of the neck: a little swagger. */
-    private fun collar(c: Float) {
-        p.begin()
-        tp(0.96f, -c * 0.46f); tp(1.24f, -c * 0.6f); tp(1.32f, -c * 0.3f); tp(1.2f, -c * 0.04f); tp(1.06f, c * 0.04f)
-        if (p.ink) {
-            p.shape(JACKET)
-            return
-        }
-        p.shapeLit(JACKET, tx(1.3f, -c * 0.4f), ty(1.3f, -c * 0.4f), tx(1.0f, -c * 0.2f), ty(1.0f, -c * 0.2f))
-        p.detail(tx(1.02f, -c * 0.36f), ty(1.02f, -c * 0.36f), tx(1.22f, -c * 0.12f), ty(1.22f, -c * 0.12f), 0.014f * k.hs, JACKET_DARK)
-        if (p.shading) addLine(tx(1.24f, -c * 0.54f), ty(1.24f, -c * 0.54f), tx(1.3f, -c * 0.3f), ty(1.3f, -c * 0.3f), 0.012f * k.hs, 0x90FFC8C0.toInt())
     }
 
     override fun details(ghost: Boolean) {
@@ -205,16 +234,8 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         // SILENT: the pistol strapped to the thigh, hands free for the kicks.
         val dir = k.dir
         val l = k.legF
-        p.detail(Rig.mix(l.ax, l.jx, 0.18f) - 0.03f * dir, Rig.mix(l.ay, l.jy, 0.18f), Rig.mix(l.ax, l.jx, 0.56f) - 0.035f * dir, Rig.mix(l.ay, l.jy, 0.56f), 0.085f, HOLSTER)
-        p.detail(Rig.mix(l.ax, l.jx, 0.42f) - 0.08f * dir, Rig.mix(l.ay, l.jy, 0.42f), Rig.mix(l.ax, l.jx, 0.42f) + 0.05f * dir, Rig.mix(l.ay, l.jy, 0.42f), 0.02f, RED_DEEP)
-    }
-
-    /** The red stripe down the outside of the near trouser leg. */
-    override fun strips() {
-        val lf = k.legF
-        if (!p.hi) return
-        p.detail(Rig.mix(lf.ax, lf.jx, 0.06f), Rig.mix(lf.ay, lf.jy, 0.06f), lf.jx, lf.jy, 0.022f * k.hs, RED)
-        p.detail(lf.jx, lf.jy, Rig.mix(lf.jx, lf.ex, 0.3f), Rig.mix(lf.jy, lf.ey, 0.3f), 0.022f * k.hs, RED)
+        p.detail(Rig.mix(l.ax, l.jx, 0.18f) - 0.05f * dir, Rig.mix(l.ay, l.jy, 0.18f), Rig.mix(l.ax, l.jx, 0.56f) - 0.055f * dir, Rig.mix(l.ay, l.jy, 0.56f), 0.085f, HOLSTER)
+        p.detail(Rig.mix(l.ax, l.jx, 0.42f) - 0.11f * dir, Rig.mix(l.ay, l.jy, 0.42f), Rig.mix(l.ax, l.jx, 0.42f) + 0.08f * dir, Rig.mix(l.ay, l.jy, 0.42f), 0.02f, RED_DEEP)
     }
 
     override fun head(ghost: Boolean) {
@@ -222,51 +243,45 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         pen(k.headX, k.headY, r)
         p.lightFrom(k.dir)
         // The ponytail first, so the head sits over its root; outlined on its own so it reads
-        // over the jacket.
+        // over her back.
         ponytail(ghost)
         hpoly(FACE).shapeLit(SKIN, hpX(0.55f), hpY(-0.95f), hpX(-0.5f), hpY(0.9f))
-        hpoly(HAIR).shapeLit(COPPER, hpX(0.6f), hpY(-1.2f), hpX(-0.8f), hpY(0.2f))
-        // Side-swept bangs across the brow, framing the face.
-        hpoly(BANGS).shapeLit(COPPER, hpX(0.7f), hpY(-1.2f), hpX(0.9f), hpY(-0.3f))
-        if (!p.ink) {
-            // The sweep's lower edge, crisp over the skin.
-            p.detail(hpX(1.1f), hpY(-0.5f), hpX(1.02f), hpY(-0.3f), r * 0.07f, COPPER_DARK)
-            p.detail(hpX(1.02f), hpY(-0.3f), hpX(0.76f), hpY(-0.58f), r * 0.07f, COPPER_DARK)
-            p.detail(hpX(0.58f), hpY(-0.52f), hpX(0.5f), hpY(-0.18f), r * 0.06f, COPPER_DARK)
-        }
-        // The hair tie at the crown.
+        hpoly(HAIR).shapeLit(HAIR_C, hpX(0.6f), hpY(-1.2f), hpX(-0.8f), hpY(0.2f))
+        // The red tie at the back of the head.
         p.disc(hpX(TIE_U), hpY(TIE_V), r * 0.2f, RED)
         if (p.ink) return
         if (p.shading) {
-            hpoly(JAW).shapeDetail(Col.alpha(ActorPaint.shade(SKIN), 0.45f))
-            // A touch of blush.
-            p.dot(hpX(0.56f), hpY(0.28f), r * 0.16f, Col.alpha(0xFFFF6A6A.toInt(), 0.3f))
+            hpoly(JAW).shapeDetail(Col.alpha(ActorPaint.shade(SKIN), 0.4f))
+            p.dot(hpX(0.58f), hpY(0.26f), r * 0.12f, Col.alpha(0xFFFF6A6A.toInt(), 0.24f))
+            // The hair combed straight back off the brow, in strands.
+            p.detail(hpX(0.5f), hpY(-0.96f), hpX(-0.7f), hpY(-0.54f), r * 0.04f, Col.alpha(HAIR_DARK, 0.6f))
+            p.detail(hpX(0.3f), hpY(-0.62f), hpX(-0.7f), hpY(-0.44f), r * 0.04f, Col.alpha(HAIR_DARK, 0.6f))
         }
         if (p.hi) {
             // The ear, a gold hoop hanging from it.
             p.dot(hpX(-0.18f), hpY(0.08f), r * 0.17f, SKIN_FAR)
             p.dot(hpX(-0.15f), hpY(0.06f), r * 0.11f, SKIN)
             g.strokeCircle(hpX(-0.16f), hpY(0.5f), r * 0.24f, (r * 0.09f).coerceAtLeast(0.012f), p.c(GOLD))
-            // A fine arched brow, the eye with a lash flick, red lips.
-            // A determined brow, angled down to the nose; a bold lash line with a flick.
-            p.detail(hpX(0.52f), hpY(-0.5f), hpX(0.92f), hpY(-0.34f), r * 0.11f, COPPER_DARK)
-            p.dot(hpX(0.75f), hpY(-0.15f), r * 0.14f, 0xFF0C0A12.toInt())
-            p.detail(hpX(0.58f), hpY(-0.25f), hpX(0.9f), hpY(-0.27f), r * 0.11f, 0xFF0C0A12.toInt())
-            p.detail(hpX(0.58f), hpY(-0.25f), hpX(0.44f), hpY(-0.38f), r * 0.09f, 0xFF0C0A12.toInt())
-            p.detail(hpX(0.98f), hpY(0.5f), hpX(0.9f), hpY(0.56f), r * 0.13f, LIPS)
-            p.detail(hpX(0.99f), hpY(0.62f), hpX(0.9f), hpY(0.6f), r * 0.12f, LIPS)
+            // A fine arched brow; a big eye with a bold lash line, a flick and lashes.
+            p.detail(hpX(0.5f), hpY(-0.44f), hpX(0.72f), hpY(-0.52f), r * 0.08f, HAIR_DARK)
+            p.detail(hpX(0.72f), hpY(-0.52f), hpX(0.92f), hpY(-0.42f), r * 0.07f, HAIR_DARK)
+            p.dot(hpX(0.75f), hpY(-0.15f), r * 0.16f, EYE)
+            p.detail(hpX(0.56f), hpY(-0.27f), hpX(0.92f), hpY(-0.28f), r * 0.12f, INK)
+            p.detail(hpX(0.56f), hpY(-0.27f), hpX(0.42f), hpY(-0.4f), r * 0.09f, INK)
+            p.detail(hpX(0.66f), hpY(-0.3f), hpX(0.6f), hpY(-0.42f), r * 0.05f, INK)
+            // Full lips with a smirk turning up at the corner.
+            p.detail(hpX(1.0f), hpY(0.5f), hpX(0.86f), hpY(0.55f), r * 0.14f, LIPS)
+            p.detail(hpX(1.0f), hpY(0.62f), hpX(0.88f), hpY(0.6f), r * 0.14f, LIPS)
+            p.detail(hpX(0.86f), hpY(0.56f), hpX(0.76f), hpY(0.48f), r * 0.05f, SKIN_FAR)
         }
         if (p.shading && !ghost) {
-            // The eye's glint, the lamp on the crown and down the fringe.
-            p.dot(hpX(0.79f), hpY(-0.18f), r * 0.05f, 0xFFFFFFFF.toInt())
+            // The eye's glint, the sheen on the hair, the lamp on the nose.
+            p.dot(hpX(0.8f), hpY(-0.18f), r * 0.06f, 0xFFFFFFFF.toInt())
             g.blend(Gfx.Blend.ADD)
-            p.detail(hpX(0.56f), hpY(-1.06f), hpX(0.1f), hpY(-1.22f), r * 0.1f, Col.alpha(COPPER_LIT, 0.45f))
-                        g.blend(Gfx.Blend.NORMAL)
+            p.detail(hpX(0.5f), hpY(-1.06f), hpX(-0.3f), hpY(-1.12f), r * 0.1f, Col.alpha(HAIR_LIT, 0.7f))
+            p.detail(hpX(-0.4f), hpY(-1.04f), hpX(-0.9f), hpY(-0.62f), r * 0.07f, Col.alpha(HAIR_LIT, 0.5f))
+            g.blend(Gfx.Blend.NORMAL)
             p.detail(hpX(0.94f), hpY(0.0f), hpX(1.06f), hpY(0.18f), r * 0.06f, Col.alpha(SKIN_LIT, 0.8f))
-            // The bangs' strands, and a gloss down the sweep.
-            p.detail(hpX(0.5f), hpY(-1.1f), hpX(0.94f), hpY(-0.44f), r * 0.05f, Col.alpha(COPPER_DARK, 0.7f))
-            p.detail(hpX(0.34f), hpY(-0.96f), hpX(0.52f), hpY(-0.34f), r * 0.05f, Col.alpha(COPPER_DARK, 0.7f))
-            addLine(hpX(0.66f), hpY(-1.12f), hpX(1.0f), hpY(-0.72f), r * 0.08f, Col.alpha(COPPER_LIT, 0.6f))
         }
     }
 
@@ -274,10 +289,10 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
     private val py = FloatArray(PONY_N + 1)
 
     /**
-     * The long high ponytail: a chain of [PONY_N] links out of the tie, each hanging at its own
-     * angle (from straight down, positive trailing behind her) blended from the pose: a high
-     * arc that falls down her back standing, streaming and whipping out behind in a run,
-     * flying up as she drops and dragging down as she springs up, fanned out when she's down.
+     * The long ponytail: a chain of [PONY_N] links out of the tie, each hanging at its own
+     * angle (from straight down, positive trailing behind her) blended from the pose: falling
+     * down her back standing, streaming and whipping out behind in a run, flying up as she
+     * drops and dragging down as she springs up, fanned out when she's down.
      */
     private fun ponytail(ghost: Boolean) {
         val r = k.headR
@@ -288,20 +303,19 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         // Springing up: the front knee tucked high (no other rising state reaches the painter).
         val tuck = if (live) ((k.hipY + 0.2f * k.hs - k.legF.jy) / (0.12f * k.hs)).coerceIn(0f, 1f) * (1f - fall) else 0f
         val seg = r * PONY_LEN / PONY_N
-        px[0] = hpX(TIE_U - 0.06f)
-        py[0] = hpY(TIE_V + 0.04f)
+        px[0] = hpX(TIE_U - 0.08f)
+        py[0] = hpY(TIE_V + 0.02f)
         val dir = k.dir
         for (i in 0 until PONY_N) {
             val s = (i + 0.5f) / PONY_N
             var th: Float
             if (!live) {
-                th = 2.3f + 0.5f * s
+                th = 2.1f + 0.5f * s
             } else {
                 val u = 1f - s
-                val stand = 0.12f + 1.6f * u * u * u - 0.35f * s * s * s + a.idle * 4f * s + sin(t * 1.9f - s * 2.4f) * 0.05f * s
-                val streak = 1.72f - 0.5f * s + sin(t * 13f - s * 5f) * 0.36f * s + sin(s * 6f) * 0.12f + a.bob * 2.5f * s
+                val stand = 0.16f + 0.9f * u * u * u - 0.2f * s * s + a.idle * 4f * s + sin(t * 1.9f - s * 2.4f) * 0.05f * s
+                val streak = 1.62f - 0.5f * s + sin(t * 13f - s * 5f) * 0.36f * s + sin(s * 6f) * 0.12f + a.bob * 2.5f * s
                 th = Rig.mix(stand, streak, Rig.smooth(run * 1.25f))
-                // Leaning into a run tips the root forward; the tail still trails.
                 th = Rig.mix(th, 2.2f + 0.22f * s + sin(t * 10f - s * 3f) * 0.14f * s, fall * 0.9f)
                 th = Rig.mix(th, 0.2f - 0.1f * s, tuck * 0.65f)
             }
@@ -312,19 +326,18 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         p.begin()
         for (i in 0..PONY_N) side(i, 1f)
         for (i in PONY_N downTo 0) side(i, -1f)
-        p.shapeLit(COPPER, px[1], py[1] - r, px[PONY_N], py[PONY_N] + r, sep = true, mid = 0.4f)
+        p.shapeLit(HAIR_C, px[1], py[1] - r, px[PONY_N], py[PONY_N] + r, sep = true, mid = 0.4f)
         if (p.ink || !p.shading) return
-        // A dark strand down the underside, and the lamp along the top of the tail.
+        // A dark strand down the middle, and a cool sheen along the tail.
         val m = PONY_N * 3 / 4
-        p.detail(Rig.mix(px[1], px[2], 0.5f), Rig.mix(py[1], py[2], 0.5f), px[m], py[m], r * 0.08f, COPPER_DARK)
+        p.detail(Rig.mix(px[1], px[2], 0.5f), Rig.mix(py[1], py[2], 0.5f), px[m], py[m], r * 0.08f, HAIR_DARK)
         if (!ghost) {
-            // The lamp along the top of the tail: one soft strip over its first half.
             p.begin()
-            val h = PONY_N / 2 + 1
+            val h = PONY_N / 2 + 2
             for (i in 0..h) strand(i, 0.14f)
             for (i in h downTo 0) strand(i, if (i == 0 || i == h) 0.14f else 0.34f)
             g.blend(Gfx.Blend.ADD)
-            p.shapeDetail(Col.alpha(COPPER_LIT, 0.6f))
+            p.shapeDetail(Col.alpha(HAIR_LIT, 0.55f))
             g.blend(Gfx.Blend.NORMAL)
         }
     }
@@ -339,7 +352,7 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         val j = if (i >= PONY_N) PONY_N - 1 else i
         val dx = px[j + 1] - px[j]
         val dy = py[j + 1] - py[j]
-        val l = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1e-5f)
+        val l = sqrt(dx * dx + dy * dy).coerceAtLeast(1e-5f)
         return -dy / l
     }
 
@@ -347,7 +360,7 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         val j = if (i >= PONY_N) PONY_N - 1 else i
         val dx = px[j + 1] - px[j]
         val dy = py[j + 1] - py[j]
-        val l = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1e-5f)
+        val l = sqrt(dx * dx + dy * dy).coerceAtLeast(1e-5f)
         return dx / l
     }
 
@@ -370,103 +383,115 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         val RED = Hero.FOX.color
         const val RED_DEEP = 0xFF9A1820.toInt()
         const val RIM = 0xFFFF8C80.toInt()
-        /** The cropped leather jacket: a true red, deep enough to model against dark walls. */
-        const val JACKET = 0xFFC8262E.toInt()
-        const val JACKET_DARK = 0xFF52080E.toInt()
-        const val JACKET_FAR = 0xFF7E141C.toInt()
-        const val TOP = 0xFF111016.toInt()
-        const val TOP_LIT = 0xFF4A4658.toInt()
-        const val PANTS = 0xFF2C2E44.toInt()
-        const val PANTS_FAR = 0xFF1A1B2A.toInt()
-        const val BELT = 0xFF0C0A10.toInt()
-        const val BOOT = 0xFF141218.toInt()
-        const val BOOT_FAR = 0xFF0C0B10.toInt()
+        /** Baggy pants in a mid grey, light enough to read against dark walls. */
+        const val PANTS = 0xFF7C7E8C.toInt()
+        const val PANTS_LIT = 0xFFA8AAB8.toInt()
+        const val PANTS_FAR = 0xFF4E505C.toInt()
+        const val PANTS_FOLD = 0xFF545664.toInt()
+        const val CUFF = 0xFF5E606C.toInt()
+        const val CUFF_FAR = 0xFF3C3E48.toInt()
+        const val WAIST = 0xFF4A4C58.toInt()
+        const val CORD = 0xFFE8E8EE.toInt()
+        const val BRA_C = 0xFF141218.toInt()
+        const val BRA_BAND = 0xFF08070C.toInt()
+        const val SHOE = 0xFFD8323A.toInt()
+        const val SOLE = 0xFFF4F4F8.toInt()
         const val HOLSTER = 0xFF0E0C12.toInt()
         const val GLOVE = 0xFFD8323A.toInt()
         const val GLOVE_FAR = 0xFF8A1C24.toInt()
         const val GLOVE_DARK = 0xFF7A1018.toInt()
         const val GOLD = 0xFFE8B83C.toInt()
         const val GOLD_LIT = 0xFFFFF0B0.toInt()
-        const val SILVER = 0xFFD8DCE8.toInt()
         const val SKIN = 0xFFEDB892.toInt()
         const val SKIN_LIT = 0xFFFFDCC4.toInt()
         const val SKIN_FAR = 0xFFA8705A.toInt()
-        const val LIPS = 0xFFD42A3C.toInt()
-        /** Copper-auburn hair: orange enough to part from the red leather. */
-        const val COPPER = 0xFFC8561E.toInt()
-        const val COPPER_LIT = 0xFFFFB070.toInt()
-        const val COPPER_DARK = 0xFF6E2410.toInt()
+        const val LIPS = 0xFFD2384A.toInt()
+        const val EYE = 0xFF2A1A14.toInt()
+        const val INK = 0xFF0C0A12.toInt()
+        /** Near-black hair with a cool blue sheen. */
+        const val HAIR_C = 0xFF1E1A26.toInt()
+        const val HAIR_LIT = 0xFF7088C0.toInt()
+        const val HAIR_DARK = 0xFF0A080E.toInt()
 
-        /** Where the tie sits on the crown, in head units. */
-        private const val TIE_U = -0.6f
-        private const val TIE_V = -0.92f
-        private const val PONY_N = 9
+        /** Where the tie sits, low-to-mid on the back of the head, in head units. */
+        private const val TIE_U = -0.94f
+        private const val TIE_V = -0.46f
+        private const val PONY_N = 10
         /** The tail's length in head radii, and its width at each joint. */
-        private const val PONY_LEN = 3.9f
-        private val PONY_W = floatArrayOf(0.74f, 1.3f, 1.46f, 1.4f, 1.26f, 1.06f, 0.84f, 0.6f, 0.34f, 0.06f)
+        private const val PONY_LEN = 4.8f
+        private val PONY_W = floatArrayOf(0.7f, 1.1f, 1.24f, 1.26f, 1.2f, 1.1f, 0.96f, 0.8f, 0.6f, 0.36f, 0.06f)
 
         /**
          * The figure in profile (along the spine, toward the chest, 1 = chest units /
-         * 0 = waist units): a narrow waist, a curve at the hip, a modest bust.
+         * 0 = waist units): a full round seat, a tiny waist, a normal chest.
          */
         private val BODY = floatArrayOf(
-            -0.15f, -0.56f, 0f,
-            -0.16f, 0.42f, 0f,
-            0.04f, 0.55f, 0f,
-            0.3f, 0.4f, 0f,
+            -0.17f, -0.8f, 0f,
+            -0.21f, -0.56f, 0f,
+            -0.21f, 0.46f, 0f,
+            0.02f, 0.64f, 0f,
+            0.2f, 0.46f, 0f,
+            0.36f, 0.34f, 0f,
             0.52f, 0.42f, 1f,
+            0.64f, 0.5f, 1f,
+            0.76f, 0.54f, 1f,
+            0.86f, 0.46f, 1f,
+            0.96f, 0.3f, 1f,
+            1.03f, 0.1f, 1f,
+            // One smooth back, neck to seat: every step in the same direction, no corner at
+            // the shoulder blades.
+            1.05f, -0.12f, 1f,
+            1.02f, -0.28f, 1f,
+            0.94f, -0.37f, 1f,
+            0.82f, -0.4f, 1f,
+            0.68f, -0.38f, 1f,
+            0.56f, -0.33f, 1f,
+            0.44f, -0.38f, 0f,
+            0.3f, -0.46f, 0f,
+            0.16f, -0.68f, 0f,
+            0.04f, -0.9f, 0f,
+            -0.08f, -0.96f, 0f,
+        )
+        private const val RIM_FROM = 12
+        private const val RIM_TO = 19
+        /** The seat of the pants: the contour from above the seat round under it to the front hip. */
+        private const val SEAT_FROM = 20
+        private const val SEAT_TO = 26
+
+        /** The sports bra: an athletic scoop at the front, a band under the chest, a racer back. */
+        private val BRA = floatArrayOf(
+            0.58f, 0.44f, 1f,
             0.66f, 0.52f, 1f,
-            0.8f, 0.52f, 1f,
-            0.92f, 0.4f, 1f,
-            1.02f, 0.2f, 1f,
-            1.05f, -0.1f, 1f,
-            1.03f, -0.34f, 1f,
-            0.94f, -0.42f, 1f,
-            0.7f, -0.38f, 1f,
-            0.44f, -0.44f, 0f,
-            0.2f, -0.56f, 0f,
-            0.0f, -0.67f, 0f,
-        )
-        private const val RIM_FROM = 10
-        private const val RIM_TO = 15
-
-        /** The cropped jacket: the hem at the ribs, a stand collar, open down the front. */
-        private val JACKET_PTS = floatArrayOf(
-            0.44f, -0.52f, 0f,
-            0.66f, -0.42f, 1f,
-            0.9f, -0.46f, 1f,
-            1.03f, -0.4f, 1f,
-            1.12f, -0.22f, 1f,
-            1.14f, 0.02f, 1f,
-            1.06f, 0.24f, 1f,
-            0.9f, 0.42f, 1f,
-            0.7f, 0.5f, 1f,
-            0.46f, 0.44f, 1f,
+            0.77f, 0.56f, 1f,
+            0.87f, 0.48f, 1f,
+            0.92f, 0.38f, 1f,
+            0.9f, 0.24f, 1f,
+            1.02f, 0.08f, 1f,
+            1.04f, -0.1f, 1f,
+            // The racer back hugs the body's own back line, just inside it.
+            1.01f, -0.26f, 1f,
+            0.93f, -0.35f, 1f,
+            0.82f, -0.38f, 1f,
+            0.68f, -0.36f, 1f,
+            0.58f, -0.32f, 1f,
         )
 
-        /** A fine profile: a small, tip-tilted nose, full lips, a soft rounded chin. */
+        /** A soft, pretty profile: a small nose, full lips, a rounded chin, a soft jaw. */
         private val FACE = floatArrayOf(
             -1.0f, -0.12f, -0.82f, -0.72f, -0.36f, -1.0f, 0.16f, -1.02f, 0.62f, -0.84f,
-            0.9f, -0.46f, 0.95f, -0.12f, 1.12f, 0.18f, 1.1f, 0.26f, 0.98f, 0.34f,
-            1.03f, 0.46f, 0.96f, 0.55f, 1.0f, 0.63f, 0.92f, 0.74f, 0.88f, 0.86f,
-            0.68f, 0.96f, 0.3f, 0.9f, -0.14f, 0.68f, -0.52f, 0.46f, -0.92f, 0.24f,
+            0.9f, -0.46f, 0.95f, -0.12f, 1.1f, 0.16f, 1.08f, 0.25f, 0.98f, 0.33f,
+            1.04f, 0.46f, 0.97f, 0.55f, 1.02f, 0.64f, 0.92f, 0.76f, 0.86f, 0.87f,
+            0.66f, 0.95f, 0.28f, 0.88f, -0.14f, 0.66f, -0.52f, 0.44f, -0.92f, 0.24f,
         )
         private val JAW = floatArrayOf(
-            -0.92f, 0.24f, -0.52f, 0.46f, -0.14f, 0.68f, 0.3f, 0.9f, 0.68f, 0.96f,
-            0.66f, 0.88f, 0.3f, 0.82f, -0.06f, 0.6f, -0.44f, 0.36f, -0.8f, 0.14f,
+            -0.92f, 0.24f, -0.52f, 0.44f, -0.14f, 0.66f, 0.28f, 0.88f, 0.66f, 0.95f,
+            0.64f, 0.88f, 0.28f, 0.8f, -0.06f, 0.58f, -0.44f, 0.34f, -0.8f, 0.14f,
         )
-        /** A sweep of fringe from the parting, over the brow and past it, one lock down the temple. */
-        private val BANGS = floatArrayOf(
-            0.06f, -1.32f, 0.66f, -1.22f, 1.02f, -0.9f, 1.12f, -0.54f, 1.02f, -0.3f,
-            0.92f, -0.44f, 0.76f, -0.6f, 0.58f, -0.54f, 0.5f, -0.18f, 0.38f, -0.36f,
-            0.3f, -0.74f,
-        )
-        /** Pulled up tight to the tie, a swept fringe falling over the brow. */
+        /** Pulled back clean off the forehead to the tie: no fringe, the hairline showing. */
         private val HAIR = floatArrayOf(
-            0.8f, -0.24f, 0.99f, -0.46f, 1.0f, -0.84f, 0.76f, -1.18f, 0.2f, -1.36f,
-            -0.42f, -1.26f, -0.9f, -0.96f, -1.1f, -0.44f, -1.06f, 0.1f, -0.86f, 0.4f,
-            -0.62f, 0.34f, -0.44f, 0.16f, -0.38f, -0.1f, -0.2f, -0.2f, 0.04f, -0.14f,
-            0.3f, -0.36f, 0.5f, -0.24f, 0.6f, -0.5f, 0.7f, -0.36f,
+            0.8f, -0.66f, 0.76f, -0.98f, 0.3f, -1.2f, -0.3f, -1.2f, -0.82f, -0.98f,
+            -1.1f, -0.52f, -1.12f, -0.02f, -0.96f, 0.34f, -0.72f, 0.3f, -0.5f, 0.1f,
+            -0.4f, -0.18f, -0.12f, -0.32f, 0.2f, -0.5f, 0.46f, -0.64f,
         )
     }
 }
