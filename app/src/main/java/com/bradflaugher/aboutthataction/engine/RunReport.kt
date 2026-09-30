@@ -50,7 +50,7 @@ data class RunReport(
         val HERO_QUIPS = mapOf(
             Hero.BULL to "Chain still shiny. Good game.",
             Hero.FOX to "Not one hair out of that ponytail.",
-            Hero.LION to "The show must go on. After a nap.",
+            Hero.MONKEY to "The show must go on. After a nap.",
             Hero.HAWK to "Delivered. Sign here.",
         )
 

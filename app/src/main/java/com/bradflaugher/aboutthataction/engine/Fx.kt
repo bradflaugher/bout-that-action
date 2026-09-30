@@ -4,7 +4,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /** Purely visual particles, simulated with the world so screenshots are deterministic. */
-/** [CONFETTI] is LION's CONFETTI finale; [PEANUT], HAWK's PACKING PEANUTS. Both flutter down. */
+/** [CONFETTI] is MONKEY's CONFETTI finale; [PEANUT], HAWK's PACKING PEANUTS. Both flutter down. */
 enum class ParticleKind { SPARK, SHARD, SMOKE, EMBER, GLASS, CASING, DUST, RING, CARDBOARD, CONFETTI, PEANUT }
 
 class Particle(
@@ -47,7 +47,7 @@ object Popup {
     const val TACKLE = "TACKLE!"
     /** BULL's STIFF ARM: a guard flattened on the run. */
     const val FLATTENED = "FLATTENED"
-    /** LION's once-a-run shrug-off of a fatal hit. */
+    /** MONKEY's once-a-run shrug-off of a fatal hit. */
     const val SECOND_WIND = "SECOND WIND"
     /** HAWK's SABOTAGE: a drone or turret unplugged by hand. */
     const val UNPLUGGED = "UNPLUGGED"

@@ -891,16 +891,16 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                     delay = 0.8f + FOX_EXIT_AT[FOX_EXIT.size - 1]; priority = 4f
                 }
             }
-            Hero.LION -> {
+            Hero.MONKEY -> {
                 // The show must go on: a calliope "ta-DAAA!" (open fifths, no third to argue with
                 // the minor chord), then a slide whistle droops and a bulb horn honks twice.
-                for ((k, s) in LION_TA.withIndex()) voice {
+                for ((k, s) in MONKEY_TA.withIndex()) voice {
                     wave = Wave.TRIANGLE; wave2 = Wave.SQUARE; ratio2 = 2.01f; level2 = 0.3f; noise = 0.04f
                     f0 = 587.3f * Dsp.semis(s.toFloat()); f1 = f0; filter = FilterMode.LOW; cut0 = 4000f; cut1 = 4000f
                     attack = 0.008f; hold = 0.08f; decay = 0.08f; gain = 0.095f; pan = (k - 0.5f) * 0.3f; reverb = 0.35f
                     delay = 0.8f; priority = 4f
                 }
-                for ((k, s) in LION_EXIT.withIndex()) voice {
+                for ((k, s) in MONKEY_EXIT.withIndex()) voice {
                     wave = Wave.TRIANGLE; wave2 = Wave.SQUARE; ratio2 = 2.01f; level2 = 0.3f; noise = 0.04f
                     f0 = 587.3f * Dsp.semis(s.toFloat()); f1 = f0; filter = FilterMode.LOW; cut0 = 4500f; cut1 = 2500f
                     cutTime = 1f; attack = 0.012f; hold = 0.75f; decay = 0.5f; vibRate = 6.5f; vibDepth = 0.006f
@@ -981,9 +981,9 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         /** D minor brass: D, D, F, G and a held A, on 16ths with a rest (seconds after the chord). */
         private val FOX_EXIT = intArrayOf(0, 0, 3, 5, 7)
         private val FOX_EXIT_AT = floatArrayOf(0f, 0.11f, 0.33f, 0.44f, 0.6f)
-        /** LION's "ta" (A and E, the dominant's open fifth) and his "DAAA" (D, A and D). */
-        private val LION_TA = intArrayOf(-5, 2)
-        private val LION_EXIT = intArrayOf(0, 7, 12)
+        /** MONKEY's "ta" (A and E, the dominant's open fifth) and his "DAAA" (D, A and D). */
+        private val MONKEY_TA = intArrayOf(-5, 2)
+        private val MONKEY_EXIT = intArrayOf(0, 7, 12)
         /** The doorbell: A, then F (ding... dong, the D minor chord's fifth down to its third). */
         private val HAWK_EXIT = intArrayOf(7, 3)
         /** The van horn: F and A together (semitones above F4), a friendly major third. */

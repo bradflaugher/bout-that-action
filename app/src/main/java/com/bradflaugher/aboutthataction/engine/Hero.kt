@@ -43,6 +43,11 @@ enum class Hero(
     val reloadScale: Float = 1f,
     /** Time between pistol shots, as a multiple. */
     val fireScale: Float = 1f,
+    /**
+     * Standing height, in world units ([Body.HEIGHT] for a grown-up). Under [Body.HIGH] the
+     * guards' high shots sail over his head. The art scales the figure to match.
+     */
+    val height: Float = Body.HEIGHT,
 ) {
     /** A heavyweight in a quilted bomber and a gold chain. Tough, fast, bulldozes. */
     BULL(
@@ -63,12 +68,13 @@ enum class Hero(
         takedownReach = 0.35f, reactionScale = 1.35f, fireScale = 0.85f,
     ),
     /**
-     * A huge strongman who ran away from the circus: clown greasepaint, a red nose, a golden
-     * lion's mane of a wig and a curled moustache. Loud, proud, and he will not stay down.
+     * A small monkey with a very big gun: he ran away from the circus and brought the
+     * hardware. Short enough that high shots sail over him. (Gameplay: placeholder, the
+     * weapons-specialist trait lands next.)
      */
-    LION(
-        "LION", "Circus strongman. Escaped.",
-        "Shrugs off one fatal hit a run; +1 grenade", "The show must go on.",
+    MONKEY(
+        "MONKEY", "Circus runaway. Big gun.",
+        "Shrugs off one fatal hit a run; +1 grenade", "Oo oo. Ah ah. Pew pew.",
         0xFFFFC23A.toInt(),
         secondWind = true, extraGrenades = 1,
     ),
@@ -86,12 +92,13 @@ enum class Hero(
     companion object {
         /**
          * A hero saved by [name], or null if there's none by that name. Older builds called
-         * HAWK "VIPER" (and, briefly, "MONGOOSE") and LION "WOLF" (and, before that, "BADGER").
+         * HAWK "VIPER" (and, briefly, "MONGOOSE"); MONKEY's slot was LION, before that WOLF and
+         * before that BADGER.
          */
         fun fromSaved(name: String?): Hero? = when (name) {
             null -> null
             "VIPER", "MONGOOSE" -> HAWK
-            "WOLF", "BADGER" -> LION
+            "LION", "WOLF", "BADGER" -> MONKEY
             else -> entries.firstOrNull { it.name == name }
         }
     }

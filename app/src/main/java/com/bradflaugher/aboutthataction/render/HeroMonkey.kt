@@ -6,7 +6,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * LION: the circus strongman who escaped the big top. Built like a wardrobe full of anvils:
+ * MONKEY: the circus strongman who escaped the big top. Built like a wardrobe full of anvils:
  * a V of a torso, shoulders like cannonballs, a bare pec and bare bulging arms in studded
  * wrist cuffs. A great round lion's mane of orange-gold locks framing his face all the way
  * round, bouncing and streaming as he moves; white greasepaint on a square jaw, a round red
@@ -15,7 +15,7 @@ import kotlin.math.sqrt
  * baggy polka-dot clown trousers gathered at ruffled cuffs, and comically huge red clown
  * shoes. A warm spotlight-gold rim.
  */
-internal class LionKit(a: HeroArt) : HeroKit(a) {
+internal class MonkeyKit(a: HeroArt) : HeroKit(a) {
     override val bulk = 1.24f
     override val head = 1.12f
     override val accent = GOLD
@@ -514,7 +514,7 @@ internal class LionKit(a: HeroArt) : HeroKit(a) {
 
     companion object {
         /** His signature: circus gold. */
-        val GOLD = Hero.LION.color
+        val GOLD = Hero.MONKEY.color
         const val GOLD_LIT = 0xFFFFF0B0.toInt()
         const val GOLD_DARK = 0xFF9A6414.toInt()
         const val RIM = 0xFFFFE8A0.toInt()

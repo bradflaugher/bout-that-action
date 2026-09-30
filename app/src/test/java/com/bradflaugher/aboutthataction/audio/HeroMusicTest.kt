@@ -99,8 +99,8 @@ class HeroMusicTest {
     /** Each hero plays their own genre at its own tempo; sneaking is always the slower one. */
     @Test
     fun eachHeroPlaysTheirGenreAtItsTempo() {
-        val hot = mapOf(Hero.BULL to 138f..152f, Hero.FOX to 128f..145f, Hero.LION to 170f..192f, Hero.HAWK to 110f..128f)
-        val sneak = mapOf(Hero.BULL to 70f..84f, Hero.FOX to 98f..115f, Hero.LION to 86f..102f, Hero.HAWK to 88f..102f)
+        val hot = mapOf(Hero.BULL to 138f..152f, Hero.FOX to 128f..145f, Hero.MONKEY to 170f..192f, Hero.HAWK to 110f..128f)
+        val sneak = mapOf(Hero.BULL to 70f..84f, Hero.FOX to 98f..115f, Hero.MONKEY to 86f..102f, Hero.HAWK to 88f..102f)
         for (h in Hero.entries) for (z in Zone.entries) {
             val loud = HeroSongs.forZone(h, z, false)
             val quiet = HeroSongs.forZone(h, z, true)
@@ -191,15 +191,15 @@ class HeroMusicTest {
     }
 
     /**
-     * LION: circus. Sneaking is a creepy tiptoe march in the harmonic minor (a staccato
+     * MONKEY: circus. Sneaking is a creepy tiptoe march in the harmonic minor (a staccato
      * oom-pah, pizzicato "pah"s, a music box, temple blocks, a bulb horn, a wobbly calliope
      * always carrying the tune); hot is a major-key galop (tuba oom-pah, snare rolls, cymbal
      * crashes, xylophone runs, a slide whistle up every fill and a steam calliope).
      */
     @Test
-    fun lionIsCircus() {
+    fun monkeyIsCircus() {
         for (z in Zone.entries) for (silent in listOf(false, true)) {
-            val spec = HeroSongs.forZone(Hero.LION, z, silent)
+            val spec = HeroSongs.forZone(Hero.MONKEY, z, silent)
             val what = "$z${if (silent) " sneak" else ""}"
             // Oom on the beat, pah on the "and".
             assertTrue("$what: oom", onlyAt(spec.bassA, 0, 4, 8, 12) && spec.bass.s < 1f)
@@ -452,7 +452,7 @@ class HeroMusicTest {
             assertEquals(what, base.kickThreshold, spec.kickThreshold, 0f)
             assertEquals(what, base.wind, spec.wind, 0f)
             assertEquals(what, base.glitch, spec.glitch)
-            if (h == Hero.LION) {
+            if (h == Hero.MONKEY) {
                 // Circus: the zone's chord roots in its harmonic minor sneaking (a carnival), its own
                 // chords in the parallel major hot; either way every chord tone is in that key.
                 assertTrue(what, spec.scale.contentEquals(if (silent) Scales.HARMONIC_MINOR else Scales.IONIAN))
@@ -857,7 +857,7 @@ class HeroInstrumentsTest {
         assertTrue("and holds its breath in it", arpGap < arpBeat * 0.2)
     }
 
-    /** LION's slide whistle swoops up (slow, then a rush to the top), then stops; silent unless asked. */
+    /** MONKEY's slide whistle swoops up (slow, then a rush to the top), then stops; silent unless asked. */
     @Test
     fun slideWhistleSwoopsUp() {
         val w = SlideWhistle(sr)

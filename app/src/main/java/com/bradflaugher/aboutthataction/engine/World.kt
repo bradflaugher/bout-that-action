@@ -163,7 +163,7 @@ class World(val config: RunConfig) {
     /** Kills since CANDY RAIN was picked (or last paid out). */
     private var candyKills = 0
 
-    /** LION: the once-a-run shrug-off of a fatal hit has been spent. */
+    /** MONKEY: the once-a-run shrug-off of a fatal hit has been spent. */
     var secondWindUsed = false
         private set
 
@@ -1984,7 +1984,7 @@ class World(val config: RunConfig) {
         comboTimer = 0f
         fx.burst(ParticleKind.SHARD, p.x, y, 10, 5f, 0.5f, 0.1f)
         if (p.hp <= 0 && hero.secondWind && !secondWindUsed) {
-            // LION: not today, not like this. Once a run he gets back up on one heart.
+            // MONKEY: not today, not like this. Once a run he gets back up on one heart.
             secondWindUsed = true
             stats.secondWinds++
             p.hp = 1
@@ -2806,7 +2806,7 @@ class World(val config: RunConfig) {
         /** ...and shimmers this long ([Player.fragileTime]). */
         const val FRAGILE_SHOW = 0.4f
         private const val FRAGILE_KEY = 0x6717C4L
-        /** LION's second wind: back up on one heart, untouchable this long. */
+        /** MONKEY's second wind: back up on one heart, untouchable this long. */
         const val SECOND_WIND_INVULN = 2f
 
         // ---- Controls & feel (see docs/CONTROLS.md) ----

@@ -12,7 +12,7 @@ import kotlin.math.sqrt
  * Every hero's own soundtrack: each zone's track (GUNS HOT and its SILENT sneak mix) in the
  * hero's genre, plus a signature theme for the hero picker.
  *
- * An arrangement keeps what makes a zone that zone — its key (and chords, except LION's
+ * An arrangement keeps what makes a zone that zone — its key (and chords, except MONKEY's
  * circus, which recasts them in the harmonic minor sneaking and the parallel major hot), bars per chord, section plan, the ambience
  * (wind, rotor, VOID's glitches) and the intensity layering thresholds — and swaps in the
  * hero's band: tempo, patches, drum kit and every part, plus their signature motif (the
@@ -30,7 +30,7 @@ import kotlin.math.sqrt
  *    the B sections slip into a four-to-the-floor deep-house pulse); GUNS HOT is a breakbeat
  *    rave at ~136 (a chopped break, piano-house m7 stabs, a bouncing FM octave bass, FM arps,
  *    a bright FM-brass lead).
- *  - LION: circus. Sneaking is a creepy clown march on tiptoe at ~92 in the harmonic minor
+ *  - MONKEY: circus. Sneaking is a creepy clown march on tiptoe at ~92 in the harmonic minor
  *    (a staccato bassoon oom-pah, pizzicato "pah" chords, a music box, temple blocks, a bulb
  *    horn honking as tension creeps in, and a wobbly, seasick calliope carrying his theme);
  *    GUNS HOT is a screaming circus galop at ~180 in the major (a steam calliope, tuba
@@ -116,9 +116,9 @@ internal object HeroSongs {
     /** FOX's rave holds its kick and bass back (the break, stabs and arps tease) until the fight heats up, then drops. */
     private const val FOX_DROP = 0.5f
 
-    /** LION: a showman's flourish — tiptoe up the chord to the octave, a twirl and a bow. */
-    private val lionSig = Motif("2:1 .:1 4:1 .:1 7:3 6:1 4:1 5:1 4:1 3:1 2:2 1:1 -3:1")
-    private val lionAns = Motif("4:1 3:1 4:1 .:1 2:1 1:1 2:1 .:1 0:1 .:1 4:1 .:1 0:4")
+    /** MONKEY: a showman's flourish — tiptoe up the chord to the octave, a twirl and a bow. */
+    private val monkeySig = Motif("2:1 .:1 4:1 .:1 7:3 6:1 4:1 5:1 4:1 3:1 2:2 1:1 -3:1")
+    private val monkeyAns = Motif("4:1 3:1 4:1 .:1 2:1 1:1 2:1 .:1 0:1 .:1 4:1 .:1 0:4")
 
     /** HAWK: the doorbell — ding... dong, a deadpan "sign here" turn, and home, on time. */
     private val hawkSig = Motif("4:3 2:3 .:2 4:1 5:1 4:1 2:1 0:4")
@@ -130,13 +130,13 @@ internal object HeroSongs {
     private val HOT_BPM = arrayOf(
         floatArrayOf(140f, 142f, 144f, 144f, 140f, 146f, 150f, 148f), // BULL: heavy trap, half-time
         floatArrayOf(132f, 134f, 136f, 136f, 132f, 138f, 142f, 138f), // FOX: breakbeat rave
-        floatArrayOf(172f, 176f, 178f, 180f, 174f, 182f, 190f, 184f), // LION: circus galop
+        floatArrayOf(172f, 176f, 178f, 180f, 174f, 182f, 190f, 184f), // MONKEY: circus galop
         floatArrayOf(114f, 116f, 118f, 120f, 114f, 120f, 125f, 122f), // HAWK: delivery-van funk
     )
     private val SNEAK_BPM = arrayOf(
         floatArrayOf(74f, 75f, 76f, 77f, 74f, 78f, 82f, 80f), // BULL: heavy boom-bap
         floatArrayOf(102f, 104f, 106f, 106f, 102f, 108f, 112f, 108f), // FOX: late-night swing
-        floatArrayOf(88f, 90f, 92f, 94f, 90f, 96f, 100f, 96f), // LION: tiptoe clown march
+        floatArrayOf(88f, 90f, 92f, 94f, 90f, 96f, 100f, 96f), // MONKEY: tiptoe clown march
         floatArrayOf(90f, 92f, 94f, 96f, 92f, 96f, 100f, 98f), // HAWK: elevator bossa
     )
 
@@ -145,13 +145,13 @@ internal object HeroSongs {
     private val HOT_TRIM = arrayOf(
         floatArrayOf(0.78f, 0.78f, 0.77f, 0.79f, 0.79f, 0.82f, 0.86f, 0.75f), // BULL
         floatArrayOf(1.12f, 1.12f, 1.11f, 1.10f, 1.11f, 1.15f, 1.28f, 1.05f), // FOX
-        floatArrayOf(1.38f, 1.32f, 1.34f, 1.34f, 1.36f, 1.41f, 1.46f, 1.23f), // LION
+        floatArrayOf(1.38f, 1.32f, 1.34f, 1.34f, 1.36f, 1.41f, 1.46f, 1.23f), // MONKEY
         floatArrayOf(0.98f, 0.93f, 0.95f, 0.95f, 0.99f, 0.96f, 1.09f, 0.92f), // HAWK
     )
     private val SNEAK_TRIM = arrayOf(
         floatArrayOf(0.75f, 0.71f, 0.70f, 0.70f, 0.72f, 0.74f, 0.70f, 0.73f), // BULL
         floatArrayOf(0.85f, 0.83f, 0.84f, 0.88f, 0.85f, 0.86f, 0.86f, 0.88f), // FOX
-        floatArrayOf(1.08f, 1.09f, 1.05f, 1.11f, 1.21f, 1.14f, 1.16f, 1.15f), // LION
+        floatArrayOf(1.08f, 1.09f, 1.05f, 1.11f, 1.21f, 1.14f, 1.16f, 1.15f), // MONKEY
         floatArrayOf(0.93f, 0.90f, 0.92f, 0.89f, 0.91f, 0.94f, 0.92f, 0.93f), // HAWK
     )
     private val THEME_TRIM = floatArrayOf(0.73f, 1.07f, 1.33f, 0.91f)
@@ -389,10 +389,10 @@ internal object HeroSongs {
         crowd = 0f, dropThreshold = FOX_DROP,
     )
 
-    // ---- LION: a tiptoeing clown march, then a screaming circus galop ------------------------
+    // ---- MONKEY: a tiptoeing clown march, then a screaming circus galop ------------------------
 
     /**
-     * LION's sneak is a creepy carnival: the zone's chords recast in its harmonic minor (the
+     * MONKEY's sneak is a creepy carnival: the zone's chords recast in its harmonic minor (the
      * raised seventh, an augmented III, a V7 and a diminished vii that leans on the tonic).
      */
     private fun carnival(p: Array<Chord>) = Array(p.size) {
@@ -400,7 +400,7 @@ internal object HeroSongs {
         Chord.diatonic(HARMONIC_MINOR, d, seventh = d == 4 || d == 6)
     }
 
-    /** LION's galop is in the zone's parallel major: I–IV–V7 with a vi and a ii. */
+    /** MONKEY's galop is in the zone's parallel major: I–IV–V7 with a vi and a ii. */
     private fun circus(vararg degrees: Int) = Array(degrees.size) {
         val d = degrees[it]
         Chord.diatonic(IONIAN, d, seventh = d == 4)
@@ -440,7 +440,7 @@ internal object HeroSongs {
         percLevel = if (hot) 0.32f else 0.3f, drive = t.drive * 0.4f, crush = t.crush,
     )
 
-    private fun lionSneak(base: SongSpec, t: Tint, name: String, bpm: Float) = base.derive(
+    private fun monkeySneak(base: SongSpec, t: Tint, name: String, bpm: Float) = base.derive(
         name = name, bpm = bpm, swing = 0f, scale = HARMONIC_MINOR, progA = carnival(base.progA), progB = carnival(base.progB),
         drumsA = DrumPattern(kick = "X.......X.......", tom = "..3.......3.....", perc = "..............o."),
         drumsB = DrumPattern(kick = "X.......X.......", tom = "..3...2...3...1.", perc = "......o.......x."),
@@ -449,8 +449,8 @@ internal object HeroSongs {
         bassA = "R...F...R...F...", bassB = "R...F...R...A...", bassCenter = base.bassCenter + 12,
         arpA = "......3.......2.", arpB = "..4...3.......2.", arpGate = 1f, arpCenter = base.arpCenter + 12,
         padRhythm = "..x-..x-..x-..x-",
-        leadTemplates = arrayOf(lionSig.rhythm, "x...x...x.......", "x.x.x.......x..."),
-        signature = lionSig, answer = lionAns, leadOctave = leadOctave(base, 60), leadThreshold = -0.3f,
+        leadTemplates = arrayOf(monkeySig.rhythm, "x...x...x.......", "x.x.x.......x..."),
+        signature = monkeySig, answer = monkeyAns, leadOctave = leadOctave(base, 60), leadThreshold = -0.3f,
         pad = pizzPah.tinted(t, 0.05f), bass = bassoon.tinted(t, 0.1f), arp = musicBox, lead = wobblyCalliope.tinted(t, 0.1f),
         mix = Mix(
             pad = 1f, bass = 0.85f, arp = 1.6f, lead = 1.3f, drums = 0.75f, padVerb = 0.3f, arpDelay = 0.45f, arpVerb = 0.4f,
@@ -483,7 +483,7 @@ internal object HeroSongs {
         vibrato = 0.22f, vibRate = 6.5f, trem = 0.25f, tremRate = 7.5f, gain = 0.15f, bright = 0.5f,
     )
 
-    private fun lionHot(base: SongSpec, t: Tint, name: String, bpm: Float, hook: Melody? = null): SongSpec {
+    private fun monkeyHot(base: SongSpec, t: Tint, name: String, bpm: Float, hook: Melody? = null): SongSpec {
         // A theme brings its own (major) chords; a zone's track gets the circus ones.
         val own = base.scale.contentEquals(IONIAN)
         return base.derive(
@@ -500,8 +500,8 @@ internal object HeroSongs {
             arpA = "........01234567", arpB = "7654321001234567", arpGate = 1f,
             padRhythm = "..x-..x-..x-..x-", padRhythmB = "..x-..x-..x-x-x-",
             leadOctave = leadOctave(base, 62),
-            leadTemplates = arrayOf(lionSig.rhythm, "x.x.x.x.x...x...", "x..x..x.x.x.x..."),
-            motifSeed = base.motifSeed + 37, hook = hook, signature = lionSig, answer = lionAns,
+            leadTemplates = arrayOf(monkeySig.rhythm, "x.x.x.x.x...x...", "x..x..x.x.x.x..."),
+            motifSeed = base.motifSeed + 37, hook = hook, signature = monkeySig, answer = monkeyAns,
             pad = organPah.tinted(t, 0.1f), bass = tuba.tinted(t, 0.2f), arp = xylophone, lead = calliope.tinted(t, 0.15f),
             mix = Mix(
                 pad = 1.4f, bass = 0.95f, arp = 1.2f, lead = 1.35f, drums = 0.5f * zoneDrums(base), padVerb = 0.2f, arpDelay = 0.1f,
@@ -660,7 +660,7 @@ internal object HeroSongs {
     )
 
     /** "Runaway Big Top": a D major galop for a steam calliope, I–IV–V–I, ending on a ta-da. */
-    private val lionHook = Melody(
+    private val monkeyHook = Melody(
         arrayOf(
             "F#5:1 -:1 A5:1 -:1 D6:3 C#6:1 A5:1 B5:1 A5:1 G5:1 F#5:2 E5:1 A4:1",
             "G5:1 -:1 B5:1 -:1 D6:3 C#6:1 B5:1 C#6:1 B5:1 A5:1 G5:2 F#5:1 E5:1",
@@ -699,9 +699,9 @@ internal object HeroSongs {
                 themeBase("fox-theme", 136f, 52, DORIAN, tri(DORIAN, 0, 6, 2, 3), tri(DORIAN, 3, 4, 2, 6), 7007),
                 t, "fox-theme", 136f, foxHook,
             )
-            Hero.LION -> lionHot(
-                themeBase("lion-theme", 178f, 50, IONIAN, circus(0, 3, 4, 0), circus(5, 1, 4, 0), 1988),
-                t, "lion-theme", 178f, lionHook,
+            Hero.MONKEY -> monkeyHot(
+                themeBase("monkey-theme", 178f, 50, IONIAN, circus(0, 3, 4, 0), circus(5, 1, 4, 0), 1988),
+                t, "monkey-theme", 178f, monkeyHook,
             )
             Hero.HAWK -> hawkHot(
                 themeBase("hawk-theme", 118f, 52, DORIAN, tri(DORIAN, 0, 3, 0, 3), tri(DORIAN, 2, 3, 6, 4), 3161),
@@ -720,7 +720,7 @@ internal object HeroSongs {
         val spec = when (h) {
             Hero.BULL -> if (silent) bullSneak(base, t, name, bpm) else bullHot(base, t, name, bpm)
             Hero.FOX -> if (silent) foxSneak(base, t, name, bpm) else foxHot(base, t, name, bpm)
-            Hero.LION -> if (silent) lionSneak(base, t, name, bpm) else lionHot(base, t, name, bpm)
+            Hero.MONKEY -> if (silent) monkeySneak(base, t, name, bpm) else monkeyHot(base, t, name, bpm)
             Hero.HAWK -> if (silent) hawkSneak(base, t, name, bpm) else hawkHot(base, t, name, bpm)
         }
         return spec.derive(gain = (if (silent) SNEAK_TRIM else HOT_TRIM)[h.ordinal][z.ordinal])

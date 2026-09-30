@@ -40,10 +40,10 @@ enum class Perk(
     SPIN_KICK("SPIN KICK", "Takedowns also kick the nearest guard flat (LV 2: two)", 2, "360 degrees of nope.", Hero.FOX),
     FLYING_KICK("FLYING KICK", "Jump into a guard to kick him flat, Heavies too", 1, "Leg day paid off.", Hero.FOX),
 
-    // ---- LION
-    CONFETTI("CONFETTI", "Bigger blasts that knock survivors flat", 1, "Surprise! Everybody down.", Hero.LION),
-    CLOWN_CAR("CLOWN CAR", "Passages twice as quick; arrive unseen", 1, "How many fit in there?", Hero.LION),
-    ENCORE("ENCORE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "The crowd goes wild.", Hero.LION),
+    // ---- MONKEY
+    CONFETTI("CONFETTI", "Bigger blasts that knock survivors flat", 1, "Surprise! Everybody down.", Hero.MONKEY),
+    CLOWN_CAR("CLOWN CAR", "Passages twice as quick; arrive unseen", 1, "How many fit in there?", Hero.MONKEY),
+    ENCORE("ENCORE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "The crowd goes wild.", Hero.MONKEY),
 
     // ---- HAWK
     SIGNED_FOR("SIGNED FOR", "Drones and turrets take twice as long to react", 1, "Sign here, and here, and here.", Hero.HAWK),

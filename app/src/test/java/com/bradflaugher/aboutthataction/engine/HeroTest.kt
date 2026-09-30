@@ -407,11 +407,11 @@ class HeroTest {
         assertTrue(d.alive)
     }
 
-    // ------------------------------------------------------------ LION
+    // ------------------------------------------------------------ MONKEY
 
     @Test
-    fun lionShrugsOffOneFatalHitARun() {
-        val w = world(Hero.LION, hearts = 1)
+    fun monkeyShrugsOffOneFatalHitARun() {
+        val w = world(Hero.MONKEY, hearts = 1)
         assertEquals(1, w.player.maxHp)
         w.player.x = 5f
         bullet(w, 8f, Body.HIGH, -9f)
@@ -431,10 +431,10 @@ class HeroTest {
     }
 
     @Test
-    fun lionCarriesAnExtraGrenade() {
+    fun monkeyCarriesAnExtraGrenade() {
         for (hero in Hero.entries) {
             val w = World(RunConfig(1L, hero = hero))
-            val lion = hero == Hero.LION
+            val lion = hero == Hero.MONKEY
             assertEquals(if (lion) 2 else 1, w.player.grenades)
             assertEquals(if (lion) 4 else 3, w.maxGrenades)
         }
@@ -443,7 +443,7 @@ class HeroTest {
     @Test
     fun confettiBlastsReachFurtherAndKnockSurvivorsFlat() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.LION)
+            val w = world(Hero.MONKEY)
             if (perk) w.perks[Perk.CONFETTI] = 1
             park(w)
             val edge = enemy(w, EnemyKind.AGENT, 7f + 2.7f)
@@ -468,7 +468,7 @@ class HeroTest {
     @Test
     fun clownCarPassagesAreQuickAndYouArriveUnseen() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.LION, silent = false)
+            val w = world(Hero.MONKEY, silent = false)
             if (perk) w.perks[Perk.CLOWN_CAR] = 1
             assertEquals(World.PASSAGE_TIME * if (perk) World.CLOWN_CAR_SCALE else 1f, w.passageTime, 1e-5f)
             val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
@@ -498,7 +498,7 @@ class HeroTest {
     @Test
     fun encoreKicksInOnTheLastHeart() {
         for (level in 1..2) {
-            val w = world(Hero.LION)
+            val w = world(Hero.MONKEY)
             w.perks[Perk.ENCORE] = level
             val boost = if (level >= 2) 1.5f else 1.3f
             assertFalse(w.encore)
@@ -668,8 +668,9 @@ class HeroTest {
         for (h in Hero.entries) assertEquals(h, Hero.fromSaved(h.name))
         assertEquals(Hero.HAWK, Hero.fromSaved("VIPER"))
         assertEquals(Hero.HAWK, Hero.fromSaved("MONGOOSE"))
-        assertEquals(Hero.LION, Hero.fromSaved("BADGER"))
-        assertEquals(Hero.LION, Hero.fromSaved("WOLF"))
+        assertEquals(Hero.MONKEY, Hero.fromSaved("BADGER"))
+        assertEquals(Hero.MONKEY, Hero.fromSaved("WOLF"))
+        assertEquals(Hero.MONKEY, Hero.fromSaved("LION"))
         assertEquals(null, Hero.fromSaved(null))
         assertEquals(null, Hero.fromSaved("NOBODY"))
     }
