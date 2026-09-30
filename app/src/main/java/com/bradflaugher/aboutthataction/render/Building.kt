@@ -1287,7 +1287,7 @@ internal class Building(private val f: Frame) {
         val ty0 = y1 + 0.2f
         g.fillRoundRect(x0 + 0.1f, ty0, x1 - 0.1f, ty0 + 0.42f, 0.06f, 0xFF120308.toInt())
         g.strokeRoundRect(x0 + 0.1f, ty0, x1 - 0.1f, ty0 + 0.42f, 0.06f, 0.02f, 0x80FF3048.toInt())
-        f.worldText("WALK INTO THEM = TAKEDOWN", (x0 + x1) / 2f, ty0 + 0.3f, 0.27f, 0xFFFF4A5E.toInt())
+        f.worldText("SNEAK UP BEHIND = TAKEDOWN", (x0 + x1) / 2f, ty0 + 0.3f, 0.27f, 0xFFFF4A5E.toInt())
     }
 
     /** A billboard row's action, right-aligned with a leader line back to its gesture, shrunk to fit. */

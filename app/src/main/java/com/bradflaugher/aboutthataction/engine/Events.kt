@@ -53,6 +53,8 @@ sealed interface GameEvent {
     data class FloorEventStarted(val event: FloorEvent) : GameEvent
     /** This ride comes with smooth elevator jazz. */
     data object Muzak : GameEvent
+    /** Landed on a guard's head without flattening him: BONK, he's dazed. */
+    data class Bonk(val pan: Float) : GameEvent
     /** A napping guard snores (only in your hallway). */
     data class Snore(val pan: Float) : GameEvent
     /** A Heavy kicked your box off: busted. */

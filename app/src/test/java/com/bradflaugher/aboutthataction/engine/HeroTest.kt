@@ -6,6 +6,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.abs
+import kotlin.math.max
 
 /** The four heroes: every trait, every hero-only perk, and who gets offered what. */
 class HeroTest {
@@ -149,22 +150,251 @@ class HeroTest {
     }
 
     @Test
-    fun theBullTacklesAHeavyHeadOn() {
-        for (hero in listOf(Hero.BULL, Hero.FOX)) {
+    fun stiffArmTacklesAHeavyHeadOn() {
+        for ((hero, perk) in listOf(Hero.BULL to true, Hero.BULL to false, Hero.FOX to false)) {
             val w = world(hero)
+            if (perk) w.perks[Perk.STIFF_ARM] = 1
             w.player.x = 3f
-            val heavy = enemy(w, EnemyKind.HEAVY, 4.5f, facing = -1)
-            run(w, 0.8f) { it.moveAxis = 1; it.player.hp = it.player.maxHp }
-            if (hero == Hero.BULL) {
-                assertFalse(heavy.alive)
+            // Face to face, right in reach.
+            val heavy = enemy(w, EnemyKind.HEAVY, 3.7f, facing = -1)
+            run(w, 0.8f) { it.player.hp = it.player.maxHp }
+            assertEquals("the bot can see it coming", perk, w.takedownWorks(heavy) || !heavy.alive)
+            if (perk) {
+                assertFalse("$hero", heavy.alive)
                 assertEquals(KillMethod.TAKEDOWN, heavy.killedBy)
                 assertEquals(1, w.stats.tackles)
                 assertTrue(w.fx.texts.any { it.text == Popup.TACKLE })
             } else {
-                assertTrue("everyone else bounces off his armor", heavy.alive)
+                assertTrue("$hero: armor wants his back", heavy.alive)
                 assertEquals(0, w.stats.tackles)
             }
         }
+    }
+
+    @Test
+    fun onlyFoxAndStiffArmTakeGuardsDownFaceToFace() {
+        for ((hero, perk) in listOf(Hero.BULL to false, Hero.HAWK to false, Hero.FOX to false, Hero.BULL to true)) {
+            val w = world(hero)
+            if (perk) w.perks[Perk.STIFF_ARM] = 1
+            w.player.x = 3f
+            val g = enemy(w, EnemyKind.AGENT, 4.6f, facing = -1) // looking right at you
+            run(w, 0.4f) { it.moveAxis = 1 }
+            val front = hero == Hero.FOX || perk
+            assertEquals("$hero, STIFF ARM $perk", if (front) 1 else 0, w.takedowns)
+            if (!front) {
+                assertTrue("$hero: you walked into him, and now he knows", g.state == EnemyState.ALERT || g.state == EnemyState.AIM)
+                assertEquals(0, w.takedowns)
+                assertTrue(w.player.x < g.x - g.halfWidth)
+            }
+            // His back is fair game for anyone.
+            val w2 = world(hero)
+            w2.player.x = 3f
+            val g2 = enemy(w2, EnemyKind.AGENT, 4.6f, facing = 1)
+            run(w2, 0.4f) { it.moveAxis = 1 }
+            assertEquals("$hero from behind", 1, w2.takedowns)
+        }
+    }
+
+    @Test
+    fun napsDazesAndTheBoxStillWorkFaceToFace() {
+        for (how in listOf("asleep", "dazed", "box")) {
+            val w = world(Hero.BULL)
+            w.player.x = 3f
+            val g = enemy(w, EnemyKind.AGENT, if (how == "box") 12f else 4.4f, facing = -1)
+            when (how) {
+                "asleep" -> g.asleep = true
+                "dazed" -> { g.state = EnemyState.STUNNED; g.stunFor = 5f }
+                "box" -> { w.commands += Command.SWIPE_DOWN; run(w, 0.5f); g.x = 4.4f }
+            }
+            assertTrue(how, w.takedownWorks(g))
+            if (how == "box") run(w, 0.5f) { g.x = max(w.player.x + 0.5f, g.x - 0.02f) } else run(w, 0.4f) { it.moveAxis = 1 }
+            assertEquals(how, 1, w.takedowns)
+        }
+    }
+
+    @Test
+    fun aDazedHeavyStillWantsHisBack() {
+        val w = world(Hero.FOX)
+        w.player.x = 3f
+        val heavy = enemy(w, EnemyKind.HEAVY, 4.6f, facing = -1)
+        heavy.state = EnemyState.STUNNED
+        heavy.stunFor = 5f
+        assertFalse(w.takedownWorks(heavy))
+        run(w, 0.4f) { it.moveAxis = 1 }
+        assertTrue("armor beats a daze", heavy.alive && heavy.state != EnemyState.CHOKED)
+        assertEquals(0, w.takedowns)
+        // Round the back, he's yours.
+        w.player.x = 6f
+        w.player.vx = 0f
+        run(w, 0.4f) { it.moveAxis = -1 }
+        assertEquals(1, w.takedowns)
+    }
+
+    @Test
+    fun walkingIntoAFaceStopsYouThere() {
+        // His back is to you, but his buddy's face is in the way: no grabbing through him,
+        // whichever of them the hallway happens to list first.
+        for (frontFirst in listOf(true, false)) {
+            val w = world(Hero.HAWK)
+            w.player.x = 3f
+            val (front, behind) = if (frontFirst) {
+                enemy(w, EnemyKind.AGENT, 3.9f, facing = -1) to enemy(w, EnemyKind.AGENT, 4.3f, facing = 1)
+            } else {
+                enemy(w, EnemyKind.AGENT, 4.3f, facing = 1).let { b -> enemy(w, EnemyKind.AGENT, 3.9f, facing = -1) to b }
+            }
+            run(w, 0.5f) { it.moveAxis = 1 }
+            assertEquals("front first: $frontFirst", 0, w.takedowns)
+            assertTrue(front.alive && behind.alive)
+            assertTrue(w.player.x < front.x)
+        }
+    }
+
+    @Test
+    fun theWiderBodyInFrontIsTheOneYouMeet() {
+        // A demon's shoulders reach you before the agent's back does, though his middle is farther.
+        for (demonFirst in listOf(true, false)) {
+            val w = world(Hero.HAWK)
+            w.player.x = 3f
+            val demon: Enemy
+            val agent: Enemy
+            if (demonFirst) {
+                demon = enemy(w, EnemyKind.DEMON, 3.95f, facing = -1)
+                agent = enemy(w, EnemyKind.AGENT, 3.9f, facing = 1)
+            } else {
+                agent = enemy(w, EnemyKind.AGENT, 3.9f, facing = 1)
+                demon = enemy(w, EnemyKind.DEMON, 3.95f, facing = -1)
+            }
+            run(w, 0.3f) { it.moveAxis = 1; demon.x = 3.95f; agent.x = 3.9f }
+            assertEquals("demon first: $demonFirst", 0, w.takedowns)
+        }
+    }
+
+    @Test
+    fun shovingTheBoxIntoAFaceIsNoAmbush() {
+        // (Not HAWK or GHOST BOX: nobody suspects their box, so it can creep right up to a face.)
+        val w = world(Hero.BULL)
+        w.player.x = 3f
+        val g = enemy(w, EnemyKind.AGENT, 12f, facing = -1)
+        w.commands += Command.SWIPE_DOWN
+        run(w, 0.5f)
+        assertEquals(PlayerState.BOX, w.player.state)
+        g.x = 4f
+        w.moveAxis = 1
+        assertFalse(w.takedownWorks(g))
+        // (He stands his ground: a guard who walks over to check the box is the lure, and that's fair.)
+        run(w, 0.5f) { it.moveAxis = 1; g.x = 4f; g.vx = 0f }
+        assertEquals("he saw that coming", 0, w.takedowns)
+        // Sit still and let him walk in: that's an ambush.
+        val w2 = world(Hero.BULL)
+        w2.player.x = 3f
+        val g2 = enemy(w2, EnemyKind.AGENT, 12f, facing = -1)
+        w2.commands += Command.SWIPE_DOWN
+        run(w2, 0.5f)
+        g2.x = 4.4f
+        run(w2, 0.5f) { g2.x = max(w2.player.x + 0.5f, g2.x - 0.02f) }
+        assertEquals(1, w2.takedowns)
+    }
+
+    @Test
+    fun inGunsHotABonkedGuardIsLeftForYourHands() {
+        val w = world(Hero.FOX, silent = false)
+        val e = enemy(w, EnemyKind.AGENT, 6f, facing = -1)
+        airborne(w, e, dx = 0f, z = e.height + 0.02f, vz = -3f)
+        run(w, 0.05f)
+        assertEquals(EnemyState.STUNNED, e.state)
+        w.player.fireCooldown = 0f
+        run(w, 0.4f) { it.player.hp = it.player.maxHp }
+        assertTrue("the gun leaves him be", e.alive)
+        assertFalse(w.stats.shotKills > 0)
+    }
+
+    @Test
+    fun stiffArmTacklesADazedHeavyToo() {
+        val w = world(Hero.BULL)
+        w.perks[Perk.STIFF_ARM] = 1
+        w.player.x = 3f
+        val heavy = enemy(w, EnemyKind.HEAVY, 3.7f, facing = -1)
+        heavy.state = EnemyState.STUNNED
+        heavy.stunFor = 5f
+        assertTrue(w.takedownWorks(heavy))
+        run(w, 0.8f) { it.player.hp = it.player.maxHp }
+        assertFalse(heavy.alive)
+        assertEquals(1, w.stats.tackles)
+    }
+
+    @Test
+    fun aMidSwingGuardIsNoTakedownButStiffArmRunsThroughIt() {
+        for ((hero, perk) in listOf(Hero.FOX to false, Hero.BULL to true)) {
+            val w = world(hero)
+            if (perk) w.perks[Perk.STIFF_ARM] = 1
+            w.player.x = 3f
+            val ninja = enemy(w, EnemyKind.NINJA, 3.9f, facing = -1)
+            ninja.state = EnemyState.WINDUP
+            assertEquals("$hero", perk, w.takedownWorks(ninja))
+        }
+    }
+
+    @Test
+    fun aBonkLiftsYouOffAGuardWhoStandsUpFromALowAim() {
+        val w = world(Hero.HAWK)
+        val e = enemy(w, EnemyKind.AGENT, 6f)
+        e.state = EnemyState.AIM
+        e.aimLow = true
+        val low = e.height
+        airborne(w, e, dx = 0f, z = low + 0.02f, vz = -3f)
+        w.step(dt)
+        assertEquals(EnemyState.STUNNED, e.state)
+        assertTrue("he stood up: ${e.height} > $low", e.height > low)
+        assertTrue("feet on top of him, not inside", w.player.z >= e.z + e.height - 0.05f)
+    }
+
+    @Test
+    fun inGunsHotTheGunLeavesFoxHerFaceToFaceTakedowns() {
+        val w = world(Hero.FOX, silent = false)
+        w.player.x = 3f
+        w.player.facing = 1
+        val g = enemy(w, EnemyKind.AGENT, 5f, facing = -1) // unaware, face to face, point-blank
+        w.player.fireCooldown = 0f
+        run(w, 0.3f) { g.state = EnemyState.PATROL; it.player.hp = it.player.maxHp }
+        assertTrue("left for her feet", g.alive)
+        run(w, 0.6f) { it.moveAxis = 1; it.player.hp = it.player.maxHp }
+        assertEquals(1, w.takedowns)
+    }
+
+    @Test
+    fun onlyTheBullStompsHeadsFlat() {
+        for (hero in listOf(Hero.BULL, Hero.FOX, Hero.HAWK)) {
+            val w = world(hero)
+            val e = enemy(w, EnemyKind.AGENT, 6f)
+            airborne(w, e, dx = 0f, z = e.height + 0.02f, vz = -3f)
+            run(w, 0.05f)
+            if (hero == Hero.BULL) {
+                assertEquals(KillMethod.STOMP, e.killedBy)
+            } else {
+                assertTrue("$hero only rings his bell", e.alive)
+                assertEquals(EnemyState.STUNNED, e.state)
+                assertEquals(World.BONK_STUN, e.stunFor, 1e-4f)
+                assertTrue("off his head and back up", w.player.vz > 0f)
+                assertTrue(w.fx.texts.any { it.text == Popup.BONK })
+                // Seeing stars, he's yours from any side.
+                assertTrue(w.takedownWorks(e))
+                // Coming down on him again doesn't keep him seeing stars: no pinning him from up there.
+                run(w, 1f)
+                assertEquals(EnemyState.STUNNED, e.state)
+                val dazedFor = e.stateTime
+                airborne(w, e, dx = 0f, z = e.height + 0.02f, vz = -3f)
+                run(w, 0.05f)
+                assertTrue("$hero: still the first daze", e.stateTime > dazedFor)
+                assertEquals(1, w.stats.stomps)
+            }
+            assertEquals(1, w.stats.stomps)
+        }
+        // A drone breaks under anyone's boots.
+        val w = world(Hero.HAWK)
+        val d = enemy(w, EnemyKind.DRONE, 6f)
+        airborne(w, d, dx = 0f, z = d.z + d.height + 0.02f, vz = -3f)
+        run(w, 0.05f)
+        assertEquals(KillMethod.STOMP, d.killedBy)
     }
 
     @Test
@@ -398,13 +628,13 @@ class HeroTest {
                 }
             }
         }
-        // Too high to hit him is too high to kick: coming down on his head is still a stomp.
+        // Too high to hit him is too high to kick: coming down on his head is just a bonk.
         val w = world(Hero.FOX)
         w.perks[Perk.FLYING_KICK] = 1
         val e = enemy(w, EnemyKind.AGENT, 6f)
         airborne(w, e, dx = 0f, z = e.height + 0.02f, vz = -3f)
         run(w, 0.05f)
-        assertEquals(KillMethod.STOMP, e.killedBy)
+        assertEquals(EnemyState.STUNNED, e.state)
         assertEquals(0, w.stats.flyingKicks)
         // And drones and turrets are out of her league.
         val d = enemy(w, EnemyKind.DRONE, 9f)

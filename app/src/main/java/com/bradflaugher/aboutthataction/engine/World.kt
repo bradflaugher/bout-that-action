@@ -176,7 +176,7 @@ class World(val config: RunConfig) {
     /** Rounds in a full magazine: the hero's gun, plus BANANA CLIP's extra. */
     val magSize: Int get() = hero.magSize + BANANA_CLIP_ROUNDS * stacks(Perk.BANANA_CLIP)
 
-    /** MONKEY: out of the circus and into a gun fight, he has no takedowns, no stomps. */
+    /** MONKEY: out of the circus and into a gun fight, he has no takedowns, no head stomps. */
     val melee: Boolean get() = hero.melee
 
     /** Short enough (MONKEY) that the guards' high shots sail over his head. */
@@ -1210,8 +1210,10 @@ class World(val config: RunConfig) {
             return
         }
         val reach = takedownReach()
-        for (e in enemies) {
-            if (!here(e) || !e.alive || e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
+        // Nearest body first (edge, not center: a big guard's front is closer than his middle):
+        // whoever you actually bump into is the one you deal with.
+        for (e in enemies.filter { here(it) }.sortedBy { abs(it.x - p.x) - it.halfWidth }) {
+            if (!e.alive || e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
             // He watched you hide: no ambush, no unplugging him from cover. He's coming to find you.
             if (p.hidden && e.sawHide) continue
             if (e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET) {
@@ -1235,27 +1237,35 @@ class World(val config: RunConfig) {
                 flatten(e, fromDir)
                 return
             }
-            if (e.state == EnemyState.WINDUP) continue // mid-slash: it wins
-            // BULL goes through a Heavy's front door (not from inside a box: he kicks those off).
-            val tackle = hero.tacklesHeavies && e.kind == EnemyKind.HEAVY && p.state == PlayerState.NORMAL && !e.chokeable(fromDir)
-            // A napping guard can't resist from any side.
-            if (!e.asleep && !e.chokeable(fromDir) && !tackle) {
-                if (!inReach) continue
-                if (p.state == PlayerState.BOX) {
-                    // A Heavy isn't fooled by cardboard: he kicks it off you.
-                    kickBox(e)
-                }
-                // Armor blocks: you can't walk through a Heavy to get behind him.
-                p.x = e.x - fromDir * (reach + e.halfWidth)
-                if (p.vx * fromDir > 0f) p.vx = 0f
-                if (heavyBounceCooldown <= 0f) {
-                    heavyBounceCooldown = 0.6f
-                    p.vx = -fromDir * 7f
-                    p.x -= fromDir * 0.15f
-                    shake = max(shake, 0.25f)
-                    events += GameEvent.BulletHit(onPlayer = false, armored = true, pan = pan(e.x))
-                    fx.burst(ParticleKind.SPARK, e.x - fromDir * 0.3f, Geo.groundY(e.floor) - 1f, 8, 5f, 0.25f, 0.08f)
-                    if (e.state == EnemyState.PATROL) alert(e)
+            if (e.state == EnemyState.WINDUP) return // mid-slash: it wins (and nobody behind him is in reach)
+            // STIFF ARM: BULL goes through a Heavy's front door (not from inside a box: he kicks those off).
+            val tackle = stacks(Perk.STIFF_ARM) > 0 && e.kind == EnemyKind.HEAVY && p.state == PlayerState.NORMAL &&
+                !e.chokeable(fromDir)
+            if (!takedownFrom(e, fromDir) && !tackle) {
+                // Nearest first, so he's in the way: no lunging past him at anyone behind.
+                if (!inReach) return
+                if (e.kind == EnemyKind.HEAVY) {
+                    if (p.state == PlayerState.BOX) {
+                        // A Heavy isn't fooled by cardboard: he kicks it off you.
+                        kickBox(e)
+                    }
+                    // Armor blocks: you can't walk through a Heavy to get behind him.
+                    p.x = e.x - fromDir * (reach + e.halfWidth)
+                    if (p.vx * fromDir > 0f) p.vx = 0f
+                    if (heavyBounceCooldown <= 0f) {
+                        heavyBounceCooldown = 0.6f
+                        p.vx = -fromDir * 7f
+                        p.x -= fromDir * 0.15f
+                        shake = max(shake, 0.25f)
+                        events += GameEvent.BulletHit(onPlayer = false, armored = true, pan = pan(e.x))
+                        fx.burst(ParticleKind.SPARK, e.x - fromDir * 0.3f, Geo.groundY(e.floor) - 1f, 8, 5f, 0.25f, 0.08f)
+                        if (e.state == EnemyState.PATROL) alert(e)
+                    }
+                } else {
+                    // Face to face he sees you coming: you walk into him, and now he knows. He's
+                    // the wall: nobody behind him gets grabbed through him this step.
+                    faceOff(e, fromDir)
+                    return
                 }
                 continue
             }
@@ -1266,6 +1276,50 @@ class World(val config: RunConfig) {
             }
             startTakedown(e, fromDir, tackle = tackle && !e.asleep)
             return
+        }
+    }
+
+    /** Knocked silly (a bonk on the head, an AFTERSHOCK, PACKING PEANUTS): no fight left in him. */
+    private fun dazed(e: Enemy) = e.state == EnemyState.STUNNED
+
+    /**
+     * Can a walk-in takedown on [e] come from the [fromDir] side? From behind, always. Face to
+     * face only when he can't see it coming (asleep or dazed), when he walked into your box (not
+     * you shoving the box into his face), or
+     * for FOX's feet and BULL's STIFF ARM. A Heavy's armor wants his back even when he's dazed
+     * (a napping one is fair game; STIFF ARM's head-on tackle is handled on its own).
+     */
+    fun takedownFrom(e: Enemy, fromDir: Int): Boolean {
+        if (!melee || e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET) return false
+        if (e.chokeable(fromDir) || e.asleep) return true
+        if (e.kind == EnemyKind.HEAVY) return false
+        // He has to walk into it: holding still, or him coming your way, not you shoving it into his
+        // face. (Nobody suspects HAWK's box or a GHOST BOX, though: those creep right up to him.)
+        // And never one who's already onto you: he knows what's in there.
+        val onto = e.state == EnemyState.ALERT || e.state == EnemyState.AIM
+        val ambush = player.state == PlayerState.BOX && !onto && (moveAxis != fromDir || e.vx * fromDir < 0f || boxPro)
+        return dazed(e) || ambush || hero.frontTakedowns || stacks(Perk.STIFF_ARM) > 0
+    }
+
+    /**
+     * Can the player take [e] down from where they stand right now? STIFF ARM's head-on tackle
+     * counts; a mid-swing guard doesn't (only STIFF ARM runs through a swing).
+     */
+    fun takedownWorks(e: Enemy): Boolean {
+        val stiffArm = stacks(Perk.STIFF_ARM) > 0 && player.state == PlayerState.NORMAL
+        if (e.state == EnemyState.WINDUP) return stiffArm && e.kind != EnemyKind.DRONE && e.kind != EnemyKind.TURRET
+        return takedownFrom(e, if (e.x >= player.x) 1 else -1) || e.kind == EnemyKind.HEAVY && stiffArm
+    }
+
+    /** Walking into a guard's front without the takedown: a wall, and he's onto you. */
+    private fun faceOff(e: Enemy, fromDir: Int) {
+        val p = player
+        val gap = BUMP_GAP + e.halfWidth
+        if (abs(e.x - p.x) < gap) p.x = (e.x - fromDir * gap).coerceIn(0.35f, Geo.FLOOR_W - 0.35f)
+        if (p.vx * fromDir > 0f) p.vx = 0f
+        if (e.state == EnemyState.PATROL || e.state == EnemyState.SEARCH) {
+            fx.text(Popup.HEY, e.x, Geo.groundY(e.floor) - e.height - 0.9f, TextStyle.WARN, 0.8f)
+            alert(e)
         }
     }
 
@@ -1448,7 +1502,7 @@ class World(val config: RunConfig) {
     }
 
     /** Knocked flat / dazed for [seconds] (can't move, see or shoot); he comes up alert. */
-    private fun stun(e: Enemy, seconds: Float) {
+    private fun stun(e: Enemy, seconds: Float, popup: Boolean = true) {
         if (!e.alive) return
         e.asleep = false
         e.state = EnemyState.STUNNED
@@ -1457,7 +1511,7 @@ class World(val config: RunConfig) {
         e.vx = 0f
         e.burstLeft = 0
         stats.dazed++
-        if (onStage(e.floor, e.hall)) fx.text(Popup.DAZED, e.x, Geo.groundY(e.floor) - e.z - e.height - 0.7f, TextStyle.WARN, 0.7f)
+        if (popup && onStage(e.floor, e.hall)) fx.text(Popup.DAZED, e.x, Geo.groundY(e.floor) - e.z - e.height - 0.7f, TextStyle.WARN, 0.7f)
     }
 
     /** Busted: [e] boots the box off you and he's onto you. */
@@ -1511,6 +1565,27 @@ class World(val config: RunConfig) {
                     if (e.asleep || e.state == EnemyState.PATROL || e.state == EnemyState.SEARCH) alert(e)
                     return
                 }
+                if (!hero.stompsFlat && e.kind != EnemyKind.DRONE) {
+                    // Anyone but BULL just rings his bell: he's dazed, yours to take down from any
+                    // side, and you hop off him the way you were going. (Seeing stars already, he
+                    // isn't dazed any longer for a second bonk: no pinning him from up there.)
+                    if (!dazed(e)) {
+                        stats.stomps++
+                        stun(e, BONK_STUN, popup = false)
+                        events += GameEvent.Bonk(pan(e.x))
+                        fx.text(Popup.BONK, e.x, Geo.groundY(e.floor) - top - 1.1f, TextStyle.TAKEDOWN, 0.8f)
+                        fx.ring(e.x, Geo.groundY(e.floor) - top, 0.6f)
+                        shockwave(e)
+                    }
+                    val away = if (abs(p.vx) > 0.5f) sign(p.vx).toInt() else if (p.x != e.x) sign(p.x - e.x).toInt() else p.facing
+                    // (A dazed guard stands up out of a low aim: off the top of his head as he is now.)
+                    p.z = e.z + e.height
+                    p.vz = HEAD_BOUNCE_VZ
+                    p.vx = away * HEAD_BOUNCE_VX
+                    p.jumpsUsed = 1
+                    return
+                }
+                // BULL lands like a piano; a drone breaks under anyone.
                 kill(e, KillMethod.STOMP, p.facing)
                 fx.text(Popup.BONK, e.x, Geo.groundY(e.floor) - top - 1.1f, TextStyle.TAKEDOWN, 0.8f)
                 p.vz = 8.5f
@@ -1518,14 +1593,19 @@ class World(val config: RunConfig) {
                 p.z = top
                 shake = max(shake, 0.3f)
                 fx.ring(e.x, Geo.groundY(e.floor) - top, 0.9f)
-                if (stacks(Perk.SHOCKWAVE) > 0) {
-                    fx.ring(p.x, Geo.groundY(p.floor) - 0.1f, 6f, 0.5f)
-                    for (o in enemies.toList()) {
-                        if (here(o) && o.alive && o !== e) damageEnemy(o, 2, KillMethod.EXPLOSION, sign(o.x - p.x).toInt())
-                    }
-                }
+                shockwave(e)
                 return
             }
+        }
+    }
+
+    /** SHOCKWAVE: landing on [e]'s head blasts everyone else in the corridor. */
+    private fun shockwave(e: Enemy) {
+        if (stacks(Perk.SHOCKWAVE) == 0) return
+        val p = player
+        fx.ring(p.x, Geo.groundY(p.floor) - 0.1f, 6f, 0.5f)
+        for (o in enemies.toList()) {
+            if (here(o) && o.alive && o !== e) damageEnemy(o, 2, KillMethod.EXPLOSION, sign(o.x - p.x).toInt())
         }
     }
 
@@ -1566,6 +1646,9 @@ class World(val config: RunConfig) {
         if (e.kind == EnemyKind.TURRET || e.kind == EnemyKind.DRONE) return true
         if (e.asleep) return false
         if (threatTier(e) <= 1) return true
+        // Seeing stars (a bonk, a daze) he's no threat yet, and an unaware guard FOX or STIFF ARM
+        // can take face to face is theirs to finish by hand.
+        if (dazed(e) || takedownWorks(e)) return false
         val towardYou = e.facing == (if (player.x >= e.x) 1 else -1)
         return towardYou && abs(e.x - player.x) <= AUTO_FIRE_POINT_BLANK
     }
@@ -2909,6 +2992,8 @@ class World(val config: RunConfig) {
         const val SHORT_LOW_SHOT = 0.7f
         /** Walking into a guard without a takedown: he's a wall, you stand off him this far. */
         const val BUMP_GAP = 0.5f
+        /** Landing on a head without BULL's weight: he's dazed this long. */
+        const val BONK_STUN = 1.6f
         /** Landing on a guard's head without a stomp: you bounce off, this fast up and sideways. */
         const val HEAD_BOUNCE_VZ = 5f
         const val HEAD_BOUNCE_VX = 3f

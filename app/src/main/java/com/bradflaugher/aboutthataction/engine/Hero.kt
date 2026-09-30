@@ -21,8 +21,13 @@ enum class Hero(
     val extraHearts: Int = 0,
     /** Running speed, as a multiple of [World.RUN_SPEED]. */
     val runSpeed: Float = 1f,
-    /** Takedowns work on a Heavy from the front too (no bouncing off his armor). */
-    val tacklesHeavies: Boolean = false,
+    /**
+     * Takedowns work face to face (everyone else needs his back, a nap, a daze or the box).
+     * A Heavy's armor still wants his back (or FOX's FLYING KICK).
+     */
+    val frontTakedowns: Boolean = false,
+    /** Landing on a head knocks him out cold. Everyone else's landing only dazes him. */
+    val stompsFlat: Boolean = false,
     /** Extra takedown reach, in world units, on top of everyone's (long legs, long kicks). */
     val takedownReach: Float = 0f,
     /** Rounds in the pistol's magazine. */
@@ -44,8 +49,8 @@ enum class Hero(
     /** How long a pickup gun (SHOTGUN, MINIGUN) lasts, as a multiple of its [PickupKind.seconds]. */
     val gunTime: Float = 1f,
     /**
-     * Takedowns (chokes, tackles, kicks) and stomps. False for MONKEY: walking into a guard is
-     * walking into a wall, landing on a head is a hop off it, and the gun does all the work.
+     * Takedowns (chokes, tackles, kicks) and head stomps. False for MONKEY: walking into a guard
+     * is walking into a wall, landing on a head is a hop off it, and the gun does all the work.
      */
     val melee: Boolean = true,
     /**
@@ -54,23 +59,26 @@ enum class Hero(
      */
     val height: Float = Body.HEIGHT,
 ) {
-    /** A heavyweight in a quilted bomber and a gold chain. Tough, fast, bulldozes. */
+    /**
+     * A heavyweight in a quilted bomber and a gold chain. Tough, fast, and the only one who
+     * lands on a head hard enough to flatten it. STIFF ARM lets him bulldoze face to face.
+     */
     BULL(
         "BULL", "Heavyweight. Chain on.",
-        "+1 heart, runs faster, tackles heavies head-on", "Through, never around.",
+        "+1 heart, runs faster, stomps heads flat", "Through, never around.",
         0xFF4DA8FF.toInt(),
-        extraHearts = 1, runSpeed = 1.1f, tacklesHeavies = true,
+        extraHearts = 1, runSpeed = 1.1f, stompsFlat = true,
     ),
     /**
      * A martial-arts brawler in a black sports bra, baggy grey fighting pants and red gloves, a
      * long, glossy black ponytail whipping behind her. Fights with her feet: the longest
-     * takedown reach in the building.
+     * takedown reach in the building, and the only one who takes guards down face to face.
      */
     FOX(
         "FOX", "Street brawler. Ponytail of doom.",
-        "Longer kicks, quick trigger; guards are slow to react", "Kicks first. Questions never.",
+        "Face-to-face takedowns, long kicks, quick trigger; guards slow to react", "Kicks first. Questions never.",
         0xFFE8413A.toInt(),
-        takedownReach = 0.35f, reactionScale = 1.35f, fireScale = 0.85f,
+        takedownReach = 0.35f, reactionScale = 1.35f, fireScale = 0.85f, frontTakedowns = true,
     ),
     /**
      * A deadpan parcel courier in brown shorts and a cap, scanner glowing lime. Lives in a box (of course), unplugs the robots, and is always on time.

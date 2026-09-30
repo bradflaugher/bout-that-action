@@ -179,7 +179,7 @@ class MechanicsTest {
         w.player.x = 2f
         w.player.facing = -1
         val listener = enemy(w, EnemyKind.AGENT, 6f, facing = 1)
-        val victim = enemy(w, EnemyKind.AGENT, 2.9f, facing = -1)
+        val victim = enemy(w, EnemyKind.AGENT, 2.9f, facing = 1) // his back to you
         run(w, 0.8f) { it.moveAxis = 1 }
         assertFalse(victim.alive)
         assertEquals(EnemyState.PATROL, listener.state)

@@ -183,11 +183,10 @@ class Enemy(
         EnemyKind.TURRET -> 0.3f
         else -> 0.28f
     }
-    /** Can be choked out from this side? */
+    /** Can be choked out from this side? From behind only (see [World.takedownFrom] for the exceptions). */
     fun chokeable(fromDir: Int): Boolean = when (kind) {
         EnemyKind.DRONE, EnemyKind.TURRET -> false
-        EnemyKind.HEAVY -> fromDir == facing // only from behind
-        else -> true
+        else -> fromDir == facing
     }
     val targetZ: Float get() = z + height * 0.55f
 }
