@@ -93,23 +93,117 @@ class HeroMusicTest {
         return sorted.last() / sorted[sorted.size / 2].coerceAtLeast(1e-6)
     }
 
-    /**
-     * Both action-movie heroes, told apart: BADGER is the bright rock band (guitars, gated
-     * snare, sleigh bells), VIPER the dark orchestra (horns, pads, war drums).
-     */
+    private fun hits(row: String) = row.count { it != '.' }
+    private fun onlyAt(row: String, vararg steps: Int) = row.indices.all { (row[it] != '.') == (it in steps) }
+
+    /** Each hero plays their own genre at its own tempo; sneaking is always the slower one. */
     @Test
-    fun viperIsTheOrchestraAndBadgerIsTheBand() {
-        for (z in Zone.entries) {
-            val badger = AudioTestUtil.centroid(AudioTestUtil.spectrum(AudioTestUtil.mono(take(Hero.BADGER, z, false))))
-            val viper = AudioTestUtil.centroid(AudioTestUtil.spectrum(AudioTestUtil.mono(take(Hero.VIPER, z, false))))
-            println("$z centroid: BADGER %.0f Hz, VIPER %.0f Hz".format(badger, viper))
-            assertTrue("$z: VIPER ($viper Hz) should sit darker than BADGER ($badger Hz)", viper < badger * 0.92)
+    fun eachHeroPlaysTheirGenreAtItsTempo() {
+        val hot = mapOf(Hero.BULL to 130f..155f, Hero.FOX to 145f..175f, Hero.BADGER to 145f..180f, Hero.VIPER to 115f..150f)
+        val sneak = mapOf(Hero.BULL to 80f..95f, Hero.FOX to 88f..108f, Hero.BADGER to 75f..95f, Hero.VIPER to 85f..105f)
+        for (h in Hero.entries) for (z in Zone.entries) {
+            val loud = HeroSongs.forZone(h, z, false)
+            val quiet = HeroSongs.forZone(h, z, true)
+            assertTrue("$h $z: ${loud.bpm} BPM", loud.bpm in hot.getValue(h))
+            assertTrue("$h $z sneak: ${quiet.bpm} BPM", quiet.bpm in sneak.getValue(h))
+            assertTrue("$h $z: sneaking is slower", quiet.bpm < loud.bpm)
+            for (spec in listOf(loud, quiet)) assertEquals("$h $z: no stadium crowd", 0f, spec.crowd, 0f)
         }
-        val h = HeroSongs.forZone(Hero.BADGER, Zone.TOWER, false)
-        val v = HeroSongs.forZone(Hero.VIPER, Zone.TOWER, false)
-        assertTrue(h.padPower && !v.padPower)
-        assertTrue(h.kit.snareGate > 0f && v.kit.snareGate == 0f)
-        assertTrue(v.drumsB.tom.count { it != '.' } >= 6)
+    }
+
+    /** BULL: a swung, dusty boom-bap backbeat sneaking; half-time trap with 808 slides and hat rolls. */
+    @Test
+    fun bullIsBoomBapAndTrap() {
+        for (z in Zone.entries) {
+            val bap = HeroSongs.forZone(Hero.BULL, z, true)
+            assertTrue("$z: the boom-bap swings", bap.swing >= 0.2f)
+            assertTrue("$z: on a record", bap.vinyl > 0f)
+            assertTrue("$z: a lo-fi kit", bap.kit.crush >= 3)
+            assertTrue("$z: backbeat on 2 and 4", onlyAt(bap.drumsA.snare, 4, 12))
+            val trap = HeroSongs.forZone(Hero.BULL, z, false)
+            assertEquals("$z: trap is straight", 0f, trap.swing, 0f)
+            assertTrue("$z: half-time snare and clap on 3", onlyAt(trap.drumsA.snare, 8) && onlyAt(trap.drumsA.clap, 8))
+            assertTrue("$z: 808s slide", trap.bassSlide && trap.bass.glide > 0f && trap.bass.wave1 == Wave.SINE)
+            for (p in listOf(trap.drumsA, trap.drumsB, trap.fill)) assertTrue("$z: hat rolls", p.hat.any { it in "rtq" })
+        }
+    }
+
+    /** FOX: strings and no drum kit — pizzicato and a clarinet sneaking; a harpsichord presto with timpani. */
+    @Test
+    fun foxIsClassical() {
+        for (z in Zone.entries) for (silent in listOf(false, true)) {
+            val spec = HeroSongs.forZone(Hero.FOX, z, silent)
+            val what = "$z${if (silent) " sneak" else ""}"
+            for (p in listOf(spec.drumsA, spec.drumsB, spec.fill)) {
+                assertEquals("$what: no hi-hats", 0, hits(p.hat) + hits(p.open) + hits(p.clap) + hits(p.jingle))
+            }
+            assertTrue("$what: a timpani part", hits(spec.drumsB.tom) >= 2)
+            val pitch = 12.0 * kotlin.math.ln(spec.kit.tomHz / 440.0) / kotlin.math.ln(2.0) + 69
+            assertEquals("$what: the timpani is tuned to the key", 0, Math.floorMod(Math.round(pitch).toInt() - spec.tonic, 12))
+            if (silent) {
+                assertTrue("$what: pizzicato", spec.bass.pluck > 0f && spec.arp.pluck > 0f)
+            } else {
+                assertTrue("$what: a harpsichord continuo", spec.pad.pluck >= 0.8f)
+                assertTrue("$what: running violins", hits(spec.arpA) == 16)
+            }
+        }
+    }
+
+    /** BADGER: country in the major key — a brushed shuffle sneaking, a train beat and banjo rolls hot. */
+    @Test
+    fun badgerIsCountry() {
+        for (z in Zone.entries) for (silent in listOf(false, true)) {
+            val spec = HeroSongs.forZone(Hero.BADGER, z, silent)
+            val what = "$z${if (silent) " sneak" else ""}"
+            assertTrue("$what: a major key", spec.scale.contentEquals(Scales.IONIAN))
+            val degrees = (spec.progA + spec.progB).map { it.degree }.toSet()
+            assertTrue("$what: I, IV and V", degrees.containsAll(listOf(0, 3, 4)))
+            if (silent) {
+                assertTrue("$what: a shuffle", spec.swing > 0f)
+                assertTrue("$what: fingerpicked", spec.arp.pluck > 0f)
+            } else {
+                assertEquals("$what: a train beat", 16, hits(spec.drumsA.snare))
+                assertTrue("$what: boom-chick", spec.bassA == "R...F...R...F...")
+                assertTrue("$what: banjo rolls", spec.arp.pluck >= 0.9f && hits(spec.arpA) == 16)
+            }
+        }
+    }
+
+    /** VIPER: jungle drums — hand drums, shakers and crickets sneaking; war drums in threes over fours. */
+    @Test
+    fun viperIsJungleDrums() {
+        for (z in Zone.entries) for (silent in listOf(false, true)) {
+            val spec = HeroSongs.forZone(Hero.VIPER, z, silent)
+            val what = "$z${if (silent) " sneak" else ""}"
+            for (p in listOf(spec.drumsA, spec.drumsB)) assertEquals("$what: no hi-hats", 0, hits(p.hat) + hits(p.open))
+            assertTrue("$what: shakers", hits(spec.drumsB.jingle) >= 8 && spec.kit.jingleNoise >= 1f)
+            val pitch = 12.0 * kotlin.math.ln(spec.kit.tomHz / 440.0) / kotlin.math.ln(2.0) + 69
+            assertEquals("$what: the drums are tuned to the key", 0, Math.floorMod(Math.round(pitch).toInt() - spec.tonic, 12))
+            if (silent) {
+                assertTrue("$what: crickets", spec.jungle > 0f)
+                assertTrue("$what: hand drums", spec.kit.tomDecay < 0.3f && hits(spec.drumsB.tom) >= 4)
+            } else {
+                assertTrue("$what: war drums", hits(spec.drumsB.tom) >= 8 && spec.kit.tomLevel > 0.9f)
+                // Toms in threes against a four-square kick: onsets every third step.
+                assertTrue("$what: in threes", listOf(0, 3, 6, 9, 12).all { spec.drumsA.tom[it] != '.' })
+            }
+        }
+    }
+
+    /** Heard, not just written: the 808 trap is the bassiest band, the banjo hoedown brighter than the war drums. */
+    @Test
+    fun theGenresSoundApart() {
+        for (z in listOf(Zone.TOWER, Zone.MAGMA)) {
+            val stats = Hero.entries.associateWith {
+                val m = AudioTestUtil.mono(take(it, z, false))
+                val mag = AudioTestUtil.spectrum(m)
+                AudioTestUtil.bandShare(mag, 20.0, 120.0) to AudioTestUtil.centroid(mag)
+            }
+            println("$z: " + stats.entries.joinToString { "%s sub=%.2f centroid=%.0f".format(it.key, it.value.first, it.value.second) })
+            val bull = stats.getValue(Hero.BULL)
+            for (h in Hero.entries - Hero.BULL) assertTrue("$z: BULL's 808s outweigh $h's bass", bull.first > stats.getValue(h).first)
+            assertTrue("$z: VIPER's drums sit darker than BADGER's banjo", stats.getValue(Hero.VIPER).second < stats.getValue(Hero.BADGER).second)
+        }
     }
 
     @Test
@@ -184,6 +278,7 @@ class HeroMusicTest {
             themes += x
         }
         val title = SoundEngine().let { t -> t.playTitle(); render(t, 10f).let { it.copyOfRange(AudioTestUtil.SR * 2 * 2, it.size) } }
+        println("title rms=%.3f".format(rms(title)))
         for (i in themes.indices) {
             assertTrue("${Hero.entries[i]} theme is within 2 dB of the title", abs(db(rms(themes[i]), rms(title))) < 2.0)
             assertTrue(meanAbsDiff(themes[i], title) > 0.005)
@@ -284,12 +379,20 @@ class HeroMusicTest {
             val spec = HeroSongs.forZone(h, z, silent)
             val what = "$h $z${if (silent) " sneak" else ""}"
             assertEquals(what, base.tonic, spec.tonic)
-            assertTrue(what, base.scale.contentEquals(spec.scale))
             assertEquals(what, base.barsPerChord, spec.barsPerChord)
             assertTrue(what, base.sections.contentEquals(spec.sections))
             assertEquals(what, base.kickThreshold, spec.kickThreshold, 0f)
             assertEquals(what, base.wind, spec.wind, 0f)
             assertEquals(what, base.glitch, spec.glitch)
+            if (h == Hero.BADGER) {
+                // Country in the parallel major: its own chords, all in that key.
+                assertTrue(what, spec.scale.contentEquals(Scales.IONIAN))
+                for (c in spec.progA + spec.progB) for (iv in c.intervals) {
+                    assertTrue("$what: chord tone out of key", Scales.contains(spec.scale, c.root + iv))
+                }
+                continue
+            }
+            assertTrue(what, base.scale.contentEquals(spec.scale))
             for ((bp, hp) in listOf(base.progA to spec.progA, base.progB to spec.progB)) {
                 assertEquals(what, bp.size, hp.size)
                 for (i in bp.indices) {
@@ -314,8 +417,6 @@ class HeroMusicTest {
                     }
                 }
             }
-            val bpmRatio = spec.bpm / base.bpm
-            assertTrue("$what tempo strays from the zone ($bpmRatio)", bpmRatio in 0.99f..1.08f)
         }
     }
 
@@ -359,9 +460,200 @@ class HeroMusicTest {
     }
 }
 
-/** The instruments the heroes brought: gated snare, sleigh bells, tremolo, crowd, rolls. */
+/** The instruments the heroes brought: plucked strings, 808 slides, hat rolls, vinyl, tremolo, rolls. */
 class HeroInstrumentsTest {
     private val sr = AudioTestUtil.SR
+
+    private fun voice(patch: Patch, seconds: Float, play: (SynthVoice) -> Unit): FloatArray {
+        val v = SynthVoice(sr, 7)
+        v.patch = patch
+        play(v)
+        val n = (seconds * sr).toInt()
+        val l = FloatArray(n)
+        val r = FloatArray(n)
+        var i = 0
+        while (i < n) {
+            val k = minOf(64, n - i)
+            v.render(l, r, i, k, 1f, 1f); i += k
+        }
+        return l
+    }
+
+    /** Pitch from rising zero crossings of a low-passed copy, in Hz, over [from, to). */
+    private fun pitch(x: FloatArray, from: Int, to: Int): Double {
+        var lp = 0.0
+        var prev = 0.0
+        var first = -1
+        var last = -1
+        var count = 0
+        val a = kotlin.math.exp(-2.0 * Math.PI * 600.0 / sr)
+        for (i in from until to) {
+            lp = a * lp + (1 - a) * x[i]
+            if (prev <= 0.0 && lp > 0.0) {
+                if (first < 0) first = i else count++
+                last = i
+            }
+            prev = lp
+        }
+        return if (count == 0) 0.0 else count * sr.toDouble() / (last - first)
+    }
+
+    /** Pitch by autocorrelation over [from, from + len): the first lag that nearly matches the best. */
+    private fun autoPitch(x: FloatArray, from: Int, len: Int): Double {
+        val minLag = sr / 1000
+        val maxLag = sr / 30
+        val ac = DoubleArray(maxLag + 2)
+        for (lag in minLag..maxLag + 1) {
+            var acc = 0.0
+            for (i in from until from + len) acc += x[i].toDouble() * x[i + lag]
+            ac[lag] = acc
+        }
+        var lag = minLag
+        // Skip the zero-lag lobe, then take the first peak within 10% of the best after it.
+        while (lag < maxLag && ac[lag] > 0) lag++
+        val best = (lag..maxLag).maxOf { ac[it] }
+        while (lag < maxLag && !(ac[lag] >= best * 0.9 && ac[lag] >= ac[lag - 1] && ac[lag] >= ac[lag + 1])) lag++
+        // Parabolic interpolation around the peak.
+        val a = ac[lag - 1]
+        val b = ac[lag]
+        val c = ac[lag + 1]
+        val shift = 0.5 * (a - c) / (a - 2 * b + c)
+        return sr / (lag + shift)
+    }
+
+    @Test
+    fun pluckedStringsRingInTuneAndDieAway() {
+        for (note in listOf(40, 52, 57, 64)) {
+            val x = voice(Patch(pluck = 0.5f, ring = 1.2f, cutoff = 8000f, a = 0.001f, d = 1f, s = 1f, r = 0.1f, gain = 0.3f), 1.5f) {
+                it.noteOn(note, 1f, sr * 2, legato = false, age = 1)
+            }
+            val want = Dsp.midiToHz(note.toFloat())
+            val got = autoPitch(x, sr / 10, sr / 5)
+            val cents = 1200 * kotlin.math.ln(got / want) / kotlin.math.ln(2.0)
+            val early = rms(x, 0, sr / 10)
+            val late = rms(x, sr, sr * 3 / 2)
+            println("string %d: %.1f Hz (want %.1f, %+.0f cents), rms %.3f -> %.4f".format(note, got, want, cents, early, late))
+            for (v in x) assertTrue(v.isFinite() && kotlin.math.abs(v) < 1f)
+            assertTrue("string $note is ${"%.0f".format(cents)} cents out", kotlin.math.abs(cents) < 15)
+            assertTrue("string $note should sound", early > 0.02)
+            assertTrue("string $note should die away", late < early * 0.3)
+        }
+    }
+
+    @Test
+    fun brighterStringsHaveMoreTop() {
+        fun centroid(b: Float) = AudioTestUtil.centroid(
+            AudioTestUtil.spectrum(voice(Patch(pluck = b, ring = 1f, cutoff = 12000f, a = 0.001f, s = 1f, gain = 0.3f), 0.5f) { it.noteOn(57, 1f, sr, false, 1) }),
+        )
+        val nylon = centroid(0.2f)
+        val banjo = centroid(1f)
+        println("string centroid: nylon %.0f Hz, banjo %.0f Hz".format(nylon, banjo))
+        assertTrue(banjo > nylon * 1.5)
+    }
+
+    /** An 808 slide: a held note glides to the next instead of retriggering. */
+    @Test
+    fun eightOhEightSlidesBetweenTiedNotes() {
+        fun run(slide: Boolean): FloatArray {
+            val spec = Songs.tower.derive(
+                name = "slide-test", bpm = 120f, swing = 0f,
+                drumsA = DrumPattern.EMPTY, drumsB = DrumPattern.EMPTY, fill = DrumPattern.EMPTY,
+                bassA = "R~~~~~~~O~~~~~~~", bassB = "R~~~~~~~O~~~~~~~", bassSlide = slide,
+                bass = Patch(wave1 = Wave.SINE, cutoff = 4000f, keyTrack = 0f, a = 0.002f, d = 2f, s = 0.8f, r = 0.05f, glide = 0.08f, gain = 0.4f),
+                mix = Mix(pad = 0f, bass = 1f, arp = 0f, lead = 0f, drums = 0f), rotor = 0f, wind = 0f,
+            )
+            val d = MusicDirector(sr)
+            d.intensity = 1f
+            d.request(spec, immediate = false)
+            val n = 64
+            val l = FloatArray(n)
+            val r = FloatArray(n)
+            val rev = FloatArray(n)
+            val dly = FloatArray(n)
+            val out = FloatArray(sr * 2)
+            var done = 0
+            while (done < out.size) {
+                d.render(n, l, r, rev, dly)
+                System.arraycopy(l, 0, out, done, minOf(n, out.size - done)); done += n
+            }
+            return out
+        }
+        // At 120 BPM the octave lands 1 s in: 20 ms after it, a slide is still on its way up.
+        val at = sr
+        val slid = pitch(run(true), at + sr / 100, at + sr / 25)
+        val jumped = pitch(run(false), at + sr / 100, at + sr / 25)
+        val root = pitch(run(true), at - sr / 5, at - sr / 50)
+        println("808: root %.1f Hz, 10-40 ms after the octave: slide %.1f Hz, retrigger %.1f Hz".format(root, slid, jumped))
+        assertTrue("the retriggered note jumps straight to the octave", jumped > root * 1.9)
+        assertTrue("the slide is still gliding up", slid > root * 1.05 && slid < jumped * 0.97)
+    }
+
+    /** Trap hat rolls: 'r', 't' and 'q' put two, three and four strokes in a step. */
+    @Test
+    fun hatRollsSplitTheStep() {
+        fun hatHits(row: String): Int {
+            val spec = Songs.tower.derive(
+                name = "hat-roll-test", swing = 0f,
+                drumsA = DrumPattern(hat = row), drumsB = DrumPattern(hat = row), fill = DrumPattern(hat = row),
+                mix = Mix(pad = 0f, bass = 0f, arp = 0f, lead = 0f, drums = 1f), rotor = 0f, wind = 0f,
+                kit = DrumTuning(hatDecay = 0.004f, hatLevel = 1f),
+            )
+            val d = MusicDirector(sr)
+            d.intensity = 1f
+            d.request(spec, immediate = false)
+            val n = 64
+            val l = FloatArray(n)
+            val r = FloatArray(n)
+            val rev = FloatArray(n)
+            val dly = FloatArray(n)
+            val bar = (60.0 / 118 * 4 * sr).toInt()
+            var env = 0.0
+            var hits = 0
+            var armed = true
+            var done = 0
+            while (done < 2 * bar) {
+                d.render(n, l, r, rev, dly)
+                for (k in 0 until n) {
+                    env = maxOf(abs(l[k]).toDouble(), env * 0.99)
+                    if (armed && env > 0.03) {
+                        if (done + k in bar until 2 * bar) hits++
+                        armed = false
+                    }
+                    if (env < 0.006) armed = true
+                }
+                done += n
+            }
+            return hits
+        }
+        val plain = hatHits("x...x...x...x...")
+        val rolls = hatHits("r...t...q...x...")
+        println("hat onsets per bar: plain $plain, rolled $rolls")
+        assertEquals(4, plain)
+        assertEquals(2 + 3 + 4 + 1, rolls)
+    }
+
+    @Test
+    fun vinylCracklesOnlyWhenAsked() {
+        val v = Vinyl(sr)
+        val n = 256
+        val l = FloatArray(n)
+        val r = FloatArray(n)
+        v.render(l, r, n, 0f)
+        assertEquals(0.0, rms(l), 0.0)
+        val out = FloatArray(sr * 2)
+        for (b in 0 until out.size / n) {
+            l.fill(0f); r.fill(0f)
+            v.render(l, r, n, 1f)
+            System.arraycopy(l, 0, out, b * n, n)
+        }
+        // Crackle is spiky: a high crest factor, and its energy is up top.
+        val crest = AudioTestUtil.peak(out) / rms(out)
+        val high = AudioTestUtil.bandShare(AudioTestUtil.spectrum(out, 2048), 2000.0, 20000.0)
+        println("vinyl rms %.3f crest %.1f >2k %.2f".format(rms(out), crest, high))
+        assertTrue(AudioTestUtil.peak(out) < 1f && rms(out) > 0.005)
+        assertTrue("crackle should be spiky ($crest)", crest > 6)
+        assertTrue("crackle should be bright ($high)", high > 0.6)
+    }
 
     private fun drum(v: DrumVoice, t: DrumTuning, seconds: Float, trigger: () -> Unit): FloatArray {
         v.t = t

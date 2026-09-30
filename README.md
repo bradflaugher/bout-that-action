@@ -250,6 +250,17 @@ seconds, then calms down. Takedowns get a strangled grunt. Every sound effect is
 synthesized too, panned to where it happened on screen, with haptics on the
 big moments.
 
+Every hero brings their own band to every zone, in both modes, and signs off
+the game over in their own style. **BULL** plays hip-hop: a dusty, swung
+boom-bap beat on a crackly record while sneaking, then half-time trap with
+sliding 808s and rolling hats when the guns come out. **FOX** plays classical:
+pizzicato strings and a clarinet on tiptoe, then a harpsichord-and-violins
+presto with timpani. **BADGER** plays country: a slow brushed shuffle with
+fingerpicked guitar and a harmonica, then a train-beat hoedown with banjo rolls
+and a fiddle. **VIPER** plays jungle drums: hand drums, shakers, a marimba, a
+wooden flute and crickets, then pounding war drums in threes against the beat.
+The hero picker plays each one's theme. Every tune is original.
+
 ## Install
 
 Grab `bout-that-action.apk` from the [latest release](../../releases/latest)

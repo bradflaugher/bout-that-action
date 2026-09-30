@@ -23,6 +23,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private val rotor = Rotor(sr)
     private val crowd = Crowd(sr)
     private val jungle = Jungle(sr)
+    private val vinyl = Vinyl(sr)
     private val rng = Rng(0x5eed + id.toLong())
 
     var spec: SongSpec? = null; private set
@@ -40,6 +41,10 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private var rollPending = false
     private var rollAt = 0.5
     private var rollVel = 0f
+    // Hat roll: [hatRollN] strokes per step; the next one lands at stroke [hatRollK].
+    private var hatRollN = 0
+    private var hatRollK = 0
+    private var hatRollVel = 0f
 
     // Controls
     var rate = 1f
@@ -98,7 +103,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         pad.patch = s.pad; bass.patch = s.bass; arp.patch = s.arp; lead.patch = s.lead
         kit.setTuning(s.kit)
         absStep = -1L; stepPos = 1.0
-        swingPending = false; stutterPending = false; rollPending = false
+        swingPending = false; stutterPending = false; rollPending = false; hatRollN = 0
         crowdSwell = 0f
         endStep = Long.MAX_VALUE
         sequencing = true
@@ -179,6 +184,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         if (swingPending && s != null && s.swing > stepPos) target = min(target, s.swing.toDouble())
         if (stutterPending && 0.5 > stepPos) target = min(target, 0.5)
         if (rollPending && rollAt > stepPos) target = min(target, rollAt)
+        if (hatRollN > 0) target = min(target, hatRollK.toDouble() / hatRollN)
         val k = ceil((target - stepPos) / inc())
         return max(1.0, min(k, c.toDouble())).toInt()
     }
@@ -193,6 +199,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
                     sequencing = false; return
                 }
                 swingPending = false
+                hatRollN = 0
                 if (absStep % 2 == 1L && s.swing > 0f) swingPending = true else fireStep(s)
                 continue
             }
@@ -202,6 +209,11 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             if (rollPending && stepPos >= rollAt - 1e-7) {
                 rollPending = false
                 kit.snare.trigger(rollVel)
+                continue
+            }
+            if (hatRollN > 0 && stepPos >= hatRollK.toDouble() / hatRollN - 1e-7) {
+                kit.hat.trigger(hatRollVel * rng.vary(0.1f), false)
+                if (++hatRollK >= hatRollN) hatRollN = 0
                 continue
             }
             if (stutterPending && stepPos >= 0.5 - 1e-7) {
@@ -289,8 +301,23 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         if (ov > 0f) {
             kit.hat.trigger(ov * lHat * rng.vary(0.1f), true)
         } else {
-            val hv = DrumPattern.velocity(pat.hat[s])
+            val hc = pat.hat[s]
+            val hv = DrumPattern.velocity(hc)
             if (hv > 0f) kit.hat.trigger(hv * lHat * rng.vary(0.12f), false)
+            val strokes = when (hc) {
+                'r' -> 2
+                't' -> 3
+                'q' -> 4
+                else -> 0
+            }
+            if (strokes > 0) {
+                // The rest of the roll, evenly through what's left of the step.
+                hatRollN = strokes; hatRollK = 1; hatRollVel = hv * lHat * 0.85f
+                if (stepPos > 0.0) {
+                    while (hatRollK < hatRollN && hatRollK.toDouble() / hatRollN <= stepPos) hatRollK++
+                    if (hatRollK >= hatRollN) hatRollN = 0
+                }
+            }
         }
         val jc = pat.jingle[s]
         if (jc != '.') {
@@ -330,7 +357,9 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             }
             val vel = (if (bc.isLowerCase()) 0.62f else 1f) * (if (brk) 0.8f else 1f)
             val len = 1 + ties(brow, s)
-            bass.noteOn(note, vel, (len * stepSamples * 0.92f).toInt())
+            // A slide holds the note into the next one, so the mono voice glides there.
+            val slide = sp.bassSlide && s + len < 16 && brow[s + len] != '.'
+            bass.noteOn(note, vel, (len * stepSamples * (if (slide) 1.1f else 0.92f)).toInt())
         }
 
         // ---- Pad
@@ -404,6 +433,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         wind.render(ambL, ambR, n, sp.wind)
         rotor.render(ambL, ambR, n, sp.rotor, 0.6f * Dsp.sin01((time * 0.05).toFloat()))
         jungle.render(ambL, ambR, n, sp.jungle)
+        vinyl.render(ambL, ambR, n, sp.vinyl)
         if (sp.crowd > 0f) {
             val i = if (sp.fixedIntensity >= 0f) sp.fixedIntensity else intensity
             crowdSwell *= crowdDecay.pow(n)
