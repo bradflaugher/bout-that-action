@@ -49,9 +49,9 @@ data class RunReport(
         /** Extra sign-offs for whoever was playing. */
         val HERO_QUIPS = mapOf(
             Hero.BULL to "Chain still shiny. Good game.",
-            Hero.FOX to "The coat survived. Mostly.",
-            Hero.WOLF to "Stubborn to the very end.",
-            Hero.HAWK to "Back to the box.",
+            Hero.FOX to "Not one hair out of that ponytail.",
+            Hero.LION to "The show must go on. After a nap.",
+            Hero.HAWK to "Delivered. Sign here.",
         )
 
         fun of(w: World): RunReport {
@@ -116,8 +116,11 @@ data class RunReport(
             val depth = w.deepest - w.difficulty.startFloor
             return when {
                 s.stiffArms + s.tackles >= 6 -> "HUMAN BULLDOZER"
-                s.unplugged >= 5 -> "ROBOT WHISPERER"
-                s.camoMisses >= 4 -> "JUST A FERN"
+                s.flyingKicks + s.spinKicks >= 6 -> "LEG DAY LEGEND"
+                s.unplugged >= 5 -> "RETURN TO SENDER"
+                s.fragileMisses >= 4 -> "HANDLED WITH CARE"
+                s.secondWinds > 0 && depth >= 20 -> "THE SHOW WENT ON"
+                w.stacks(Perk.CONFETTI) > 0 && s.blastKills >= 8 -> "PARTY ANIMAL"
                 s.napTakedowns >= 3 -> "BEDTIME STORYTELLER"
                 s.boxAmbushes >= 6 -> "CARDBOARD ENTHUSIAST"
                 s.ghostFloors >= 6 -> "THE GHOST"
@@ -145,8 +148,9 @@ data class RunReport(
                 "LIGHTS OUT" to s.lightKills.nz(),
                 "CLOSE CALLS" to w.closeCalls.nz(),
                 "TACKLES" to (s.tackles + s.stiffArms).nz(),
+                "KICKS" to (s.flyingKicks + s.spinKicks).nz(),
                 "UNPLUGGED" to s.unplugged.nz(),
-                "CAMO MISSES" to s.camoMisses.nz(),
+                "NOT A SCRATCH" to s.fragileMisses.nz(),
                 "SECOND WIND" to s.secondWinds.takeIf { it > 0 }?.let { "USED" },
                 "SPECIAL FLOORS" to s.floorEvents.nz(),
                 "PERKS" to perks.nz(),

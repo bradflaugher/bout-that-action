@@ -188,15 +188,15 @@ internal class Hud(private val f: Frame) {
             Perk.STIFF_ARM -> "SA"
             Perk.AFTERSHOCK -> "AS"
             Perk.CANDY_RAIN -> "CR"
-            Perk.DISGUISE -> "DG"
-            Perk.LASER_WATCH -> "LW"
-            Perk.DEAD_DROP -> "DD"
-            Perk.KABOOM -> "KB"
-            Perk.VENT_CRAWL -> "VC"
-            Perk.ADRENALINE -> "AD"
-            Perk.JAMMER -> "JM"
-            Perk.CHAFF -> "CF"
-            Perk.CAMO -> "CM"
+            Perk.SHOWSTOPPER -> "ST"
+            Perk.SPIN_KICK -> "SK"
+            Perk.FLYING_KICK -> "FK"
+            Perk.CONFETTI -> "CF"
+            Perk.CLOWN_CAR -> "CC"
+            Perk.ENCORE -> "EN"
+            Perk.SIGNED_FOR -> "SF"
+            Perk.PACKING_PEANUTS -> "PP"
+            Perk.FRAGILE -> "FG"
         }
 
         /** The STASH's warm gold (its door, tap hint and perk screen). */
@@ -209,9 +209,9 @@ internal class Hud(private val f: Frame) {
             Perk.DEMOLITION, Perk.MAGNET, Perk.LUCKY -> 0xFFFFC23C.toInt()
             // A hero's own perks wear the hero's colour.
             Perk.STIFF_ARM, Perk.AFTERSHOCK, Perk.CANDY_RAIN,
-            Perk.DISGUISE, Perk.LASER_WATCH, Perk.DEAD_DROP,
-            Perk.KABOOM, Perk.VENT_CRAWL, Perk.ADRENALINE,
-            Perk.JAMMER, Perk.CHAFF, Perk.CAMO,
+            Perk.SHOWSTOPPER, Perk.SPIN_KICK, Perk.FLYING_KICK,
+            Perk.CONFETTI, Perk.CLOWN_CAR, Perk.ENCORE,
+            Perk.SIGNED_FOR, Perk.PACKING_PEANUTS, Perk.FRAGILE,
             -> p.hero?.color ?: STASH_GOLD
         }
 
@@ -221,9 +221,9 @@ internal class Hud(private val f: Frame) {
             Perk.CQC, Perk.GHOST_BOX, Perk.DOUBLE_JUMP, Perk.SHOCKWAVE -> "STEALTH"
             Perk.DEMOLITION, Perk.MAGNET, Perk.LUCKY -> "UTILITY"
             Perk.STIFF_ARM, Perk.AFTERSHOCK, Perk.CANDY_RAIN,
-            Perk.DISGUISE, Perk.LASER_WATCH, Perk.DEAD_DROP,
-            Perk.KABOOM, Perk.VENT_CRAWL, Perk.ADRENALINE,
-            Perk.JAMMER, Perk.CHAFF, Perk.CAMO,
+            Perk.SHOWSTOPPER, Perk.SPIN_KICK, Perk.FLYING_KICK,
+            Perk.CONFETTI, Perk.CLOWN_CAR, Perk.ENCORE,
+            Perk.SIGNED_FOR, Perk.PACKING_PEANUTS, Perk.FRAGILE,
             -> p.hero?.title ?: "HERO"
         }
 

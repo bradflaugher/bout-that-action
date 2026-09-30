@@ -96,6 +96,14 @@ class HeroTest {
         w.stats.stiffArms = 3
         assertEquals("HUMAN BULLDOZER", RunReport.title(w))
         assertTrue(RunReport.of(w).highlights.any { it.first == "TACKLES" && it.second == "6" })
+        val fox = world(Hero.FOX)
+        fox.stats.flyingKicks = 2
+        fox.stats.spinKicks = 4
+        assertEquals("LEG DAY LEGEND", RunReport.title(fox))
+        assertTrue(RunReport.of(fox).highlights.any { it.first == "KICKS" && it.second == "6" })
+        val hawk = world(Hero.HAWK)
+        hawk.stats.fragileMisses = 4
+        assertEquals("HANDLED WITH CARE", RunReport.title(hawk))
     }
 
     // ------------------------------------------------------------ the pool
@@ -227,31 +235,24 @@ class HeroTest {
     // ------------------------------------------------------------ FOX
 
     @Test
-    fun foxCarriesAnEightRoundMagazine() {
+    fun foxKicksFromFurtherAway() {
+        for (hero in Hero.entries) assertEquals("everyone carries six", 6, World(RunConfig(1L, hero = hero)).player.magSize)
         for (hero in listOf(Hero.FOX, Hero.BULL)) {
-            val w = world(hero, silent = false)
-            assertEquals(if (hero == Hero.FOX) 8 else 6, w.player.magSize)
-            assertEquals(w.player.magSize, w.player.ammo)
-            w.player.x = 1f
+            val w = world(hero)
+            w.player.x = 3f
             w.player.facing = 1
-            val e = enemy(w, EnemyKind.HEAVY, 7.5f, facing = -1)
-            e.state = EnemyState.ALERT
-            e.fireCooldown = 99f
-            e.hp = 99
-            var shots = 0
-            var reloaded = false
-            run(w, 4f) {
-                it.player.hp = it.player.maxHp
-                e.fireCooldown = 99f
-                for (ev in it.events) {
-                    if (ev == GameEvent.Reload) reloaded = true
-                    if (ev is GameEvent.Shot && ev.byPlayer && !reloaded) shots++
-                }
-                it.events.clear()
+            // Past everyone else's reach (0.55 + his half width), inside hers; standing still, no lunge.
+            val guard = enemy(w, EnemyKind.AGENT, 3f + 1.05f, facing = 1)
+            var n = 0
+            while (w.player.state != PlayerState.TAKEDOWN && n++ < 12) {
+                guard.x = 3f + 1.05f
+                guard.vx = 0f
+                w.step(dt)
             }
-            assertTrue(reloaded)
-            assertEquals("$hero", w.player.magSize, shots)
+            assertEquals("$hero", hero == Hero.FOX, w.player.state == PlayerState.TAKEDOWN)
         }
+        assertEquals(0.35f, Hero.FOX.takedownReach, 1e-6f)
+        assertTrue(Hero.entries.filter { it != Hero.FOX }.all { it.takedownReach == 0f })
     }
 
     @Test
@@ -279,9 +280,9 @@ class HeroTest {
     }
 
     /** How long a guard takes to react once he spots [hero], as a multiple of the heat's reaction time. */
-    private fun reaction(hero: Hero, disguise: Boolean = false): Float {
+    private fun reaction(hero: Hero, showstopper: Boolean = false): Float {
         val w = world(hero, silent = false)
-        if (disguise) w.perks[Perk.DISGUISE] = 1
+        if (showstopper) w.perks[Perk.SHOWSTOPPER] = 1
         w.player.x = 2f
         val e = enemy(w, EnemyKind.AGENT, 6f, facing = -1)
         var n = 0
@@ -291,84 +292,126 @@ class HeroTest {
     }
 
     @Test
-    fun guardsAreSlowToReactToAceAndSlowerStillInDisguise() {
+    fun guardsAreSlowToReactToFoxAndSlowerStillToAShowstopper() {
         val bull = reaction(Hero.BULL)
         val fox = reaction(Hero.FOX)
-        val disguised = reaction(Hero.FOX, disguise = true)
+        val star = reaction(Hero.FOX, showstopper = true)
         assertTrue("bull $bull", bull in 0.79f..1.21f)
         assertTrue("fox $fox", fox in 1.35f * 0.79f..1.35f * 1.21f)
-        assertTrue("disguised $disguised", disguised in 2.7f * 0.79f..2.7f * 1.21f)
-        assertEquals(2.7f, world(Hero.FOX).also { it.perks[Perk.DISGUISE] = 1 }.reactionScale, 1e-4f)
+        assertTrue("showstopper $star", star in 2.7f * 0.79f..2.7f * 1.21f)
+        assertEquals(2.7f, world(Hero.FOX).also { it.perks[Perk.SHOWSTOPPER] = 1 }.reactionScale, 1e-4f)
     }
 
     @Test
-    fun laserWatchShotsCutOneLampEach() {
-        for (perk in listOf(true, false)) {
-            val w = world(Hero.FOX, silent = false)
-            if (perk) w.perks[Perk.LASER_WATCH] = 1
-            park(w)
-            val hs = w.playerHall()!!
-            val lights = hs.plan.lights
-            assertTrue(lights.size >= 2)
-            w.bullets += Bullet(0.3f, 1.0f, w.player.floor, World.PLAYER_BULLET_V, 0f, true, 1, 0, 0, hall = w.player.hall)
-            run(w, 0.8f)
-            val first = lights.indices.minByOrNull { lights[it] }!!
-            if (perk) {
-                assertFalse(hs.lightAlive[first])
-                assertEquals("one lamp a shot", lights.size - 1, hs.lightAlive.count { it })
-            } else {
-                assertTrue(hs.lightAlive.all { it })
+    fun spinKickFlattensTheNearestGuardOrTwo() {
+        for (level in 0..2) {
+            val w = world(Hero.FOX)
+            if (level > 0) w.perks[Perk.SPIN_KICK] = level
+            w.player.x = 3f
+            w.player.facing = 1
+            val target = enemy(w, EnemyKind.AGENT, 3.8f, facing = 1)
+            // Around her once she grabs him (at 3.35): one behind, one past him, one out of reach.
+            val guards = listOf(2f to -1, 5.3f to 1, 7f to 1)
+            val others = guards.map { (x, facing) -> enemy(w, EnemyKind.AGENT, x, facing = facing).also { it.state = EnemyState.PATROL } }
+            var n = 0
+            while (w.player.state != PlayerState.TAKEDOWN && n++ < 60) {
+                w.moveAxis = 1
+                for ((i, o) in others.withIndex()) if (o.alive) { o.x = guards[i].first; o.vx = 0f }
+                w.step(dt)
+            }
+            assertEquals(PlayerState.TAKEDOWN, w.player.state)
+            assertEquals(EnemyState.CHOKED, target.state)
+            val (behind, past, far) = others
+            assertEquals("LV $level: the nearest goes down", level < 1, behind.alive)
+            assertEquals("LV $level: then the next", level < 2, past.alive)
+            assertTrue("out of reach", far.alive)
+            assertEquals(level, w.stats.spinKicks)
+            assertEquals("the sweep shows", level > 0, w.player.spinKickTime > 0f)
+            if (level > 0) {
+                assertEquals(KillMethod.TAKEDOWN, behind.killedBy)
+                assertEquals("a spin kick is a quiet kill", level, w.silentKills)
+                assertTrue(w.fx.texts.any { it.text == Popup.SPIN_KICK })
             }
         }
     }
 
     @Test
-    fun laserWatchOneSwatKillsEveryLampInTheHallway() {
-        for (perk in listOf(true, false)) {
-            val w = world(Hero.FOX)
-            if (perk) w.perks[Perk.LASER_WATCH] = 1
-            val hs = w.playerHall()!!
-            val lx = hs.plan.lights.first { it in 3f..11f }
-            w.player.x = lx
-            w.commands += Command.SWIPE_UP
-            run(w, 0.15f)
-            w.commands += Command.TAP
+    fun spinKickSkipsGuardsStillInTheDoorway() {
+        val w = world(Hero.FOX)
+        w.perks[Perk.SPIN_KICK] = 2
+        w.player.x = 3f
+        w.player.facing = 1
+        val target = enemy(w, EnemyKind.AGENT, 3.8f, facing = 1)
+        val emerging = enemy(w, EnemyKind.AGENT, 2f, facing = 1).also { it.state = EnemyState.EMERGING; it.stateTime = 0f }
+        var n = 0
+        while (w.player.state != PlayerState.TAKEDOWN && n++ < 60) {
+            w.moveAxis = 1
+            emerging.x = 2f; emerging.vx = 0f; emerging.stateTime = 0f
             w.step(dt)
-            if (perk) assertTrue(hs.lightAlive.none { it }) else assertEquals(hs.plan.lights.size - 1, hs.lightAlive.count { it })
         }
+        assertEquals(PlayerState.TAKEDOWN, w.player.state)
+        assertEquals(EnemyState.CHOKED, target.state)
+        assertTrue("a guard still behind the door is out of reach", emerging.alive)
+        assertEquals(0, w.stats.spinKicks)
     }
 
-    /** Loot drops from [n] takedowns. */
-    private fun drops(silent: Boolean, deadDrop: Int, n: Int = 400): Int {
-        val w = world(Hero.FOX, silent = silent)
-        if (deadDrop > 0) w.perks[Perk.DEAD_DROP] = deadDrop
-        var drops = 0
-        repeat(n) {
-            w.pickups.clear()
-            takedownKill(w)
-            drops += w.pickups.size
-        }
-        return drops
+    /** FOX in the air beside [e], rising, [dx] away and [z] up. */
+    private fun airborne(w: World, e: Enemy, dx: Float, z: Float, vz: Float = 2f) {
+        val p = w.player
+        p.x = e.x - dx
+        p.z = z
+        p.vz = vz
+        p.vx = 0f
+        p.jumpsUsed = 1
+        p.facing = 1
     }
 
     @Test
-    fun deadDropDoublesOrTriplesLootFromSilentKills() {
-        val base = drops(silent = true, deadDrop = 0)
-        val one = drops(silent = true, deadDrop = 1)
-        val two = drops(silent = true, deadDrop = 2)
-        val loud = drops(silent = false, deadDrop = 2)
-        // 400 kills at 16%, 32%, 48%.
-        assertTrue("base $base", base in 35..95)
-        assertTrue("LV 1 $one", one in 95..165)
-        assertTrue("LV 2 $two", two in 160..230)
-        assertTrue("GUNS HOT kills aren't quiet: $loud", loud in 35..95)
+    fun flyingKickFlattensAGuardHeavyOrNot() {
+        for (kind in listOf(EnemyKind.HEAVY, EnemyKind.NINJA)) {
+            for (perk in listOf(true, false)) {
+                val w = world(Hero.FOX)
+                if (perk) w.perks[Perk.FLYING_KICK] = 1
+                // Face to face with a Heavy (armor front), or a ninja mid-slash: a kick wins either way.
+                val e = enemy(w, kind, 6f, facing = -1)
+                if (kind == EnemyKind.NINJA) e.state = EnemyState.WINDUP
+                airborne(w, e, dx = 1.1f, z = 0.7f)
+                val hp = w.player.hp
+                w.step(dt)
+                w.step(dt)
+                assertEquals("$kind, perk $perk", !perk, e.alive)
+                if (perk) {
+                    assertEquals(KillMethod.TAKEDOWN, e.killedBy)
+                    assertEquals(1, w.stats.flyingKicks)
+                    assertEquals(1, w.takedowns)
+                    assertEquals(hp, w.player.hp)
+                    assertTrue("she hops back off him", w.player.vx < 0f && w.player.vz > 0f)
+                    assertTrue(w.player.invuln > 0f)
+                    assertTrue("the kick shows", w.player.flyingKickTime > 0f)
+                    assertTrue(w.fx.texts.any { it.text == Popup.FLYING_KICK })
+                }
+            }
+        }
+        // Too high to hit him is too high to kick: coming down on his head is still a stomp.
+        val w = world(Hero.FOX)
+        w.perks[Perk.FLYING_KICK] = 1
+        val e = enemy(w, EnemyKind.AGENT, 6f)
+        airborne(w, e, dx = 0f, z = e.height + 0.02f, vz = -3f)
+        run(w, 0.05f)
+        assertEquals(KillMethod.STOMP, e.killedBy)
+        assertEquals(0, w.stats.flyingKicks)
+        // And drones and turrets are out of her league.
+        val d = enemy(w, EnemyKind.DRONE, 9f)
+        airborne(w, d, dx = 0.8f, z = 0.9f)
+        w.step(dt)
+        assertTrue(d.alive)
     }
 
-    // ------------------------------------------------------------ WOLF
+    // ------------------------------------------------------------ LION
 
     @Test
-    fun wolfShrugsOffOneFatalHitARun() {
-        val w = world(Hero.WOLF, hearts = 1)
+    fun lionShrugsOffOneFatalHitARun() {
+        val w = world(Hero.LION, hearts = 1)
         assertEquals(1, w.player.maxHp)
         w.player.x = 5f
         bullet(w, 8f, Body.HIGH, -9f)
@@ -388,30 +431,31 @@ class HeroTest {
     }
 
     @Test
-    fun wolfCarriesAnExtraGrenade() {
+    fun lionCarriesAnExtraGrenade() {
         for (hero in Hero.entries) {
             val w = World(RunConfig(1L, hero = hero))
-            val wolf = hero == Hero.WOLF
-            assertEquals(if (wolf) 2 else 1, w.player.grenades)
-            assertEquals(if (wolf) 4 else 3, w.maxGrenades)
+            val lion = hero == Hero.LION
+            assertEquals(if (lion) 2 else 1, w.player.grenades)
+            assertEquals(if (lion) 4 else 3, w.maxGrenades)
         }
     }
 
     @Test
-    fun kaboomBlastsReachFurtherAndKnockSurvivorsFlat() {
+    fun confettiBlastsReachFurtherAndKnockSurvivorsFlat() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.WOLF)
-            if (perk) w.perks[Perk.KABOOM] = 1
+            val w = world(Hero.LION)
+            if (perk) w.perks[Perk.CONFETTI] = 1
             park(w)
             val edge = enemy(w, EnemyKind.AGENT, 7f + 2.7f)
             val tank = enemy(w, EnemyKind.HEAVY, 7.5f)
             tank.hp = 20
             val bystander = enemy(w, EnemyKind.AGENT, 2f)
             blast(w, 7f)
+            assertEquals("the finale's confetti", perk, w.fx.particles.any { it.kind == ParticleKind.CONFETTI })
             if (perk) {
                 assertFalse("the bigger blast reaches him", edge.alive)
                 assertEquals(EnemyState.STUNNED, tank.state)
-                assertEquals(World.KABOOM_STUN, tank.stunFor, 1e-4f)
+                assertEquals(World.CONFETTI_STUN, tank.stunFor, 1e-4f)
                 assertEquals("twice the radius knocks you flat", EnemyState.STUNNED, bystander.state)
             } else {
                 assertTrue(edge.alive)
@@ -422,24 +466,24 @@ class HeroTest {
     }
 
     @Test
-    fun ventCrawlPassagesAreQuickAndYouArriveUnseen() {
+    fun clownCarPassagesAreQuickAndYouArriveUnseen() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.WOLF, silent = false)
-            if (perk) w.perks[Perk.VENT_CRAWL] = 1
-            assertEquals(World.PASSAGE_TIME * if (perk) World.VENT_CRAWL_SCALE else 1f, w.passageTime, 1e-5f)
+            val w = world(Hero.LION, silent = false)
+            if (perk) w.perks[Perk.CLOWN_CAR] = 1
+            assertEquals(World.PASSAGE_TIME * if (perk) World.CLOWN_CAR_SCALE else 1f, w.passageTime, 1e-5f)
             val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
             w.player.x = door.x + 0.3f
             w.commands += Command.TAP
             w.step(dt)
             assertEquals(PlayerState.PASSAGE, w.player.state)
-            run(w, World.PASSAGE_TIME * World.VENT_CRAWL_SCALE + 0.03f)
+            run(w, World.PASSAGE_TIME * World.CLOWN_CAR_SCALE + 0.03f)
             if (!perk) {
                 assertEquals(PlayerState.PASSAGE, w.player.state)
                 continue
             }
             assertEquals(PlayerState.NORMAL, w.player.state)
             assertEquals(door.to, w.player.hall)
-            assertTrue(w.player.unseenTime > World.VENT_UNSEEN_TIME - 0.1f)
+            assertTrue(w.player.unseenTime > World.CLOWN_CAR_UNSEEN - 0.1f)
             // A guard looking right at the door can't make you out yet...
             val side = if (w.player.x < Geo.FLOOR_W / 2f) 1 else -1
             val guard = enemy(w, EnemyKind.AGENT, w.player.x + side * 4f, facing = -side)
@@ -452,15 +496,15 @@ class HeroTest {
     }
 
     @Test
-    fun adrenalineKicksInOnTheLastHeart() {
+    fun encoreKicksInOnTheLastHeart() {
         for (level in 1..2) {
-            val w = world(Hero.WOLF)
-            w.perks[Perk.ADRENALINE] = level
+            val w = world(Hero.LION)
+            w.perks[Perk.ENCORE] = level
             val boost = if (level >= 2) 1.5f else 1.3f
-            assertFalse(w.adrenaline)
+            assertFalse(w.encore)
             assertEquals(World.RUN_SPEED, w.runSpeed, 1e-4f)
             w.player.hp = 1
-            assertTrue(w.adrenaline)
+            assertTrue(w.encore)
             assertEquals(World.RUN_SPEED * boost, w.runSpeed, 1e-4f)
             w.player.ammo = 0
             w.player.sinceShot = 9f
@@ -538,40 +582,41 @@ class HeroTest {
     }
 
     @Test
-    fun jammerSlowsTheMachinesOnly() {
+    fun signedForSlowsTheMachinesOnly() {
         val w = world(Hero.HAWK)
         val drone = enemy(w, EnemyKind.DRONE, 9f)
         val guard = enemy(w, EnemyKind.AGENT, 11f)
         val base = w.reactionScale(drone)
         assertEquals(base, w.reactionScale(guard), 1e-4f)
-        w.perks[Perk.JAMMER] = 1
+        w.perks[Perk.SIGNED_FOR] = 1
         assertEquals(base * 2f, w.reactionScale(drone), 1e-4f)
         assertEquals(base, w.reactionScale(guard), 1e-4f)
     }
 
     @Test
-    fun chaffDazesTheWholeHallway() {
+    fun packingPeanutsDazeTheWholeHallway() {
         for (level in 0..2) {
             val w = world(Hero.HAWK)
-            if (level > 0) w.perks[Perk.CHAFF] = level
+            if (level > 0) w.perks[Perk.PACKING_PEANUTS] = level
             park(w)
             val far = enemy(w, EnemyKind.AGENT, 12.5f)
             val turret = enemy(w, EnemyKind.TURRET, 11f)
             blast(w, 2f)
+            assertEquals(level > 0, w.fx.particles.any { it.kind == ParticleKind.PEANUT })
             if (level == 0) {
                 assertEquals(EnemyState.PATROL, far.state)
             } else {
                 assertEquals(EnemyState.STUNNED, far.state)
                 assertEquals(EnemyState.STUNNED, turret.state)
-                assertEquals(if (level >= 2) World.CHAFF_STUN_2 else World.CHAFF_STUN, far.stunFor, 1e-4f)
+                assertEquals(if (level >= 2) World.PEANUTS_STUN_2 else World.PEANUTS_STUN, far.stunFor, 1e-4f)
             }
         }
     }
 
     /** Hits that missed out of [trials] bullets to the chest. */
-    private fun camoMisses(level: Int, trials: Int = 200): Int {
+    private fun fragileMisses(level: Int, trials: Int = 200): Int {
         val w = world(Hero.HAWK)
-        if (level > 0) w.perks[Perk.CAMO] = level
+        if (level > 0) w.perks[Perk.FRAGILE] = level
         repeat(trials) {
             val p = w.player
             p.hp = p.maxHp
@@ -583,20 +628,20 @@ class HeroTest {
             run(w, 0.25f)
             w.bullets.clear()
         }
-        return w.stats.camoMisses
+        return w.stats.fragileMisses
     }
 
     @Test
-    fun camoMissesOneHitInFourOrOneInThree() {
-        assertEquals(0, camoMisses(0))
-        val one = camoMisses(1)
-        val two = camoMisses(2)
+    fun fragileMissesOneHitInFourOrOneInThree() {
+        assertEquals(0, fragileMisses(0))
+        val one = fragileMisses(1)
+        val two = fragileMisses(2)
         assertTrue("LV 1: $one / 200", one in 28..75)
         assertTrue("LV 2: $two / 200", two in 45..90)
-        assertEquals("seeded: the same run misses the same", one, camoMisses(1))
+        assertEquals("seeded: the same run misses the same", one, fragileMisses(1))
         // A miss is a blocked hit: no heart lost, a MISSED popup.
         val w = world(Hero.HAWK)
-        w.perks[Perk.CAMO] = 2
+        w.perks[Perk.FRAGILE] = 2
         var missed = false
         var tries = 0
         while (!missed && tries++ < 50) {
@@ -610,7 +655,7 @@ class HeroTest {
                 assertEquals(hp, w.player.hp)
                 assertTrue(w.fx.texts.any { it.text == Popup.MISSED })
                 assertTrue(w.player.invuln > 0f)
-                assertTrue(w.player.camoTime > 0f)
+                assertTrue(w.player.fragileTime > 0f)
             }
             w.player.hp = w.player.maxHp
         }
@@ -623,7 +668,8 @@ class HeroTest {
         for (h in Hero.entries) assertEquals(h, Hero.fromSaved(h.name))
         assertEquals(Hero.HAWK, Hero.fromSaved("VIPER"))
         assertEquals(Hero.HAWK, Hero.fromSaved("MONGOOSE"))
-        assertEquals(Hero.WOLF, Hero.fromSaved("BADGER"))
+        assertEquals(Hero.LION, Hero.fromSaved("BADGER"))
+        assertEquals(Hero.LION, Hero.fromSaved("WOLF"))
         assertEquals(null, Hero.fromSaved(null))
         assertEquals(null, Hero.fromSaved("NOBODY"))
     }

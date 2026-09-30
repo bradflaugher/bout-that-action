@@ -46,6 +46,8 @@ internal class DrumTuning(
     /** Tom ring time and how far its pitch drops (low: a hand drum's slap; high: a big tom's boom). */
     val tomDecay: Float = 0.42f,
     val tomBend: Float = 0.7f,
+    /** > 0: the whole kit through a lowpass at this cutoff (Hz), like drums sampled off a record. */
+    val busCutoff: Float = 0f,
 )
 
 /** Base for one-shot drum voices rendering into stereo + reverb-send buffers. */
@@ -405,9 +407,14 @@ internal class DrumKit(private val sr: Int) {
     private var held = 0f
     private var heldR = 0f
     private var crushCount = 0
+    private val busL = Svf()
+    private val busR = Svf()
 
     fun setTuning(t: DrumTuning) {
         tuning = t
+        if (t.busCutoff > 0f) {
+            busL.setHz(t.busCutoff, 0.6f, sr); busR.setHz(t.busCutoff, 0.6f, sr)
+        }
         for (v in all) v.t = t
         kick.level = t.kickLevel; snare.level = t.snareLevel; clap.level = t.clapLevel
         hat.level = t.hatLevel; crash.level = t.crashLevel; jingle.level = t.jingleLevel; jingle.send = 0.12f
@@ -442,6 +449,11 @@ internal class DrumKit(private val sr: Int) {
                     crushCount = t.crush - 1; held = l[i]; heldR = r[i]
                 }
                 l[i] = held; r[i] = heldR
+            }
+        }
+        if (t.busCutoff > 0f) {
+            for (i in 0 until n) {
+                l[i] = busL.lp(l[i]); r[i] = busR.lp(r[i])
             }
         }
     }

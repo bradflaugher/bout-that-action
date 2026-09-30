@@ -36,19 +36,19 @@ enum class Perk(
     CANDY_RAIN("CANDY RAIN", "Every 8th kill heals a heart (LV 2: every 5th)", 2, "Sweet, sweet healing.", Hero.BULL),
 
     // ---- FOX
-    DISGUISE("DISGUISE", "Guards take twice as long to react to you", 1, "Nice moustache, sir.", Hero.FOX),
-    LASER_WATCH("LASER WATCH", "Your shots cut lamps; one swat kills them all", 1, "It also tells the time.", Hero.FOX),
-    DEAD_DROP("DEAD DROP", "SILENT kills drop loot 2x as often (LV 2: 3x)", 2, "Leave it under the fern.", Hero.FOX),
+    SHOWSTOPPER("SHOWSTOPPER", "Guards take twice as long to react to you", 1, "Did she just wink?", Hero.FOX),
+    SPIN_KICK("SPIN KICK", "Takedowns also kick the nearest guard flat (LV 2: two)", 2, "360 degrees of nope.", Hero.FOX),
+    FLYING_KICK("FLYING KICK", "Jump into a guard to kick him flat, Heavies too", 1, "Leg day paid off.", Hero.FOX),
 
-    // ---- WOLF
-    KABOOM("KABOOM", "Bigger blasts that knock survivors flat", 1, "Everybody down.", Hero.WOLF),
-    VENT_CRAWL("VENT CRAWL", "Passages twice as quick; arrive unseen", 1, "Dusty, but right on time.", Hero.WOLF),
-    ADRENALINE("ADRENALINE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "Last heart, best heart.", Hero.WOLF),
+    // ---- LION
+    CONFETTI("CONFETTI", "Bigger blasts that knock survivors flat", 1, "Surprise! Everybody down.", Hero.LION),
+    CLOWN_CAR("CLOWN CAR", "Passages twice as quick; arrive unseen", 1, "How many fit in there?", Hero.LION),
+    ENCORE("ENCORE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "The crowd goes wild.", Hero.LION),
 
     // ---- HAWK
-    JAMMER("JAMMER", "Drones and turrets take twice as long to react", 1, "Static on every channel.", Hero.HAWK),
-    CHAFF("CHAFF", "Grenades daze the whole hallway (LV 2: longer)", 2, "Shiny. Confusing. Effective.", Hero.HAWK),
-    CAMO("CAMO", "1 in 4 hits miss you (LV 2: 1 in 3)", 2, "Just a very tall fern.", Hero.HAWK),
+    SIGNED_FOR("SIGNED FOR", "Drones and turrets take twice as long to react", 1, "Sign here, and here, and here.", Hero.HAWK),
+    PACKING_PEANUTS("PACKING PEANUTS", "Grenades daze the whole hallway (LV 2: longer)", 2, "Contents may have shifted.", Hero.HAWK),
+    FRAGILE("FRAGILE", "1 in 4 hits miss you (LV 2: 1 in 3)", 2, "Handle with care.", Hero.HAWK),
     ;
 
     /** Can [who] find this in a STASH? Everyone's perks, plus their own three. */

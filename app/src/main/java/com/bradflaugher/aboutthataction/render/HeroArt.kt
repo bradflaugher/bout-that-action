@@ -15,7 +15,7 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
     val look = Look()
 
     var hero = Hero.BULL
-    private val kits = arrayOf(BullKit(this), FoxKit(this), WolfKit(this), HawkKit(this))
+    private val kits = arrayOf(BullKit(this), FoxKit(this), LionKit(this), HawkKit(this))
     val kit: HeroKit get() = kits[hero.ordinal]
 
     // ---- Set by the poser.
@@ -41,6 +41,13 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
     fun setup(dir: Int, foot: Float) {
         k.setup(dir, foot - 0.045f * HS, HS, kit.bulk)
         k.headR *= kit.head
+        // Longer legs or a shorter back, for a hero built differently (1 = the shared rig).
+        val legs = kit.legs
+        if (legs != 1f) {
+            k.legF.len1 *= legs; k.legF.len2 *= legs
+            k.legB.len1 *= legs; k.legB.len2 *= legs
+        }
+        if (kit.spine != 1f) k.spineLen *= kit.spine
         // Heads up, stacked over the spine: no jutting chin.
         k.headFwd = -0.015f
         k.headLean = 0.15f
@@ -51,6 +58,7 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
     /** The full figure. [skipFrontArm] leaves the near arm (and what goes over it) for a grapple. */
     fun draw(ghost: Boolean, skipFrontArm: Boolean = false) {
         val kit = kit
+        kit.pose()
         kit.look(look, ghost)
         p.twoPass {
             body.arm(k.armB, look, far = true)
@@ -180,6 +188,9 @@ internal abstract class HeroKit(val a: HeroArt) {
     abstract val bulk: Float
     /** Head size on the rig. */
     open val head: Float = 1f
+    /** Leg length and spine length on the rig (1 = the shared proportions). */
+    open val legs: Float = 1f
+    open val spine: Float = 1f
     /** The signature colour (beacon, echoes). */
     abstract val accent: Int
     /** The back-contour rim light, lifted for light. */
@@ -199,6 +210,8 @@ internal abstract class HeroKit(val a: HeroArt) {
     open val pistolScale: Float = 1.3f
     open val flashSize: Float = 0.15f
 
+    /** Before the figure is painted: the hero's own touch on the posed rig (nothing, by default). */
+    open fun pose() {}
     abstract fun look(l: Look, ghost: Boolean)
     /** After the body pen's arm: cuffs, sleeves, gloves. */
     open fun arm(l: Limb, far: Boolean) {}
@@ -217,6 +230,11 @@ internal abstract class HeroKit(val a: HeroArt) {
     open fun strips() {}
     /** The one light left on while hidden in a doorway. */
     abstract fun doorGlint(time: Float)
+    /**
+     * The hero's own mark on the box's front face, over the printing (box space: x ±0.48,
+     * y -0.8 floor-up to 0; [rs] is the trailing side, ±1). None by default.
+     */
+    open fun boxDecal(rs: Float) {}
 
     // ------------------------------------------------------------ helpers
 

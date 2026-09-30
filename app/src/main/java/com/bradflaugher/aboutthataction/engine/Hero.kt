@@ -23,6 +23,8 @@ enum class Hero(
     val runSpeed: Float = 1f,
     /** Takedowns work on a Heavy from the front too (no bouncing off his armor). */
     val tacklesHeavies: Boolean = false,
+    /** Extra takedown reach, in world units, on top of everyone's (long legs, long kicks). */
+    val takedownReach: Float = 0f,
     /** Rounds in the pistol's magazine. */
     val magSize: Int = 6,
     /** Guards' reaction time once they spot you, as a multiple. */
@@ -49,24 +51,33 @@ enum class Hero(
         0xFF4DA8FF.toInt(),
         extraHearts = 1, runSpeed = 1.1f, tacklesHeavies = true,
     ),
-    /** The silver-haired gentleman spy in a long crimson coat. Smooth, quiet, deadly. */
+    /**
+     * A street-brawler heroine in a cropped red leather jacket, a long copper ponytail whipping
+     * behind her. Fights with her feet: the longest takedown reach in the building.
+     */
     FOX(
-        "FOX", "Gentleman spy. Silver fox.",
-        "8-round mag, quick trigger; guards are slow to react", "Pressed, never stressed.",
+        "FOX", "Street brawler. Ponytail of doom.",
+        "Longer kicks, quick trigger; guards are slow to react", "Kicks first. Questions never.",
         0xFFE8413A.toInt(),
-        magSize = 8, reactionScale = 1.35f, fireScale = 0.85f,
+        takedownReach = 0.35f, reactionScale = 1.35f, fireScale = 0.85f,
     ),
-    /** A bald small-town sheriff with a horseshoe moustache who will not stay down. */
-    WOLF(
-        "WOLF", "Small-town sheriff. Lone wolf.",
-        "Shrugs off one fatal hit a run; +1 grenade", "Boots on. Stubborn required.",
-        0xFFDA8CFF.toInt(),
+    /**
+     * A huge strongman who ran away from the circus: clown greasepaint, a red nose, a golden
+     * lion's mane of a wig and a curled moustache. Loud, proud, and he will not stay down.
+     */
+    LION(
+        "LION", "Circus strongman. Escaped.",
+        "Shrugs off one fatal hit a run; +1 grenade", "The show must go on.",
+        0xFFFFC23A.toInt(),
         secondWind = true, extraGrenades = 1,
     ),
-    /** A mohawked jungle commando, sharp-eyed and fearless. Lives in the box, unplugs the robots, never makes a sound. */
+    /**
+     * A deadpan parcel courier in brown shorts and a cap, mohawk poking out, scanner glowing
+     * lime. Lives in a box (of course), unplugs the robots, and is always on time.
+     */
     HAWK(
-        "HAWK", "Jungle commando. Eagle-eyed.",
-        "Sneaks unseen, unplugs robots, sly box, fast reloads", "A box is a lifestyle.",
+        "HAWK", "Parcel courier. Always on time.",
+        "Sneaks unseen, unplugs robots, sly box, fast reloads", "Goes postal. Politely.",
         0xFF58D25A.toInt(),
         boxPro = true, sabotage = true, sneakSight = 0.75f, reloadScale = 0.75f,
     ),
@@ -75,12 +86,12 @@ enum class Hero(
     companion object {
         /**
          * A hero saved by [name], or null if there's none by that name. Older builds called
-         * HAWK "VIPER" (and, briefly, "MONGOOSE") and WOLF "BADGER".
+         * HAWK "VIPER" (and, briefly, "MONGOOSE") and LION "WOLF" (and, before that, "BADGER").
          */
         fun fromSaved(name: String?): Hero? = when (name) {
             null -> null
             "VIPER", "MONGOOSE" -> HAWK
-            "BADGER" -> WOLF
+            "WOLF", "BADGER" -> LION
             else -> entries.firstOrNull { it.name == name }
         }
     }

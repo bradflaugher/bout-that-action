@@ -158,12 +158,12 @@ class World(val config: RunConfig) {
     private var reflexTime = 0f
     private var heavyBounceCooldown = 0f
 
-    /** CAMO's rolls, on their own stream so they never shift anything else in the run. */
-    private val camoRng = Rng(seed xor CAMO_KEY)
+    /** FRAGILE's rolls, on their own stream so they never shift anything else in the run. */
+    private val fragileRng = Rng(seed xor FRAGILE_KEY)
     /** Kills since CANDY RAIN was picked (or last paid out). */
     private var candyKills = 0
 
-    /** WOLF: the once-a-run shrug-off of a fatal hit has been spent. */
+    /** LION: the once-a-run shrug-off of a fatal hit has been spent. */
     var secondWindUsed = false
         private set
 
@@ -171,24 +171,24 @@ class World(val config: RunConfig) {
     val slowMo: Boolean get() = player.slowMoTime > 0f || reflexTime > 0f
     val maxGrenades: Int get() = 3 + stacks(Perk.DEMOLITION) + hero.extraGrenades
 
-    /** How long a passage takes (VENT CRAWL halves it); the hallway swaps halfway through. */
-    val passageTime: Float get() = if (stacks(Perk.VENT_CRAWL) > 0) PASSAGE_TIME * VENT_CRAWL_SCALE else PASSAGE_TIME
+    /** How long a passage takes (CLOWN CAR halves it); the hallway swaps halfway through. */
+    val passageTime: Float get() = if (stacks(Perk.CLOWN_CAR) > 0) PASSAGE_TIME * CLOWN_CAR_SCALE else PASSAGE_TIME
 
-    /** ADRENALINE is pumping: on your last heart with the perk, you shoot and run faster. */
-    val adrenaline: Boolean get() = stacks(Perk.ADRENALINE) > 0 && player.hp == 1 && player.state != PlayerState.DEAD
+    /** ENCORE: on your last heart with the perk, the crowd goes wild and you shoot and run faster. */
+    val encore: Boolean get() = stacks(Perk.ENCORE) > 0 && player.hp == 1 && player.state != PlayerState.DEAD
 
-    /** Speed-up while [adrenaline]: 1.3x, 1.5x at LV 2. */
-    private val adrenalineBoost: Float get() = if (!adrenaline) 1f else if (stacks(Perk.ADRENALINE) >= 2) 1.5f else 1.3f
+    /** Speed-up while [encore]: 1.3x, 1.5x at LV 2. */
+    private val encoreBoost: Float get() = if (!encore) 1f else if (stacks(Perk.ENCORE) >= 2) 1.5f else 1.3f
 
-    /** The hero's running pace right now (ADRENALINE included). */
-    val runSpeed: Float get() = RUN_SPEED * hero.runSpeed * adrenalineBoost
+    /** The hero's running pace right now (ENCORE included). */
+    val runSpeed: Float get() = RUN_SPEED * hero.runSpeed * encoreBoost
 
-    /** How much longer than usual guards take to react once they spot you (FOX's trait, DISGUISE). */
-    val reactionScale: Float get() = hero.reactionScale * if (stacks(Perk.DISGUISE) > 0) 2f else 1f
+    /** How much longer than usual guards take to react once they spot you (FOX's trait, SHOWSTOPPER). */
+    val reactionScale: Float get() = hero.reactionScale * if (stacks(Perk.SHOWSTOPPER) > 0) 2f else 1f
 
-    /** How slow [e] is to react once it spots you: [reactionScale], and JAMMER on the machines. */
+    /** How slow [e] is to react once it spots you: [reactionScale], and SIGNED FOR on the machines. */
     fun reactionScale(e: Enemy): Float =
-        reactionScale * if (stacks(Perk.JAMMER) > 0 && (e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET)) 2f else 1f
+        reactionScale * if (stacks(Perk.SIGNED_FOR) > 0 && (e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET)) 2f else 1f
 
     /** Jumps before touching down: one, plus the hero's or the perk's second. */
     val maxJumps: Int get() = 1 + stacks(Perk.DOUBLE_JUMP)
@@ -956,7 +956,7 @@ class World(val config: RunConfig) {
         }
     }
 
-    private fun takedownReach() = 0.55f + 0.3f * stacks(Perk.CQC)
+    private fun takedownReach() = 0.55f + hero.takedownReach + 0.3f * stacks(Perk.CQC)
 
     private fun stepOut() {
         val p = player
@@ -1005,8 +1005,10 @@ class World(val config: RunConfig) {
         }
         p.reflexCooldown -= dt
         p.swatTime -= dt
-        p.camoTime -= dt
-        // VENT CRAWL's head start only runs down once you're out where they could see you.
+        p.flyingKickTime -= dt
+        p.spinKickTime -= dt
+        p.fragileTime -= dt
+        // CLOWN CAR's head start only runs down once you're out where they could see you.
         if (p.unseenTime > 0f && (p.state == PlayerState.NORMAL || p.state == PlayerState.BOX)) p.unseenTime -= dt
         if (p.weapon != null) {
             p.weaponTime -= dt
@@ -1069,7 +1071,7 @@ class World(val config: RunConfig) {
                     p.state = PlayerState.NORMAL
                     p.stateTime = 0f
                     p.facing = if (moveAxis != 0) moveAxis else if (p.x < Geo.FLOOR_W / 2f) 1 else -1
-                    if (stacks(Perk.VENT_CRAWL) > 0) p.unseenTime = VENT_UNSEEN_TIME
+                    if (stacks(Perk.CLOWN_CAR) > 0) p.unseenTime = CLOWN_CAR_UNSEEN
                     arriveHidden()
                 }
             }
@@ -1200,6 +1202,7 @@ class World(val config: RunConfig) {
 
     private fun checkTakedown() {
         val p = player
+        if (!p.grounded && p.state == PlayerState.NORMAL && stacks(Perk.FLYING_KICK) > 0 && flyingKick()) return
         if (p.z > 0.55f) return
         val reach = takedownReach()
         for (e in enemies) {
@@ -1280,6 +1283,60 @@ class World(val config: RunConfig) {
         afterTakedown(e)
     }
 
+    /**
+     * FOX's FLYING KICK: airborne, she kicks flat the first guard her boots meet below his head
+     * (a Heavy's armor, a mid-slash ninja, from any side). Landing on his head is still a stomp.
+     */
+    private fun flyingKick(): Boolean {
+        val p = player
+        val reach = takedownReach()
+        for (e in enemies) {
+            if (!here(e) || !e.alive || e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET) continue
+            if (e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
+            val dx = e.x - p.x
+            if (abs(dx) > reach + e.halfWidth || p.z >= e.z + e.height - FLYING_KICK_HEADROOM) continue
+            val dir = if (dx > 0f) 1 else if (dx < 0f) -1 else p.facing
+            if (e.asleep) stats.napTakedowns++
+            e.asleep = false
+            takedowns++
+            stats.flyingKicks++
+            events += GameEvent.Takedown
+            kill(e, KillMethod.TAKEDOWN, dir)
+            e.deathVx = dir * 7f
+            e.deathVz = 4.5f
+            p.facing = dir
+            // Off his chest and back up: a little hop the way she came.
+            p.vx = -dir * FLYING_KICK_REBOUND
+            p.vz = max(p.vz, FLYING_KICK_HOP)
+            p.invuln = max(p.invuln, KICK_INVULN)
+            p.flyingKickTime = KICK_POSE_TIME
+            hitStop = max(hitStop, 0.05f)
+            shake = max(shake, 0.35f)
+            fx.text(Popup.FLYING_KICK, e.x, Geo.groundY(e.floor) - e.height - 0.8f, TextStyle.TAKEDOWN, 0.8f)
+            fx.ring(e.x - dir * 0.2f, Geo.groundY(e.floor) - e.height * 0.6f, 0.9f)
+            afterTakedown(e)
+            return true
+        }
+        return false
+    }
+
+    /** FOX's SPIN KICK: the guard next to a takedown gets a boot too, knocked out cold. */
+    private fun spinKick(e: Enemy) {
+        val p = player
+        val dir = if (e.x > p.x) 1 else if (e.x < p.x) -1 else -p.facing
+        if (e.asleep) stats.napTakedowns++
+        e.asleep = false
+        takedowns++
+        stats.spinKicks++
+        p.spinKickTime = KICK_POSE_TIME
+        events += GameEvent.Takedown
+        kill(e, KillMethod.TAKEDOWN, dir)
+        e.deathVx = dir * 6f
+        e.deathVz = 3.5f
+        fx.text(Popup.SPIN_KICK, e.x, Geo.groundY(e.floor) - e.height - 0.8f, TextStyle.TAKEDOWN, 0.8f)
+        fx.burst(ParticleKind.DUST, e.x, Geo.groundY(e.floor) - 0.1f, 8, 3f, 0.5f, 0.14f, upBias = 0.3f)
+    }
+
     /** HAWK's SABOTAGE: a drone or turret unplugged by hand. A takedown, so it's quiet in SILENT. */
     private fun unplug(e: Enemy, dir: Int) {
         val p = player
@@ -1300,10 +1357,26 @@ class World(val config: RunConfig) {
         afterTakedown(e)
     }
 
-    /** Every takedown (a choke, a tackle, a STIFF ARM): CQC MASTER's heal and AFTERSHOCK's shake. */
+    /**
+     * Every takedown (a choke, a tackle, a STIFF ARM, a FLYING KICK): CQC MASTER's heal,
+     * AFTERSHOCK's shake and SPIN KICK's bonus boot.
+     */
     private fun afterTakedown(e: Enemy) {
         val p = player
         val y = Geo.groundY(e.floor) - 1.1f
+        // SPIN KICK: the nearest guard within a spin of her (two at LV 2) goes down with him.
+        val spin = stacks(Perk.SPIN_KICK)
+        if (spin > 0) {
+            enemies
+                .filter {
+                    it !== e && it.floor == e.floor && it.hall == e.hall && it.alive &&
+                        !(it.state == EnemyState.EMERGING && it.stateTime < 0.2f) &&
+                        it.kind != EnemyKind.DRONE && it.kind != EnemyKind.TURRET && abs(it.x - p.x) <= SPIN_KICK_REACH
+                }
+                .sortedBy { abs(it.x - p.x) }
+                .take(if (spin >= 2) 2 else 1)
+                .forEach { spinKick(it) }
+        }
         if (stacks(Perk.CQC) > 0 && ++cqcTakedowns % 2 == 0 && p.hp < p.maxHp) {
             p.hp++
             fx.text("+♥", p.x, y - 1.4f, TextStyle.PICKUP)
@@ -1504,7 +1577,7 @@ class World(val config: RunConfig) {
     private fun startReload() {
         val p = player
         if (p.reloading || p.ammo >= p.magSize) return
-        p.reloadTotal = RELOAD_TIME * Math.pow(0.8, stacks(Perk.RAPID_FIRE).toDouble()).toFloat() * hero.reloadScale / adrenalineBoost
+        p.reloadTotal = RELOAD_TIME * Math.pow(0.8, stacks(Perk.RAPID_FIRE).toDouble()).toFloat() * hero.reloadScale / encoreBoost
         p.reloadTime = p.reloadTotal
         events += GameEvent.Reload
     }
@@ -1523,8 +1596,6 @@ class World(val config: RunConfig) {
             .filter { hs.lightAlive[it] && abs(lights[it] - p.x) < LIGHT_REACH }
             .minByOrNull { abs(lights[it] - p.x) } ?: return false
         breakLight(hs, li)
-        // LASER WATCH: one swat and the whole hallway's lamps go with it.
-        if (stacks(Perk.LASER_WATCH) > 0) for (i in lights.indices) breakLight(hs, i)
         p.swatTime = SWAT_TIME
         return true
     }
@@ -1595,7 +1666,7 @@ class World(val config: RunConfig) {
                 alert(e)
             }
         }
-        p.fireCooldown = cooldown / adrenalineBoost
+        p.fireCooldown = cooldown / encoreBoost
         p.sinceShot = 0f
         p.unseenTime = 0f // a muzzle flash gives anyone away
         events += GameEvent.Shot(byPlayer = true, heavy = p.weapon == PickupKind.SHOTGUN, pan = pan(p.x))
@@ -1649,8 +1720,8 @@ class World(val config: RunConfig) {
 
     private fun explode(x: Float, z: Float, floor: Int, hall: Int, baseRadius: Float, byGhost: Boolean = false, grenade: Boolean = false) {
         val y = Geo.groundY(floor) - z
-        val kaboom = stacks(Perk.KABOOM) > 0
-        val radius = baseRadius + if (kaboom) KABOOM_RADIUS else 0f
+        val confetti = stacks(Perk.CONFETTI) > 0
+        val radius = baseRadius + if (confetti) CONFETTI_RADIUS else 0f
         events += GameEvent.Explosion(big = radius > 2.5f, pan = pan(x))
         shake = max(shake, if (byGhost) 0.5f else 0.9f)
         flash = Flash.WHITE
@@ -1659,24 +1730,28 @@ class World(val config: RunConfig) {
         fx.burst(ParticleKind.EMBER, x, y, 36, 9f, 0.8f, 0.14f, upBias = 0.3f)
         fx.burst(ParticleKind.SMOKE, x, y, 14, 2.5f, 1.3f, 0.5f, upBias = 0.5f)
         fx.burst(ParticleKind.SPARK, x, y, 18, 12f, 0.3f, 0.1f)
+        // CONFETTI: the big top's finale, streamers and all.
+        if (confetti) fx.burst(ParticleKind.CONFETTI, x, y, 40, 8f, 1.6f, 0.13f, upBias = 0.6f)
         quietBlast = byGhost
         for (e in enemies.toList()) {
             if (e.floor == floor && e.hall == hall && e.alive && abs(e.x - x) < radius) {
                 damageEnemy(e, 3, KillMethod.EXPLOSION, if (e.x >= x) 1 else -1)
-                // KABOOM: whoever lives through it is on the floor for a bit.
-                if (kaboom && e.alive) stun(e, KABOOM_STUN)
-            } else if (kaboom && e.floor == floor && e.hall == hall && e.alive && abs(e.x - x) < radius * 2f) {
-                stun(e, KABOOM_STUN)
+                // CONFETTI: whoever lives through it is on the floor for a bit.
+                if (confetti && e.alive) stun(e, CONFETTI_STUN)
+            } else if (confetti && e.floor == floor && e.hall == hall && e.alive && abs(e.x - x) < radius * 2f) {
+                stun(e, CONFETTI_STUN)
             } else if (e.floor == floor && e.hall == hall && e.asleep && e.alive && !byGhost) {
                 alert(e) // nobody sleeps through that (but a box going pop in a hug is only a pop)
             }
         }
         quietBlast = false
-        // CHAFF: a grenade also bursts into foil that dazes everyone in the hallway, near or far.
-        val emp = stacks(Perk.CHAFF)
-        if (grenade && emp > 0) {
+        // PACKING PEANUTS: a grenade also bursts into a storm of peanuts that dazes everyone in the
+        // hallway, near or far.
+        val peanuts = stacks(Perk.PACKING_PEANUTS)
+        if (grenade && peanuts > 0) {
             fx.ring(x, y, Geo.FLOOR_W * 0.5f, 0.6f)
-            for (e in enemies) if (e.floor == floor && e.hall == hall && e.alive) stun(e, if (emp >= 2) CHAFF_STUN_2 else CHAFF_STUN)
+            fx.burst(ParticleKind.PEANUT, x, y, 44, 11f, 1.5f, 0.16f, upBias = 0.4f)
+            for (e in enemies) if (e.floor == floor && e.hall == hall && e.alive) stun(e, if (peanuts >= 2) PEANUTS_STUN_2 else PEANUTS_STUN)
         }
         // A GHOST BOX ambush goes off in your arms: it leaves the ceiling alone rather than drop a light on you.
         if (!byGhost) hall(floor, hall)?.let { hs ->
@@ -1845,8 +1920,6 @@ class World(val config: RunConfig) {
             }
         }
         var dropChance = 0.16f * (1 + stacks(Perk.LUCKY)) + if (e.kind == EnemyKind.HEAVY || e.kind == EnemyKind.DEMON) 0.25f else 0f
-        // DEAD DROP: a quiet kill leaves twice the loot behind (three times at LV 2).
-        if (quiet) dropChance *= 1 + stacks(Perk.DEAD_DROP)
         if (rng.chance(dropChance)) dropPickup(e.x, e.floor, e.hall)
     }
 
@@ -1872,12 +1945,12 @@ class World(val config: RunConfig) {
         if (p.state == PlayerState.DOOR || p.state == PlayerState.STASH || p.state == PlayerState.PASSAGE || p.state == PlayerState.TAKEDOWN) return
         val hurt = Hurt(cause, by, p.floor, zone, hallTime, ambush, hazard)
         val y = Geo.groundY(p.floorF) - p.z - 0.9f
-        // CAMO: 1 in 4 (1 in 3 at LV 2) misses you, before anything else gets a say.
-        val camo = stacks(Perk.CAMO)
-        if (camo > 0 && camoRng.nextInt(if (camo >= 2) 3 else 4) == 0) {
-            p.invuln = CAMO_INVULN
-            p.camoTime = CAMO_SHOW
-            stats.camoMisses++
+        // FRAGILE: 1 in 4 (1 in 3 at LV 2) misses you, before anything else gets a say.
+        val fragile = stacks(Perk.FRAGILE)
+        if (fragile > 0 && fragileRng.nextInt(if (fragile >= 2) 3 else 4) == 0) {
+            p.invuln = FRAGILE_INVULN
+            p.fragileTime = FRAGILE_SHOW
+            stats.fragileMisses++
             events += GameEvent.ShieldBlock
             fx.text(Popup.MISSED, p.x, y - 1.3f, TextStyle.WARN, 0.8f)
             return
@@ -1911,7 +1984,7 @@ class World(val config: RunConfig) {
         comboTimer = 0f
         fx.burst(ParticleKind.SHARD, p.x, y, 10, 5f, 0.5f, 0.1f)
         if (p.hp <= 0 && hero.secondWind && !secondWindUsed) {
-            // WOLF: not today, not like this. Once a run he gets back up on one heart.
+            // LION: not today, not like this. Once a run he gets back up on one heart.
             secondWindUsed = true
             stats.secondWinds++
             p.hp = 1
@@ -1984,7 +2057,7 @@ class World(val config: RunConfig) {
             }
             val hs = hall(e.floor, e.hall) ?: continue
             val heat = hs.plan.heat
-            // VENT CRAWL: fresh out of a passage, nobody can make you out yet.
+            // CLOWN CAR: fresh out of a passage, nobody can make you out yet.
             val visible = playerVisibleOn(e.floor, e.hall) && player.unseenTime <= 0f
             val dx = player.x - e.x
             val dist = abs(dx)
@@ -2209,7 +2282,6 @@ class World(val config: RunConfig) {
             if (b.gravity) b.vz -= 9f * dt
             val oldX = b.x
             b.x += b.vx * dt
-            if (b.byPlayer && !b.cutLamp && stacks(Perk.LASER_WATCH) > 0) cutLamp(b, oldX)
             b.z += b.vz * dt
             val y = Geo.groundY(b.floor) - b.z
             if (b.range <= 0f) b.dead = true
@@ -2283,21 +2355,6 @@ class World(val config: RunConfig) {
                 }
             }
             if (b.dead) it.remove()
-        }
-    }
-
-    /** LASER WATCH: a shot slices the first lit lamp it passes under (one lamp a shot). */
-    private fun cutLamp(b: Bullet, fromX: Float) {
-        val hs = hall(b.floor, b.hall) ?: return
-        val lo = min(fromX, b.x)
-        val hi = max(fromX, b.x)
-        val lights = hs.plan.lights
-        for (i in lights.indices) {
-            if (hs.lightAlive[i] && lights[i] in lo..hi) {
-                b.cutLamp = true
-                breakLight(hs, i)
-                return
-            }
         }
     }
 
@@ -2720,25 +2777,36 @@ class World(val config: RunConfig) {
         const val QUAKE_RADIUS = 3.5f
         const val QUAKE_RADIUS_2 = 6f
         const val QUAKE_STUN = 1.8f
+        /** FLYING KICK: her boots connect below this far under his head (above it is a stomp)... */
+        const val FLYING_KICK_HEADROOM = 0.35f
+        /** ...and she hops back off him this fast, and up at least this fast... */
+        const val FLYING_KICK_REBOUND = 4f
+        const val FLYING_KICK_HOP = 6f
+        /** ...with a moment's cover (FLYING KICK and SPIN KICK). */
+        const val KICK_INVULN = 0.35f
+        /** How long FOX holds a flying kick's extended leg (and a spin kick's sweep) on screen. */
+        const val KICK_POSE_TIME = 0.3f
+        /** SPIN KICK: the guards it can reach, this far from her. */
+        const val SPIN_KICK_REACH = 2.2f
         /** CANDY RAIN: a heart back every this many kills (LV 2: [CANDY_EVERY_2]). */
         const val CANDY_EVERY = 8
         const val CANDY_EVERY_2 = 5
-        /** KABOOM: blasts reach this much further, and knock survivors within twice the radius flat. */
-        const val KABOOM_RADIUS = 0.8f
-        const val KABOOM_STUN = 2.5f
-        /** VENT CRAWL: passages take this fraction of [PASSAGE_TIME]... */
-        const val VENT_CRAWL_SCALE = 0.5f
+        /** CONFETTI: blasts reach this much further, and knock survivors within twice the radius flat. */
+        const val CONFETTI_RADIUS = 0.8f
+        const val CONFETTI_STUN = 2.5f
+        /** CLOWN CAR: passages take this fraction of [PASSAGE_TIME]... */
+        const val CLOWN_CAR_SCALE = 0.5f
         /** ...and nobody can see you for this long once you're out in the open. */
-        const val VENT_UNSEEN_TIME = 1.5f
-        /** CHAFF: a grenade dazes the whole hallway this long (LV 2: [CHAFF_STUN_2]). */
-        const val CHAFF_STUN = 2f
-        const val CHAFF_STUN_2 = 3.5f
-        /** CAMO: a missed hit leaves you untouchable this long (so a laser can't just re-roll)... */
-        const val CAMO_INVULN = 0.5f
-        /** ...and shimmers this long ([Player.camoTime]). */
-        const val CAMO_SHOW = 0.4f
-        private const val CAMO_KEY = 0x6717C4L
-        /** WOLF's second wind: back up on one heart, untouchable this long. */
+        const val CLOWN_CAR_UNSEEN = 1.5f
+        /** PACKING PEANUTS: a grenade dazes the whole hallway this long (LV 2: [PEANUTS_STUN_2]). */
+        const val PEANUTS_STUN = 2f
+        const val PEANUTS_STUN_2 = 3.5f
+        /** FRAGILE: a missed hit leaves you untouchable this long (so a laser can't just re-roll)... */
+        const val FRAGILE_INVULN = 0.5f
+        /** ...and shimmers this long ([Player.fragileTime]). */
+        const val FRAGILE_SHOW = 0.4f
+        private const val FRAGILE_KEY = 0x6717C4L
+        /** LION's second wind: back up on one heart, untouchable this long. */
         const val SECOND_WIND_INVULN = 2f
 
         // ---- Controls & feel (see docs/CONTROLS.md) ----

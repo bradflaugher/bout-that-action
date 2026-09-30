@@ -72,6 +72,28 @@ internal class Patch(
     val pluck: Float = 0f,
     /** How long a plucked string rings (seconds to -60 dB) while the key is held. */
     val ring: Float = 1.5f,
+    /**
+     * A struck note starts this many semitones sharp and falls to pitch (an 808's punch);
+     * a glide into a tied note doesn't restrike it. [pitchDecay] is its time constant.
+     */
+    val pitchEnv: Float = 0f,
+    val pitchDecay: Float = 0.04f,
+    /**
+     * > 0: two-operator FM. A sine modulator at [fmRatio] times the pitch phase-modulates osc 1
+     * (use a SINE: an FM electric piano, a slap bass, FM brass). This is its peak index in
+     * radians; it falls from there to [fmSustain] of it over [fmDecay] seconds (to -60 dB) and
+     * scales with velocity, so accents bark. [fmFeedback] feeds the modulator back into itself
+     * (grit: saw-like brass). 0 leaves the voice exactly as it was.
+     */
+    val fm: Float = 0f,
+    val fmRatio: Float = 1f,
+    val fmDecay: Float = 0.4f,
+    val fmSustain: Float = 0f,
+    val fmFeedback: Float = 0f,
+    /** A second, parallel modulator at [fmRatio2] (an electric piano's tine) with its own quick [fmDecay2]. */
+    val fm2: Float = 0f,
+    val fmRatio2: Float = 14f,
+    val fmDecay2: Float = 0.08f,
 ) {
     val driveGain = 1f + drive * 3f
     val driveComp = if (drive > 0f) 1f / Dsp.tanh(min(driveGain, 3f)) * (1f / (1f + drive * 0.5f)) else 1f
@@ -103,6 +125,14 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
     private var tremGain = 1f
     private var sinceOn = 0
     private var vel = 1f
+    private var pEnv = 0f
+
+    // FM operators: modulator phases, index envelopes and the feedback memory.
+    private var pm = 0f
+    private var pm2 = 0f
+    private var fmEnv = 0f
+    private var fmEnv2 = 0f
+    private var fmLast = 0f
 
     // Plucked string: the delay line, its loop filter and the excitation burst still to play.
     private val string = DelayLine(MAX_STRING)
@@ -138,10 +168,17 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
             exLp = 0f
             exciteLeft = (sr / target).toInt().coerceIn(2, MAX_STRING - 4)
         }
+        if (p.fm > 0f || p.fm2 > 0f) {
+            if (!active) {
+                pm = 0f; pm2 = 0f; fmLast = 0f
+            }
+            fmEnv = 1f; fmEnv2 = 1f
+        }
         amp.set(p.a, p.d, p.s, p.r)
         flt.set(p.fa, p.fd, p.fs, p.fr)
         amp.gateOn(); flt.gateOn()
         sinceOn = 0
+        pEnv = 1f
     }
 
     fun release() {
@@ -165,6 +202,10 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
         lfo += pt.vibRate * n / sr
         if (lfo > 1f) lfo -= 1f
         var f = hz * pitchMul
+        if (pt.pitchEnv != 0f) {
+            f *= Dsp.semis(pt.pitchEnv * pEnv)
+            pEnv *= kotlin.math.exp(-n / (pt.pitchDecay * sr))
+        }
         if (pt.vibrato > 0f) {
             val depth = min(1f, sinceOn / (0.3f * sr))
             f *= 1f + 0.05776f * pt.vibrato * depth * Dsp.sin01(lfo)
@@ -202,6 +243,10 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
             renderString(l, r, off, n, pt, f, dt2, pw, gain, gainStep)
             return
         }
+        if (pt.fm > 0f || pt.fm2 > 0f) {
+            renderFm(l, r, off, n, pt, dt1, dt2, pw, gain, gainStep)
+            return
+        }
         for (i in 0 until n) {
             flt.next()
             gain += gainStep
@@ -237,6 +282,57 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
                 l[off + i] += x
                 r[off + i] += x
             }
+        }
+        if (!active) {
+            svfL.reset(); svfR.reset()
+        }
+    }
+
+    /** [render] for a two-operator FM voice: osc 1 is the carrier, phase-modulated by sines. */
+    private fun renderFm(l: FloatArray, r: FloatArray, off: Int, n: Int, pt: Patch, dt1: Float, dt2: Float, pw: Float, g0: Float, gainStep: Float) {
+        val c1 = Dsp.decay60(pt.fmDecay, sr)
+        val c2 = Dsp.decay60(pt.fmDecay2, sr)
+        val sus = pt.fmSustain
+        val velIdx = 0.4f + 0.6f * vel
+        val i1 = pt.fm * velIdx * INV_TAU
+        val i2 = pt.fm2 * velIdx * INV_TAU
+        val fb = pt.fmFeedback * INV_TAU
+        val dm = dt1 * pt.fmRatio
+        val dm2 = dt1 * pt.fmRatio2
+        var gain = g0
+        for (i in 0 until n) {
+            flt.next()
+            gain += gainStep
+            val a = amp.next() * gain
+            if (gate > 0 && --gate == 0) {
+                amp.gateOff(); flt.gateOff()
+            }
+            pm += dm; if (pm >= 1f) pm -= 1f
+            p1 += dt1; if (p1 >= 1f) p1 -= 1f
+            p2 += dt2; if (p2 >= 1f) p2 -= 1f
+            fmEnv = sus + (fmEnv - sus) * c1
+            val m = Dsp.sin01(pm + fb * fmLast)
+            fmLast = m
+            var ph = p1 + i1 * fmEnv * m
+            if (i2 > 0f) {
+                pm2 += dm2; if (pm2 >= 1f) pm2 -= 1f
+                fmEnv2 *= c2
+                ph += i2 * fmEnv2 * Dsp.sin01(pm2)
+            }
+            ph -= ph.toInt()
+            if (ph < 0f) ph += 1f
+            var x = osc(pt.wave1, ph, dt1, pw, noise)
+            if (pt.osc2Level > 0f) x += pt.osc2Level * osc(pt.wave2, p2, dt2, pw, noise)
+            if (pt.sub > 0f) {
+                ps += dt1 * 0.5f; if (ps >= 1f) ps -= 1f
+                x += pt.sub * Dsp.sin01(ps)
+            }
+            if (pt.noise > 0f) x += pt.noise * noise.next()
+            x = svfL.lp(x)
+            if (pt.drive > 0f) x = Dsp.tanh(x * pt.driveGain) * pt.driveComp
+            x *= a
+            l[off + i] += x
+            r[off + i] += x
         }
         if (!active) {
             svfL.reset(); svfR.reset()
@@ -297,6 +393,7 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
         /** Longest string period: 4096-sample line, so down to ~12 Hz at 48 kHz. */
         const val MAX_STRING = 4000
         private const val STRING_GAIN = 3f
+        private const val INV_TAU = 0.15915494f
     }
 }
 
@@ -358,6 +455,68 @@ internal class Instrument(private val sr: Int, voices: Int, seed: Int) {
 
     companion object {
         const val MAX_CHUNK = 64
+    }
+}
+
+/**
+ * A trap drop's ear candy: a reversed cymbal swelling into the drop (noise opening up from
+ * a hiss to a full wash, cut dead on the downbeat) and a sub boom that falls an octave on it.
+ */
+internal class DropFx(private val sr: Int) {
+    private val nl = Noise(5150)
+    private val nr = Noise(8150)
+    private val fl = Svf()
+    private val fr = Svf()
+    private var swellAt = 0
+    private var swellLen = 0
+    private var swellLevel = 0f
+    private var boom = 0f
+    private var boomCoef = 1f
+    private var boomHz = 0f
+    private var boomFall = 1f
+    private var boomPhase = 0f
+
+    /** A swell [samples] long, peaking at [level] just as it's cut. */
+    fun swell(samples: Int, level: Float) {
+        swellAt = 0; swellLen = maxOf(1, samples); swellLevel = level
+    }
+
+    /** A sub boom from [hz], falling an octave over about a second. */
+    fun boom(hz: Float, level: Float) {
+        boom = level; boomHz = hz; boomPhase = 0f
+        boomCoef = Dsp.decay60(1.8f, sr); boomFall = Dsp.decay60(1.1f * 6.9f / 0.69f, sr)
+        swellLen = 0
+    }
+
+    fun kill() {
+        swellLen = 0; boom = 0f
+    }
+
+    fun render(l: FloatArray, r: FloatArray, n: Int) {
+        if (swellLen > 0) {
+            val p = swellAt.toFloat() / swellLen
+            // Opens from a thin top-end hiss to the whole wash as it grows.
+            val hz = 9000f * 0.12f.pow(p)
+            fl.setHz(hz, 0.7f, sr); fr.setHz(hz * 1.07f, 0.7f, sr)
+            for (i in 0 until n) {
+                if (swellAt >= swellLen) {
+                    swellLen = 0; break
+                }
+                val e = (swellAt.toFloat() / swellLen).let { it * it } * swellLevel
+                swellAt++
+                l[i] += fl.hp(nl.next()) * e
+                r[i] += fr.hp(nr.next()) * e
+            }
+        }
+        if (boom > 1e-4f) {
+            for (i in 0 until n) {
+                boomPhase += boomHz / sr; if (boomPhase >= 1f) boomPhase -= 1f
+                val x = Dsp.tanh(Dsp.sin01(boomPhase) * 2f) * boom
+                l[i] += x; r[i] += x
+                boom *= boomCoef
+                boomHz = maxOf(20f, boomHz * boomFall)
+            }
+        }
     }
 }
 
@@ -536,4 +695,63 @@ internal class Vinyl(private val sr: Int) {
             r[i] += (c * (1f + minOf(0f, pan)) + h) * level
         }
     }
+}
+
+/**
+ * A slide whistle: a breathy, nearly pure tone whose pitch swoops from one note to another,
+ * easing in (slow at first, then a rush to the top), with a little flutter on the way.
+ */
+internal class SlideWhistle(private val sr: Int) {
+    private val noise = Noise(5150)
+    private val breath = Svf()
+    private var phase = 0f
+    private var from = 440f
+    private var ratio = 1f
+    private var t = 0
+    private var len = 0
+    private var env = 0f
+    private var vel = 0f
+    private var flutter = 0f
+    private val attack = 1f - Dsp.decay60(0.04f, sr)
+    private val release = Dsp.decay60(0.12f, sr)
+
+    val active: Boolean get() = t < len || env > 1e-4f
+
+    /** Swoop from [fromHz] to [toHz] over [seconds], at velocity [v]. */
+    fun trigger(fromHz: Float, toHz: Float, seconds: Float, v: Float) {
+        from = fromHz; ratio = toHz / fromHz; len = max(1, (seconds * sr).toInt()); t = 0; vel = v
+    }
+
+    fun render(l: FloatArray, r: FloatArray, n: Int, level: Float, pitchMul: Float) {
+        if (level <= 0f || !active) return
+        // Pitch at the chunk's ends (control rate), eased: x^1.7 of the way up.
+        val x0 = min(1f, t.toFloat() / len)
+        val x1 = min(1f, (t + n).toFloat() / len)
+        flutter += 7f * n / sr
+        if (flutter > 1f) flutter -= 1f
+        val fl = 1f + 0.006f * Dsp.sin01(flutter)
+        val h0 = from * ratio.pow(x0.pow(1.7f)) * pitchMul * fl
+        val h1 = from * ratio.pow(x1.pow(1.7f)) * pitchMul * fl
+        breath.setHz(min(h1 * 2f, 16000f), 4f, sr)
+        val inv = 1f / sr
+        val g = level * vel
+        for (i in 0 until n) {
+            val hz = h0 + (h1 - h0) * i / n
+            phase += hz * inv; if (phase >= 1f) phase -= 1f
+            if (t < len) {
+                env += (1f - env) * attack; t++
+            } else {
+                env *= release
+            }
+            val y = (Dsp.sin01(phase) + 0.08f * Dsp.sin01(phase * 2f) + breath.bp(noise.next()) * 0.35f) * env * g
+            l[i] += y
+            r[i] += y
+        }
+    }
+
+    fun kill() {
+        t = 0; len = 0; env = 0f; breath.reset()
+    }
+
+    fun sanitize() = breath.sanitize()
 }
