@@ -54,8 +54,8 @@ class RunStats {
     var tackles = 0
     /** STIFF ARM: guards flattened on the run. */
     var stiffArms = 0
-    /** LION: fatal hits shrugged off (one a run at most). */
-    var secondWinds = 0
+    /** MONKEY: high shots that sailed right over his head. */
+    var overheads = 0
     /** SABOTAGE: drones and turrets unplugged by hand. */
     var unplugged = 0
     /** FRAGILE: hits that missed. */
@@ -64,7 +64,7 @@ class RunStats {
     var flyingKicks = 0
     /** SPIN KICK: guards kicked flat on the back of a takedown. */
     var spinKicks = 0
-    /** Guards dazed by PACKING PEANUTS, an AFTERSHOCK or a CONFETTI blast. */
+    /** Guards dazed by PACKING PEANUTS or an AFTERSHOCK. */
     var dazed = 0
     var hurts = 0
     /** Every hit taken, oldest first (capped; a run rarely takes more than a dozen). */

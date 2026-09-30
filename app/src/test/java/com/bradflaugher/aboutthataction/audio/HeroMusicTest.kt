@@ -99,8 +99,8 @@ class HeroMusicTest {
     /** Each hero plays their own genre at its own tempo; sneaking is always the slower one. */
     @Test
     fun eachHeroPlaysTheirGenreAtItsTempo() {
-        val hot = mapOf(Hero.BULL to 138f..152f, Hero.FOX to 128f..145f, Hero.LION to 170f..192f, Hero.HAWK to 110f..128f)
-        val sneak = mapOf(Hero.BULL to 70f..84f, Hero.FOX to 98f..115f, Hero.LION to 86f..102f, Hero.HAWK to 88f..102f)
+        val hot = mapOf(Hero.BULL to 138f..152f, Hero.FOX to 128f..145f, Hero.MONKEY to 168f..192f, Hero.HAWK to 110f..128f)
+        val sneak = mapOf(Hero.BULL to 70f..84f, Hero.FOX to 98f..115f, Hero.MONKEY to 86f..102f, Hero.HAWK to 88f..102f)
         for (h in Hero.entries) for (z in Zone.entries) {
             val loud = HeroSongs.forZone(h, z, false)
             val quiet = HeroSongs.forZone(h, z, true)
@@ -191,38 +191,38 @@ class HeroMusicTest {
     }
 
     /**
-     * LION: circus. Sneaking is a creepy tiptoe march in the harmonic minor (a staccato
-     * oom-pah, pizzicato "pah"s, a music box, temple blocks, a bulb horn, a wobbly calliope
-     * always carrying the tune); hot is a major-key galop (tuba oom-pah, snare rolls, cymbal
-     * crashes, xylophone runs, a slide whistle up every fill and a steam calliope).
+     * MONKEY: the runaway circus monkey back in the jungle. Sneaking is a jungle night (key-tuned
+     * hand drums, a shaker, crickets, a marimba always carrying the tune, a monkey "hoo"); hot is
+     * a stampede in the major (war drums in a galop, shakers, snare rolls, balafon runs, the
+     * circus's steam calliope screaming on top and a slide whistle up every fill).
      */
     @Test
-    fun lionIsCircus() {
+    fun monkeyIsJungleCircus() {
         for (z in Zone.entries) for (silent in listOf(false, true)) {
-            val spec = HeroSongs.forZone(Hero.LION, z, silent)
+            val spec = HeroSongs.forZone(Hero.MONKEY, z, silent)
             val what = "$z${if (silent) " sneak" else ""}"
-            // Oom on the beat, pah on the "and".
-            assertTrue("$what: oom", onlyAt(spec.bassA, 0, 4, 8, 12) && spec.bass.s < 1f)
-            assertTrue("$what: pah", onlyAt(spec.padRhythm.replace('-', '.'), 2, 6, 10, 14))
-            assertTrue("$what: temple blocks", spec.kit.tomHz > 500f && spec.kit.tomDecay < 0.1f)
-            assertTrue("$what: a bulb horn", spec.kit.percRatio == 1f && hits(spec.drumsB.perc) >= 1)
-            assertEquals("$what: straight, not swung", 0f, spec.swing, 0f)
-            assertTrue("$what: a pipe organ's wobble", spec.lead.vibrato > 0f && spec.lead.trem > 0f)
+            val pitch = 12.0 * kotlin.math.ln(spec.kit.tomHz / 440.0) / kotlin.math.ln(2.0) + 69
+            assertEquals("$what: the drums are tuned to the key", 0, Math.floorMod(Math.round(pitch).toInt() - spec.tonic, 12))
+            assertTrue("$what: shakers", hits(spec.drumsB.jingle) >= 8 && spec.kit.jingleNoise >= 1f)
+            for (p in listOf(spec.drumsA, spec.drumsB)) assertEquals("$what: no hi-hats", 0, hits(p.hat) + hits(p.open))
+            assertTrue("$what: log drums", hits(spec.drumsB.perc) >= 3)
+            assertTrue("$what: a monkey's whistle", spec.slideWhistle > 0f)
             if (silent) {
-                assertTrue("$what: a carnival's harmonic minor", spec.scale.contentEquals(Scales.HARMONIC_MINOR))
                 assertTrue("$what: on tiptoe", spec.bpm < 101f && onlyAt(spec.drumsA.kick, 0, 8))
-                assertTrue("$what: pizzicato", spec.pad.pluck > 0f)
-                assertTrue("$what: the calliope plays even at zero heat", spec.leadThreshold < -0.1f)
-                assertEquals("$what: no slide whistle on tiptoe", 0f, spec.slideWhistle, 0f)
+                assertTrue("$what: crickets", spec.jungle > 0f)
+                assertTrue("$what: hand drums with a bend", spec.kit.tomDecay < 0.3f && spec.kit.tomBend > 0.1f && hits(spec.drumsB.tom) >= 4)
+                assertTrue("$what: a marimba carries the tune at zero heat", spec.lead.s < 0.3f && spec.leadThreshold < -0.1f)
+                assertTrue("$what: a hoot, not a whistle", spec.whistleRange <= 2f)
             } else {
                 assertTrue("$what: a major key", spec.scale.contentEquals(Scales.IONIAN))
                 val degrees = (spec.progA + spec.progB).map { it.degree }.toSet()
                 assertTrue("$what: I, IV and V", degrees.containsAll(listOf(0, 3, 4)))
-                assertTrue("$what: a galop", spec.bpm >= 170f && hits(spec.drumsA.kick) == 4)
+                assertTrue("$what: a stampede", spec.bpm >= 170f && hits(spec.drumsA.kick) == 4)
+                assertTrue("$what: war drums", hits(spec.drumsB.tom) >= 8 && spec.kit.tomLevel > 0.9f && spec.kit.tomHz < 200f)
                 assertTrue("$what: snare rolls", listOf(spec.drumsB, spec.fill).all { p -> p.snare.count { it == 'r' } >= 4 })
-                assertTrue("$what: cymbal crashes", hits(spec.drumsB.crash) >= 1)
-                assertTrue("$what: xylophone runs", hits(spec.arpB) == 16 && spec.arp.s == 0f)
-                assertTrue("$what: a slide whistle", spec.slideWhistle > 0f)
+                assertTrue("$what: balafon runs", hits(spec.arpB) == 16 && spec.arp.s == 0f)
+                assertTrue("$what: a steam calliope", spec.lead.vibrato > 0f && spec.lead.trem > 0f && spec.lead.noise > 0f)
+                assertTrue("$what: a slide whistle up", spec.whistleRange >= 4f)
             }
         }
     }
@@ -355,7 +355,7 @@ class HeroMusicTest {
         // playHeroTheme also picks the hero for the run.
         e.setZone(Zone.ROOFTOP)
         render(e, 8f)
-        assertEquals("rooftop-hawk", e.songName)
+        assertEquals("rooftop-${Hero.entries.last().name.lowercase()}", e.songName)
     }
 
     @Test
@@ -452,15 +452,9 @@ class HeroMusicTest {
             assertEquals(what, base.kickThreshold, spec.kickThreshold, 0f)
             assertEquals(what, base.wind, spec.wind, 0f)
             assertEquals(what, base.glitch, spec.glitch)
-            if (h == Hero.LION) {
-                // Circus: the zone's chord roots in its harmonic minor sneaking (a carnival), its own
-                // chords in the parallel major hot; either way every chord tone is in that key.
-                assertTrue(what, spec.scale.contentEquals(if (silent) Scales.HARMONIC_MINOR else Scales.IONIAN))
-                if (silent) {
-                    for ((bp, hp) in listOf(base.progA to spec.progA, base.progB to spec.progB)) {
-                        assertEquals(what, bp.map { it.degree }, hp.map { it.degree })
-                    }
-                }
+            if (h == Hero.MONKEY && !silent) {
+                // The stampede: the parallel major, its own chords, every chord tone in that key.
+                assertTrue(what, spec.scale.contentEquals(Scales.IONIAN))
                 for (c in spec.progA + spec.progB) for (iv in c.intervals) {
                     assertTrue("$what: chord tone out of key", Scales.contains(spec.scale, c.root + iv))
                 }
@@ -857,7 +851,7 @@ class HeroInstrumentsTest {
         assertTrue("and holds its breath in it", arpGap < arpBeat * 0.2)
     }
 
-    /** LION's slide whistle swoops up (slow, then a rush to the top), then stops; silent unless asked. */
+    /** MONKEY's slide whistle swoops up (slow, then a rush to the top), then stops; silent unless asked. */
     @Test
     fun slideWhistleSwoopsUp() {
         val w = SlideWhistle(sr)

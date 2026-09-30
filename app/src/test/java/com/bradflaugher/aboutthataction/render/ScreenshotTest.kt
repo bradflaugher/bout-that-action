@@ -634,7 +634,7 @@ class ScreenshotTest {
     }
 
     private fun magma(): World {
-        val w = newWorld(calmSeed(108, 500), 108, hero = Hero.LION)
+        val w = newWorld(calmSeed(108, 500), 108, hero = Hero.MONKEY)
         w.run(1.6f)
         w.settle(X(3.0f), 0.8f)
         val f = w.player.floor
@@ -666,7 +666,7 @@ class ScreenshotTest {
     }
 
     private fun hell(): World {
-        val w = newWorld(calmSeed(165, 600), 165, hero = Hero.LION)
+        val w = newWorld(calmSeed(165, 600), 165, hero = Hero.MONKEY)
         w.run(1.6f)
         w.settle(X(3.2f), 2.4f)
         val f = w.player.floor

@@ -27,11 +27,11 @@ is read on its own, so one thumb can run while the other taps.
 | **Drag ← →** and hold | Run. Nudge back a little to turn around instantly. Lift to stop. A held run won't pull you out of a doorway or elevator: lift and drag again to step out. |
 | **Tap** | Interact with what you're standing at: go through a green **passage** door into another hallway, enter a gold **STASH** door (locked while you're being hunted), ride an open **elevator** down, or call a closed one. With nothing in reach, a tap does nothing. |
 | **Swipe ↓** | Hide: press into a nearby **doorway**, otherwise pop the **cardboard box**. In an elevator, box up in the car. Swipe ↓ again to stand up. In a doorway, a tap or a swipe ↑ also steps you out. |
-| **Swipe ↑** | Jump. Clears low shots; land on heads to stomp. Works mid-run. |
-| **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind (the BULL tackles them head-on); a napping guard from anywhere. Works in GUNS HOT too: the gun never shoots a guard with his back to you. |
+| **Swipe ↑** | Jump. Clears low shots; land on heads to stomp (the MONKEY just hops off). Works mid-run. |
+| **Walk into an enemy** | Instant silent **takedown**. Heavies only from behind (the BULL tackles them head-on); a napping guard from anywhere. Works in GUNS HOT too: the gun never shoots a guard with his back to you. (Not the MONKEY: he has no takedowns, and walking into a guard just gets him noticed.) |
 | **Grenade button** (under the mode button) | Throw a grenade, in either mode. The lime button shows how many you carry and greys out when you're empty. Taps never throw one, so hammering a door is always just the door. |
 | **Jump + tap** | Under a ceiling lamp: swat it out by hand. The hallway gets darker, the fixture drops on anyone right under it (never on you), and the crash of glass brings nearby guards over to look: lure them in, then grab them from the shadows. Works in both modes. |
-| **Mode button** (under pause) | **GUNS HOT**: you auto-fire at threats in range. **SILENT**: you never fire; guards only notice what they see, and quiet kills pay double. Flip it any time (it's the only place to); your choice sticks between runs. |
+| **Mode button** (under pause) | **GUNS HOT**: you auto-fire at threats in range. **SILENT**: you never fire (the MONKEY still shoots back at anyone onto him); guards only notice what they see, and quiet kills pay double. Flip it any time (it's the only place to); your choice sticks between runs. |
 
 A chip over your head shows what a tap (or a swipe ↓) will do right now, and
 the hallway map in the corner shows where you've been and which hallways have
@@ -61,7 +61,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 - **Guns hot or silent.** In GUNS HOT the gun fires itself at whoever is about
   to hurt you first (it answers a raised gun, so a guard across the hallway
   who spots you gets his shot), and leaves guards who haven't spotted you to
-  you. In SILENT you never fire: take guards from behind, drop
+  you. In SILENT you never fire (except the MONKEY, who has no other way to fight back): take guards from behind, drop
   from above, wait them out in a doorway or under the box, lure them into
   hazards, or black out the lights. Guards take longer to react to a shadow,
   and every quiet kill is worth double. Flip modes any time.
@@ -91,7 +91,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   slow-mo), Vest, Lucky and Shockwave stomps, plus three that only your
   [hero](#heroes) ever finds. Enemies drop shotguns,
   miniguns, shields, slow-mo, grenades, medkits and cash. The gun perks
-  and gun drops only matter in GUNS HOT; SILENT never fires.
+  and gun drops only matter in GUNS HOT; SILENT never fires (except for the MONKEY).
 - **Endless and seeded.** Any floor can be rebuilt from `(seed, floor)`, so
   the building never ends and never uses more memory. The same seed plus the
   same difficulty gives the same building, so you can share a seed or play
@@ -127,7 +127,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 
 ## Heroes
 
-<p align="center"><img src="docs/screenshots/lineup.png" alt="The four heroes: BULL, FOX, LION and HAWK" width="720"></p>
+<p align="center"><img src="docs/screenshots/lineup.png" alt="The four heroes: BULL, FOX, HAWK and MONKEY" width="720"></p>
 
 Pick who's going down on the title screen. Every hero plays the same
 building, but with a different body: an always-on trait, three perks only
@@ -138,8 +138,8 @@ music.
 |---|---|---|
 | **BULL** | A heavyweight in a quilted bomber, shades and a gold chain. Tough, fast, bulldozes. | +1 heart, runs 10% faster, tackles Heavies head-on (no bouncing off the armor) |
 | **FOX** | A martial-arts brawler in a black sports bra, baggy grey fighting pants, red gloves and red shoes, a long, glossy black ponytail whipping behind her. Kicks first, questions never: the takedown specialist. | Takedowns reach 0.35 u further (long legs), a 15% quicker trigger; guards take 35% longer to react once they spot her |
-| **LION** | A huge circus strongman on the run from the big top: clown greasepaint, a red nose, a golden lion's mane, a curled moustache and giant clown shoes. The show must go on. | Once a run, a hit that would end it leaves him on one heart instead (SECOND WIND); +1 grenade to start and to carry |
 | **HAWK** | A deadpan parcel courier in brown shorts, knee socks and a cap, scanner glowing, who lives in a cardboard box (naturally): the SILENT specialist. Goes postal, politely. | Unplugs drones and turrets by hand, like a takedown (quiet, and not while one is aiming at him); in SILENT guards spot him from a quarter less far; the box glides (2.2 u/s instead of 1.3) and never looks suspicious moving; reloads 25% faster |
+| **MONKEY** | A small monkey with a very big gun, on the run from the circus: the weapons specialist. Oo oo. Ah ah. Pew pew. | A 12-round rifle (instead of a 6-round pistol) and pickup guns last 50% longer. He's short (0.95 u), so guards' straight high shots sail over his head (fireballs still come down on him); they know it and aim low more often (at least 70% of the time), and drones dip to his height. No takedowns, no stomps: walking into a guard just gets him noticed, landing on a head is a hop off it. In SILENT his gun still answers anyone onto him, loudly |
 
 Their perks:
 
@@ -153,11 +153,12 @@ Their perks:
   within 2.2 u flat (the nearest two at LV 2). *Flying Kick*: jump into a
   guard and your boots knock him out cold, Heavies from the front and ninjas
   mid-swing too (come down on his head and it's still a stomp).
-- **LION.** *Confetti*: bigger blasts that burst into confetti, and anyone
-  within twice the blast who survives is knocked flat for 2.5 s. *Clown
-  Car*: passages take half the time and nobody can see you for 1.5 s once
-  you're out in the open (firing gives you away). *Encore* (2 levels): on
-  your last heart you shoot, reload and run 30% faster (50% at LV 2).
+- **MONKEY.** *Banana Clip* (2 levels): +6 rounds a magazine and reloads
+  25% faster, per level. *Monkey See*: pickup guns last twice as long, and
+  guards drop them two and a half times as often. *Shush*: quiet shots. They
+  don't alarm anyone, they count as quiet kills in SILENT, and his gun picks
+  off guards who haven't noticed him (sleepers too). He's never offered CQC
+  MASTER or SHOCKWAVE, which need takedowns and stomps.
 - **HAWK.** *Signed For*: drones and turrets take twice as long to react to
   him. *Packing Peanuts* (2 levels): a grenade also bursts into peanuts that
   daze everyone in the hallway, machines too, for 2 s (3.5 s at LV 2).
@@ -260,14 +261,16 @@ heats up the beat holds its breath for one beat, then drops. **FOX** plays an
 early-90s street-brawler soundtrack, all FM synths: a smooth late-night new-jack
 swing of electric piano, slap bass and a sultry lead, then a breakbeat rave of
 piano-house stabs, a bouncing bass and bright brass that drops hard when the
-heat climbs. **LION** brought the circus: a creepy tiptoe clown march (bassoon
-oom-pah, a music box, temple blocks, a wobbly calliope and the odd honk), then a
-screaming galop of steam calliope, tuba, snare rolls, crashing cymbals,
-xylophone runs and slide whistles. **HAWK**'s radio is stuck on the courier's
+heat climbs. **HAWK**'s radio is stuck on the courier's
 station: elevator-muzak bossa nova (nylon guitar, vibraphone, a cross-stick
 clave and a soft flute), then 70s delivery-van funk with ghost-note breakbeats,
 slap bass, wah clavinet, horn stabs and a cop-show lead; his game over is a
-van-horn beep-beep and a doorbell. Delivered.
+van-horn beep-beep and a doorbell. Delivered. **MONKEY** ran away from the circus back to the jungle, and
+brought the calliope: sneaking is a jungle night of key-tuned bongos and congas,
+a shaker, crickets, a wooden marimba and the odd monkey "hoo"; with guns hot it's
+a stampede of pounding war drums, log drums and balafon runs with the circus's
+steam calliope screaming on top and slide whistles through every fill. His game
+over goes "ooh-ooh-AAH!", then "ta-DAAA!", then a sad slide whistle.
 The hero picker plays each one's theme. Every tune is original.
 
 ## Install

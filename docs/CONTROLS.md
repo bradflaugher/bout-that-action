@@ -35,7 +35,7 @@ Every verb has exactly one gesture, and no gesture means two things:
 | Mode button | GUNS HOT ⇄ SILENT |
 
 The gun is not a gesture any more. In **GUNS HOT** it fires itself (see
-"Auto-fire" below); in **SILENT** it never fires. That frees the tap, the
+"Auto-fire" below); in **SILENT** it never fires (the MONKEY's excepted). That frees the tap, the
 most reliable gesture on glass, for the thing every floor now asks of you:
 choosing a door.
 
@@ -199,7 +199,8 @@ faster than you draw. Without this the gun, which sees exactly as far as the
 guards do, dropped every guard the instant he noticed you, and on the gentler
 presets nobody ever fired.
 
-**SILENT.** The gun never fires. Guards only notice what they see, see a
+**SILENT.** The gun never fires (except the MONKEY's, at anyone who's onto
+him: he has no takedowns). Guards only notice what they see, see a
 little less far (6.5 u instead of 7.5, `SILENT_SIGHT_RANGE`) and take 35%
 longer to react (`SILENT_REACTION`). Every kill that isn't a shot or a blast
 (takedown, stomp, light, hazard) scores double. It's the riskier, richer way

@@ -5,14 +5,14 @@ A helicopter drops you on the roof of a skyscraper. Then you go down, and down, 
 BUILT FOR THUMBS
 • Drag to run, swipe up to jump, swipe down to hide in a doorway or pop the box.
 • Tap to ride an elevator, go through a passage or raid a STASH (if nobody's hunting you).
-• Walk into a guard for a silent takedown. Land on heads to stomp.
+• Walk into a guard for a silent takedown. Land on heads to stomp. (The monkey can't: he brought a big gun instead.)
 
 TWO WAYS TO PLAY
 • GUNS HOT: you auto-fire at anything in range.
-• SILENT: you never fire, guards only notice what they see, and quiet kills pay double.
+• SILENT: you never fire (well, the monkey does), guards only notice what they see, and quiet kills pay double.
 
 FOUR HEROES
-Bull the bruiser, Fox the high-kicking street brawler, Lion the circus strongman who won't stay down and Hawk the parcel courier who lives in a box. Each has their own trait, three perks of their own and their own take on the music.
+Bull the bruiser, Fox the high-kicking street brawler, Hawk the parcel courier who lives in a box and Monkey the circus runaway with a very big gun. Each has their own trait, three perks of their own and their own take on the music.
 
 EVERY FLOOR IS NEW
 The building never ends and never repeats. Floors, the soundtrack and every sound effect are generated as you play. Blackouts, nap time and payday floors keep things weird.

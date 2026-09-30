@@ -343,10 +343,10 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             if (xv > 0.02f) kit.crash.trigger(xv)
         }
         if (sp.slideWhistle > 0f) {
-            // Every fill gets a slide whistle up (from the key's tonic, two octaves) as heat allows.
+            // Every fill gets a slide whistle up (by default from the key's tonic, two octaves) as heat allows.
             if (fill && !lastFill && lPerc > 0.05f) {
-                val from = Dsp.midiToHz(nearest(key, 74).toFloat())
-                whistle.trigger(from, from * 4f, (16 - s) * stepSamples / sr * 0.85f, lPerc)
+                val from = Dsp.midiToHz(nearest(key, sp.whistleFrom).toFloat())
+                whistle.trigger(from, from * sp.whistleRange, (16 - s) * stepSamples / sr * 0.85f, lPerc)
             }
             lastFill = fill
         }

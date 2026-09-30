@@ -29,8 +29,6 @@ enum class Hero(
     val magSize: Int = 6,
     /** Guards' reaction time once they spot you, as a multiple. */
     val reactionScale: Float = 1f,
-    /** Once a run, a hit that would end it leaves you on one heart instead. */
-    val secondWind: Boolean = false,
     /** Grenades on top of the usual start and carry limit. */
     val extraGrenades: Int = 0,
     /** The box is quick and never looks suspicious moving (GHOST BOX's glide, without the pop). */
@@ -43,6 +41,18 @@ enum class Hero(
     val reloadScale: Float = 1f,
     /** Time between pistol shots, as a multiple. */
     val fireScale: Float = 1f,
+    /** How long a pickup gun (SHOTGUN, MINIGUN) lasts, as a multiple of its [PickupKind.seconds]. */
+    val gunTime: Float = 1f,
+    /**
+     * Takedowns (chokes, tackles, kicks) and stomps. False for MONKEY: walking into a guard is
+     * walking into a wall, landing on a head is a hop off it, and the gun does all the work.
+     */
+    val melee: Boolean = true,
+    /**
+     * Standing height, in world units ([Body.HEIGHT] for a grown-up). Under [Body.HIGH] the
+     * guards' high shots sail over his head. The art scales the figure to match.
+     */
+    val height: Float = Body.HEIGHT,
 ) {
     /** A heavyweight in a quilted bomber and a gold chain. Tough, fast, bulldozes. */
     BULL(
@@ -63,16 +73,6 @@ enum class Hero(
         takedownReach = 0.35f, reactionScale = 1.35f, fireScale = 0.85f,
     ),
     /**
-     * A huge strongman who ran away from the circus: clown greasepaint, a red nose, a golden
-     * lion's mane of a wig and a curled moustache. Loud, proud, and he will not stay down.
-     */
-    LION(
-        "LION", "Circus strongman. Escaped.",
-        "Shrugs off one fatal hit a run; +1 grenade", "The show must go on.",
-        0xFFFFC23A.toInt(),
-        secondWind = true, extraGrenades = 1,
-    ),
-    /**
      * A deadpan parcel courier in brown shorts and a cap, scanner glowing lime. Lives in a box (of course), unplugs the robots, and is always on time.
      */
     HAWK(
@@ -81,17 +81,30 @@ enum class Hero(
         0xFF58D25A.toInt(),
         boxPro = true, sabotage = true, sneakSight = 0.75f, reloadScale = 0.75f,
     ),
+    /**
+     * A small monkey with a very big gun: he ran away from the circus and brought the
+     * hardware. The weapons specialist: a 12-round rifle that fires fast, pickup guns that
+     * last longer, and he's short enough that high shots sail over him. No hands free for
+     * takedowns, no stomps: the gun does all the talking, even in SILENT.
+     */
+    MONKEY(
+        "MONKEY", "Circus runaway. Big gun.",
+        "12-round rifle; no takedowns or stomps; high shots miss him", "Oo oo. Ah ah. Pew pew.",
+        0xFFFFC23A.toInt(),
+        magSize = 12, gunTime = 1.5f, melee = false, height = 0.95f,
+    ),
     ;
 
     companion object {
         /**
          * A hero saved by [name], or null if there's none by that name. Older builds called
-         * HAWK "VIPER" (and, briefly, "MONGOOSE") and LION "WOLF" (and, before that, "BADGER").
+         * HAWK "VIPER" (and, briefly, "MONGOOSE"); MONKEY's slot was LION, before that WOLF and
+         * before that BADGER.
          */
         fun fromSaved(name: String?): Hero? = when (name) {
             null -> null
             "VIPER", "MONGOOSE" -> HAWK
-            "WOLF", "BADGER" -> LION
+            "LION", "WOLF", "BADGER" -> MONKEY
             else -> entries.firstOrNull { it.name == name }
         }
     }

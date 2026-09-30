@@ -50,7 +50,7 @@ data class RunReport(
         val HERO_QUIPS = mapOf(
             Hero.BULL to "Chain still shiny. Good game.",
             Hero.FOX to "Not one hair out of that ponytail.",
-            Hero.LION to "The show must go on. After a nap.",
+            Hero.MONKEY to "Banana break. Well earned.",
             Hero.HAWK to "Delivered. Sign here.",
         )
 
@@ -119,8 +119,8 @@ data class RunReport(
                 s.flyingKicks + s.spinKicks >= 6 -> "LEG DAY LEGEND"
                 s.unplugged >= 5 -> "RETURN TO SENDER"
                 s.fragileMisses >= 4 -> "HANDLED WITH CARE"
-                s.secondWinds > 0 && depth >= 20 -> "THE SHOW WENT ON"
-                w.stacks(Perk.CONFETTI) > 0 && s.blastKills >= 8 -> "PARTY ANIMAL"
+                s.overheads >= 12 -> "TOO SHORT TO HIT"
+                !w.hero.melee && s.shotKills >= 40 -> "BIG GUN, SMALL MONKEY"
                 s.napTakedowns >= 3 -> "BEDTIME STORYTELLER"
                 s.boxAmbushes >= 6 -> "CARDBOARD ENTHUSIAST"
                 s.ghostFloors >= 6 -> "THE GHOST"
@@ -151,7 +151,7 @@ data class RunReport(
                 "KICKS" to (s.flyingKicks + s.spinKicks).nz(),
                 "UNPLUGGED" to s.unplugged.nz(),
                 "NOT A SCRATCH" to s.fragileMisses.nz(),
-                "SECOND WIND" to s.secondWinds.takeIf { it > 0 }?.let { "USED" },
+                "OVER HIS HEAD" to s.overheads.nz(),
                 "SPECIAL FLOORS" to s.floorEvents.nz(),
                 "PERKS" to perks.nz(),
             ).mapNotNull { (k, v) -> v?.let { k to it } }.take(6)

@@ -7,7 +7,7 @@ import kotlin.math.abs
  * to a hallway with a ride down, calls and rides elevators, takes stash, jumps low shots,
  * boxes high ones and times hazards. In GUNS HOT it lets the auto-fire work; in SILENT it
  * sneaks up behind guards, waits out the ones looking its way, stomps drones and grenades
- * turrets. Human-ish on purpose: it notices bullets ~220 ms late and misses one in [missOneIn].
+ * turrets. MONKEY, who can't take anyone down, lets his gun do it in both modes. Human-ish on purpose: it notices bullets ~220 ms late and misses one in [missOneIn].
  *
  * Plays the attract-mode demo behind the title screen, and the balance tests.
  */
@@ -99,7 +99,9 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
             for (b in w.bullets) if (!b.byPlayer && b.life > 0.22f && judged.add(b) && rng.nextInt(missOneIn) == 0) ignored += b
             val threat = w.bullets.firstOrNull {
                 !it.byPlayer && it.life > 0.22f && it !in ignored && it.floor == p.floor && it.hall == p.hall && (p.x - it.x) * it.vx > 0f &&
-                    abs(p.x - it.x) < 1.6f + abs(it.vx) * 0.05f
+                    abs(p.x - it.x) < 1.6f + abs(it.vx) * 0.05f &&
+                    // MONKEY: a high shot sails over him anyway.
+                    (!w.short || it.gravity || it.z < p.z + w.hero.height)
             }
             if (threat != null) {
                 dodgeCooldown = 0.5f
@@ -123,7 +125,17 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
             }
         }
 
-        if (!w.silent) {
+        if (!w.hero.melee) {
+            // MONKEY: no takedowns, so it's all the gun, in either mode. Hold still while it
+            // works; walk into anyone else (he notices, and then the gun has him).
+            val target = w.aimTarget()
+            if (target != null && abs(target.x - p.x) < World.AUTO_FIRE_RANGE && holdTime < 4f) {
+                holdTime += dt
+                w.moveAxis = 0
+                return
+            }
+            if (target == null) holdTime = 0f
+        } else if (!w.silent) {
             // GUNS HOT: hold still while the auto-fire works on anything in range; choke what's
             // close. After a few seconds of holding, push on anyway (the gun fires on the move).
             // The gun only fires at guards who've noticed you: hold for those, and treat the

@@ -87,10 +87,6 @@ internal class Actors(private val f: Frame) {
                 p.alphaMul = 0.8f
             }
         }
-        // CLOWN CAR: out of the passage unseen, a shimmering see-through figure until it wears off.
-        if (pl.unseenTime > 0f && pl.state != PlayerState.DEAD) {
-            p.alphaMul *= 0.42f + 0.08f * sin(f.t * 9f) + 0.5f * (1f - min(1f, pl.unseenTime / 0.35f))
-        }
 
         // SILENT: once through a passage you stay in the far doorway's shadow (you arrive
         // hidden), rather than walking out lit and then vanishing into it.
@@ -189,8 +185,10 @@ internal class Actors(private val f: Frame) {
                         poseHero(pl.x, foot, dir)
                     }
                     // The front arm over the victim, in full kit: pad, tape and all.
+                    art.push()
                     p.twoPass { art.frontArm() }
                     art.strips()
+                    art.pop()
                 } else {
                     art.draw(ghost = false)
                 }
@@ -295,15 +293,6 @@ internal class Actors(private val f: Frame) {
             g.strokeCircle(0f, 0f, r, 0.1f, Col.alpha(art.kit.rim, 0.55f * a * fz * pulse))
             g.restore()
         }
-        if (f.w.encore && !boxed) {
-            // ENCORE: a hot spotlight aura beating round him on his last heart.
-            val beat = 0.5f + 0.5f * sin(f.t * 11f)
-            g.save()
-            g.translate(x, cy)
-            g.scale(0.7f, 1f)
-            g.glow(0f, 0f, 1.5f + 0.15f * beat, Col.alpha(0xFFFF6A2A.toInt(), (0.22f + 0.2f * beat) * a))
-            g.restore()
-        }
         g.blend(Gfx.Blend.NORMAL)
     }
 
@@ -397,7 +386,9 @@ internal class Actors(private val f: Frame) {
             }
         }
         // SILENT holsters the gun: no firing in that mode, so the hands are free for takedowns.
-        val silent = f.w.silent && !pl.reloading && (state == PlayerState.NORMAL || state == PlayerState.ELEVATOR || state == PlayerState.PASSAGE)
+        // MONKEY has no takedowns: his rifle comes off his back the moment it has someone to shoot.
+        val drawn = !f.w.holstered && (shooting || aimTarget() != null)
+        val silent = f.w.silent && !drawn && !pl.reloading && (state == PlayerState.NORMAL || state == PlayerState.ELEVATOR || state == PlayerState.PASSAGE)
         if (silent) showGun = false
         var lean: Float
         var nod = 0f
@@ -450,8 +441,8 @@ internal class Actors(private val f: Frame) {
                 k.stand(x, 0.1f + 0.04f * grab, 0.24f, -0.26f)
                 lean = -0.14f - 0.14f * q
                 k.spine(lean, 0.15f)
-                heroNeckX = k.neckX
-                heroNeckY = k.neckY
+                heroNeckX = art.shownX(k.neckX)
+                heroNeckY = art.shownY(k.neckY)
                 // Forearm across the victim's throat, other hand locking the back of the head.
                 val vx = x + 0.1f * dir
                 val vy = foot - 1.1f - 0.07f * q
@@ -498,8 +489,8 @@ internal class Actors(private val f: Frame) {
                 k.armFK(k.armF, 0.25f, 0.5f)
             }
         }
-        heroNeckX = k.neckX
-        heroNeckY = k.neckY
+        heroNeckX = art.shownX(k.neckX)
+        heroNeckY = art.shownY(k.neckY)
         if (state == PlayerState.TAKEDOWN || state == PlayerState.INTRO && f.w.difficulty.startFloor == 0) return
         if (pl.flyingKickTime > 0f && airborne) {
             // The kick owns the arms for its moment: no aiming over it.
@@ -700,7 +691,9 @@ internal class Actors(private val f: Frame) {
         art.holstered = false
         art.dim = 0.3f
         art.kit.look(art.look, ghost = false)
+        art.push(x, gy)
         cast.ragdoll(x, gy, pl.z, dir, HS, fall, t, 0.55f, CastDeath.KNOCK, art.look, heroRagdollHead, bulk = art.kit.bulk, arm = heroRagdollArm)
+        art.pop()
         p.flatAmt = 0f
     }
 

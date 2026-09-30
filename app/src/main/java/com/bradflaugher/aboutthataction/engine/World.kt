@@ -163,25 +163,27 @@ class World(val config: RunConfig) {
     /** Kills since CANDY RAIN was picked (or last paid out). */
     private var candyKills = 0
 
-    /** LION: the once-a-run shrug-off of a fatal hit has been spent. */
-    var secondWindUsed = false
-        private set
-
     val viewH: Float get() = Geo.VIEW_W * viewAspect
     val slowMo: Boolean get() = player.slowMoTime > 0f || reflexTime > 0f
     val maxGrenades: Int get() = 3 + stacks(Perk.DEMOLITION) + hero.extraGrenades
 
-    /** How long a passage takes (CLOWN CAR halves it); the hallway swaps halfway through. */
-    val passageTime: Float get() = if (stacks(Perk.CLOWN_CAR) > 0) PASSAGE_TIME * CLOWN_CAR_SCALE else PASSAGE_TIME
+    /** How long a passage takes; the hallway swaps halfway through. */
+    val passageTime: Float get() = PASSAGE_TIME
 
-    /** ENCORE: on your last heart with the perk, the crowd goes wild and you shoot and run faster. */
-    val encore: Boolean get() = stacks(Perk.ENCORE) > 0 && player.hp == 1 && player.state != PlayerState.DEAD
+    /** The hero's running pace. */
+    val runSpeed: Float get() = RUN_SPEED * hero.runSpeed
 
-    /** Speed-up while [encore]: 1.3x, 1.5x at LV 2. */
-    private val encoreBoost: Float get() = if (!encore) 1f else if (stacks(Perk.ENCORE) >= 2) 1.5f else 1.3f
+    /** Rounds in a full magazine: the hero's gun, plus BANANA CLIP's extra. */
+    val magSize: Int get() = hero.magSize + BANANA_CLIP_ROUNDS * stacks(Perk.BANANA_CLIP)
 
-    /** The hero's running pace right now (ENCORE included). */
-    val runSpeed: Float get() = RUN_SPEED * hero.runSpeed * encoreBoost
+    /** MONKEY: out of the circus and into a gun fight, he has no takedowns, no stomps. */
+    val melee: Boolean get() = hero.melee
+
+    /** Short enough (MONKEY) that the guards' high shots sail over his head. */
+    val short: Boolean get() = hero.height < Body.HIGH
+
+    /** How often a guard fires low: the heat's odds, and he knows to aim down at a short hero. */
+    internal fun lowShotChance(heat: Float): Float = Heat.lowShotChance(heat).let { if (short) max(it, SHORT_LOW_SHOT) else it }
 
     /** How much longer than usual guards take to react once they spot you (FOX's trait, SHOWSTOPPER). */
     val reactionScale: Float get() = hero.reactionScale * if (stacks(Perk.SHOWSTOPPER) > 0) 2f else 1f
@@ -201,8 +203,8 @@ class World(val config: RunConfig) {
     init {
         player.maxHp = difficulty.hearts + hero.extraHearts
         player.hp = player.maxHp
-        player.magSize = hero.magSize
-        player.ammo = hero.magSize
+        player.magSize = magSize
+        player.ammo = magSize
         player.grenades = 1 + hero.extraGrenades
         val start = difficulty.startFloor
         player.floorF = start.toFloat()
@@ -582,7 +584,7 @@ class World(val config: RunConfig) {
         val mine = enemies.filter { here(it) && it.alive }
         fun alerted(e: Enemy) = e.state == EnemyState.ALERT || e.state == EnemyState.AIM
         fun wants(t: Tip): Boolean = when (t) {
-            Tip.TAKEDOWN -> takedowns == 0 && p.state == PlayerState.NORMAL && mine.any {
+            Tip.TAKEDOWN -> melee && takedowns == 0 && p.state == PlayerState.NORMAL && mine.any {
                 LevelGen.canNap(it.kind) && abs(it.x - p.x) < 4.5f &&
                     (it.asleep || it.state == EnemyState.PATROL && it.facing == (if (it.x > p.x) 1 else -1))
             }
@@ -749,7 +751,6 @@ class World(val config: RunConfig) {
         }
         p.state = PlayerState.ELEVATOR
         p.stateTime = 0f
-        p.unseenTime = 0f
         p.elevatorShaft = car.shaft.id
         p.x = car.shaft.x
         p.vx = 0f
@@ -1008,8 +1009,6 @@ class World(val config: RunConfig) {
         p.flyingKickTime -= dt
         p.spinKickTime -= dt
         p.fragileTime -= dt
-        // CLOWN CAR's head start only runs down once you're out where they could see you.
-        if (p.unseenTime > 0f && (p.state == PlayerState.NORMAL || p.state == PlayerState.BOX)) p.unseenTime -= dt
         if (p.weapon != null) {
             p.weaponTime -= dt
             if (p.weaponTime <= 0f) p.weapon = null
@@ -1071,7 +1070,6 @@ class World(val config: RunConfig) {
                     p.state = PlayerState.NORMAL
                     p.stateTime = 0f
                     p.facing = if (moveAxis != 0) moveAxis else if (p.x < Geo.FLOOR_W / 2f) 1 else -1
-                    if (stacks(Perk.CLOWN_CAR) > 0) p.unseenTime = CLOWN_CAR_UNSEEN
                     arriveHidden()
                 }
             }
@@ -1204,6 +1202,10 @@ class World(val config: RunConfig) {
         val p = player
         if (!p.grounded && p.state == PlayerState.NORMAL && stacks(Perk.FLYING_KICK) > 0 && flyingKick()) return
         if (p.z > 0.55f) return
+        if (!melee) {
+            if (!boxKicked()) bumpGuards()
+            return
+        }
         val reach = takedownReach()
         for (e in enemies) {
             if (!here(e) || !e.alive || e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
@@ -1281,6 +1283,55 @@ class World(val config: RunConfig) {
         fx.text(Popup.FLATTENED, e.x, Geo.groundY(e.floor) - 1.9f, TextStyle.TAKEDOWN, 0.8f)
         fx.burst(ParticleKind.DUST, e.x, Geo.groundY(e.floor) - 0.1f, 10, 3f, 0.5f, 0.14f, upBias = 0.3f)
         afterTakedown(e)
+    }
+
+    /**
+     * MONKEY's box, as anyone's: a Heavy who walks into its front, or a ninja who came over to
+     * check it, kicks it off him (the rest just walk into cardboard). True if one did.
+     */
+    private fun boxKicked(): Boolean {
+        val p = player
+        if (p.state != PlayerState.BOX) return false
+        val reach = takedownReach()
+        for (e in enemies) {
+            if (!here(e) || !e.alive || e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET || e.asleep) continue
+            if (e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
+            if (e.sawHide) continue
+            val dx = e.x - p.x
+            if (abs(dx) > reach + e.halfWidth) continue
+            val fromDir = if (dx > 0f) 1 else -1
+            val heavyFront = e.kind == EnemyKind.HEAVY && !e.chokeable(fromDir)
+            val ninjaCheck = e.kind == EnemyKind.NINJA && e.state == EnemyState.SEARCH
+            if (heavyFront || ninjaCheck) {
+                kickBox(e)
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * MONKEY has no takedowns: walking into a guard is walking into a wall, and the guard
+     * (asleep or not) notices. In the box he's just a box; guards walk on by.
+     */
+    private fun bumpGuards() {
+        val p = player
+        if (p.state != PlayerState.NORMAL) return
+        for (e in enemies) {
+            if (!here(e) || !e.alive || e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET) continue
+            if (e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
+            val dx = e.x - p.x
+            val gap = BUMP_GAP + e.halfWidth
+            if (abs(dx) >= gap) continue
+            val fromDir = if (dx > 0f) 1 else -1
+            p.x = (e.x - fromDir * gap).coerceIn(0.35f, Geo.FLOOR_W - 0.35f)
+            if (p.vx * fromDir > 0f) p.vx = 0f
+            if (e.asleep || e.state == EnemyState.PATROL || e.state == EnemyState.SEARCH) {
+                if (!e.asleep) fx.text(Popup.HEY, e.x, Geo.groundY(e.floor) - e.height - 0.9f, TextStyle.WARN, 0.8f)
+                alert(e)
+            }
+            return
+        }
     }
 
     /**
@@ -1449,6 +1500,14 @@ class World(val config: RunConfig) {
             if (!here(e) || !e.alive || e.kind == EnemyKind.TURRET) continue
             val top = e.z + e.height
             if (abs(e.x - p.x) < e.halfWidth + 0.32f && oldZ >= top - 0.3f && p.z <= top + 0.05f) {
+                if (!melee) {
+                    // MONKEY: no stomps. A hop off the top of his head, and now he knows.
+                    p.z = top
+                    p.vz = HEAD_BOUNCE_VZ
+                    p.vx = (if (p.x >= e.x) 1 else -1) * HEAD_BOUNCE_VX
+                    if (e.asleep || e.state == EnemyState.PATROL || e.state == EnemyState.SEARCH) alert(e)
+                    return
+                }
                 kill(e, KillMethod.STOMP, p.facing)
                 fx.text(Popup.BONK, e.x, Geo.groundY(e.floor) - top - 1.1f, TextStyle.TAKEDOWN, 0.8f)
                 p.vz = 8.5f
@@ -1480,7 +1539,16 @@ class World(val config: RunConfig) {
     }
 
     /** The enemy auto-aim would shoot right now (the renderer aims the gun pose at it). */
-    fun aimTarget(): Enemy? = if (silent) null else pickTarget(11f, ::fireable)
+    fun aimTarget(): Enemy? = if (holstered) null else pickTarget(11f, ::fireable)
+
+    /** SHUSH: MONKEY's shots are quiet (no alarm, and quiet kills in SILENT). */
+    val shush: Boolean get() = stacks(Perk.SHUSH) > 0
+
+    /**
+     * The gun stays put away: SILENT, for everyone who can take a guard down by hand. MONKEY
+     * can't, so in SILENT his gun still answers anyone onto him (loud, unless it's SHUSHed).
+     */
+    val holstered: Boolean get() = silent && melee
 
     /**
      * GUNS HOT fires only at threats: anyone who has noticed you, drones and turrets, and an
@@ -1488,6 +1556,10 @@ class World(val config: RunConfig) {
      * or asleep, is yours to sneak up on.
      */
     private fun fireable(e: Enemy): Boolean {
+        // SHUSH: a quiet gun picks off anyone, noticed or not (sleepers too).
+        if (!melee && shush) return true
+        // MONKEY in SILENT: only whoever is onto him.
+        if (silent) return e.state == EnemyState.ALERT || e.state == EnemyState.AIM || e.state == EnemyState.WINDUP
         if (e.kind == EnemyKind.TURRET || e.kind == EnemyKind.DRONE) return true
         if (e.asleep) return false
         if (threatTier(e) <= 1) return true
@@ -1546,7 +1618,7 @@ class World(val config: RunConfig) {
      */
     private fun autoFire(dt: Float) {
         val p = player
-        if (silent || p.carBox) {
+        if (holstered || p.carBox) {
             drawOn = null
             return
         }
@@ -1561,7 +1633,8 @@ class World(val config: RunConfig) {
         val melee = target.kind == EnemyKind.NINJA || target.kind == EnemyKind.DEMON && abs(target.x - p.x) <= 3f
         // Drones and turrets are always fair game: drawn on from the moment they're in range.
         val automated = target.kind == EnemyKind.DRONE || target.kind == EnemyKind.TURRET
-        val gunUp = automated || target.state == EnemyState.AIM || target.fireCooldown > 0f
+        // SHUSH: a quiet gun doesn't wait for the other fellow to draw.
+        val gunUp = automated || !melee && shush || target.state == EnemyState.AIM || target.fireCooldown > 0f
         if (target !== drawOn || !gunUp) {
             drawOn = target
             drawTime = 0f
@@ -1577,7 +1650,8 @@ class World(val config: RunConfig) {
     private fun startReload() {
         val p = player
         if (p.reloading || p.ammo >= p.magSize) return
-        p.reloadTotal = RELOAD_TIME * Math.pow(0.8, stacks(Perk.RAPID_FIRE).toDouble()).toFloat() * hero.reloadScale / encoreBoost
+        p.reloadTotal = RELOAD_TIME * Math.pow(0.8, stacks(Perk.RAPID_FIRE).toDouble()).toFloat() * hero.reloadScale *
+            Math.pow(BANANA_CLIP_RELOAD.toDouble(), stacks(Perk.BANANA_CLIP).toDouble()).toFloat()
         p.reloadTime = p.reloadTotal
         events += GameEvent.Reload
     }
@@ -1608,7 +1682,7 @@ class World(val config: RunConfig) {
         if (t < 0) return
         val f = t / 8
         val h = t % 8
-        val originZ = if (p.state == PlayerState.BOX) 0.5f else p.z + 1.0f
+        val originZ = if (p.state == PlayerState.BOX) 0.5f else p.z + hero.height * MUZZLE_AT
         val ground = Geo.groundY(f)
 
         if (target != null) p.facing = if (target.x >= p.x) 1 else -1
@@ -1658,17 +1732,16 @@ class World(val config: RunConfig) {
 
     private fun afterShot(f: Int, h: Int, ground: Float, z: Float, cooldown: Float) {
         val p = player
-        // Gunfire is loud. Takedowns are the quiet way.
-        for (e in enemies) {
+        // Gunfire is loud. Takedowns are the quiet way (and SHUSH).
+        if (!shush) for (e in enemies) {
             if (e.floor == f && e.hall == h && e.alive && abs(e.x - p.x) < Heat.GUNSHOT_RADIUS &&
                 (e.state == EnemyState.PATROL || e.state == EnemyState.SEARCH)
             ) {
                 alert(e)
             }
         }
-        p.fireCooldown = cooldown / encoreBoost
+        p.fireCooldown = cooldown
         p.sinceShot = 0f
-        p.unseenTime = 0f // a muzzle flash gives anyone away
         events += GameEvent.Shot(byPlayer = true, heavy = p.weapon == PickupKind.SHOTGUN, pan = pan(p.x))
         val mx = p.x + p.facing * 0.55f
         fx.burst(ParticleKind.SPARK, mx, ground - z, 4, 4f, 0.12f, 0.08f, dir = p.facing.toFloat())
@@ -1689,7 +1762,7 @@ class World(val config: RunConfig) {
         val dx = if (target != null) target.x - p.x else p.facing * 4.5f
         if (target != null) p.facing = if (dx >= 0) 1 else -1
         val t = 0.6f
-        val z0 = p.z + 1.2f
+        val z0 = p.z + hero.height * 0.8f
         grenades += Grenade(p.x, z0, p.floor, dx / t, (0.5f * GRAVITY * t * t - z0) / t, p.hall)
         events += GameEvent.Jump
     }
@@ -1720,8 +1793,7 @@ class World(val config: RunConfig) {
 
     private fun explode(x: Float, z: Float, floor: Int, hall: Int, baseRadius: Float, byGhost: Boolean = false, grenade: Boolean = false) {
         val y = Geo.groundY(floor) - z
-        val confetti = stacks(Perk.CONFETTI) > 0
-        val radius = baseRadius + if (confetti) CONFETTI_RADIUS else 0f
+        val radius = baseRadius
         events += GameEvent.Explosion(big = radius > 2.5f, pan = pan(x))
         shake = max(shake, if (byGhost) 0.5f else 0.9f)
         flash = Flash.WHITE
@@ -1730,16 +1802,10 @@ class World(val config: RunConfig) {
         fx.burst(ParticleKind.EMBER, x, y, 36, 9f, 0.8f, 0.14f, upBias = 0.3f)
         fx.burst(ParticleKind.SMOKE, x, y, 14, 2.5f, 1.3f, 0.5f, upBias = 0.5f)
         fx.burst(ParticleKind.SPARK, x, y, 18, 12f, 0.3f, 0.1f)
-        // CONFETTI: the big top's finale, streamers and all.
-        if (confetti) fx.burst(ParticleKind.CONFETTI, x, y, 40, 8f, 1.6f, 0.13f, upBias = 0.6f)
         quietBlast = byGhost
         for (e in enemies.toList()) {
             if (e.floor == floor && e.hall == hall && e.alive && abs(e.x - x) < radius) {
                 damageEnemy(e, 3, KillMethod.EXPLOSION, if (e.x >= x) 1 else -1)
-                // CONFETTI: whoever lives through it is on the floor for a bit.
-                if (confetti && e.alive) stun(e, CONFETTI_STUN)
-            } else if (confetti && e.floor == floor && e.hall == hall && e.alive && abs(e.x - x) < radius * 2f) {
-                stun(e, CONFETTI_STUN)
             } else if (e.floor == floor && e.hall == hall && e.asleep && e.alive && !byGhost) {
                 alert(e) // nobody sleeps through that (but a box going pop in a hug is only a pop)
             }
@@ -1882,7 +1948,7 @@ class World(val config: RunConfig) {
         }
         var points = (e.kind.score + bonus) * mult
         // SILENT pays: every kill without a gunshot is worth double.
-        val quiet = silent && (quietBlast || (method != KillMethod.SHOT && method != KillMethod.EXPLOSION))
+        val quiet = silent && (quietBlast || (method == KillMethod.SHOT && shush) || (method != KillMethod.SHOT && method != KillMethod.EXPLOSION))
         if (quiet) {
             points *= 2
             silentKills++
@@ -1923,19 +1989,33 @@ class World(val config: RunConfig) {
         if (rng.chance(dropChance)) dropPickup(e.x, e.floor, e.hall)
     }
 
-    private fun dropPickup(x: Float, floor: Int, hall: Int) {
+    /**
+     * What a drop can be, weighted. MONKEY SEE makes a gun [MONKEY_SEE_DROPS] times as likely
+     * (at most [MONKEY_SEE_MAX_SHARE] of all drops): the gun weights are scaled so the share
+     * really multiplies, not just the weights.
+     */
+    internal fun dropWeights(): List<Pair<PickupKind, Float>> {
         val lowHp = player.hp <= 1
-        val kind = rng.pickWeighted(
-            listOf(
-                PickupKind.CASH to 3.5f,
-                PickupKind.MEDKIT to if (lowHp) 3f else 1.2f,
-                PickupKind.GRENADE to if (silent) 2f else 1.2f,
-                PickupKind.SHOTGUN to 1f,
-                PickupKind.MINIGUN to 0.8f,
-                PickupKind.SHIELD to 0.9f,
-                PickupKind.SLOWMO to 0.7f,
-            ),
+        val base = listOf(
+            PickupKind.CASH to 3.5f,
+            PickupKind.MEDKIT to if (lowHp) 3f else 1.2f,
+            PickupKind.GRENADE to if (silent) 2f else 1.2f,
+            PickupKind.SHOTGUN to 1f,
+            PickupKind.MINIGUN to 0.8f,
+            PickupKind.SHIELD to 0.9f,
+            PickupKind.SLOWMO to 0.7f,
         )
+        if (stacks(Perk.MONKEY_SEE) <= 0) return base
+        val guns = base.filter { it.first.isGun }.sumOf { it.second.toDouble() }.toFloat()
+        val rest = base.sumOf { it.second.toDouble() }.toFloat() - guns
+        val share = min(MONKEY_SEE_MAX_SHARE, MONKEY_SEE_DROPS * guns / (guns + rest))
+        // Solve s * guns / (s * guns + rest) = share.
+        val s = share * rest / (guns * (1f - share))
+        return base.map { if (it.first.isGun) it.first to it.second * s else it }
+    }
+
+    private fun dropPickup(x: Float, floor: Int, hall: Int) {
+        val kind = rng.pickWeighted(dropWeights())
         pickups += Pickup(kind, x.coerceIn(0.6f, Geo.FLOOR_W - 0.6f), floor, hall)
     }
 
@@ -1983,20 +2063,6 @@ class World(val config: RunConfig) {
         combo = 0
         comboTimer = 0f
         fx.burst(ParticleKind.SHARD, p.x, y, 10, 5f, 0.5f, 0.1f)
-        if (p.hp <= 0 && hero.secondWind && !secondWindUsed) {
-            // LION: not today, not like this. Once a run he gets back up on one heart.
-            secondWindUsed = true
-            stats.secondWinds++
-            p.hp = 1
-            p.invuln = SECOND_WIND_INVULN
-            flash = Flash.GOLD
-            flashAmount = 0.9f
-            hitStop = 0.14f
-            fx.text(Popup.SECOND_WIND, p.x, y - 1.5f, TextStyle.BIG, 1.6f)
-            fx.ring(p.x, y, 1.6f, 0.5f)
-            events += GameEvent.PlayerHurt(1, secondWind = true)
-            return
-        }
         if (p.hp <= 0) {
             p.state = PlayerState.DEAD
             p.stateTime = 0f
@@ -2057,8 +2123,7 @@ class World(val config: RunConfig) {
             }
             val hs = hall(e.floor, e.hall) ?: continue
             val heat = hs.plan.heat
-            // CLOWN CAR: fresh out of a passage, nobody can make you out yet.
-            val visible = playerVisibleOn(e.floor, e.hall) && player.unseenTime <= 0f
+            val visible = playerVisibleOn(e.floor, e.hall)
             val dx = player.x - e.x
             val dist = abs(dx)
             // SILENT: you're a shadow; guards need you a little closer to pick you out.
@@ -2134,7 +2199,7 @@ class World(val config: RunConfig) {
                             e.state = EnemyState.AIM
                             e.stateTime = 0f
                             e.aimLow = e.kind != EnemyKind.DRONE && e.kind != EnemyKind.TURRET && e.kind != EnemyKind.DEMON &&
-                                (boxedNearby || rng.chance(Heat.lowShotChance(heat)))
+                                (boxedNearby || rng.chance(lowShotChance(heat)))
                             e.burstLeft = if (e.kind == EnemyKind.HEAVY) 2 else 0
                         }
                     }
@@ -2246,13 +2311,14 @@ class World(val config: RunConfig) {
         val muzzle = e.x + e.facing * (e.halfWidth + 0.2f)
         val bullet = when (e.kind) {
             EnemyKind.TURRET -> {
-                val tz = player.z + 0.9f
+                val tz = player.z + hero.height * 0.6f
                 val dx = player.x - e.x
                 val dz = tz - (e.z + 0.1f)
                 val len = sqrt(dx * dx + dz * dz).coerceAtLeast(0.1f)
                 Bullet(e.x + dx / len * 0.4f, e.z + 0.1f, e.floor, dx / len * v, dz / len * v, false, 1, 0, 0, hall = e.hall, from = e.kind, ambush = amb)
             }
-            EnemyKind.DRONE -> Bullet(muzzle, e.z + 0.1f, e.floor, e.facing * v, 0f, false, 1, 0, 0, hall = e.hall, from = e.kind, ambush = amb)
+            // A drone dips to a short hero's height: it has him in its sights, not over his head.
+            EnemyKind.DRONE -> Bullet(muzzle, if (short) min(e.z + 0.1f, hero.height * 0.7f) else e.z + 0.1f, e.floor, e.facing * v, 0f, false, 1, 0, 0, hall = e.hall, from = e.kind, ambush = amb)
             EnemyKind.DEMON -> Bullet(muzzle, 1.3f, e.floor, e.facing * v * 0.75f, 3.5f, false, 1, 0, 0, gravity = true, hall = e.hall, from = e.kind, ambush = amb)
             else -> Bullet(muzzle, if (e.aimLow) Body.LOW else Body.HIGH, e.floor, e.facing * v, 0f, false, 1, 0, 0, hall = e.hall, from = e.kind, ambush = amb)
         }
@@ -2332,8 +2398,16 @@ class World(val config: RunConfig) {
                     else -> false
                 }
                 if (onFloor) {
-                    val zHit = bodyCovers(b.z)
+                    val zHit = bodyCovers(b)
                     val dx = p.x - b.x
+                    // MONKEY: a shot that would have had a grown-up whistles over his head.
+                    if (!zHit && short && straight(b) && !b.overhead && p.state == PlayerState.NORMAL && abs(dx) < Body.HALF_W + 0.08f &&
+                        b.z >= p.z + hero.height && b.z <= p.z + Body.HEIGHT
+                    ) {
+                        b.overhead = true
+                        stats.overheads++
+                        fx.text(Popup.TOO_SHORT, p.x, Geo.groundY(p.floorF) - p.z - 1.9f, TextStyle.WARN, 0.7f)
+                    }
                     if (zHit && abs(dx) < Body.HALF_W + 0.08f) {
                         if (b.graze == Bullet.DODGED) {
                             // Already slipped this one: it flies on through.
@@ -2364,11 +2438,17 @@ class World(val config: RunConfig) {
     private fun ambushing(e: Enemy) = e.emergedAt >= 0f && time - e.emergedAt < AMBUSH_WINDOW
 
     /** Does the player's body, as it is right now, cover height [z] (above the player's floor)? */
-    private fun bodyCovers(z: Float): Boolean {
+    private fun bodyCovers(b: Bullet): Boolean {
         val p = player
-        val h = if (p.state == PlayerState.BOX) Body.BOX_HEIGHT else Body.HEIGHT
-        return z >= p.z - 0.05f && z <= p.z + h
+        // Only a guard's straight shot can sail over a short hero; a fireball or an angled
+        // turret round comes down on him like on anyone.
+        val stand = if (straight(b)) hero.height else Body.HEIGHT
+        val h = if (p.state == PlayerState.BOX) min(Body.BOX_HEIGHT, stand) else stand
+        return b.z >= p.z - 0.05f && b.z <= p.z + h
     }
+
+    /** A guard's level shot (no arc, no angle): the only kind a short hero ducks under. */
+    private fun straight(b: Bullet) = !b.gravity && b.vz == 0f
 
     /**
      * End of a bullet's grace window: if you boxed under it, jumped over it,
@@ -2382,7 +2462,7 @@ class World(val config: RunConfig) {
             PlayerState.ELEVATOR -> playerVisibleOn(b.floor, b.hall)
             else -> false
         }
-        if (stillThere && bodyCovers(b.z)) {
+        if (stillThere && bodyCovers(b)) {
             b.dead = true
             hurtBy(b)
         } else {
@@ -2492,7 +2572,15 @@ class World(val config: RunConfig) {
         if (p.state == PlayerState.DOOR && p.anchorX == door.x) {
             // They opened the door you're hiding behind. Bad move.
             p.state = PlayerState.NORMAL
-            startTakedown(e, e.facing)
+            if (melee) {
+                startTakedown(e, e.facing)
+            } else {
+                // MONKEY can't grab him: they just stare at each other.
+                p.stateTime = 0f
+                events += GameEvent.Unhide
+                fx.text(Popup.FOUND_YOU, e.x, Geo.groundY(e.floor) - e.height - 0.9f, TextStyle.WARN, 0.8f)
+                alert(e)
+            }
         }
     }
 
@@ -2531,7 +2619,8 @@ class World(val config: RunConfig) {
             PickupKind.MEDKIT -> if (p.hp < p.maxHp) p.hp++ else { score += 250; label = "+250" }
             PickupKind.SHOTGUN, PickupKind.MINIGUN -> {
                 p.weapon = kind
-                p.weaponTime = kind.seconds
+                p.weaponTime = kind.seconds * hero.gunTime * if (stacks(Perk.MONKEY_SEE) > 0) MONKEY_SEE_TIME else 1f
+                p.weaponTotal = p.weaponTime
             }
             PickupKind.SHIELD -> if (!p.shield) p.shield = true else { score += 100; label = "+100" }
             PickupKind.SLOWMO -> {
@@ -2651,6 +2740,11 @@ class World(val config: RunConfig) {
             }
             Perk.DEMOLITION -> p.grenades = min(maxGrenades, p.grenades + 1)
             Perk.ARMOR -> p.armorReady = true
+            Perk.BANANA_CLIP -> {
+                p.magSize = magSize
+                p.ammo = magSize
+                p.reloadTime = 0f
+            }
             else -> Unit
         }
         events += GameEvent.PerkChosen(perk)
@@ -2791,13 +2885,6 @@ class World(val config: RunConfig) {
         /** CANDY RAIN: a heart back every this many kills (LV 2: [CANDY_EVERY_2]). */
         const val CANDY_EVERY = 8
         const val CANDY_EVERY_2 = 5
-        /** CONFETTI: blasts reach this much further, and knock survivors within twice the radius flat. */
-        const val CONFETTI_RADIUS = 0.8f
-        const val CONFETTI_STUN = 2.5f
-        /** CLOWN CAR: passages take this fraction of [PASSAGE_TIME]... */
-        const val CLOWN_CAR_SCALE = 0.5f
-        /** ...and nobody can see you for this long once you're out in the open. */
-        const val CLOWN_CAR_UNSEEN = 1.5f
         /** PACKING PEANUTS: a grenade dazes the whole hallway this long (LV 2: [PEANUTS_STUN_2]). */
         const val PEANUTS_STUN = 2f
         const val PEANUTS_STUN_2 = 3.5f
@@ -2806,8 +2893,22 @@ class World(val config: RunConfig) {
         /** ...and shimmers this long ([Player.fragileTime]). */
         const val FRAGILE_SHOW = 0.4f
         private const val FRAGILE_KEY = 0x6717C4L
-        /** LION's second wind: back up on one heart, untouchable this long. */
-        const val SECOND_WIND_INVULN = 2f
+        /** BANANA CLIP: rounds added to the magazine per level, and each level's reload time. */
+        const val BANANA_CLIP_ROUNDS = 6
+        /** The gun's muzzle, as a fraction of the hero's height (1.0 u up on a grown-up). */
+        const val MUZZLE_AT = 1f / 1.5f
+        const val BANANA_CLIP_RELOAD = 0.75f
+        /** MONKEY SEE: pickup guns last this many times as long, and turn up this much more in drops. */
+        const val MONKEY_SEE_TIME = 2f
+        const val MONKEY_SEE_DROPS = 2.5f
+        const val MONKEY_SEE_MAX_SHARE = 0.6f
+        /** A guard aiming at someone this short (under [Body.HIGH]) goes low at least this often. */
+        const val SHORT_LOW_SHOT = 0.7f
+        /** Walking into a guard without a takedown: he's a wall, you stand off him this far. */
+        const val BUMP_GAP = 0.5f
+        /** Landing on a guard's head without a stomp: you bounce off, this fast up and sideways. */
+        const val HEAD_BOUNCE_VZ = 5f
+        const val HEAD_BOUNCE_VX = 3f
 
         // ---- Controls & feel (see docs/CONTROLS.md) ----
         const val RUN_ACCEL = 70f

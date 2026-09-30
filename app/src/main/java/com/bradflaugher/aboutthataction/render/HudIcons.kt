@@ -221,41 +221,61 @@ internal object HudIcons {
                 g.line(cx - k * 0.96f, cy + k * 0.42f, cx - k * 0.44f, cy + k * 0.42f, sw * 0.7f, c)
                 spark(g, cx + k * 0.74f, cy + k * 0.66f, k * 0.3f, c)
             }
-            Perk.CONFETTI -> {
-                // A party popper going off: the striped cone, and confetti and a streamer bursting out.
-                poly.tri(g, cx - k * 0.94f, cy + k * 0.94f, cx - k * 0.66f, cy - k * 0.04f, cx + k * 0.04f, cy + k * 0.66f, c)
-                g.line(cx - k * 0.72f, cy + k * 0.3f, cx - k * 0.3f, cy + k * 0.72f, k * GAP, h)
-                g.line(cx - k * 0.82f, cy + k * 0.62f, cx - k * 0.62f, cy + k * 0.82f, k * GAP, h)
-                for (i in CONFETTI_X.indices) {
-                    g.save()
-                    g.translate(cx + CONFETTI_X[i] * k, cy + CONFETTI_Y[i] * k)
-                    g.rotate(i * 37f)
-                    g.fillRoundRect(-k * 0.13f, -k * 0.08f, k * 0.13f, k * 0.08f, k * 0.03f, c)
-                    g.restore()
+            Perk.BANANA_CLIP -> {
+                // A curved magazine, bent like a banana, a round peeking out of the top.
+                val ox = cx + k * 0.95f
+                val pb = poly.begin()
+                for (i in 0..10) {
+                    val a = (140f + i * 8f) * PI.toFloat() / 180f
+                    pb.add(ox + cos(a) * k * 1.5f, cy + sin(a) * k * 1.5f)
                 }
-                g.strokeArc(cx + k * 0.02f, cy - k * 0.42f, k * 0.2f, 180f, 180f, sw * 0.6f, c)
-                g.strokeArc(cx + k * 0.42f, cy - k * 0.42f, k * 0.2f, 0f, 180f, sw * 0.6f, c)
+                for (i in 10 downTo 0) {
+                    val a = (140f + i * 8f) * PI.toFloat() / 180f
+                    pb.add(ox + cos(a) * k * 0.98f, cy + sin(a) * k * 0.98f)
+                }
+                pb.fill(g, c)
+                // Ridges down the body, and the stalk at the bottom end.
+                for (i in 0 until 3) {
+                    val a = (160f + i * 20f) * PI.toFloat() / 180f
+                    g.line(ox + cos(a) * k * 1.12f, cy + sin(a) * k * 1.12f, ox + cos(a) * k * 1.36f, cy + sin(a) * k * 1.36f, k * GAP, h)
+                }
+                val tip = 140f * PI.toFloat() / 180f
+                val bx = ox + cos(tip) * k * 1.24f
+                val by = cy + sin(tip) * k * 1.24f
+                g.line(bx, by, bx + k * 0.1f, by + k * 0.2f, sw * 0.9f, c)
+                val top = 220f * PI.toFloat() / 180f
+                val tx = ox + cos(top) * k * 1.24f
+                val ty = cy + sin(top) * k * 1.24f
+                g.fillCircle(tx + k * 0.08f, ty - k * 0.12f, k * 0.2f, h)
+                g.fillCircle(tx + k * 0.1f, ty - k * 0.14f, k * 0.13f, c)
             }
-            Perk.CLOWN_CAR -> {
-                // A tiny bubble car, three heads crammed out of the roof: how many fit in there?
-                for (i in -1..1) g.fillCircle(cx + i * k * 0.36f, cy - k * 0.6f, k * 0.25f, h)
-                for (i in -1..1) g.fillCircle(cx + i * k * 0.36f, cy - k * 0.62f, k * 0.19f, c)
-                g.fillArc(cx, cy + k * 0.06f, k * 0.62f, 180f, 180f, h)
-                g.fillArc(cx, cy + k * 0.06f, k * 0.54f, 180f, 180f, c)
-                g.fillArc(cx, cy + k * 0.04f, k * 0.34f, 180f, 180f, h)
-                g.fillRoundRect(cx - k * 0.96f, cy - k * 0.02f, cx + k * 0.96f, cy + k * 0.56f, k * 0.24f, c)
+            Perk.MONKEY_SEE -> {
+                // A monkey face, big round ears, eyes wide: he's seen a new gun.
                 for (sx in -1..1 step 2) {
-                    g.fillCircle(cx + sx * k * 0.52f, cy + k * 0.6f, k * 0.36f, h)
-                    g.fillCircle(cx + sx * k * 0.52f, cy + k * 0.6f, k * 0.27f, c)
-                    g.fillCircle(cx + sx * k * 0.52f, cy + k * 0.6f, k * 0.09f, h)
+                    g.fillCircle(cx + sx * k * 0.66f, cy - k * 0.1f, k * 0.3f, c)
+                    g.fillCircle(cx + sx * k * 0.68f, cy - k * 0.1f, k * 0.13f, h)
                 }
+                g.fillCircle(cx, cy + k * 0.02f, k * 0.6f, c)
+                for (sx in -1..1 step 2) g.fillCircle(cx + sx * k * 0.2f, cy - k * 0.12f, k * 0.22f, h)
+                g.fillCircle(cx, cy + k * 0.3f, k * 0.3f, h)
+                for (sx in -1..1 step 2) g.fillCircle(cx + sx * k * 0.2f, cy - k * 0.12f, k * 0.1f, c)
+                g.strokeArc(cx, cy + k * 0.24f, k * 0.16f, 20f, 140f, k * GAP, c)
+                spark(g, cx + k * 0.66f, cy - k * 0.72f, k * 0.26f, c)
             }
-            Perk.ENCORE -> {
-                // Curtain call: the drapes swept back, the pelmet, and a star taking a bow.
-                g.fillRoundRect(cx - k * 0.96f, cy - k * 0.96f, cx + k * 0.96f, cy - k * 0.72f, k * 0.08f, c)
-                shape(g, DRAPE, cx, cy, k, c)
-                shape(g, DRAPE, cx, cy, k, c, -1f)
-                stash(g, cx, cy + k * 0.22f, k * 1.1f, c)
+            Perk.SHUSH -> {
+                // A rifle with a fat quiet can on the barrel, and a little "shh" drifting off it.
+                g.fillRoundRect(cx - k * 0.96f, cy - k * 0.2f, cx + k * 0.1f, cy + k * 0.12f, k * 0.06f, c)
+                poly.begin().add(cx - k * 0.96f, cy - k * 0.14f).add(cx - k * 0.7f, cy - k * 0.1f)
+                    .add(cx - k * 0.66f, cy + k * 0.44f).add(cx - k * 0.96f, cy + k * 0.4f).fill(g, c)
+                poly.begin().add(cx - k * 0.36f, cy + k * 0.1f).add(cx - k * 0.14f, cy + k * 0.1f)
+                    .add(cx - k * 0.24f, cy + k * 0.62f).add(cx - k * 0.46f, cy + k * 0.58f).fill(g, c)
+                g.fillRoundRect(cx + k * 0.06f, cy - k * 0.3f, cx + k * 0.96f, cy + k * 0.2f, k * 0.14f, c)
+                for (i in 1..3) {
+                    val x = cx + k * (0.06f + i * 0.225f)
+                    g.line(x, cy - k * 0.22f, x, cy + k * 0.12f, k * GAP, h)
+                }
+                g.strokeArc(cx + k * 0.42f, cy - k * 0.64f, k * 0.14f, 180f, 180f, sw * 0.55f, c)
+                g.strokeArc(cx + k * 0.7f, cy - k * 0.64f, k * 0.14f, 0f, 180f, sw * 0.55f, c)
             }
             Perk.SIGNED_FOR -> {
                 // A parcel with its label, a signature scrawled across it, and the pen.
@@ -405,11 +425,6 @@ internal object HudIcons {
     private val BOOT = floatArrayOf(
         -0.4f, -0.8f, 0.1f, -0.8f, 0.12f, -0.04f, 0.46f, 0.06f, 0.62f, 0.16f, 0.68f, 0.3f, 0.66f, 0.52f, -0.42f, 0.52f,
     )
-    /** The left drape of the curtain call, swept back (mirrored for the right). */
-    private val DRAPE = floatArrayOf(-0.96f, -0.74f, -0.3f, -0.74f, -0.5f, -0.44f, -0.66f, -0.02f, -0.7f, 0.94f, -0.96f, 0.94f)
-    /** Confetti flying off the popper. */
-    private val CONFETTI_X = floatArrayOf(-0.46f, 0.7f, 0.2f, 0.76f, -0.08f, 0.4f)
-    private val CONFETTI_Y = floatArrayOf(-0.62f, -0.78f, -0.02f, 0.26f, -0.86f, 0.52f)
     /** The signature's scrawl across the parcel label. */
     private val SIG_X = floatArrayOf(-0.6f, -0.46f, -0.36f, -0.26f, -0.12f, 0f, 0.1f, 0.24f)
     private val SIG_Y = floatArrayOf(0.56f, 0.3f, 0.6f, 0.36f, 0.58f, 0.34f, 0.5f, 0.44f)
