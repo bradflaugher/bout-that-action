@@ -629,10 +629,29 @@ class HeroTest {
         w.perks[Perk.MONKEY_SEE] = 1
         w.pickups += Pickup(PickupKind.MINIGUN, w.player.x, w.player.floor, w.player.hall)
         run(w, 0.4f)
-        assertEquals(PickupKind.MINIGUN.seconds * 1.5f * World.MONKEY_SEE_TIME, w.player.weaponTime, 0.5f)
-        val base = gunDrops(see = false)
-        val see = gunDrops(see = true)
-        assertTrue("guns $base -> $see", see > base * 1.6f)
+        val total = PickupKind.MINIGUN.seconds * 1.5f * World.MONKEY_SEE_TIME
+        assertEquals(total, w.player.weaponTime, 0.5f)
+        // The HUD's timer bar runs off the real total, so it starts moving at once.
+        assertEquals(total, w.player.weaponTotal, 1e-4f)
+        run(w, 1f)
+        assertTrue(w.player.weaponTime / w.player.weaponTotal < 0.99f)
+        // The gun share of drops really goes up by MONKEY_SEE_DROPS, in every drop table.
+        for (silent in listOf(false, true)) for (hp in listOf(1, 3)) {
+            val t = world(Hero.MONKEY, silent = silent)
+            t.player.hp = hp
+            fun share(): Float {
+                val ws = t.dropWeights()
+                return ws.filter { it.first.isGun }.sumOf { it.second.toDouble() }.toFloat() / ws.sumOf { it.second.toDouble() }.toFloat()
+            }
+            val before = share()
+            t.perks[Perk.MONKEY_SEE] = 1
+            val after = share()
+            assertEquals("silent $silent hp $hp", kotlin.math.min(World.MONKEY_SEE_MAX_SHARE, before * World.MONKEY_SEE_DROPS), after, 1e-4f)
+            assertEquals(World.MONKEY_SEE_DROPS, after / before, 1e-3f)
+        }
+        val base = gunDrops(see = false, n = 1500)
+        val see = gunDrops(see = true, n = 1500)
+        assertTrue("guns $base -> $see", see.toFloat() / base in 2.0f..3.1f)
     }
 
     @Test

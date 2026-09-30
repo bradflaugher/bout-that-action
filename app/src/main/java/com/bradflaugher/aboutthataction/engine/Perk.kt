@@ -66,6 +66,10 @@ enum class PickupKind(val title: String, val seconds: Float) {
     SLOWMO("SLOW-MO", 6f),
     GRENADE("GRENADE", 0f),
     CASH("CASH", 0f),
+    ;
+
+    /** A pickup gun (it replaces the sidearm for [seconds]). */
+    val isGun: Boolean get() = this == SHOTGUN || this == MINIGUN
 }
 
 /** Enemy archetypes. Each zone reskins them; see the renderer. */

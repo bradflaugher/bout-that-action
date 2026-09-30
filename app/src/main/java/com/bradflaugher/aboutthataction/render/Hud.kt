@@ -817,7 +817,7 @@ internal class Hud(private val f: Frame) {
         var y = bottom
         val weapon = p.weapon
         if (weapon != null) {
-            timerPill(cx, y, u, weapon.title, p.weaponTime, weapon.seconds, 0xFFFFA020.toInt(), weapon)
+            timerPill(cx, y, u, weapon.title, p.weaponTime, if (p.weaponTotal > 0f) p.weaponTotal else weapon.seconds, 0xFFFFA020.toInt(), weapon)
             y -= 8f * u
         }
         if (p.slowMoTime > 0f) {

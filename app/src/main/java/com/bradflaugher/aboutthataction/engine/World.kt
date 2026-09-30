@@ -1523,7 +1523,7 @@ class World(val config: RunConfig) {
      * The gun stays put away: SILENT, for everyone who can take a guard down by hand. MONKEY
      * can't, so in SILENT his gun still answers anyone onto him (loud, unless it's SHUSHed).
      */
-    private val holstered: Boolean get() = silent && melee
+    val holstered: Boolean get() = silent && melee
 
     /**
      * GUNS HOT fires only at threats: anyone who has noticed you, drones and turrets, and an
@@ -1964,21 +1964,33 @@ class World(val config: RunConfig) {
         if (rng.chance(dropChance)) dropPickup(e.x, e.floor, e.hall)
     }
 
-    private fun dropPickup(x: Float, floor: Int, hall: Int) {
+    /**
+     * What a drop can be, weighted. MONKEY SEE makes a gun [MONKEY_SEE_DROPS] times as likely
+     * (at most [MONKEY_SEE_MAX_SHARE] of all drops): the gun weights are scaled so the share
+     * really multiplies, not just the weights.
+     */
+    internal fun dropWeights(): List<Pair<PickupKind, Float>> {
         val lowHp = player.hp <= 1
-        // MONKEY SEE: the guns turn up far more.
-        val seeGuns = if (stacks(Perk.MONKEY_SEE) > 0) MONKEY_SEE_DROPS else 1f
-        val kind = rng.pickWeighted(
-            listOf(
-                PickupKind.CASH to 3.5f,
-                PickupKind.MEDKIT to if (lowHp) 3f else 1.2f,
-                PickupKind.GRENADE to if (silent) 2f else 1.2f,
-                PickupKind.SHOTGUN to 1f * seeGuns,
-                PickupKind.MINIGUN to 0.8f * seeGuns,
-                PickupKind.SHIELD to 0.9f,
-                PickupKind.SLOWMO to 0.7f,
-            ),
+        val base = listOf(
+            PickupKind.CASH to 3.5f,
+            PickupKind.MEDKIT to if (lowHp) 3f else 1.2f,
+            PickupKind.GRENADE to if (silent) 2f else 1.2f,
+            PickupKind.SHOTGUN to 1f,
+            PickupKind.MINIGUN to 0.8f,
+            PickupKind.SHIELD to 0.9f,
+            PickupKind.SLOWMO to 0.7f,
         )
+        if (stacks(Perk.MONKEY_SEE) <= 0) return base
+        val guns = base.filter { it.first.isGun }.sumOf { it.second.toDouble() }.toFloat()
+        val rest = base.sumOf { it.second.toDouble() }.toFloat() - guns
+        val share = min(MONKEY_SEE_MAX_SHARE, MONKEY_SEE_DROPS * guns / (guns + rest))
+        // Solve s * guns / (s * guns + rest) = share.
+        val s = share * rest / (guns * (1f - share))
+        return base.map { if (it.first.isGun) it.first to it.second * s else it }
+    }
+
+    private fun dropPickup(x: Float, floor: Int, hall: Int) {
+        val kind = rng.pickWeighted(dropWeights())
         pickups += Pickup(kind, x.coerceIn(0.6f, Geo.FLOOR_W - 0.6f), floor, hall)
     }
 
@@ -2577,6 +2589,7 @@ class World(val config: RunConfig) {
             PickupKind.SHOTGUN, PickupKind.MINIGUN -> {
                 p.weapon = kind
                 p.weaponTime = kind.seconds * hero.gunTime * if (stacks(Perk.MONKEY_SEE) > 0) MONKEY_SEE_TIME else 1f
+                p.weaponTotal = p.weaponTime
             }
             PickupKind.SHIELD -> if (!p.shield) p.shield = true else { score += 100; label = "+100" }
             PickupKind.SLOWMO -> {
@@ -2857,6 +2870,7 @@ class World(val config: RunConfig) {
         /** MONKEY SEE: pickup guns last this many times as long, and turn up this much more in drops. */
         const val MONKEY_SEE_TIME = 2f
         const val MONKEY_SEE_DROPS = 2.5f
+        const val MONKEY_SEE_MAX_SHARE = 0.6f
         /** A guard aiming at someone this short (under [Body.HIGH]) goes low at least this often. */
         const val SHORT_LOW_SHOT = 0.7f
         /** Walking into a guard without a takedown: he's a wall, you stand off him this far. */

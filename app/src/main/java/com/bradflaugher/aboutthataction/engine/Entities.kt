@@ -60,6 +60,8 @@ class Player {
     var armorReady = false
     var weapon: PickupKind? = null
     var weaponTime = 0f
+    /** What [weaponTime] started at (the HUD's timer bar): MONKEY's guns last longer. */
+    var weaponTotal = 0f
     var slowMoTime = 0f
     var reflexCooldown = 0f
     /** Door or shaft the player is using, by x. */

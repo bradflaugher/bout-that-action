@@ -386,7 +386,9 @@ internal class Actors(private val f: Frame) {
             }
         }
         // SILENT holsters the gun: no firing in that mode, so the hands are free for takedowns.
-        val silent = f.w.silent && !pl.reloading && (state == PlayerState.NORMAL || state == PlayerState.ELEVATOR || state == PlayerState.PASSAGE)
+        // MONKEY has no takedowns: his rifle comes off his back the moment it has someone to shoot.
+        val drawn = !f.w.holstered && (shooting || aimTarget() != null)
+        val silent = f.w.silent && !drawn && !pl.reloading && (state == PlayerState.NORMAL || state == PlayerState.ELEVATOR || state == PlayerState.PASSAGE)
         if (silent) showGun = false
         var lean: Float
         var nod = 0f

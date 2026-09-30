@@ -159,6 +159,8 @@ class CastScreenshotTest {
             false to { it.player.state = PlayerState.PASSAGE; it.player.stateTime = World.PASSAGE_TIME * 0.18f },
             false to { it.player.state = PlayerState.DEAD; it.player.stateTime = 1.4f },
             false to { it.player.fragileTime = 0.3f },
+            // SILENT with someone onto him: MONKEY's gun comes off his back (everyone else's stays put).
+            true to { it.put(EnemyKind.AGENT, 10.5f, -1, EnemyState.AIM); it.player.sinceShot = 0.03f },
         )
         val crops = ArrayList<BufferedImage>()
         for ((silent, pose) in poses) {
