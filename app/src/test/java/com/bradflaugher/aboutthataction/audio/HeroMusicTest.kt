@@ -99,8 +99,8 @@ class HeroMusicTest {
     /** Each hero plays their own genre at its own tempo; sneaking is always the slower one. */
     @Test
     fun eachHeroPlaysTheirGenreAtItsTempo() {
-        val hot = mapOf(Hero.BULL to 130f..155f, Hero.FOX to 145f..175f, Hero.WOLF to 145f..180f, Hero.HAWK to 115f..150f)
-        val sneak = mapOf(Hero.BULL to 80f..95f, Hero.FOX to 88f..108f, Hero.WOLF to 75f..95f, Hero.HAWK to 85f..105f)
+        val hot = mapOf(Hero.BULL to 130f..155f, Hero.FOX to 145f..175f, Hero.LION to 145f..180f, Hero.HAWK to 115f..150f)
+        val sneak = mapOf(Hero.BULL to 80f..95f, Hero.FOX to 88f..108f, Hero.LION to 75f..95f, Hero.HAWK to 85f..105f)
         for (h in Hero.entries) for (z in Zone.entries) {
             val loud = HeroSongs.forZone(h, z, false)
             val quiet = HeroSongs.forZone(h, z, true)
@@ -149,11 +149,11 @@ class HeroMusicTest {
         }
     }
 
-    /** WOLF: country in the major key — a brushed shuffle sneaking, a train beat and banjo rolls hot. */
+    /** LION: country in the major key — a brushed shuffle sneaking, a train beat and banjo rolls hot. */
     @Test
-    fun wolfIsCountry() {
+    fun lionIsCountry() {
         for (z in Zone.entries) for (silent in listOf(false, true)) {
-            val spec = HeroSongs.forZone(Hero.WOLF, z, silent)
+            val spec = HeroSongs.forZone(Hero.LION, z, silent)
             val what = "$z${if (silent) " sneak" else ""}"
             assertTrue("$what: a major key", spec.scale.contentEquals(Scales.IONIAN))
             val degrees = (spec.progA + spec.progB).map { it.degree }.toSet()
@@ -202,7 +202,7 @@ class HeroMusicTest {
             println("$z: " + stats.entries.joinToString { "%s sub=%.2f centroid=%.0f".format(it.key, it.value.first, it.value.second) })
             val bull = stats.getValue(Hero.BULL)
             for (h in Hero.entries - Hero.BULL) assertTrue("$z: BULL's 808s outweigh $h's bass", bull.first > stats.getValue(h).first)
-            assertTrue("$z: HAWK's drums sit darker than WOLF's banjo", stats.getValue(Hero.HAWK).second < stats.getValue(Hero.WOLF).second)
+            assertTrue("$z: HAWK's drums sit darker than LION's banjo", stats.getValue(Hero.HAWK).second < stats.getValue(Hero.LION).second)
         }
     }
 
@@ -384,7 +384,7 @@ class HeroMusicTest {
             assertEquals(what, base.kickThreshold, spec.kickThreshold, 0f)
             assertEquals(what, base.wind, spec.wind, 0f)
             assertEquals(what, base.glitch, spec.glitch)
-            if (h == Hero.WOLF) {
+            if (h == Hero.LION) {
                 // Country in the parallel major: its own chords, all in that key.
                 assertTrue(what, spec.scale.contentEquals(Scales.IONIAN))
                 for (c in spec.progA + spec.progB) for (iv in c.intervals) {

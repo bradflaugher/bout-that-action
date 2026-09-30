@@ -57,8 +57,8 @@ enum class Hero(
         magSize = 8, reactionScale = 1.35f, fireScale = 0.85f,
     ),
     /** A bald small-town sheriff with a horseshoe moustache who will not stay down. */
-    WOLF(
-        "WOLF", "Small-town sheriff. Lone wolf.",
+    LION(
+        "LION", "Small-town sheriff. Lone wolf.",
         "Shrugs off one fatal hit a run; +1 grenade", "Boots on. Stubborn required.",
         0xFFDA8CFF.toInt(),
         secondWind = true, extraGrenades = 1,
@@ -75,12 +75,12 @@ enum class Hero(
     companion object {
         /**
          * A hero saved by [name], or null if there's none by that name. Older builds called
-         * HAWK "VIPER" (and, briefly, "MONGOOSE") and WOLF "BADGER".
+         * HAWK "VIPER" (and, briefly, "MONGOOSE") and LION "WOLF" (and, before that, "BADGER").
          */
         fun fromSaved(name: String?): Hero? = when (name) {
             null -> null
             "VIPER", "MONGOOSE" -> HAWK
-            "BADGER" -> WOLF
+            "WOLF", "BADGER" -> LION
             else -> entries.firstOrNull { it.name == name }
         }
     }

@@ -364,11 +364,11 @@ class HeroTest {
         assertTrue("GUNS HOT kills aren't quiet: $loud", loud in 35..95)
     }
 
-    // ------------------------------------------------------------ WOLF
+    // ------------------------------------------------------------ LION
 
     @Test
-    fun wolfShrugsOffOneFatalHitARun() {
-        val w = world(Hero.WOLF, hearts = 1)
+    fun lionShrugsOffOneFatalHitARun() {
+        val w = world(Hero.LION, hearts = 1)
         assertEquals(1, w.player.maxHp)
         w.player.x = 5f
         bullet(w, 8f, Body.HIGH, -9f)
@@ -388,19 +388,19 @@ class HeroTest {
     }
 
     @Test
-    fun wolfCarriesAnExtraGrenade() {
+    fun lionCarriesAnExtraGrenade() {
         for (hero in Hero.entries) {
             val w = World(RunConfig(1L, hero = hero))
-            val wolf = hero == Hero.WOLF
-            assertEquals(if (wolf) 2 else 1, w.player.grenades)
-            assertEquals(if (wolf) 4 else 3, w.maxGrenades)
+            val lion = hero == Hero.LION
+            assertEquals(if (lion) 2 else 1, w.player.grenades)
+            assertEquals(if (lion) 4 else 3, w.maxGrenades)
         }
     }
 
     @Test
     fun kaboomBlastsReachFurtherAndKnockSurvivorsFlat() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.WOLF)
+            val w = world(Hero.LION)
             if (perk) w.perks[Perk.KABOOM] = 1
             park(w)
             val edge = enemy(w, EnemyKind.AGENT, 7f + 2.7f)
@@ -424,7 +424,7 @@ class HeroTest {
     @Test
     fun ventCrawlPassagesAreQuickAndYouArriveUnseen() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.WOLF, silent = false)
+            val w = world(Hero.LION, silent = false)
             if (perk) w.perks[Perk.VENT_CRAWL] = 1
             assertEquals(World.PASSAGE_TIME * if (perk) World.VENT_CRAWL_SCALE else 1f, w.passageTime, 1e-5f)
             val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
@@ -454,7 +454,7 @@ class HeroTest {
     @Test
     fun adrenalineKicksInOnTheLastHeart() {
         for (level in 1..2) {
-            val w = world(Hero.WOLF)
+            val w = world(Hero.LION)
             w.perks[Perk.ADRENALINE] = level
             val boost = if (level >= 2) 1.5f else 1.3f
             assertFalse(w.adrenaline)
@@ -623,7 +623,8 @@ class HeroTest {
         for (h in Hero.entries) assertEquals(h, Hero.fromSaved(h.name))
         assertEquals(Hero.HAWK, Hero.fromSaved("VIPER"))
         assertEquals(Hero.HAWK, Hero.fromSaved("MONGOOSE"))
-        assertEquals(Hero.WOLF, Hero.fromSaved("BADGER"))
+        assertEquals(Hero.LION, Hero.fromSaved("BADGER"))
+        assertEquals(Hero.LION, Hero.fromSaved("WOLF"))
         assertEquals(null, Hero.fromSaved(null))
         assertEquals(null, Hero.fromSaved("NOBODY"))
     }

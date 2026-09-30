@@ -40,10 +40,10 @@ enum class Perk(
     LASER_WATCH("LASER WATCH", "Your shots cut lamps; one swat kills them all", 1, "It also tells the time.", Hero.FOX),
     DEAD_DROP("DEAD DROP", "SILENT kills drop loot 2x as often (LV 2: 3x)", 2, "Leave it under the fern.", Hero.FOX),
 
-    // ---- WOLF
-    KABOOM("KABOOM", "Bigger blasts that knock survivors flat", 1, "Everybody down.", Hero.WOLF),
-    VENT_CRAWL("VENT CRAWL", "Passages twice as quick; arrive unseen", 1, "Dusty, but right on time.", Hero.WOLF),
-    ADRENALINE("ADRENALINE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "Last heart, best heart.", Hero.WOLF),
+    // ---- LION
+    KABOOM("KABOOM", "Bigger blasts that knock survivors flat", 1, "Everybody down.", Hero.LION),
+    VENT_CRAWL("VENT CRAWL", "Passages twice as quick; arrive unseen", 1, "Dusty, but right on time.", Hero.LION),
+    ADRENALINE("ADRENALINE", "Last heart: shoot and run 30% faster (LV 2: 50%)", 2, "Last heart, best heart.", Hero.LION),
 
     // ---- HAWK
     JAMMER("JAMMER", "Drones and turrets take twice as long to react", 1, "Static on every channel.", Hero.HAWK),

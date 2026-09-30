@@ -11,7 +11,7 @@ import kotlin.math.sqrt
  * Every hero's own soundtrack: each zone's track (GUNS HOT and its SILENT sneak mix) in the
  * hero's genre, plus a signature theme for the hero picker.
  *
- * An arrangement keeps what makes a zone that zone — its key (and chords, except WOLF's
+ * An arrangement keeps what makes a zone that zone — its key (and chords, except LION's
  * country, which plays in the parallel major), bars per chord, section plan, the ambience
  * (wind, rotor, VOID's glitches) and the intensity layering thresholds — and swaps in the
  * hero's band: tempo, patches, drum kit and every part, plus their signature motif (the
@@ -25,7 +25,7 @@ import kotlin.math.sqrt
  *  - FOX: classical. Sneaking is a chamber piece on tiptoe: pizzicato cello and violins,
  *    soft bowed strings, a clarinet and a timpani; GUNS HOT is a baroque presto at ~156
  *    (spiccato cellos, running violin figures, harpsichord continuo, timpani, a solo violin).
- *  - WOLF: country. Sneaking is a slow shuffle (brushes, a two-beat bass, fingerpicked
+ *  - LION: country. Sneaking is a slow shuffle (brushes, a two-beat bass, fingerpicked
  *    steel guitar, pedal steel and a harmonica); GUNS HOT is a train-beat hoedown at ~160
  *    (16th-note snare, boom-chick bass, banjo rolls, strummed acoustic and a fiddle).
  *  - HAWK: jungle drums. Sneaking is sparse hand drums, a shaker and a heartbeat frame
@@ -100,9 +100,9 @@ internal object HeroSongs {
     private val foxSig = Motif("0:1 1:1 2:1 3:1 4:2 2:2 3:1 2:1 1:1 0:1 1:2 .:2")
     private val foxAns = Motif("4:2 3:2 2:2 1:2 0:4 .:4")
 
-    /** WOLF: a fiddle-and-harmonica lick — climb to the fifth, lean on it and walk home. */
-    private val wolfSig = Motif("0:2 2:2 4:3 3:1 2:2 0:2 1:4")
-    private val wolfAns = Motif("4:2 4:2 2:2 3:2 2:2 1:2 0:4")
+    /** LION: a fiddle-and-harmonica lick — climb to the fifth, lean on it and walk home. */
+    private val lionSig = Motif("0:2 2:2 4:3 3:1 2:2 0:2 1:4")
+    private val lionAns = Motif("4:2 4:2 2:2 3:2 2:2 1:2 0:4")
 
     /** HAWK: a chant — the root twice, up to the fifth held, and down past the root. */
     private val hawkSig = Motif("0:2 0:2 2:4 1:2 0:2 -1:4")
@@ -114,13 +114,13 @@ internal object HeroSongs {
     private val HOT_BPM = arrayOf(
         floatArrayOf(136f, 138f, 140f, 140f, 138f, 142f, 150f, 144f), // BULL: trap, half-time
         floatArrayOf(150f, 152f, 156f, 158f, 152f, 160f, 172f, 164f), // FOX: presto
-        floatArrayOf(150f, 154f, 158f, 160f, 154f, 164f, 176f, 168f), // WOLF: train beat
+        floatArrayOf(150f, 154f, 158f, 160f, 154f, 164f, 176f, 168f), // LION: train beat
         floatArrayOf(118f, 122f, 126f, 128f, 120f, 132f, 144f, 136f), // HAWK: war drums
     )
     private val SNEAK_BPM = arrayOf(
         floatArrayOf(84f, 85f, 86f, 87f, 86f, 88f, 92f, 90f), // BULL: boom-bap
         floatArrayOf(92f, 94f, 96f, 98f, 94f, 100f, 104f, 100f), // FOX: pizzicato
-        floatArrayOf(78f, 80f, 82f, 84f, 80f, 86f, 92f, 88f), // WOLF: slow country shuffle
+        floatArrayOf(78f, 80f, 82f, 84f, 80f, 86f, 92f, 88f), // LION: slow country shuffle
         floatArrayOf(88f, 90f, 92f, 94f, 90f, 96f, 102f, 98f), // HAWK: hand drums
     )
 
@@ -129,13 +129,13 @@ internal object HeroSongs {
     private val HOT_TRIM = arrayOf(
         floatArrayOf(0.86f, 0.88f, 0.89f, 0.94f, 1.00f, 0.98f, 1.10f, 0.89f), // BULL
         floatArrayOf(1.16f, 1.15f, 1.08f, 1.11f, 1.14f, 1.14f, 1.17f, 1.07f), // FOX
-        floatArrayOf(1.22f, 1.16f, 1.19f, 1.19f, 1.20f, 1.20f, 1.29f, 1.12f), // WOLF
+        floatArrayOf(1.22f, 1.16f, 1.19f, 1.19f, 1.20f, 1.20f, 1.29f, 1.12f), // LION
         floatArrayOf(0.87f, 0.87f, 0.86f, 0.91f, 0.97f, 0.94f, 1.10f, 0.89f), // HAWK
     )
     private val SNEAK_TRIM = arrayOf(
         floatArrayOf(0.83f, 0.82f, 0.80f, 0.80f, 0.85f, 0.81f, 0.81f, 0.87f), // BULL
         floatArrayOf(1.02f, 1.05f, 1.01f, 1.05f, 1.05f, 1.07f, 1.10f, 1.07f), // FOX
-        floatArrayOf(1.01f, 1.01f, 1.05f, 1.06f, 1.17f, 1.00f, 1.11f, 1.12f), // WOLF
+        floatArrayOf(1.01f, 1.01f, 1.05f, 1.06f, 1.17f, 1.00f, 1.11f, 1.12f), // LION
         floatArrayOf(0.89f, 0.88f, 0.84f, 0.89f, 0.93f, 0.93f, 0.91f, 0.92f), // HAWK
     )
     private val THEME_TRIM = floatArrayOf(0.83f, 1.11f, 1.16f, 0.83f)
@@ -314,9 +314,9 @@ internal object HeroSongs {
         crowd = 0f,
     )
 
-    // ---- WOLF: a slow country shuffle, then a train-beat hoedown ---------------------------
+    // ---- LION: a slow country shuffle, then a train-beat hoedown ---------------------------
 
-    /** WOLF plays country in the zone's major key: I–IV–V (a V7) with a little ii and vi. */
+    /** LION plays country in the zone's major key: I–IV–V (a V7) with a little ii and vi. */
     private fun country(vararg degrees: Int) = Array(degrees.size) {
         val d = degrees[it]
         Chord.diatonic(IONIAN, d, seventh = d == 4)
@@ -337,7 +337,7 @@ internal object HeroSongs {
         vibrato = 0.3f, vibRate = 5.5f, trem = 0.15f, tremRate = 6f, gain = 0.12f, bright = 0.3f,
     )
 
-    private fun wolfSneak(base: SongSpec, t: Tint, name: String, bpm: Float) = base.derive(
+    private fun lionSneak(base: SongSpec, t: Tint, name: String, bpm: Float) = base.derive(
         name = name, bpm = bpm, swing = 0.22f, scale = IONIAN, progA = country(0, 4, 3, 0), progB = country(3, 0, 1, 4),
         drumsA = DrumPattern(kick = "X.......X.......", snare = "....x.......x...", hat = "x.o.x.o.x.o.x.o."),
         drumsB = DrumPattern(
@@ -353,8 +353,8 @@ internal object HeroSongs {
         bassA = "R.......F.......", bassB = "R...T...F...A...",
         arpA = "0.3.2.4.1.3.2.4.", arpB = "0.4.2.3.1.4.2.3.", arpGate = 2f,
         padRhythm = "x...............",
-        leadTemplates = arrayOf(wolfSig.rhythm, "x.......x.......", "x...........x..."),
-        signature = wolfSig, answer = wolfAns, leadOctave = leadOctave(base, 60),
+        leadTemplates = arrayOf(lionSig.rhythm, "x.......x.......", "x...........x..."),
+        signature = lionSig, answer = lionAns, leadOctave = leadOctave(base, 60),
         pad = pedalSteel, bass = countryBass, arp = steelGuitar.tinted(t, 0.1f), lead = harmonica,
         mix = Mix(
             pad = 0.6f, bass = 0.9f, arp = 1.3f, lead = 0.9f, drums = 0.8f, padVerb = 0.35f, arpDelay = 0.2f, arpVerb = 0.3f,
@@ -375,7 +375,7 @@ internal object HeroSongs {
         vibrato = 0.3f, vibRate = 6f, drive = 0.1f, gain = 0.14f, bright = 0.5f,
     )
 
-    private fun wolfHot(base: SongSpec, t: Tint, name: String, bpm: Float, hook: Melody? = null): SongSpec {
+    private fun lionHot(base: SongSpec, t: Tint, name: String, bpm: Float, hook: Melody? = null): SongSpec {
         // A theme brings its own (major) chords; a zone's track gets the country ones.
         val own = base.scale.contentEquals(IONIAN)
         return base.derive(
@@ -393,8 +393,8 @@ internal object HeroSongs {
             arpA = "3423423423423423", arpB = "2435243524352435", arpGate = 0.9f, arpCenter = base.arpCenter + 2,
             padRhythm = "..x.-.x.-.x.-.x.", padRhythmB = "x.x.-.x.x.x.-.x.",
             leadOctave = leadOctave(base, 62),
-            leadTemplates = arrayOf(wolfSig.rhythm, "x.x.x...x.x.x...", "x...x.x.x..xx..."),
-            motifSeed = base.motifSeed + 37, hook = hook, signature = wolfSig, answer = wolfAns,
+            leadTemplates = arrayOf(lionSig.rhythm, "x.x.x...x.x.x...", "x...x.x.x..xx..."),
+            motifSeed = base.motifSeed + 37, hook = hook, signature = lionSig, answer = lionAns,
             pad = acousticStrum, bass = boomChickBass.tinted(t, 0.2f), arp = banjo, lead = fiddle.tinted(t, 0.2f),
             mix = Mix(
                 pad = 1.2f, bass = 1f, arp = 1.3f, lead = 1.2f, drums = 0.5f * zoneDrums(base), padVerb = 0.2f, arpDelay = 0.15f,
@@ -534,7 +534,7 @@ internal object HeroSongs {
     )
 
     /** "Wrong Town, Right Boots": a D major fiddle hoedown on a train beat, I–IV–I–V. */
-    private val wolfHook = Melody(
+    private val lionHook = Melody(
         arrayOf(
             "F#5:2 A5:2 F#5:2 D5:2 E5:2 F#5:2 E5:2 D5:2",
             "B4:2 D5:2 G5:4 F#5:2 E5:2 D5:4",
@@ -573,9 +573,9 @@ internal object HeroSongs {
                 themeBase("fox-theme", 156f, 48, DORIAN, tri(DORIAN, 0, 3, 0, 3), tri(DORIAN, 2, 3, 4, 0), 7007),
                 t, "fox-theme", 156f, foxHook,
             )
-            Hero.WOLF -> wolfHot(
-                themeBase("wolf-theme", 160f, 50, IONIAN, tri(IONIAN, 0, 3, 0, 4), tri(IONIAN, 5, 3, 0, 4), 1988),
-                t, "wolf-theme", 160f, wolfHook,
+            Hero.LION -> lionHot(
+                themeBase("lion-theme", 160f, 50, IONIAN, tri(IONIAN, 0, 3, 0, 4), tri(IONIAN, 5, 3, 0, 4), 1988),
+                t, "lion-theme", 160f, lionHook,
             )
             Hero.HAWK -> hawkHot(
                 themeBase("hawk-theme", 124f, 55, AEOLIAN, tri(AEOLIAN, 0, 5, 6, 0), tri(AEOLIAN, 3, 5, 2, 6), 3161),
@@ -594,7 +594,7 @@ internal object HeroSongs {
         val spec = when (h) {
             Hero.BULL -> if (silent) bullSneak(base, t, name, bpm) else bullHot(base, t, name, bpm)
             Hero.FOX -> if (silent) foxSneak(base, t, name, bpm) else foxHot(base, t, name, bpm)
-            Hero.WOLF -> if (silent) wolfSneak(base, t, name, bpm) else wolfHot(base, t, name, bpm)
+            Hero.LION -> if (silent) lionSneak(base, t, name, bpm) else lionHot(base, t, name, bpm)
             Hero.HAWK -> if (silent) hawkSneak(base, t, name, bpm) else hawkHot(base, t, name, bpm)
         }
         return spec.derive(gain = (if (silent) SNEAK_TRIM else HOT_TRIM)[h.ordinal][z.ordinal])

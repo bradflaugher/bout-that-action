@@ -5,13 +5,13 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * WOLF: the small-town sheriff who will not quit. A shining bald dome, a salt-and-pepper
+ * LION: the small-town sheriff who will not quit. A shining bald dome, a salt-and-pepper
  * horseshoe moustache and a squint; a khaki uniform shirt with its
  * sleeves rolled to the elbow, epaulettes, pocket flaps and a gold star on the chest; a wide
  * tooled belt with a big brass buckle; blue jeans over tall pointed boots with a stacked heel.
  * An orchid rim.
  */
-internal class WolfKit(a: HeroArt) : HeroKit(a) {
+internal class LionKit(a: HeroArt) : HeroKit(a) {
     override val bulk = 1.0f
     override val head = 1.02f
     override val accent = PURPLE
@@ -243,7 +243,7 @@ internal class WolfKit(a: HeroArt) : HeroKit(a) {
 
     companion object {
         /** His signature: a bright orchid, lighter and pinker than the zones' violets. */
-        val PURPLE = Hero.WOLF.color
+        val PURPLE = Hero.LION.color
         const val RIM = 0xFFF0C8FF.toInt()
         /** The star stays gold. */
         const val GOLD = 0xFFFFD23C.toInt()

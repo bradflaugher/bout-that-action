@@ -874,11 +874,11 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                     delay = 0.8f + k * 0.11f + (if (last) 0.12f else 0f); priority = 4f
                 }
             }
-            Hero.WOLF -> {
+            Hero.LION -> {
                 // A twangy guitar tag: three picked notes and a last one bent down, left ringing.
-                for (k in WOLF_EXIT.indices) voice {
-                    val s = WOLF_EXIT[k]
-                    val last = k == WOLF_EXIT.size - 1
+                for (k in LION_EXIT.indices) voice {
+                    val s = LION_EXIT[k]
+                    val last = k == LION_EXIT.size - 1
                     wave = Wave.SAW; wave2 = Wave.SQUARE; level2 = 0.3f; pw = 0.3f
                     f0 = 196f * Dsp.semis(s.toFloat()); f1 = if (last) f0 * Dsp.semis(-2f) else f0; sweep = 0.45f
                     filter = FilterMode.LOW; cut0 = 3500f; cut1 = 1400f; cutTime = 0.3f; q = 1.6f; attack = 0.002f
@@ -938,7 +938,7 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         /** D minor, run down from the octave to the low D. */
         private val FOX_EXIT = intArrayOf(12, 7, 3, 0, -5, -12)
         /** G, E, D and a bent B (a major-pentatonic tag). */
-        private val WOLF_EXIT = intArrayOf(12, 9, 7, 4)
+        private val LION_EXIT = intArrayOf(12, 9, 7, 4)
         /** D minor flute: A, F, then down to D. */
         private val HAWK_EXIT = intArrayOf(7, 3, 0)
         private val FIFTHS = intArrayOf(0, 7, 12, 19)
