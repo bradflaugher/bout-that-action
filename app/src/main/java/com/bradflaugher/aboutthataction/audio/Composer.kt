@@ -103,13 +103,14 @@ internal class Composer(private val spec: SongSpec) {
     /** MIDI note for the lead at [bar]/[step], or -1 if none starts there. */
     fun leadAt(bar: Int, step: Int): Int {
         val b = bar % 8
-        val hook = phrase?.melody ?: spec.hook?.takeIf { section == Section.A || section == Section.A2 }
+        val own = if (section == Section.A2) spec.hookA2 ?: spec.hook else spec.hook
+        val hook = phrase?.melody ?: own?.takeIf { section == Section.A || section == Section.A2 }
         if (hook != null) {
             val hb = b % hook.barCount
             val n = hook.notes[hb][step]
             if (n < 0) return -1
             leadLen = hook.lengths[hb][step]
-            return n + transpose
+            return ceiling(n + transpose)
         }
         val m = motifFor(b)
         if (m < 0) return -1
@@ -122,9 +123,16 @@ internal class Composer(private val spec: SongSpec) {
         val cd = if (chord.degree > 3) chord.degree - 7 else chord.degree
         var semis = Scales.note(scale, cd + d + octaveUp)
         if (step % 8 == 0 || leadLen >= 4) semis = snap(semis, chord)
+        if (spec.chromaticSnap) semis = chromaticSnap(semis, chord, scale)
         while (semis > 22) semis -= 12
         while (semis < -9) semis += 12
-        return spec.tonic + spec.leadOctave + transpose + semis
+        return ceiling(spec.tonic + spec.leadOctave + transpose + semis)
+    }
+
+    private fun ceiling(n: Int): Int {
+        var m = n
+        while (m > spec.leadCeiling) m -= 12
+        return m
     }
 
     /**
@@ -204,6 +212,24 @@ internal class Composer(private val spec: SongSpec) {
     }
 
     companion object {
+        /**
+         * [semis] moved onto the borrowed tone of [chord] it rubs a semitone against, if any: over
+         * a chord with a note outside [scale] (a major V's leading tone, a borrowed diminished
+         * chord), the scale's own note a semitone away would clash with it.
+         */
+        fun chromaticSnap(semis: Int, chord: Chord, scale: IntArray): Int {
+            if (chord.containsPc(semis)) return semis
+            for (iv in chord.intervals) {
+                val t = chord.root + iv
+                if (Scales.contains(scale, t)) continue
+                when (Math.floorMod(t - semis, 12)) {
+                    1 -> return semis + 1
+                    11 -> return semis - 1
+                }
+            }
+            return semis
+        }
+
         const val NONE = Int.MIN_VALUE
         private const val MOTIFS = 4
         private const val MOTIF_MAIN = 0

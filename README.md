@@ -273,12 +273,15 @@ heat climbs. **HAWK**'s radio is stuck on the courier's
 station: elevator-muzak bossa nova (nylon guitar, vibraphone, a cross-stick
 clave and a soft flute), then 70s delivery-van funk with ghost-note breakbeats,
 slap bass, wah clavinet, horn stabs and a cop-show lead; his game over is a
-van-horn beep-beep and a doorbell. Delivered. **MONKEY** ran away from the circus back to the jungle, and
-brought the calliope: sneaking is a jungle night of key-tuned bongos and congas,
-a shaker, crickets, a wooden marimba and the odd monkey "hoo"; with guns hot it's
-a stampede of pounding war drums, log drums and balafon runs with the circus's
-steam calliope screaming on top and slide whistles through every fill. His game
-over goes "ooh-ooh-AAH!", then "ta-DAAA!", then a sad slide whistle.
+van-horn beep-beep and a doorbell. Delivered. **MONKEY** brought the circus
+band he ran away with, tight and in tune, one song in two moods: with guns hot
+it's a big-top electro-swing (swung hats, snare and clap on the backbeat, an
+oom-pah tuba that walks, brass stabs, a glockenspiel, xylophone or accordion
+counter-line and a clean calliope playing his tune); sneaking, the same tune
+tiptoes at two-thirds the tempo on a clarinet or a muted trumpet, over brushes,
+finger snaps, a pizzicato bass and a celesta. A slide whistle sneaks in now and
+then. His game over is a sad trombone ("wah, wah, wah, waaah") and his tune once
+more on the glockenspiel.
 The hero picker plays each one's theme. Every tune is original.
 
 ## Install

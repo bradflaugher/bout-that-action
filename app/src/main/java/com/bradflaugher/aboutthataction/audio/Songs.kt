@@ -171,6 +171,20 @@ internal class SongSpec(
     /** Where the slide whistle starts (the key's tonic nearest this MIDI note) and how far up it goes (a ratio). */
     val whistleFrom: Int = 74,
     val whistleRange: Float = 4f,
+    /** The slide whistle only sounds on the fill closing every this-many-th phrase (1: every fill). */
+    val whistleEvery: Int = 1,
+    /**
+     * > 0: swung 8ths (a shuffle) instead of [swing]'s swung 16ths. The "and" of every beat
+     * (step 2 of 4) lands this fraction of a step late, the 16ths either side of it half that
+     * (2/3: a triplet swing). 0 leaves the timing exactly as it was.
+     */
+    val swing8: Float = 0f,
+    /** Lead notes a semitone off a chord's borrowed (out-of-key) tone move onto it ([Composer.chromaticSnap]). */
+    val chromaticSnap: Boolean = false,
+    /** A variation of [hook] for A2 sections (null: A2 plays [hook] too). */
+    val hookA2: Melody? = null,
+    /** The highest lead note (MIDI); anything above folds down an octave. */
+    val leadCeiling: Int = Int.MAX_VALUE,
     /**
      * How far (a fraction) a transition may bend this song's tempo so it starts locked to the
      * old song's grid at a simple ratio (1:2, 2:3, 3:4, 1:1 and back), before it glides home to
