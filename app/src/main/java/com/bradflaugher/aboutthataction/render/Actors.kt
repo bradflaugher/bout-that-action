@@ -82,7 +82,7 @@ internal class Actors(private val f: Frame) {
                 p.alphaMul = 0.8f
             }
         }
-        // VENT CRAWL: out of the vent unseen, a shimmering see-through figure until it wears off.
+        // CLOWN CAR: out of the passage unseen, a shimmering see-through figure until it wears off.
         if (pl.unseenTime > 0f && pl.state != PlayerState.DEAD) {
             p.alphaMul *= 0.42f + 0.08f * sin(f.t * 9f) + 0.5f * (1f - min(1f, pl.unseenTime / 0.35f))
         }
@@ -147,8 +147,8 @@ internal class Actors(private val f: Frame) {
                     p.flatAmt = keepF
                     p.flat = keepC
                 }
-                // CAMO: a hit that misses shimmers the figure into optical camouflage.
-                if (pl.camoTime > 0f) camoShimmer(pl.x, foot, dir, pl.camoTime)
+                // FRAGILE: a hit that misses shimmers the figure, glassy, like it slipped right past.
+                if (pl.fragileTime > 0f) fragileShimmer(pl.x, foot, dir, pl.fragileTime)
                 poseHero(pl.x, foot, dir)
                 val flip = flipAngle()
                 if (flip != 0f) {
@@ -183,10 +183,10 @@ internal class Actors(private val f: Frame) {
     }
 
     /**
-     * Optical camo: the figure goes glassy (mostly see-through) with two pale, heat-haze echoes
+     * FRAGILE's near miss: the figure goes glassy (mostly see-through) with two pale, heat-haze echoes
      * wavering either side of it, fading out as the shimmer wears off.
      */
-    private fun camoShimmer(x: Float, foot: Float, dir: Int, left: Float) {
+    private fun fragileShimmer(x: Float, foot: Float, dir: Int, left: Float) {
         val keepA = p.alphaMul
         val keepF = p.flatAmt
         val keepC = p.flat
@@ -235,8 +235,8 @@ internal class Actors(private val f: Frame) {
             g.strokeCircle(0f, 0f, r, 0.1f, Col.alpha(art.kit.rim, 0.55f * a * fz * pulse))
             g.restore()
         }
-        if (f.w.adrenaline && !boxed) {
-            // ADRENALINE: a hot orange aura beating round him on his last heart.
+        if (f.w.encore && !boxed) {
+            // ENCORE: a hot spotlight aura beating round him on his last heart.
             val beat = 0.5f + 0.5f * sin(f.t * 11f)
             g.save()
             g.translate(x, cy)

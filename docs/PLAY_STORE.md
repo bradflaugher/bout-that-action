@@ -75,9 +75,9 @@ them. The game leans on a few:
   quotes or names a real athlete: BULL is an original heavyweight in a
   quilted bomber and shades, with no number, team colours, logo or name, and
   the sign-offs and perk names are all original. Keep it that way.
-- FOX (a silver-haired spy in a crimson coat), WOLF (a small-town sheriff)
-  and HAWK (a mohawked jungle commando) are original characters on
-  genre archetypes, drawn to look like nobody else's: no film or game quotes,
+- FOX (a ponytailed street brawler in a red jacket), LION (a runaway circus
+  strongman in clown paint) and HAWK (a parcel courier with no company name
+  or logo) are original characters on genre archetypes, drawn to look like nobody else's: no film or game quotes,
   names, catchphrases or signature costumes.
 - No third-party trademarks in game text either: armor is a VEST (not
   Kevlar), the slow-motion pickup is SLOW-MO (not bullet time).
