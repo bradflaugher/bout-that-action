@@ -563,6 +563,41 @@ internal class ActorCast(
         p.reset()
     }
 
+    /**
+     * FOX's takedown victim: standing until her boot lands at [hit] s, then shoved off it the
+     * way she kicks ([kickDir]): hips driven through, the torso whipping over (arched back if
+     * she caught him from behind, doubled over if face to face), arms flung, a stumbling step.
+     */
+    fun kickedVictim(e: Enemy, gy: Float, kickDir: Int, t: Float, hit: Float, push: Float) {
+        p.reset()
+        val fs = f.w.hall(e.floor, e.hall) ?: return
+        val dir = if (e.facing >= 0) 1 else -1
+        val q = Rig.easeOut((t - hit) / 0.08f)
+        val x = e.x + push * kickDir
+        val hs = scaleOf(e.kind)
+        k.setup(dir, gy - e.z - 0.045f * hs, hs, bulkOf(e.kind))
+        // Booted from behind he pitches away from her, head snapping back, arms flung behind;
+        // face to face he doubles over the boot, clutching his middle. Either way he folds
+        // forward (his way) and his feet skid under him.
+        val back = dir == kickDir
+        k.stand(x, 0.06f * q, 0.12f, -0.14f)
+        val step = (if (back) 0.26f else -0.2f) * q
+        k.ik(k.legF, x + (0.12f + step) * dir * hs, k.ground - 0.08f * q * (1f - q * 0.5f), true)
+        k.legF.pitch = -0.3f * q
+        k.spine((if (back) 0.5f else 0.7f) * q, (if (back) -0.7f else 0.4f) * q)
+        if (back) {
+            k.armFK(k.armF, Rig.mix(0.1f, -1.3f, q), Rig.mix(0.4f, 0.3f, q))
+            k.armFK(k.armB, Rig.mix(-0.1f, -1.9f, q), 0.4f)
+        } else {
+            k.armFK(k.armF, Rig.mix(0.1f, 0.4f, q), Rig.mix(0.4f, 1.6f, q))
+            k.armFK(k.armB, Rig.mix(-0.1f, 0.2f, q), Rig.mix(0.5f, 1.8f, q))
+        }
+        showGun = false
+        bladeA = 99f
+        drawKind(e, dir, zoneOf(fs), f.palette(fs), false)
+        p.reset()
+    }
+
     // ============================================================= ragdolls
 
     /**
