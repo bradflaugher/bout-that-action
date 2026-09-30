@@ -52,8 +52,9 @@ enum class Hero(
         extraHearts = 1, runSpeed = 1.1f, tacklesHeavies = true,
     ),
     /**
-     * A street-brawler heroine in a cropped red leather jacket, a long copper ponytail whipping
-     * behind her. Fights with her feet: the longest takedown reach in the building.
+     * A martial-arts brawler in a black sports bra, baggy grey fighting pants and red gloves, a
+     * long, glossy black ponytail whipping behind her. Fights with her feet: the longest
+     * takedown reach in the building.
      */
     FOX(
         "FOX", "Street brawler. Ponytail of doom.",
