@@ -158,6 +158,7 @@ class HeroTest {
             // Face to face, right in reach.
             val heavy = enemy(w, EnemyKind.HEAVY, 3.7f, facing = -1)
             run(w, 0.8f) { it.player.hp = it.player.maxHp }
+            assertEquals("the bot can see it coming", perk, w.takedownWorks(heavy) || !heavy.alive)
             if (perk) {
                 assertFalse("$hero", heavy.alive)
                 assertEquals(KillMethod.TAKEDOWN, heavy.killedBy)

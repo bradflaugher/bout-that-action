@@ -149,7 +149,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
             if (nearest != null && abs(nearest.x - p.x) < World.AUTO_FIRE_RANGE && holdTime < 4f) {
                 holdTime += dt
                 val d = abs(nearest.x - p.x)
-                w.moveAxis = if (d < 1.5f && (w.takedownWorks(nearest) || nearest.kind == EnemyKind.HEAVY && w.stacks(Perk.STIFF_ARM) > 0)) {
+                w.moveAxis = if (d < 1.5f && w.takedownWorks(nearest)) {
                     if (nearest.x > p.x) 1 else -1
                 } else 0
                 return
@@ -194,7 +194,8 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
      */
     private fun sneak(w: World, enemies: List<Enemy>, dir: Int): Boolean {
         val p = w.player
-        val blocker = enemies.filter { (it.x - p.x) * dir > -0.5f && abs(it.x - p.x) < 9f }.minByOrNull { abs(it.x - p.x) } ?: return false
+        // Nearest body edge, the way the engine meets them.
+        val blocker = enemies.filter { (it.x - p.x) * dir > -0.5f && abs(it.x - p.x) < 9f }.minByOrNull { abs(it.x - p.x) - it.halfWidth } ?: return false
         val d = abs(blocker.x - p.x)
         val toward = if (blocker.x > p.x) 1 else -1
         val facingMe = blocker.facing == -toward
