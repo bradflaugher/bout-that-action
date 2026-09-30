@@ -719,7 +719,8 @@ class StealthAndEventsTest {
             val door = w.playerHall()!!.plan.doors.firstOrNull { it.kind == DoorKind.PASSAGE && napping(w, f, it.to) } ?: continue
             w.enemies.removeAll { it.floor == f && it.hall == 0 }
             w.floor(f)!!.halls.forEach { it.spawnTimer = 999f }
-            w.player.state = PlayerState.NORMAL // out of the arrival doorway
+            run(w, 1.5f) // land from the ceiling hatch
+            assertEquals(PlayerState.NORMAL, w.player.state)
             w.player.x = door.x
             w.player.grenades = 0
             w.commands += Command.TAP
