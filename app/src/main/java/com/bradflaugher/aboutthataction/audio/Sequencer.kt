@@ -39,6 +39,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     var endStep = Long.MAX_VALUE
     var sequencing = false; private set
     private var swingPending = false
+    private var swingAt = 0.0
     private var stutterPending = false
     private var impactPending = false
     private var rollPending = false
@@ -196,12 +197,24 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private fun samplesToNext(): Int {
         var target = 1.0
         val s = spec
-        if (swingPending && s != null && s.swing > stepPos) target = min(target, s.swing.toDouble())
+        if (swingPending && s != null && swingAt > stepPos) target = min(target, swingAt)
         if (stutterPending && 0.5 > stepPos) target = min(target, 0.5)
         if (rollPending && rollAt > stepPos) target = min(target, rollAt)
         if (hatRollN > 0) target = min(target, hatRollK.toDouble() / hatRollN)
         val k = ceil((target - stepPos) / inc())
         return max(1.0, min(k, c.toDouble())).toInt()
+    }
+
+    /** How late (a fraction of a step) the current step plays: swung 16ths, or swung 8ths ([SongSpec.swing8]). */
+    private fun swingDelay(s: SongSpec): Double {
+        if (s.swing8 > 0f) {
+            return when ((absStep % 4).toInt()) {
+                2 -> s.swing8.toDouble()
+                1, 3 -> s.swing8 * 0.5
+                else -> 0.0
+            }
+        }
+        return if (absStep % 2 == 1L && s.swing > 0f) s.swing.toDouble() else 0.0
     }
 
     private fun processEvents() {
@@ -215,10 +228,11 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
                 }
                 swingPending = false
                 hatRollN = 0
-                if (absStep % 2 == 1L && s.swing > 0f) swingPending = true else fireStep(s)
+                swingAt = swingDelay(s)
+                if (swingAt > 0.0) swingPending = true else fireStep(s)
                 continue
             }
-            if (swingPending && stepPos >= s.swing - 1e-7) {
+            if (swingPending && stepPos >= swingAt - 1e-7) {
                 swingPending = false; fireStep(s); continue
             }
             if (rollPending && stepPos >= rollAt - 1e-7) {
@@ -283,6 +297,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         val sec = comp.section
         val chord = comp.chordAt(bar)
         val stepSamples = (samplesPerStep() / (rate * warp)).toFloat()
+        // A note swung late (swung 8ths) gives the lateness back at its end, so it still ends in time.
+        val late = if (sp.swing8 > 0f) swingAt.toFloat() else 0f
         val key = sp.tonic + comp.transpose
         val isB = sec == Section.B || sec == Section.B2
 
@@ -344,7 +360,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         }
         if (sp.slideWhistle > 0f) {
             // Every fill gets a slide whistle up (by default from the key's tonic, two octaves) as heat allows.
-            if (fill && !lastFill && lPerc > 0.05f) {
+            if (fill && !lastFill && lPerc > 0.05f && (bar / 8) % sp.whistleEvery == sp.whistleEvery - 1) {
                 val from = Dsp.midiToHz(nearest(key, sp.whistleFrom).toFloat())
                 whistle.trigger(from, from * sp.whistleRange, (16 - s) * stepSamples / sr * 0.85f, lPerc)
             }
@@ -422,7 +438,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             val len = 1 + ties(brow, s)
             // A slide holds the note into the next one, so the mono voice glides there.
             val slide = sp.bassSlide && s + len < 16 && brow[s + len] != '.'
-            bass.noteOn(note, vel, (len * stepSamples * (if (slide) 1.1f else 0.92f)).toInt())
+            bass.noteOn(note, vel, (len * stepSamples * (if (slide) 1.1f else 0.92f) - late * stepSamples).toInt())
         }
 
         // ---- Pad
@@ -455,7 +471,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
                 val note = root + chord.tone(ac - '0') - chord.root
                 val len = 1 + ties(arow, s)
                 val accent = if (s % 4 == 0) 1f else 0.78f
-                if (!gap) arp.noteOn(note, lArp * accent, max(1f, len * stepSamples * sp.arpGate).toInt())
+                if (!gap) arp.noteOn(note, lArp * accent, max(1f, len * stepSamples * sp.arpGate - late * stepSamples).toInt())
             }
         }
 
@@ -465,7 +481,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
             if (note >= 0) {
                 val legato = if (sp.lead.glide > 0f) 1.04f else 0.85f
                 val accent = if (s % 4 == 0) 1f else 0.85f
-                if (!gap) lead.noteOn(note, lLead * accent, (comp.leadLen * stepSamples * legato).toInt())
+                if (!gap) lead.noteOn(note, lLead * accent, (comp.leadLen * stepSamples * legato - late * stepSamples).toInt())
             }
         }
 
