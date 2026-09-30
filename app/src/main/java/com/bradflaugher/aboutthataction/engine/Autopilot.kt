@@ -200,8 +200,14 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         val facingMe = blocker.facing == -toward
         val alert = blocker.state == EnemyState.ALERT || blocker.state == EnemyState.AIM || blocker.state == EnemyState.WINDUP
         if (blocker.asleep || blocker.state == EnemyState.STUNNED && blocker.kind != EnemyKind.DRONE && blocker.kind != EnemyKind.TURRET) {
-            // Night night (or finish off the one seeing stars: off his head first, then walk in).
-            w.moveAxis = if (!p.grounded && d < 1.2f) -toward else toward
+            if (w.takedownWorks(blocker) || blocker.asleep) {
+                // Night night (or finish off the one seeing stars: off his head first, then walk in).
+                w.moveAxis = if (!p.grounded && d < 1.2f) -toward else toward
+            } else {
+                // A dazed Heavy still wants his back: over the top of him (the bonk hops you on through).
+                w.moveAxis = toward
+                if (d < 1.9f && p.grounded) w.commands += Command.SWIPE_UP
+            }
             return true
         }
         // HAWK walks up to a machine and pulls the plug (not into one drawing a bead: wait it out).

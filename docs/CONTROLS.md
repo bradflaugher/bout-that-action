@@ -159,7 +159,8 @@ held drag, steps you out.
 **Takedown magnet (`TAKEDOWN_MAGNET` = 0.3 u).** While you push toward a
 chokeable guard, takedown reach grows by 0.3 u and the choke snaps you into
 place. Chokeable means his back is to you, or he's napping, dazed, or walked
-into your box; the FOX and STIFF ARM take guards from the front too. Walk into
+into your box; the FOX and STIFF ARM take guards from the front too. A Heavy's armor
+ignores the daze and the box: his back, a nap or STIFF ARM only. Walk into
 anyone else's front and you stop dead (`BUMP_GAP`) and he's alerted; Heavies
 bounce you off their armor.
 

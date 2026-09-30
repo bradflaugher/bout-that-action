@@ -1259,8 +1259,10 @@ class World(val config: RunConfig) {
                         if (e.state == EnemyState.PATROL) alert(e)
                     }
                 } else {
-                    // Face to face he sees you coming: you walk into him, and now he knows.
+                    // Face to face he sees you coming: you walk into him, and now he knows. He's
+                    // the wall: nobody behind him gets grabbed through him this step.
                     faceOff(e, fromDir)
+                    return
                 }
                 continue
             }
@@ -1278,15 +1280,16 @@ class World(val config: RunConfig) {
     private fun dazed(e: Enemy) = e.state == EnemyState.STUNNED
 
     /**
-     * Can a walk-in takedown on [e] come from the [fromDir] side? From behind, always (a Heavy
-     * only from behind). Face to face only when he can't see it coming (asleep or dazed), when
-     * he walked into your box, or for FOX's feet and BULL's STIFF ARM.
+     * Can a walk-in takedown on [e] come from the [fromDir] side? From behind, always. Face to
+     * face only when he can't see it coming (asleep or dazed), when he walked into your box, or
+     * for FOX's feet and BULL's STIFF ARM. A Heavy's armor wants his back even when he's dazed
+     * (a napping one is fair game; STIFF ARM's head-on tackle is handled on its own).
      */
     fun takedownFrom(e: Enemy, fromDir: Int): Boolean {
         if (!melee || e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET) return false
-        if (e.chokeable(fromDir) || e.asleep || dazed(e)) return true
+        if (e.chokeable(fromDir) || e.asleep) return true
         if (e.kind == EnemyKind.HEAVY) return false
-        return player.state == PlayerState.BOX || hero.frontTakedowns || stacks(Perk.STIFF_ARM) > 0
+        return dazed(e) || player.state == PlayerState.BOX || hero.frontTakedowns || stacks(Perk.STIFF_ARM) > 0
     }
 
     /** Can the player take [e] down from where they stand right now? */

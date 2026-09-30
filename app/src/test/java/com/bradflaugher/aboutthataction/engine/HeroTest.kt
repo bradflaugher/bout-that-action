@@ -212,6 +212,37 @@ class HeroTest {
     }
 
     @Test
+    fun aDazedHeavyStillWantsHisBack() {
+        val w = world(Hero.FOX)
+        w.player.x = 3f
+        val heavy = enemy(w, EnemyKind.HEAVY, 4.6f, facing = -1)
+        heavy.state = EnemyState.STUNNED
+        heavy.stunFor = 5f
+        assertFalse(w.takedownWorks(heavy))
+        run(w, 0.4f) { it.moveAxis = 1 }
+        assertTrue("armor beats a daze", heavy.alive && heavy.state != EnemyState.CHOKED)
+        assertEquals(0, w.takedowns)
+        // Round the back, he's yours.
+        w.player.x = 6f
+        w.player.vx = 0f
+        run(w, 0.4f) { it.moveAxis = -1 }
+        assertEquals(1, w.takedowns)
+    }
+
+    @Test
+    fun walkingIntoAFaceStopsYouThere() {
+        // His back is to you, but his buddy's face is in the way: no grabbing through him.
+        val w = world(Hero.HAWK)
+        w.player.x = 3f
+        val front = enemy(w, EnemyKind.AGENT, 3.9f, facing = -1)
+        val behind = enemy(w, EnemyKind.AGENT, 4.3f, facing = 1)
+        run(w, 0.5f) { it.moveAxis = 1 }
+        assertEquals(0, w.takedowns)
+        assertTrue(front.alive && behind.alive)
+        assertTrue(w.player.x < front.x)
+    }
+
+    @Test
     fun onlyTheBullStompsHeadsFlat() {
         for (hero in listOf(Hero.BULL, Hero.FOX, Hero.HAWK)) {
             val w = world(hero)

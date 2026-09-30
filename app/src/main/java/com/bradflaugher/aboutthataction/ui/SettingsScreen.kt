@@ -220,7 +220,7 @@ fun HowToPlay() {
         "TAP" to "Use what you're next to: a green passage door, a gold STASH door (locked while anyone's hunting you), an elevator (tap a landing to call the car).",
         "MODE" to "The button under pause. GUNS HOT auto-fires at threats; SILENT never fires (MONKEY still shoots back) and quiet kills score double. Flip it any time; it sticks between runs.",
         "GRENADE" to "The lime button under the mode button throws one, in either mode. It shows how many you have.",
-        "WALK INTO" to "An enemy's back to take him down instantly. Face to face only if he's napping, dazed or walks into your box (FOX, and BULL with STIFF ARM, anytime). Heavies only from behind. MONKEY has no takedowns: his gun does it.",
+        "WALK INTO" to "An enemy's back to take him down instantly. Face to face only if he's napping, dazed or walks into your box (FOX, and BULL with STIFF ARM, anytime). Heavies only from behind (or napping). MONKEY has no takedowns: his gun does it.",
         "THE BOX" to "Move it while a guard's looking and he comes over to check. Let him. (Heavies and ninjas kick it.)",
         "JUMP + TAP" to "Swat out the lamp overhead. The crash lures guards over to look; anyone right under it is out.",
         "ARRIVING" to "In SILENT you step into each new hallway hidden in the doorway. Tap or swipe ↑ to step out.",

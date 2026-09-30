@@ -27,8 +27,8 @@ is read on its own, so one thumb can run while the other taps.
 | **Drag ← →** and hold | Run. Nudge back a little to turn around instantly. Lift to stop. A held run won't pull you out of a doorway or elevator: lift and drag again to step out. |
 | **Tap** | Interact with what you're standing at: go through a green **passage** door into another hallway, enter a gold **STASH** door (locked while you're being hunted), ride an open **elevator** down, or call a closed one. With nothing in reach, a tap does nothing. |
 | **Swipe ↓** | Hide: press into a nearby **doorway**, otherwise pop the **cardboard box**. In an elevator, box up in the car. Swipe ↓ again to stand up. In a doorway, a tap or a swipe ↑ also steps you out. |
-| **Swipe ↑** | Jump. Clears low shots. Land on a head to **BONK** him: he's dazed for 1.6 s and yours to take down from any side (the BULL stomps him flat instead; a drone breaks under anyone; the MONKEY just hops off). Works mid-run. |
-| **Walk into an enemy's back** | Instant silent **takedown**. Face to face only when he can't fight it: asleep, dazed, or walking into your box. The FOX, and the BULL with STIFF ARM, take guards down face to face anyway; Heavies always want their back (or STIFF ARM). Walk into anyone else's front and he's onto you. Works in GUNS HOT too: the gun never shoots a guard with his back to you. (Not the MONKEY: he has no takedowns, and walking into a guard just gets him noticed.) |
+| **Swipe ↑** | Jump. Clears low shots. Land on a head to **BONK** him: he's dazed for 1.6 s and yours to take down from any side (a Heavy still from behind: hop over him; the BULL stomps him flat instead; a drone breaks under anyone; the MONKEY just hops off). Works mid-run. |
+| **Walk into an enemy's back** | Instant silent **takedown**. Face to face only when he can't fight it: asleep, dazed, or walking into your box. The FOX, and the BULL with STIFF ARM, take guards down face to face anyway; Heavies want their back even when dazed (a napping one is fair game, and STIFF ARM tackles them head-on). Walk into anyone else's front and he's onto you. Works in GUNS HOT too: the gun never shoots a guard with his back to you. (Not the MONKEY: he has no takedowns, and walking into a guard just gets him noticed.) |
 | **Grenade button** (under the mode button) | Throw a grenade, in either mode. The lime button shows how many you carry and greys out when you're empty. Taps never throw one, so hammering a door is always just the door. |
 | **Jump + tap** | Under a ceiling lamp: swat it out by hand. The hallway gets darker, the fixture drops on anyone right under it (never on you), and the crash of glass brings nearby guards over to look: lure them in, then grab them from the shadows. Works in both modes. |
 | **Mode button** (under pause) | **GUNS HOT**: you auto-fire at threats in range. **SILENT**: you never fire (the MONKEY still shoots back at anyone onto him); guards only notice what they see, and quiet kills pay double. Flip it any time (it's the only place to); your choice sticks between runs. |
@@ -89,7 +89,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   drop them or lose them first), and they
   stack: Rapid Fire, Hollow Point, Pierce, Ricochet, Split Shot, Vitality,
   CQC Master, Ghost Box, Double Jump, Demolition, Magnet, Reflex (auto
-  slow-mo), Vest, Lucky and Shockwave landings, plus three that only your
+  slow-mo), Vest, Lucky and Shockwave bonks, plus three that only your
   [hero](#heroes) ever finds. Enemies drop shotguns,
   miniguns, shields, slow-mo, grenades, medkits and cash. The gun perks
   and gun drops only matter in GUNS HOT; SILENT never fires (except for the MONKEY).

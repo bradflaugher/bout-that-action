@@ -30,7 +30,7 @@ enum class Perk(
     REFLEX("REFLEX", "Time slows when a bullet is about to hit", 2, "Everything's in slow motion. Briefly."),
     ARMOR("VEST", "Blocks a hit; back 3 floors later", 1, "Not today."),
     LUCKY("LUCKY", "Enemies drop loot more often", 2, "Found a penny, heads up."),
-    SHOCKWAVE("SHOCKWAVE", "Landing on a head blasts the whole corridor", 1, "Landings: legendary.", melee = true),
+    SHOCKWAVE("SHOCKWAVE", "Every bonk or stomp blasts the whole corridor", 1, "Landings: legendary.", melee = true),
 
     // ---- BULL
     STIFF_ARM("STIFF ARM", "Face-to-face takedowns; run into guards to flatten them", 1, "Get off me.", Hero.BULL),
