@@ -73,6 +73,9 @@ class Player {
     var takedownTarget = -1
     /** Seconds left on a jump-swat at a lamp (the arm flicks up). */
     var swatTime = 0f
+    /** Seconds left on FOX's kick poses: the FLYING KICK's extended leg, SPIN KICK's sweep (render only). */
+    var flyingKickTime = 0f
+    var spinKickTime = 0f
     /** Seconds since the last shot (for the muzzle flash / recoil pose). */
     var sinceShot = 9f
     var runTime = 0f
