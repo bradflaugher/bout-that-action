@@ -1210,8 +1210,9 @@ class World(val config: RunConfig) {
             return
         }
         val reach = takedownReach()
-        for (e in enemies) {
-            if (!here(e) || !e.alive || e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
+        // Nearest first: whoever you actually bump into is the one you deal with.
+        for (e in enemies.filter { here(it) }.sortedBy { abs(it.x - p.x) }) {
+            if (!e.alive || e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
             // He watched you hide: no ambush, no unplugging him from cover. He's coming to find you.
             if (p.hidden && e.sawHide) continue
             if (e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET) {

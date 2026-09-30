@@ -231,15 +231,21 @@ class HeroTest {
 
     @Test
     fun walkingIntoAFaceStopsYouThere() {
-        // His back is to you, but his buddy's face is in the way: no grabbing through him.
-        val w = world(Hero.HAWK)
-        w.player.x = 3f
-        val front = enemy(w, EnemyKind.AGENT, 3.9f, facing = -1)
-        val behind = enemy(w, EnemyKind.AGENT, 4.3f, facing = 1)
-        run(w, 0.5f) { it.moveAxis = 1 }
-        assertEquals(0, w.takedowns)
-        assertTrue(front.alive && behind.alive)
-        assertTrue(w.player.x < front.x)
+        // His back is to you, but his buddy's face is in the way: no grabbing through him,
+        // whichever of them the hallway happens to list first.
+        for (frontFirst in listOf(true, false)) {
+            val w = world(Hero.HAWK)
+            w.player.x = 3f
+            val (front, behind) = if (frontFirst) {
+                enemy(w, EnemyKind.AGENT, 3.9f, facing = -1) to enemy(w, EnemyKind.AGENT, 4.3f, facing = 1)
+            } else {
+                enemy(w, EnemyKind.AGENT, 4.3f, facing = 1).let { b -> enemy(w, EnemyKind.AGENT, 3.9f, facing = -1) to b }
+            }
+            run(w, 0.5f) { it.moveAxis = 1 }
+            assertEquals("front first: $frontFirst", 0, w.takedowns)
+            assertTrue(front.alive && behind.alive)
+            assertTrue(w.player.x < front.x)
+        }
     }
 
     @Test
