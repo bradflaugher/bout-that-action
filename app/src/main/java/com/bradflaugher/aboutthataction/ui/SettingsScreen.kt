@@ -215,7 +215,7 @@ fun HowToPlay() {
     // Same order as the rooftop billboard: the gestures, then the two buttons, then the tricks.
     val rows = listOf(
         "DRAG ← →" to "Run. Hold to keep going; nudge back to turn. Lift to stop.",
-        "SWIPE ↑" to "Jump. Clears low shots. Land on heads to stomp.",
+        "SWIPE ↑" to "Jump. Clears low shots. Land on heads to stomp (not MONKEY: he just hops off).",
         "SWIPE ↓" to "Hide in a doorway or pop the cardboard box. Swipe ↓ again to stand up. Hide before they see you: a guard who watches you go comes and finds you.",
         "TAP" to "Use what you're next to: a green passage door, a gold STASH door (locked while anyone's hunting you), an elevator (tap a landing to call the car).",
         "MODE" to "The button under pause. GUNS HOT auto-fires at threats; SILENT never fires (MONKEY still shoots back) and quiet kills score double. Flip it any time; it sticks between runs.",

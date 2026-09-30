@@ -441,6 +441,44 @@ class HeroTest {
     }
 
     @Test
+    fun fireballsStillComeDownOnTheMonkey() {
+        val w = world(Hero.MONKEY)
+        w.player.x = 5f
+        val hp = w.player.hp
+        // Falling through the band between his head and a grown-up's.
+        w.bullets += Bullet(5.4f, 1.2f, w.player.floor, -6f, -0.3f, false, 1, 0, 0, gravity = true, hall = w.player.hall, from = EnemyKind.DEMON)
+        run(w, 0.6f)
+        assertEquals(hp - 1, w.player.hp)
+        assertEquals("no TOO SHORT! for a fireball", 0, w.stats.overheads)
+        assertEquals(HurtCause.FIREBALL, w.stats.hurtLog.last().cause)
+    }
+
+    @Test
+    fun theMonkeysBoxGetsKickedLikeAnyonesElse() {
+        for (kind in listOf(EnemyKind.HEAVY, EnemyKind.NINJA)) {
+            val w = world(Hero.MONKEY)
+            w.player.x = 5f
+            w.player.state = PlayerState.BOX
+            w.player.stateTime = 1f
+            // A Heavy walking into its front, or a ninja come over to check it out.
+            val e = enemy(w, kind, 5.7f, facing = -1)
+            if (kind == EnemyKind.NINJA) e.state = EnemyState.SEARCH
+            run(w, 0.1f) { e.x = 5.7f }
+            assertTrue("$kind kicks the box", w.events.contains(GameEvent.BoxKicked))
+            assertEquals("$kind", PlayerState.NORMAL, w.player.state)
+            assertEquals(EnemyState.ALERT, e.state)
+        }
+        // An agent from the side just finds cardboard.
+        val w = world(Hero.MONKEY)
+        w.player.x = 5f
+        w.player.state = PlayerState.BOX
+        w.player.stateTime = 1f
+        val e = enemy(w, EnemyKind.AGENT, 5.6f, facing = -1)
+        run(w, 0.1f) { e.x = 5.6f }
+        assertEquals(PlayerState.BOX, w.player.state)
+    }
+
+    @Test
     fun guardsAimLowAndDronesDipForTheMonkey() {
         val monkey = world(Hero.MONKEY)
         val bull = world(Hero.BULL)

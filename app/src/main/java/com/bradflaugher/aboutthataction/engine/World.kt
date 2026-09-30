@@ -1203,7 +1203,7 @@ class World(val config: RunConfig) {
         if (!p.grounded && p.state == PlayerState.NORMAL && stacks(Perk.FLYING_KICK) > 0 && flyingKick()) return
         if (p.z > 0.55f) return
         if (!melee) {
-            bumpGuards()
+            if (!boxKicked()) bumpGuards()
             return
         }
         val reach = takedownReach()
@@ -1283,6 +1283,31 @@ class World(val config: RunConfig) {
         fx.text(Popup.FLATTENED, e.x, Geo.groundY(e.floor) - 1.9f, TextStyle.TAKEDOWN, 0.8f)
         fx.burst(ParticleKind.DUST, e.x, Geo.groundY(e.floor) - 0.1f, 10, 3f, 0.5f, 0.14f, upBias = 0.3f)
         afterTakedown(e)
+    }
+
+    /**
+     * MONKEY's box, as anyone's: a Heavy who walks into its front, or a ninja who came over to
+     * check it, kicks it off him (the rest just walk into cardboard). True if one did.
+     */
+    private fun boxKicked(): Boolean {
+        val p = player
+        if (p.state != PlayerState.BOX) return false
+        val reach = takedownReach()
+        for (e in enemies) {
+            if (!here(e) || !e.alive || e.kind == EnemyKind.DRONE || e.kind == EnemyKind.TURRET || e.asleep) continue
+            if (e.state == EnemyState.EMERGING && e.stateTime < 0.2f) continue
+            if (e.sawHide) continue
+            val dx = e.x - p.x
+            if (abs(dx) > reach + e.halfWidth) continue
+            val fromDir = if (dx > 0f) 1 else -1
+            val heavyFront = e.kind == EnemyKind.HEAVY && !e.chokeable(fromDir)
+            val ninjaCheck = e.kind == EnemyKind.NINJA && e.state == EnemyState.SEARCH
+            if (heavyFront || ninjaCheck) {
+                kickBox(e)
+                return true
+            }
+        }
+        return false
     }
 
     /**
@@ -2373,10 +2398,10 @@ class World(val config: RunConfig) {
                     else -> false
                 }
                 if (onFloor) {
-                    val zHit = bodyCovers(b.z)
+                    val zHit = bodyCovers(b)
                     val dx = p.x - b.x
                     // MONKEY: a shot that would have had a grown-up whistles over his head.
-                    if (!zHit && short && !b.overhead && p.state == PlayerState.NORMAL && abs(dx) < Body.HALF_W + 0.08f &&
+                    if (!zHit && short && straight(b) && !b.overhead && p.state == PlayerState.NORMAL && abs(dx) < Body.HALF_W + 0.08f &&
                         b.z >= p.z + hero.height && b.z <= p.z + Body.HEIGHT
                     ) {
                         b.overhead = true
@@ -2413,11 +2438,17 @@ class World(val config: RunConfig) {
     private fun ambushing(e: Enemy) = e.emergedAt >= 0f && time - e.emergedAt < AMBUSH_WINDOW
 
     /** Does the player's body, as it is right now, cover height [z] (above the player's floor)? */
-    private fun bodyCovers(z: Float): Boolean {
+    private fun bodyCovers(b: Bullet): Boolean {
         val p = player
-        val h = if (p.state == PlayerState.BOX) min(Body.BOX_HEIGHT, hero.height) else hero.height
-        return z >= p.z - 0.05f && z <= p.z + h
+        // Only a guard's straight shot can sail over a short hero; a fireball or an angled
+        // turret round comes down on him like on anyone.
+        val stand = if (straight(b)) hero.height else Body.HEIGHT
+        val h = if (p.state == PlayerState.BOX) min(Body.BOX_HEIGHT, stand) else stand
+        return b.z >= p.z - 0.05f && b.z <= p.z + h
     }
+
+    /** A guard's level shot (no arc, no angle): the only kind a short hero ducks under. */
+    private fun straight(b: Bullet) = !b.gravity && b.vz == 0f
 
     /**
      * End of a bullet's grace window: if you boxed under it, jumped over it,
@@ -2431,7 +2462,7 @@ class World(val config: RunConfig) {
             PlayerState.ELEVATOR -> playerVisibleOn(b.floor, b.hall)
             else -> false
         }
-        if (stillThere && bodyCovers(b.z)) {
+        if (stillThere && bodyCovers(b)) {
             b.dead = true
             hurtBy(b)
         } else {

@@ -5,7 +5,7 @@ A helicopter drops you on the roof of a skyscraper. Then you go down, and down, 
 BUILT FOR THUMBS
 • Drag to run, swipe up to jump, swipe down to hide in a doorway or pop the box.
 • Tap to ride an elevator, go through a passage or raid a STASH (if nobody's hunting you).
-• Walk into a guard for a silent takedown. Land on heads to stomp.
+• Walk into a guard for a silent takedown. Land on heads to stomp. (The monkey can't: he brought a big gun instead.)
 
 TWO WAYS TO PLAY
 • GUNS HOT: you auto-fire at anything in range.

@@ -80,7 +80,7 @@ enum class Hero(
      */
     MONKEY(
         "MONKEY", "Circus runaway. Big gun.",
-        "12-round rifle, no takedowns; high shots miss him", "Oo oo. Ah ah. Pew pew.",
+        "12-round rifle; no takedowns or stomps; high shots miss him", "Oo oo. Ah ah. Pew pew.",
         0xFFFFC23A.toInt(),
         magSize = 12, gunTime = 1.5f, melee = false, height = 0.95f,
     ),
