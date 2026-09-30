@@ -1240,7 +1240,7 @@ class World(val config: RunConfig) {
             if (e.state == EnemyState.WINDUP) return // mid-slash: it wins (and nobody behind him is in reach)
             // STIFF ARM: BULL goes through a Heavy's front door (not from inside a box: he kicks those off).
             val tackle = stacks(Perk.STIFF_ARM) > 0 && e.kind == EnemyKind.HEAVY && p.state == PlayerState.NORMAL &&
-                !e.chokeable(fromDir) && !dazed(e)
+                !e.chokeable(fromDir)
             if (!takedownFrom(e, fromDir) && !tackle) {
                 // Nearest first, so he's in the way: no lunging past him at anyone behind.
                 if (!inReach) return
@@ -1640,6 +1640,8 @@ class World(val config: RunConfig) {
         if (e.kind == EnemyKind.TURRET || e.kind == EnemyKind.DRONE) return true
         if (e.asleep) return false
         if (threatTier(e) <= 1) return true
+        // Seeing stars (a bonk, a daze) he's no threat yet: yours to finish by hand.
+        if (dazed(e)) return false
         val towardYou = e.facing == (if (player.x >= e.x) 1 else -1)
         return towardYou && abs(e.x - player.x) <= AUTO_FIRE_POINT_BLANK
     }

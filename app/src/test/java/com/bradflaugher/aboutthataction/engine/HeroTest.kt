@@ -296,6 +296,33 @@ class HeroTest {
     }
 
     @Test
+    fun inGunsHotABonkedGuardIsLeftForYourHands() {
+        val w = world(Hero.FOX, silent = false)
+        val e = enemy(w, EnemyKind.AGENT, 6f, facing = -1)
+        airborne(w, e, dx = 0f, z = e.height + 0.02f, vz = -3f)
+        run(w, 0.05f)
+        assertEquals(EnemyState.STUNNED, e.state)
+        w.player.fireCooldown = 0f
+        run(w, 0.4f) { it.player.hp = it.player.maxHp }
+        assertTrue("the gun leaves him be", e.alive)
+        assertFalse(w.stats.shotKills > 0)
+    }
+
+    @Test
+    fun stiffArmTacklesADazedHeavyToo() {
+        val w = world(Hero.BULL)
+        w.perks[Perk.STIFF_ARM] = 1
+        w.player.x = 3f
+        val heavy = enemy(w, EnemyKind.HEAVY, 3.7f, facing = -1)
+        heavy.state = EnemyState.STUNNED
+        heavy.stunFor = 5f
+        assertTrue(w.takedownWorks(heavy))
+        run(w, 0.8f) { it.player.hp = it.player.maxHp }
+        assertFalse(heavy.alive)
+        assertEquals(1, w.stats.tackles)
+    }
+
+    @Test
     fun onlyTheBullStompsHeadsFlat() {
         for (hero in listOf(Hero.BULL, Hero.FOX, Hero.HAWK)) {
             val w = world(hero)
