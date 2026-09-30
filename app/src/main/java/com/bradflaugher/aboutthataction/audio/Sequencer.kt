@@ -809,7 +809,8 @@ internal class MusicDirector(private val sr: Int) {
         val startBpm = if (playing && t != Transition.NOW) lockedBpm(spec, oldBpm) else spec.bpm
         // Flips and menu cuts let the old chord ring on under the new song, when it doesn't rub.
         val hold = (flip || t == Transition.BEAT) && clashes(oldChord, chordMask(spec, bar)) == 0
-        if (playing) old.stop(fadeOut(t, startBpm), release = !hold)
+        // (A menu cut between songs that rub gets out of the way quicker.)
+        if (playing) old.stop(if (t == Transition.BEAT && !hold) 0.3f else fadeOut(t, startBpm), release = !hold)
         // A player that's done; failing that, the quietest, choked off first.
         var next = -1
         for (i in players.indices) if (i != active && !players[i].audible) {

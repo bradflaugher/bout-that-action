@@ -84,18 +84,40 @@ class TransitionTest {
 
     @Test
     fun theMusicCatchesItsOwnTempoAfterALock() {
-        val e = SoundEngine()
-        e.setHero(Hero.BULL); e.setIntensity(0.3f); e.setZone(Zone.TOWER, silent = true)
-        AudioTestUtil.render(e, 4f)
-        e.setZone(Zone.TOWER)
-        AudioTestUtil.render(e, 1f)
-        val spec = HeroSongs.forZone(Hero.BULL, Zone.TOWER, false)
-        assertEquals(spec.name, e.songName)
-        val locked = e.director.bpm
-        assertEquals("BULL's sneak locks the trap at 2:1", spec.bpm, locked, spec.bpm * 0.13f)
-        assertTrue("it starts locked, not at its own tempo ($locked)", abs(locked - spec.bpm) > 0.5f)
-        AudioTestUtil.render(e, 20f)
-        assertEquals("then glides home", spec.bpm, e.director.bpm, 0.05f)
+        val d = MusicDirector(sr)
+        val n = 256
+        val l = FloatArray(n)
+        val r = FloatArray(n)
+        val rev = FloatArray(n)
+        val dly = FloatArray(n)
+        fun play(seconds: Float) = repeat((seconds * sr / n).toInt()) { d.render(n, l, r, rev, dly) }
+        fun playUntil(name: String) {
+            repeat(sr * 2 / n) { if (d.current?.name != name) d.render(n, l, r, rev, dly) }
+        }
+        val slow = Songs.tower.derive(name = "slow", bpm = 76f)
+        val fast = Songs.tower.derive(name = "fast", bpm = 142f)
+        val exact = Songs.tower.derive(name = "exact", bpm = 57f)
+        d.request(slow, Transition.NOW)
+        play(3f)
+        d.request(fast, Transition.FLIP_UP)
+        playUntil("fast")
+        assertEquals("fast", d.current?.name)
+        assertEquals("76 to 142 locks at 2:1", 152f, d.bpm, 0.5f)
+        play(20f)
+        assertEquals("then glides home", 142f, d.bpm, 0.05f)
+        // Songs already at a simple ratio (57 = 76 x 3/4) switch without a bend.
+        d.request(slow, Transition.FLIP_DOWN)
+        playUntil("slow")
+        assertEquals("142 to 76: 1:2 is 71, within the lock", 71f, d.bpm, 0.5f)
+        play(20f)
+        d.request(exact, Transition.FLIP_DOWN)
+        play(1.5f)
+        assertEquals("exact", d.current?.name)
+        assertEquals("76 to 57 is exactly 3:4: no bend", 57f, d.bpm, 1e-3f)
+        val none = Songs.tower.derive(name = "none", bpm = 100f, tempoLock = 0f)
+        d.request(none, Transition.FLIP_UP)
+        play(1.5f)
+        assertEquals("tempoLock 0 never bends", 100f, d.bpm, 1e-3f)
     }
 
     @Test

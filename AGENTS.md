@@ -76,6 +76,10 @@ the JVM.
   injected touches).
 - `tools/icon/gen_icon.py` — generates the adaptive launcher icon. Edit the
   script, not the XML.
+- `tools/audio/transitions.py` — measures the music's transitions (clicks,
+  loudness holes and pile-ups, beat and tempo lock, chord clashes) in the WAVs
+  `ATA_TRANS_WAV=<dir>` makes `TransitionWavExportTest` write; `TransitionTest`
+  pins the same things.
 
 ## Rules
 
