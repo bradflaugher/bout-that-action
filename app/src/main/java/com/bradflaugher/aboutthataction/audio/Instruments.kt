@@ -78,6 +78,22 @@ internal class Patch(
      */
     val pitchEnv: Float = 0f,
     val pitchDecay: Float = 0.04f,
+    /**
+     * > 0: two-operator FM. A sine modulator at [fmRatio] times the pitch phase-modulates osc 1
+     * (use a SINE: an FM electric piano, a slap bass, FM brass). This is its peak index in
+     * radians; it falls from there to [fmSustain] of it over [fmDecay] seconds (to -60 dB) and
+     * scales with velocity, so accents bark. [fmFeedback] feeds the modulator back into itself
+     * (grit: saw-like brass). 0 leaves the voice exactly as it was.
+     */
+    val fm: Float = 0f,
+    val fmRatio: Float = 1f,
+    val fmDecay: Float = 0.4f,
+    val fmSustain: Float = 0f,
+    val fmFeedback: Float = 0f,
+    /** A second, parallel modulator at [fmRatio2] (an electric piano's tine) with its own quick [fmDecay2]. */
+    val fm2: Float = 0f,
+    val fmRatio2: Float = 14f,
+    val fmDecay2: Float = 0.08f,
 ) {
     val driveGain = 1f + drive * 3f
     val driveComp = if (drive > 0f) 1f / Dsp.tanh(min(driveGain, 3f)) * (1f / (1f + drive * 0.5f)) else 1f
@@ -110,6 +126,13 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
     private var sinceOn = 0
     private var vel = 1f
     private var pEnv = 0f
+
+    // FM operators: modulator phases, index envelopes and the feedback memory.
+    private var pm = 0f
+    private var pm2 = 0f
+    private var fmEnv = 0f
+    private var fmEnv2 = 0f
+    private var fmLast = 0f
 
     // Plucked string: the delay line, its loop filter and the excitation burst still to play.
     private val string = DelayLine(MAX_STRING)
@@ -144,6 +167,12 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
             }
             exLp = 0f
             exciteLeft = (sr / target).toInt().coerceIn(2, MAX_STRING - 4)
+        }
+        if (p.fm > 0f || p.fm2 > 0f) {
+            if (!active) {
+                pm = 0f; pm2 = 0f; fmLast = 0f
+            }
+            fmEnv = 1f; fmEnv2 = 1f
         }
         amp.set(p.a, p.d, p.s, p.r)
         flt.set(p.fa, p.fd, p.fs, p.fr)
@@ -214,6 +243,10 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
             renderString(l, r, off, n, pt, f, dt2, pw, gain, gainStep)
             return
         }
+        if (pt.fm > 0f || pt.fm2 > 0f) {
+            renderFm(l, r, off, n, pt, dt1, dt2, pw, gain, gainStep)
+            return
+        }
         for (i in 0 until n) {
             flt.next()
             gain += gainStep
@@ -249,6 +282,57 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
                 l[off + i] += x
                 r[off + i] += x
             }
+        }
+        if (!active) {
+            svfL.reset(); svfR.reset()
+        }
+    }
+
+    /** [render] for a two-operator FM voice: osc 1 is the carrier, phase-modulated by sines. */
+    private fun renderFm(l: FloatArray, r: FloatArray, off: Int, n: Int, pt: Patch, dt1: Float, dt2: Float, pw: Float, g0: Float, gainStep: Float) {
+        val c1 = Dsp.decay60(pt.fmDecay, sr)
+        val c2 = Dsp.decay60(pt.fmDecay2, sr)
+        val sus = pt.fmSustain
+        val velIdx = 0.4f + 0.6f * vel
+        val i1 = pt.fm * velIdx * INV_TAU
+        val i2 = pt.fm2 * velIdx * INV_TAU
+        val fb = pt.fmFeedback * INV_TAU
+        val dm = dt1 * pt.fmRatio
+        val dm2 = dt1 * pt.fmRatio2
+        var gain = g0
+        for (i in 0 until n) {
+            flt.next()
+            gain += gainStep
+            val a = amp.next() * gain
+            if (gate > 0 && --gate == 0) {
+                amp.gateOff(); flt.gateOff()
+            }
+            pm += dm; if (pm >= 1f) pm -= 1f
+            p1 += dt1; if (p1 >= 1f) p1 -= 1f
+            p2 += dt2; if (p2 >= 1f) p2 -= 1f
+            fmEnv = sus + (fmEnv - sus) * c1
+            val m = Dsp.sin01(pm + fb * fmLast)
+            fmLast = m
+            var ph = p1 + i1 * fmEnv * m
+            if (i2 > 0f) {
+                pm2 += dm2; if (pm2 >= 1f) pm2 -= 1f
+                fmEnv2 *= c2
+                ph += i2 * fmEnv2 * Dsp.sin01(pm2)
+            }
+            ph -= ph.toInt()
+            if (ph < 0f) ph += 1f
+            var x = osc(pt.wave1, ph, dt1, pw, noise)
+            if (pt.osc2Level > 0f) x += pt.osc2Level * osc(pt.wave2, p2, dt2, pw, noise)
+            if (pt.sub > 0f) {
+                ps += dt1 * 0.5f; if (ps >= 1f) ps -= 1f
+                x += pt.sub * Dsp.sin01(ps)
+            }
+            if (pt.noise > 0f) x += pt.noise * noise.next()
+            x = svfL.lp(x)
+            if (pt.drive > 0f) x = Dsp.tanh(x * pt.driveGain) * pt.driveComp
+            x *= a
+            l[off + i] += x
+            r[off + i] += x
         }
         if (!active) {
             svfL.reset(); svfR.reset()
@@ -309,6 +393,7 @@ internal class SynthVoice(private val sr: Int, seed: Int) {
         /** Longest string period: 4096-sample line, so down to ~12 Hz at 48 kHz. */
         const val MAX_STRING = 4000
         private const val STRING_GAIN = 3f
+        private const val INV_TAU = 0.15915494f
     }
 }
 

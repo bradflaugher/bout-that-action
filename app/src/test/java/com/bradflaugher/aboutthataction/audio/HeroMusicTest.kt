@@ -99,8 +99,8 @@ class HeroMusicTest {
     /** Each hero plays their own genre at its own tempo; sneaking is always the slower one. */
     @Test
     fun eachHeroPlaysTheirGenreAtItsTempo() {
-        val hot = mapOf(Hero.BULL to 138f..152f, Hero.FOX to 145f..175f, Hero.LION to 170f..192f, Hero.HAWK to 110f..128f)
-        val sneak = mapOf(Hero.BULL to 70f..84f, Hero.FOX to 88f..108f, Hero.LION to 86f..102f, Hero.HAWK to 88f..102f)
+        val hot = mapOf(Hero.BULL to 138f..152f, Hero.FOX to 128f..145f, Hero.LION to 170f..192f, Hero.HAWK to 110f..128f)
+        val sneak = mapOf(Hero.BULL to 70f..84f, Hero.FOX to 98f..115f, Hero.LION to 86f..102f, Hero.HAWK to 88f..102f)
         for (h in Hero.entries) for (z in Zone.entries) {
             val loud = HeroSongs.forZone(h, z, false)
             val quiet = HeroSongs.forZone(h, z, true)
@@ -161,23 +161,31 @@ class HeroMusicTest {
         }
     }
 
-    /** FOX: strings and no drum kit — pizzicato and a clarinet sneaking; a harpsichord presto with timpani. */
+    /**
+     * FOX: an early-90s beat-'em-up soundtrack, all FM. Sneaking is a swung new-jack groove
+     * (FM electric-piano 9ths, an FM slap bass, a backbeat, deep-house fours in B); GUNS HOT is
+     * a breakbeat rave (a chopped break, piano-house stabs, a bouncing octave bass, FM brass).
+     */
     @Test
-    fun foxIsClassical() {
+    fun foxIsNinetiesBrawler() {
         for (z in Zone.entries) for (silent in listOf(false, true)) {
             val spec = HeroSongs.forZone(Hero.FOX, z, silent)
             val what = "$z${if (silent) " sneak" else ""}"
-            for (p in listOf(spec.drumsA, spec.drumsB, spec.fill)) {
-                assertEquals("$what: no hi-hats", 0, hits(p.hat) + hits(p.open) + hits(p.clap) + hits(p.jingle))
-            }
-            assertTrue("$what: a timpani part", hits(spec.drumsB.tom) >= 2)
-            val pitch = 12.0 * kotlin.math.ln(spec.kit.tomHz / 440.0) / kotlin.math.ln(2.0) + 69
-            assertEquals("$what: the timpani is tuned to the key", 0, Math.floorMod(Math.round(pitch).toInt() - spec.tonic, 12))
+            for (p in listOf(spec.pad, spec.bass, spec.arp, spec.lead)) assertTrue("$what: an FM band", p.fm > 0f && p.pluck == 0f)
+            assertEquals("$what: four on the floor in B", "X...X...X...X...", spec.drumsB.kick)
             if (silent) {
-                assertTrue("$what: pizzicato", spec.bass.pluck > 0f && spec.arp.pluck > 0f)
+                assertTrue("$what: swung 16ths", spec.swing >= 0.25f)
+                assertTrue("$what: backbeat on 2 and 4", onlyAt(spec.drumsA.snare, 4, 12))
+                assertTrue("$what: a swung hat on the 16ths", hits(spec.drumsA.hat) >= 10)
+                assertTrue("$what: electric-piano 9ths", (spec.progA + spec.progB).any { it.size == 5 })
+                assertTrue("$what: the piano's tine", spec.pad.fm2 > 0f)
             } else {
-                assertTrue("$what: a harpsichord continuo", spec.pad.pluck >= 0.8f)
-                assertTrue("$what: running violins", hits(spec.arpA) == 16)
+                assertEquals("$what: straight", 0f, spec.swing, 0f)
+                assertTrue("$what: a chopped break", spec.drumsA.kick != spec.drumsB.kick && spec.drumsA.snare.count { it == 'o' } >= 2)
+                assertTrue("$what: piano stabs", spec.pad.s == 0f && hits(spec.padRhythm) >= 4)
+                assertTrue("$what: an octave bass", spec.bassA.count { it == 'O' } >= 4)
+                assertTrue("$what: 16th-note arps", hits(spec.arpA) == 16)
+                assertTrue("$what: FM brass", spec.lead.fmFeedback > 0f)
             }
         }
     }
@@ -258,6 +266,7 @@ class HeroMusicTest {
             println("$z: " + stats.entries.joinToString { "%s sub=%.2f centroid=%.0f".format(it.key, it.value.first, it.value.second) })
             val bull = stats.getValue(Hero.BULL)
             for (h in Hero.entries - Hero.BULL) assertTrue("$z: BULL's 808s outweigh $h's bass", bull.first > stats.getValue(h).first)
+            assertTrue("$z: FOX's FM rave sits brighter than BULL's trap", stats.getValue(Hero.FOX).second > bull.second * 1.1)
             val bossa = AudioTestUtil.spectrum(AudioTestUtil.mono(take(Hero.HAWK, z, true))).let { AudioTestUtil.bandShare(it, 5000.0, 20000.0) to AudioTestUtil.centroid(it) }
             val funk = AudioTestUtil.spectrum(AudioTestUtil.mono(take(Hero.HAWK, z, false))).let { AudioTestUtil.bandShare(it, 5000.0, 20000.0) to AudioTestUtil.centroid(it) }
             println("$z: HAWK bossa air=%.2f centroid=%.0f, funk air=%.2f centroid=%.0f".format(bossa.first, bossa.second, funk.first, funk.second))
@@ -930,6 +939,25 @@ class HeroInstrumentsTest {
         println("tremolo depth: on %.2f off %.3f".format(on, off))
         assertTrue(on > 0.35)
         assertTrue(off < 0.02)
+    }
+
+    /** FOX's FM operator: in tune, bright on the attack, mellowing as its index decays. */
+    @Test
+    fun fmVoiceBarksThenMellowsInTune() {
+        val p = Patch(wave1 = Wave.SINE, fm = 3f, fmRatio = 1f, fmDecay = 0.3f, fmSustain = 0.1f, cutoff = 12000f, keyTrack = 0f, a = 0.001f, s = 1f, gain = 0.3f)
+        val x = voice(p, 1f) { it.noteOn(57, 1f, sr * 2, legato = false, age = 1) }
+        for (v in x) assertTrue(v.isFinite() && abs(v) < 1f)
+        val early = AudioTestUtil.centroid(AudioTestUtil.spectrum(x.copyOfRange(0, 4096), 4096))
+        val late = AudioTestUtil.centroid(AudioTestUtil.spectrum(x.copyOfRange(sr / 2, sr / 2 + 4096), 4096))
+        val got = autoPitch(x, sr / 2, sr / 5)
+        val cents = 1200 * kotlin.math.ln(got / 220.0) / kotlin.math.ln(2.0)
+        println("fm voice: centroid %.0f Hz -> %.0f Hz, pitch %.1f Hz (%+.0f cents)".format(early, late, got, cents))
+        assertTrue("the attack should bark", early > late * 1.5)
+        assertTrue("fm is ${"%.0f".format(cents)} cents out", abs(cents) < 10)
+        // No index: exactly the plain sine voice.
+        val plain = Patch(wave1 = Wave.SINE, cutoff = 12000f, keyTrack = 0f, a = 0.001f, s = 1f, gain = 0.3f)
+        val zero = Patch(wave1 = Wave.SINE, fm = 0f, fmRatio = 3f, cutoff = 12000f, keyTrack = 0f, a = 0.001f, s = 1f, gain = 0.3f)
+        assertArrayEquals(voice(plain, 0.2f) { it.noteOn(57, 1f, sr, false, 1) }, voice(zero, 0.2f) { it.noteOn(57, 1f, sr, false, 1) }, 0f)
     }
 
     @Test

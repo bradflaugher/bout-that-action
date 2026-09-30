@@ -25,9 +25,11 @@ import kotlin.math.sqrt
  *    in and glide, a hard kick, snare-and-clap on three, hat rolls in 32nds, triplets and
  *    buzzes, dark bells and brass stabs) with a real drop: until the fight heats up the kick
  *    and 808 hold back, then a beat of silence under a reversed cymbal and it all lands.
- *  - FOX: classical. Sneaking is a chamber piece on tiptoe: pizzicato cello and violins,
- *    soft bowed strings, a clarinet and a timpani; GUNS HOT is a baroque presto at ~156
- *    (spiccato cellos, running violin figures, harpsichord continuo, timpani, a solo violin).
+ *  - FOX: an early-90s street brawler. Sneaking is a late-night new-jack swing at ~106 BPM
+ *    (swung 16ths, FM electric-piano 9ths, a round FM slap bass, a soft pad, a sultry FM lead;
+ *    the B sections slip into a four-to-the-floor deep-house pulse); GUNS HOT is a breakbeat
+ *    rave at ~136 (a chopped break, piano-house m7 stabs, a bouncing FM octave bass, FM arps,
+ *    a bright FM-brass lead).
  *  - LION: circus. Sneaking is a creepy clown march on tiptoe at ~92 in the harmonic minor
  *    (a staccato bassoon oom-pah, pizzicato "pah" chords, a music box, temple blocks, a bulb
  *    horn honking as tension creeps in, and a wobbly, seasick calliope carrying his theme);
@@ -104,9 +106,15 @@ internal object HeroSongs {
     private val bullSig = Motif("4:3 5:1 4:2 .:2 2:3 1:1 0:4")
     private val bullAns = Motif("0:2 0:1 .:1 2:2 4:2 5:3 4:1 2:4")
 
-    /** FOX: a baroque run — up the scale in 16ths, a leap back and a turn home. */
-    private val foxSig = Motif("0:1 1:1 2:1 3:1 4:2 2:2 3:1 2:1 1:1 0:1 1:2 .:2")
-    private val foxAns = Motif("4:2 3:2 2:2 1:2 0:4 .:4")
+    /** FOX: a fighter's strut — up the chord in dotted steps, a flick of the sixth, a sly turn down. */
+    private val foxSig = Motif("0:3 2:3 4:3 5:1 4:2 2:1 3:1 1:2")
+    private val foxAns = Motif("4:3 2:3 7:3 6:1 4:2 3:1 2:1 0:2")
+
+    /** FOX's sneak mix lets her lead surface as soon as the tension does. */
+    private const val FOX_SNEAK_LEAD = 0.6f
+
+    /** FOX's rave holds its kick and bass back (the break, stabs and arps tease) until the fight heats up, then drops. */
+    private const val FOX_DROP = 0.5f
 
     /** LION: a showman's flourish — tiptoe up the chord to the octave, a twirl and a bow. */
     private val lionSig = Motif("2:1 .:1 4:1 .:1 7:3 6:1 4:1 5:1 4:1 3:1 2:2 1:1 -3:1")
@@ -121,13 +129,13 @@ internal object HeroSongs {
     // Zones in order: ROOFTOP, TOWER, LABS, METRO, MINES, MAGMA, HELL, VOID.
     private val HOT_BPM = arrayOf(
         floatArrayOf(140f, 142f, 144f, 144f, 140f, 146f, 150f, 148f), // BULL: heavy trap, half-time
-        floatArrayOf(150f, 152f, 156f, 158f, 152f, 160f, 172f, 164f), // FOX: presto
+        floatArrayOf(132f, 134f, 136f, 136f, 132f, 138f, 142f, 138f), // FOX: breakbeat rave
         floatArrayOf(172f, 176f, 178f, 180f, 174f, 182f, 190f, 184f), // LION: circus galop
         floatArrayOf(114f, 116f, 118f, 120f, 114f, 120f, 125f, 122f), // HAWK: delivery-van funk
     )
     private val SNEAK_BPM = arrayOf(
         floatArrayOf(74f, 75f, 76f, 77f, 74f, 78f, 82f, 80f), // BULL: heavy boom-bap
-        floatArrayOf(92f, 94f, 96f, 98f, 94f, 100f, 104f, 100f), // FOX: pizzicato
+        floatArrayOf(102f, 104f, 106f, 106f, 102f, 108f, 112f, 108f), // FOX: late-night swing
         floatArrayOf(88f, 90f, 92f, 94f, 90f, 96f, 100f, 96f), // LION: tiptoe clown march
         floatArrayOf(90f, 92f, 94f, 96f, 92f, 96f, 100f, 98f), // HAWK: elevator bossa
     )
@@ -136,17 +144,17 @@ internal object HeroSongs {
 
     private val HOT_TRIM = arrayOf(
         floatArrayOf(0.78f, 0.78f, 0.77f, 0.79f, 0.79f, 0.82f, 0.86f, 0.75f), // BULL
-        floatArrayOf(1.16f, 1.15f, 1.08f, 1.11f, 1.14f, 1.14f, 1.17f, 1.07f), // FOX
+        floatArrayOf(1.12f, 1.12f, 1.11f, 1.10f, 1.11f, 1.15f, 1.28f, 1.05f), // FOX
         floatArrayOf(1.38f, 1.32f, 1.34f, 1.34f, 1.36f, 1.41f, 1.46f, 1.23f), // LION
         floatArrayOf(0.98f, 0.93f, 0.95f, 0.95f, 0.99f, 0.96f, 1.09f, 0.92f), // HAWK
     )
     private val SNEAK_TRIM = arrayOf(
         floatArrayOf(0.75f, 0.71f, 0.70f, 0.70f, 0.72f, 0.74f, 0.70f, 0.73f), // BULL
-        floatArrayOf(1.02f, 1.05f, 1.01f, 1.05f, 1.05f, 1.07f, 1.10f, 1.07f), // FOX
+        floatArrayOf(0.85f, 0.83f, 0.84f, 0.88f, 0.85f, 0.86f, 0.86f, 0.88f), // FOX
         floatArrayOf(1.08f, 1.09f, 1.05f, 1.11f, 1.21f, 1.14f, 1.16f, 1.15f), // LION
         floatArrayOf(0.93f, 0.90f, 0.92f, 0.89f, 0.91f, 0.94f, 0.92f, 0.93f), // HAWK
     )
-    private val THEME_TRIM = floatArrayOf(0.73f, 1.11f, 1.33f, 0.91f)
+    private val THEME_TRIM = floatArrayOf(0.73f, 1.07f, 1.33f, 0.91f)
 
     /** A drum tuned to the zone's key: its tonic, on or above MIDI note [lo]. */
     private fun keyed(base: SongSpec, lo: Int): Float = Dsp.midiToHz((lo + Math.floorMod(base.tonic - lo, 12)).toFloat())
@@ -262,82 +270,123 @@ internal object HeroSongs {
         crowd = 0f, dropThreshold = 0.45f,
     )
 
-    // ---- FOX: a string quartet tiptoeing on pizzicato, then a baroque presto -------------------
+    // ---- FOX: a late-night swing groove on FM keys, then a breakbeat rave --------------------
 
-    private val pizzBass = Patch(pluck = 0.25f, ring = 0.6f, cutoff = 1400f, keyTrack = 0.3f, a = 0.001f, d = 1f, s = 1f, r = 0.1f, gain = 0.9f, bright = 0.1f)
-    private val pizzViolins = Patch(pluck = 0.45f, ring = 0.4f, cutoff = 3500f, a = 0.001f, d = 1f, s = 1f, r = 0.08f, gain = 0.45f, bright = 0.1f)
-    private val softStrings = Patch(
-        wave1 = Wave.SAW, wave2 = Wave.SAW, osc2Level = 0.8f, detune = 0.12f, cutoff = 1000f, q = 0.6f, envAmt = 0.4f,
-        a = 0.8f, d = 1.5f, s = 0.85f, r = 1.2f, fa = 0.8f, fd = 1.5f, fs = 0.5f, vibrato = 0.12f, vibRate = 5f, gain = 0.07f,
-        bright = 0.3f,
+    /** A round FM slap bass: the modulator's bark on the attack settles into a warm sine. */
+    private val foxSlap = Patch(
+        wave1 = Wave.SINE, fm = 2.4f, fmRatio = 1f, fmDecay = 0.22f, fmSustain = 0.12f, sub = 0.3f, cutoff = 1800f,
+        keyTrack = 0.2f, a = 0.002f, d = 0.35f, s = 0.3f, r = 0.08f, drive = 0.15f, gain = 0.34f, bright = 0.2f,
+        pitchEnv = 0.6f, pitchDecay = 0.012f,
     )
-    private val clarinet = Patch(
-        wave1 = Wave.SQUARE, wave2 = Wave.SINE, osc2Semi = 12f, osc2Level = 0.12f, cutoff = 1600f, q = 0.7f, envAmt = 0.5f,
-        a = 0.04f, d = 0.5f, s = 0.8f, r = 0.15f, fa = 0.04f, fd = 0.3f, fs = 0.5f, glide = 0.02f, vibrato = 0.12f,
-        gain = 0.11f, bright = 0.3f,
+    /** An FM electric piano: a mellow body and a glassy tine that rings off the attack. */
+    private val foxKeys = Patch(
+        wave1 = Wave.SINE, fm = 1.5f, fmRatio = 1f, fmDecay = 1.1f, fmSustain = 0.2f, fm2 = 0.8f, fmRatio2 = 14f,
+        fmDecay2 = 0.07f, cutoff = 5000f, keyTrack = 0f, a = 0.002f, d = 1.8f, s = 0.2f, r = 0.4f, trem = 0.18f,
+        tremRate = 4f, gain = 0.1f, bright = 0.2f,
+    )
+    /** A soft, slowly swelling pad: two sines beating with a breath of FM. */
+    private val foxVelvet = Patch(
+        wave1 = Wave.SINE, wave2 = Wave.SINE, osc2Level = 0.6f, detune = 0.1f, fm = 0.8f, fmRatio = 2f, fmDecay = 3f,
+        fmSustain = 0.6f, cutoff = 2400f, keyTrack = 0f, a = 0.5f, d = 1f, s = 0.9f, r = 1.2f, vibrato = 0.08f,
+        gain = 0.07f, bright = 0.2f,
+    )
+    /** A sultry FM lead: breathy at the front, a little feedback reed, a slow vibrato. */
+    private val foxSultry = Patch(
+        wave1 = Wave.SINE, fm = 1.4f, fmRatio = 1f, fmDecay = 0.6f, fmSustain = 0.55f, fmFeedback = 0.3f, noise = 0.01f,
+        cutoff = 3500f, keyTrack = 0f, a = 0.03f, d = 0.5f, s = 0.8f, r = 0.25f, glide = 0.05f, vibrato = 0.3f,
+        vibRate = 5.2f, gain = 0.13f, bright = 0.3f,
     )
 
     private fun foxSneak(base: SongSpec, t: Tint, name: String, bpm: Float) = base.derive(
-        name = name, bpm = bpm, swing = 0f,
-        drumsA = DrumPattern(kick = "X.......x.......", tom = "..............1."),
-        drumsB = DrumPattern(kick = "X.......x.......", tom = "1.......2.....1."),
-        fill = DrumPattern(kick = "X.......x.......", snare = "........rrrrrrrr", tom = "........1.1.2.21"),
-        kit = DrumTuning(
-            kickHi = 85f, kickLo = 50f, kickPitchDecay = 0.06f, kickDecay = 0.5f, kickClick = 0.02f, kickDrive = 0f, kickLevel = 0.8f,
-            snareTone = 180f, snareNoiseHz = 2500f, snareDecay = 0.22f, snareToneMix = 0.2f, snareLevel = 0.3f, snareVerb = 0.5f,
-            tomHz = keyed(base, 41), tomDecay = 1.1f, tomBend = 0.08f, tomLevel = 0.6f, drive = 0f, crush = t.crush,
+        name = name, bpm = bpm, swing = 0.3f, leadThreshold = FOX_SNEAK_LEAD,
+        progA = jazz(base.progA, base.scale, ninth = true), progB = jazz(base.progB, base.scale, ninth = true),
+        // A: a swung new-jack beat; B: the kick goes four-to-the-floor under open hats (deep house).
+        drumsA = DrumPattern(
+            kick = "X.....X...X..x..", snare = "....X.......X...", clap = "....x.......x...", hat = "x.xox.xox.xox.xo",
+            perc = "..........o...x.",
         ),
-        bassA = "R...F...O...F...", bassB = "R.S.T...F.T.S.A.",
-        arpA = "0.1.2...3.2.1...", arpB = "2.1.0...1.2.3.4.", arpGate = 1f,
-        padRhythm = "x...............",
-        leadTemplates = arrayOf(foxSig.rhythm, "x.......x.......", "x...........x..."),
-        signature = foxSig, answer = foxAns, leadOctave = leadOctave(base, 58),
-        pad = softStrings.tinted(t, 0f), bass = pizzBass, arp = pizzViolins, lead = clarinet,
+        drumsB = DrumPattern(
+            kick = "X...X...X...X...", snare = "....x.......x...", clap = "....X.......X...", hat = "x.o.x.o.x.o.x.o.",
+            open = "..x...x...x...x.",
+        ),
+        fill = DrumPattern(kick = "X.....X...X.....", snare = "....X.....o.XoXX", clap = "....x...........", hat = "x.xox.xox.xoxxxx"),
+        kit = DrumTuning(
+            kickHi = 120f, kickLo = 48f, kickPitchDecay = 0.04f, kickDecay = 0.38f, kickClick = 0.15f, kickDrive = 0.2f,
+            kickLevel = 0.95f, snareTone = 200f, snareNoiseHz = 3600f, snareDecay = 0.12f, snareToneMix = 0.4f,
+            snareLevel = 0.5f, snareVerb = 0.3f, snareGate = 0.1f, clapHz = 1200f, clapDecay = 0.14f, clapLevel = 0.5f,
+            hatTone = 1.1f, hatDecay = 0.04f, openDecay = 0.2f, hatLevel = 0.36f, percHz = 1900f, percRatio = 1.5f,
+            percDecay = 0.03f, percFm = 0.6f, percNoise = 0.3f, percLevel = 0.25f, drive = t.drive * 0.4f, crush = t.crush,
+        ),
+        bassA = "R.....R.O..R..F.", bassB = "R.....R.T..R.S.A",
+        // The soft pad breathes the chord's inner voices (third, seventh, fifth) under the keys.
+        arpA = "1~~~~~~~~~~~3~~~", arpB = "2~~~~~~~3~~~~~~~", arpGate = 1.2f, arpCenter = base.arpCenter - 10,
+        padRhythm = "x......x..x.....", padRhythmB = "x..x......x..x..",
+        leadTemplates = arrayOf(foxSig.rhythm, "x.....x...x.....", "x..x....x......."),
+        signature = foxSig, answer = foxAns, leadOctave = leadOctave(base, 60),
+        pad = foxKeys.tinted(t, 0.1f), bass = foxSlap, arp = foxVelvet.tinted(t, 0f), lead = foxSultry,
         mix = Mix(
-            pad = 0.7f, bass = 1f, arp = 1f, lead = 0.9f, drums = 0.8f, padVerb = 0.45f, arpDelay = 0.15f, arpVerb = 0.4f,
-            leadDelay = 0.15f, leadVerb = 0.4f, padDuck = 0.1f, bassDuck = 0.05f, arpDuck = 0f, arpPan = 0.3f,
+            pad = 1f, bass = 1f, arp = 0.9f, lead = 0.9f, drums = 0.6f, padVerb = 0.35f, arpDelay = 0.2f, arpVerb = 0.45f,
+            leadDelay = 0.35f, leadVerb = 0.35f, padDuck = 0.15f, bassDuck = 0.05f, arpDuck = 0.1f, arpPan = -0.25f,
         ),
         crowd = 0f,
     )
 
-    private val celloSpiccato = Patch(
-        wave1 = Wave.SAW, wave2 = Wave.SAW, osc2Level = 0.5f, detune = 0.08f, sub = 0.2f, cutoff = 650f, q = 0.8f,
-        envAmt = 1.4f, keyTrack = 0.3f, a = 0.006f, d = 0.2f, s = 0.6f, r = 0.06f, fd = 0.12f, gain = 0.3f, bright = 0.4f,
+    /** A driving FM bass: a hard-edged attack with feedback grit, bouncing octaves. */
+    private val foxRaveBass = Patch(
+        wave1 = Wave.SINE, fm = 3.2f, fmRatio = 1f, fmDecay = 0.18f, fmSustain = 0.3f, fmFeedback = 0.25f, sub = 0.4f,
+        cutoff = 2400f, keyTrack = 0.2f, a = 0.002f, d = 0.2f, s = 0.6f, r = 0.05f, drive = 0.3f, gain = 0.3f, bright = 0.4f,
     )
-    private val violinSection = Patch(
-        wave1 = Wave.SAW, wave2 = Wave.SAW, osc2Level = 0.6f, detune = 0.1f, cutoff = 2600f, q = 0.7f, envAmt = 1.2f,
-        a = 0.004f, d = 0.12f, s = 0.35f, r = 0.05f, fd = 0.08f, vibrato = 0.05f, gain = 0.13f, bright = 0.5f,
+    /** A bright house piano for the chord stabs. */
+    private val foxPiano = Patch(
+        wave1 = Wave.SINE, wave2 = Wave.SINE, osc2Semi = 12f, osc2Level = 0.25f, fm = 2.4f, fmRatio = 1f, fmDecay = 0.5f,
+        fmSustain = 0.15f, fm2 = 1.2f, fmRatio2 = 14f, fmDecay2 = 0.05f, cutoff = 7000f, keyTrack = 0f, a = 0.001f,
+        d = 0.9f, s = 0f, r = 0.2f, gain = 0.15f, bright = 0.3f,
     )
-    private val harpsichord = Patch(pluck = 0.9f, ring = 1.2f, cutoff = 5000f, keyTrack = 0f, a = 0.001f, d = 2f, s = 1f, r = 0.2f, gain = 0.24f, bright = 0.2f)
-    private val soloViolin = Patch(
-        wave1 = Wave.SAW, wave2 = Wave.SAW, osc2Level = 0.2f, detune = 0.06f, noise = 0.02f, cutoff = 3200f, q = 0.8f,
-        envAmt = 0.6f, a = 0.03f, d = 0.4f, s = 0.85f, r = 0.12f, fa = 0.03f, fd = 0.3f, fs = 0.5f, glide = 0.02f,
-        vibrato = 0.35f, vibRate = 5.8f, gain = 0.15f, bright = 0.5f,
+    /** Rave arps: a bell-bright FM pluck. */
+    private val foxPluck = Patch(
+        wave1 = Wave.SINE, fm = 2.5f, fmRatio = 3f, fmDecay = 0.15f, cutoff = 6000f, keyTrack = 0f, a = 0.001f,
+        d = 0.25f, s = 0f, r = 0.1f, gain = 0.18f, bright = 0.3f,
+    )
+    /** FM brass: feedback turns the sine into a bright, sawtooth-ish horn that opens up. */
+    private val foxBrass = Patch(
+        wave1 = Wave.SINE, wave2 = Wave.SAW, osc2Level = 0.15f, detune = 0.08f, fm = 2.4f, fmRatio = 1f, fmDecay = 0.35f,
+        fmSustain = 0.55f, fmFeedback = 0.45f, cutoff = 3800f, q = 0.8f, envAmt = 0.8f, a = 0.015f, d = 0.4f, s = 0.8f,
+        r = 0.15f, fd = 0.3f, glide = 0.03f, vibrato = 0.25f, vibRate = 5.6f, gain = 0.14f, bright = 0.5f,
     )
 
     private fun foxHot(base: SongSpec, t: Tint, name: String, bpm: Float, hook: Melody? = null) = base.derive(
         name = name, bpm = bpm, swing = 0f,
-        drumsA = DrumPattern(kick = "X.......X.......", tom = "1.......2......."),
-        drumsB = DrumPattern(kick = "X...X...X...X...", tom = "1...2...1...2.21"),
-        fill = DrumPattern(kick = "X.......X.......", snare = "rrrrrrrrrrrrrrrX", tom = "1.1.2.2.1.1.2.21"),
+        progA = jazz(base.progA, base.scale, ninth = false), progB = jazz(base.progB, base.scale, ninth = false),
+        // A: a chopped breakbeat; B: a four-to-the-floor kick under the break, claps and open hats.
+        drumsA = DrumPattern(
+            kick = "X.....X...X..X..", snare = "....X..o.o..X..o", hat = "x.x.x.xox.x.x.xo", open = "..............x.",
+        ),
+        drumsB = DrumPattern(
+            kick = "X...X...X...X...", snare = "....X..o.o..X.o.", clap = "....X.......X...", hat = "xoxoxoxoxoxoxoxo",
+            open = "..x...x...x...x.", perc = "...x...x...x...x",
+        ),
+        fill = DrumPattern(
+            kick = "X..X..X...X.X...", snare = "X.oXX.oX.rrrXXXX", clap = "............X...", hat = "x.x.x.x.x.x.q.q.",
+        ),
         kit = DrumTuning(
-            kickHi = 90f, kickLo = 48f, kickPitchDecay = 0.05f, kickDecay = 0.45f, kickClick = 0.05f, kickDrive = 0.1f,
-            kickLevel = 0.85f, snareTone = 200f, snareNoiseHz = 3800f, snareDecay = 0.16f, snareToneMix = 0.3f,
-            snareLevel = 0.45f, snareVerb = 0.45f, tomHz = keyed(base, 41), tomDecay = 0.9f, tomBend = 0.06f, tomLevel = 0.8f,
-            crashDecay = 2.4f, crashLevel = 0.3f, drive = t.drive * 0.3f, crush = t.crush,
+            kickHi = 150f, kickLo = 46f, kickPitchDecay = 0.035f, kickDecay = 0.34f, kickClick = 0.35f, kickDrive = 0.35f,
+            snareTone = 210f, snareNoiseHz = 4500f, snareDecay = 0.15f, snareToneMix = 0.5f, snareLevel = 0.8f,
+            snareVerb = 0.22f, clapHz = 1250f, clapDecay = 0.15f, clapLevel = 0.6f, hatTone = 1.2f, hatDecay = 0.03f,
+            openDecay = 0.16f, hatLevel = 0.3f, percHz = 820f, percRatio = 1.41f, percDecay = 0.07f, percFm = 1f,
+            percNoise = 0.05f, percLevel = 0.22f, crashLevel = 0.3f, drive = 0.2f + t.drive * 0.5f, crush = maxOf(2, t.crush),
         ),
-        bassA = "R.R.R.R.O.O.R.R.", bassB = "R.R.F.F.O.O.F.A.",
-        arpA = "0212021202120212", arpB = "3242324232423242", arpGate = 0.7f,
-        padRhythm = "x.......x.......", padRhythmB = "x...x...x...x...",
+        bassA = "R.O.R.O.R.O.R.O.", bassB = "R.O.R.OFR.O.R.OA",
+        arpA = "0242024202420242", arpB = "3424342434243424", arpGate = 0.6f,
+        padRhythm = "x..x...x..x...x.", padRhythmB = "x..x..x.x..x..x.",
         leadOctave = leadOctave(base, 62),
-        leadTemplates = arrayOf(foxSig.rhythm, "x.x.x.x.x...x...", "x...x.x.x.x.x..."),
+        leadTemplates = arrayOf(foxSig.rhythm, "x.x...x.x...x...", "x..x..x.x.x....."),
         motifSeed = base.motifSeed + 23, hook = hook, signature = foxSig, answer = foxAns,
-        pad = harpsichord, bass = celloSpiccato.tinted(t, 0.2f), arp = violinSection.tinted(t, 0.1f), lead = soloViolin.tinted(t, 0.2f),
+        pad = foxPiano.tinted(t, 0.1f), bass = foxRaveBass.tinted(t, 0.2f), arp = foxPluck.tinted(t, 0.1f), lead = foxBrass.tinted(t, 0.2f),
         mix = Mix(
-            pad = 1f, bass = 1f, arp = 1.2f, lead = 1.2f, drums = 0.45f * zoneDrums(base), padVerb = 0.3f, arpDelay = 0.1f,
-            arpVerb = 0.35f, leadDelay = 0.15f, leadVerb = 0.35f, padDuck = 0.1f, bassDuck = 0.1f, arpDuck = 0.05f, arpPan = 0.3f,
+            pad = 0.9f, bass = 1f, arp = 1f, lead = 1.1f, drums = 0.42f * zoneDrums(base), padVerb = 0.3f, arpDelay = 0.35f,
+            arpVerb = 0.3f, leadDelay = 0.25f, leadVerb = 0.3f, padDuck = 0.35f, bassDuck = 0.25f, arpDuck = 0.2f, arpPan = 0.3f,
         ),
-        crowd = 0f,
+        crowd = 0f, dropThreshold = FOX_DROP,
     )
 
     // ---- LION: a tiptoeing clown march, then a screaming circus galop ------------------------
@@ -596,17 +645,17 @@ internal object HeroSongs {
         ),
     )
 
-    /** "Presto in a Pressed Tux": C dorian, a violin running 16ths over harpsichord and timpani. */
+    /** "Ponytail of Doom": an E dorian rave anthem, i–VII–III–IV, FM brass over piano stabs. */
     private val foxHook = Melody(
         arrayOf(
-            "C5:1 D5:1 Eb5:1 D5:1 C5:2 G4:2 Eb5:1 F5:1 G5:1 F5:1 Eb5:2 C5:2",
-            "A4:1 Bb4:1 C5:1 Bb4:1 A4:2 F4:2 C5:1 D5:1 Eb5:1 D5:1 C5:2 A4:2",
-            "G5:2 F5:1 Eb5:1 D5:2 C5:2 Bb4:2 C5:2 D5:2 Eb5:2",
-            "F5:4 C5:2 A4:2 F4:4 -:4",
-            "C5:1 D5:1 Eb5:1 D5:1 C5:2 G4:2 Eb5:1 F5:1 G5:1 F5:1 Eb5:2 C5:2",
-            "A4:1 Bb4:1 C5:1 Bb4:1 A4:2 F4:2 C5:1 D5:1 Eb5:1 D5:1 C5:2 A4:2",
-            "G5:1 A5:1 Bb5:1 A5:1 G5:2 Eb5:2 F5:1 G5:1 A5:1 G5:1 F5:2 D5:2",
-            "C5:2 A4:2 F4:2 A4:2 C5:8",
+            "E5:3 B4:3 E5:2 G5:1 F#5:1 E5:2 D5:2 B4:2",
+            "D5:3 A4:3 D5:2 F#5:1 E5:1 D5:2 C#5:2 A4:2",
+            "B4:2 D5:2 G5:3 F#5:1 G5:2 A5:2 B5:4",
+            "A5:3 -:1 C#5:2 E5:2 A5:2 G5:2 F#5:2 E5:2",
+            "E5:3 B4:3 E5:2 G5:1 F#5:1 E5:2 D5:2 B4:2",
+            "D5:3 A4:3 D5:2 F#5:1 E5:1 D5:2 C#5:2 A4:2",
+            "G5:2 A5:2 B5:3 A5:1 G5:2 F#5:2 D5:2 B4:2",
+            "C#6:3 A5:3 E5:2 A5:8",
         ),
     )
 
@@ -647,8 +696,8 @@ internal object HeroSongs {
                 t, "bull-theme", 145f, bullHook,
             )
             Hero.FOX -> foxHot(
-                themeBase("fox-theme", 156f, 48, DORIAN, tri(DORIAN, 0, 3, 0, 3), tri(DORIAN, 2, 3, 4, 0), 7007),
-                t, "fox-theme", 156f, foxHook,
+                themeBase("fox-theme", 136f, 52, DORIAN, tri(DORIAN, 0, 6, 2, 3), tri(DORIAN, 3, 4, 2, 6), 7007),
+                t, "fox-theme", 136f, foxHook,
             )
             Hero.LION -> lionHot(
                 themeBase("lion-theme", 178f, 50, IONIAN, circus(0, 3, 4, 0), circus(5, 1, 4, 0), 1988),

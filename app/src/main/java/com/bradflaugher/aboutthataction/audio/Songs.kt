@@ -590,4 +590,6 @@ internal fun Patch.copyish(
     envAmt = envAmt, keyTrack = keyTrack, a = a, d = d, s = s, r = r, fa = fa, fd = fd, fs = fs, fr = fr,
     drive = drive, glide = glide, vibrato = vibrato, vibRate = vibRate, gain = gain, crush = crush, bright = bright,
     trem = trem, tremRate = tremRate, pluck = pluck, ring = ring, pitchEnv = pitchEnv, pitchDecay = pitchDecay,
+    fm = fm, fmRatio = fmRatio, fmDecay = fmDecay, fmSustain = fmSustain, fmFeedback = fmFeedback,
+    fm2 = fm2, fmRatio2 = fmRatio2, fmDecay2 = fmDecay2,
 )

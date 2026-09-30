@@ -873,14 +873,22 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                 }
             }
             Hero.FOX -> {
-                // A harpsichord curtsy: a quick run down the minor chord, landing low on the tonic.
+                // An FM-brass strut up the minor chord (a rest for swagger), a held note with a
+                // fall-off, and a slap-bass thump under it: round over, see you next round.
                 for (k in FOX_EXIT.indices) voice {
                     val s = FOX_EXIT[k]
                     val last = k == FOX_EXIT.size - 1
-                    wave = Wave.SAW; wave2 = Wave.SAW; ratio2 = 2.003f; level2 = 0.3f; f0 = 293.7f * Dsp.semis(s.toFloat()); f1 = f0
-                    filter = FilterMode.LOW; cut0 = 6000f; cut1 = 1500f; cutTime = 0.3f; attack = 0.001f
-                    decay = if (last) 1.4f else 0.3f; gain = 0.2f; pan = (2f - k) * 0.15f; reverb = 0.45f
-                    delay = 0.8f + k * 0.11f + (if (last) 0.12f else 0f); priority = 4f
+                    wave = Wave.SINE; wave2 = Wave.SINE; ratio2 = 1f; fm = if (last) 2.6f else 2.2f
+                    f0 = 587.3f * Dsp.semis(s.toFloat()); f1 = if (last) f0 * Dsp.semis(-4f) else f0; sweep = if (last) 1.6f else 0.1f
+                    filter = FilterMode.LOW; cut0 = 5200f; cut1 = 1600f; cutTime = if (last) 1.2f else 0.2f; attack = 0.008f
+                    hold = if (last) 0.3f else 0.04f; decay = if (last) 0.9f else 0.12f; vibRate = if (last) 5.5f else 0f
+                    vibDepth = 0.006f; drive = 0.2f; gain = 0.2f; pan = (k - 2f) * 0.12f; reverb = 0.35f
+                    delay = 0.8f + FOX_EXIT_AT[k]; priority = 4f
+                }
+                voice {
+                    wave = Wave.SINE; wave2 = Wave.SINE; ratio2 = 1f; fm = 2f; f0 = 73.4f; f1 = 70f; sweep = 0.3f
+                    attack = 0.002f; hold = 0.1f; decay = 0.7f; drive = 0.3f; gain = 0.3f; reverb = 0.1f
+                    delay = 0.8f + FOX_EXIT_AT[FOX_EXIT.size - 1]; priority = 4f
                 }
             }
             Hero.LION -> {
@@ -970,8 +978,9 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         private val BULL_EXIT = intArrayOf(0, 3, 7)
         /** The bell above it rings the minor third (F). */
         private const val BULL_BELL = 3
-        /** D minor, run down from the octave to the low D. */
-        private val FOX_EXIT = intArrayOf(12, 7, 3, 0, -5, -12)
+        /** D minor brass: D, D, F, G and a held A, on 16ths with a rest (seconds after the chord). */
+        private val FOX_EXIT = intArrayOf(0, 0, 3, 5, 7)
+        private val FOX_EXIT_AT = floatArrayOf(0f, 0.11f, 0.33f, 0.44f, 0.6f)
         /** LION's "ta" (A and E, the dominant's open fifth) and his "DAAA" (D, A and D). */
         private val LION_TA = intArrayOf(-5, 2)
         private val LION_EXIT = intArrayOf(0, 7, 12)
