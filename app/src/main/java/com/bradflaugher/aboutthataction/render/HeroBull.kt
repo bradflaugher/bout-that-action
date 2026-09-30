@@ -164,9 +164,9 @@ internal class BullKit(a: HeroArt) : HeroKit(a) {
             // The back turned from the lamp: a violet shadow plane.
             val sh = ActorPaint.shade(BLUE_DARK)
             p.begin()
-            tp(0.08f, -w * 0.56f); tp(0.34f, -w * 0.58f); tp(0.62f, -w * 0.64f); tp(0.84f, -c * 0.58f); tp(0.98f, -c * 0.58f)
-            tp(1.06f, -c * 0.44f); tp(0.9f, -c * 0.1f); tp(0.5f, -w * 0.08f); tp(0.1f, -w * 0.12f)
-            p.shapeGradDetail(Col.alpha(sh, 0.85f), Col.alpha(sh, 0f), tx(0.6f, -c * 0.55f), ty(0.6f, -c * 0.55f), tx(0.62f, c * 0.02f), ty(0.62f, c * 0.02f))
+            tp(0.08f, -w * 0.6f); tp(0.34f, -w * 0.64f); tp(0.62f, -w * 0.68f); tp(0.86f, -c * 0.48f); tp(1.02f, -c * 0.45f)
+            tp(1.08f, -c * 0.38f); tp(0.9f, -c * 0.1f); tp(0.5f, -w * 0.08f); tp(0.1f, -w * 0.12f)
+            p.shapeGradDetail(Col.alpha(sh, 0.85f), Col.alpha(sh, 0f), tx(0.6f, -c * 0.46f), ty(0.6f, -c * 0.46f), tx(0.62f, c * 0.02f), ty(0.62f, c * 0.02f))
             // Quilted channels round the body.
             for (t in QUILT) {
                 p.detail(tx(t, -w * 0.5f), ty(t, -w * 0.5f), tx(t + 0.02f, c * 0.3f), ty(t + 0.02f, c * 0.3f), 0.014f * k.hs, BLUE_SEAM)
@@ -182,7 +182,7 @@ internal class BullKit(a: HeroArt) : HeroKit(a) {
         p.detail(tx(0.62f, c * 0.36f), ty(0.62f, c * 0.36f), tx(0.26f, w * 0.34f), ty(0.26f, w * 0.34f), 0.03f * k.hs, BLUE_DARK)
         // The rib hem.
         p.begin()
-        tp(0.2f, -w * 0.58f); tp(0.22f, w * 0.52f); tp(0.07f, w * 0.5f); tp(0.07f, -w * 0.56f)
+        tp(0.2f, -w * 0.64f); tp(0.22f, w * 0.52f); tp(0.07f, w * 0.5f); tp(0.07f, -w * 0.6f)
         p.shapeGradDetail(SKY, Col.mul(SKY, 0.6f), tx(0.2f, w * 0.4f), ty(0.2f, w * 0.4f), tx(0.1f, -w * 0.4f), ty(0.1f, -w * 0.4f))
         if (p.shading) {
             for (i in 0 until 4) {
@@ -192,10 +192,7 @@ internal class BullKit(a: HeroArt) : HeroKit(a) {
         }
         // The gold chain, hanging in a loop over the tee.
         chain(c)
-        // The ribbed collar standing up round the neck, and the hood of the jacket behind it.
-        p.begin()
-        tp(1.02f, -c * 0.46f); tp(1.2f, -c * 0.52f); tp(1.24f, -c * 0.26f); tp(1.06f, -c * 0.18f)
-        p.shapeGradDetail(BLUE_LIT, BLUE, tx(1.2f, -c * 0.4f), ty(1.2f, -c * 0.4f), tx(1.04f, -c * 0.3f), ty(1.04f, -c * 0.3f))
+        // The ribbed collar round the neck.
         p.begin()
         tp(1.06f, -c * 0.2f); tp(1.18f, -c * 0.22f); tp(1.2f, c * 0.3f); tp(1.1f, c * 0.34f)
         p.shapeGradDetail(SKY, Col.mul(SKY, 0.6f), tx(1.2f, 0f), ty(1.2f, 0f), tx(1.06f, 0f), ty(1.06f, 0f))
@@ -227,7 +224,7 @@ internal class BullKit(a: HeroArt) : HeroKit(a) {
     private fun headphones(c: Float) {
         val cx = tx(1.14f, -c * 0.02f)
         val cy = ty(1.14f, -c * 0.02f)
-        p.detail(tx(1.14f, -c * 0.44f), ty(1.14f, -c * 0.44f), cx, cy, 0.034f * k.hs, PHONES)
+        p.detail(tx(1.14f, -c * 0.2f), ty(1.14f, -c * 0.2f), cx, cy, 0.034f * k.hs, PHONES)
         p.dot(cx, cy, 0.058f * k.hs, PHONES)
         p.dot(cx, cy, 0.04f * k.hs, SKY)
         p.dot(cx, cy, 0.02f * k.hs, PHONES)
@@ -329,12 +326,12 @@ internal class BullKit(a: HeroArt) : HeroKit(a) {
             1.08f, 0.4f, 1f,
             1.14f, 0.12f, 1f,
             1.14f, -0.22f, 1f,
-            1.1f, -0.5f, 1f,
-            1.0f, -0.62f, 1f,
-            0.84f, -0.62f, 1f,
-            0.62f, -0.64f, 0f,
-            0.34f, -0.6f, 0f,
-            0.08f, -0.56f, 0f,
+            1.1f, -0.4f, 1f,
+            1.02f, -0.47f, 1f,
+            0.86f, -0.5f, 1f,
+            0.62f, -0.7f, 0f,
+            0.34f, -0.66f, 0f,
+            0.08f, -0.62f, 0f,
         )
         /** The back contour the rim runs down: collar to waist. */
         private const val RIM_FROM = 11
