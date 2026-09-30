@@ -355,7 +355,7 @@ class HeroMusicTest {
         // playHeroTheme also picks the hero for the run.
         e.setZone(Zone.ROOFTOP)
         render(e, 8f)
-        assertEquals("rooftop-hawk", e.songName)
+        assertEquals("rooftop-${Hero.entries.last().name.lowercase()}", e.songName)
     }
 
     @Test

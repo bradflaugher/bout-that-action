@@ -127,7 +127,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 
 ## Heroes
 
-<p align="center"><img src="docs/screenshots/lineup.png" alt="The four heroes: BULL, FOX, MONKEY and HAWK" width="720"></p>
+<p align="center"><img src="docs/screenshots/lineup.png" alt="The four heroes: BULL, FOX, HAWK and MONKEY" width="720"></p>
 
 Pick who's going down on the title screen. Every hero plays the same
 building, but with a different body: an always-on trait, three perks only
@@ -138,8 +138,8 @@ music.
 |---|---|---|
 | **BULL** | A heavyweight in a quilted bomber, shades and a gold chain. Tough, fast, bulldozes. | +1 heart, runs 10% faster, tackles Heavies head-on (no bouncing off the armor) |
 | **FOX** | A martial-arts brawler in a black sports bra, baggy grey fighting pants, red gloves and red shoes, a long, glossy black ponytail whipping behind her. Kicks first, questions never: the takedown specialist. | Takedowns reach 0.35 u further (long legs), a 15% quicker trigger; guards take 35% longer to react once they spot her |
-| **MONKEY** | A small monkey with a very big gun, on the run from the circus: the weapons specialist. Oo oo. Ah ah. Pew pew. | A 12-round rifle (instead of a 6-round pistol) and pickup guns last 50% longer. He's short (0.95 u), so guards' straight high shots sail over his head (fireballs still come down on him); they know it and aim low more often (at least 70% of the time), and drones dip to his height. No takedowns, no stomps: walking into a guard just gets him noticed, landing on a head is a hop off it. In SILENT his gun still answers anyone onto him, loudly |
 | **HAWK** | A deadpan parcel courier in brown shorts, knee socks and a cap, scanner glowing, who lives in a cardboard box (naturally): the SILENT specialist. Goes postal, politely. | Unplugs drones and turrets by hand, like a takedown (quiet, and not while one is aiming at him); in SILENT guards spot him from a quarter less far; the box glides (2.2 u/s instead of 1.3) and never looks suspicious moving; reloads 25% faster |
+| **MONKEY** | A small monkey with a very big gun, on the run from the circus: the weapons specialist. Oo oo. Ah ah. Pew pew. | A 12-round rifle (instead of a 6-round pistol) and pickup guns last 50% longer. He's short (0.95 u), so guards' straight high shots sail over his head (fireballs still come down on him); they know it and aim low more often (at least 70% of the time), and drones dip to his height. No takedowns, no stomps: walking into a guard just gets him noticed, landing on a head is a hop off it. In SILENT his gun still answers anyone onto him, loudly |
 
 Their perks:
 
@@ -261,16 +261,16 @@ heats up the beat holds its breath for one beat, then drops. **FOX** plays an
 early-90s street-brawler soundtrack, all FM synths: a smooth late-night new-jack
 swing of electric piano, slap bass and a sultry lead, then a breakbeat rave of
 piano-house stabs, a bouncing bass and bright brass that drops hard when the
-heat climbs. **MONKEY** ran away from the circus back to the jungle, and
+heat climbs. **HAWK**'s radio is stuck on the courier's
+station: elevator-muzak bossa nova (nylon guitar, vibraphone, a cross-stick
+clave and a soft flute), then 70s delivery-van funk with ghost-note breakbeats,
+slap bass, wah clavinet, horn stabs and a cop-show lead; his game over is a
+van-horn beep-beep and a doorbell. Delivered. **MONKEY** ran away from the circus back to the jungle, and
 brought the calliope: sneaking is a jungle night of key-tuned bongos and congas,
 a shaker, crickets, a wooden marimba and the odd monkey "hoo"; with guns hot it's
 a stampede of pounding war drums, log drums and balafon runs with the circus's
 steam calliope screaming on top and slide whistles through every fill. His game
-over goes "ooh-ooh-AAH!", then "ta-DAAA!", then a sad slide whistle. **HAWK**'s radio is stuck on the courier's
-station: elevator-muzak bossa nova (nylon guitar, vibraphone, a cross-stick
-clave and a soft flute), then 70s delivery-van funk with ghost-note breakbeats,
-slap bass, wah clavinet, horn stabs and a cop-show lead; his game over is a
-van-horn beep-beep and a doorbell. Delivered.
+over goes "ooh-ooh-AAH!", then "ta-DAAA!", then a sad slide whistle.
 The hero picker plays each one's theme. Every tune is original.
 
 ## Install

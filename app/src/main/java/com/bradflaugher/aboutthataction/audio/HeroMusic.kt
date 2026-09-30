@@ -129,14 +129,14 @@ internal object HeroSongs {
     private val HOT_BPM = arrayOf(
         floatArrayOf(140f, 142f, 144f, 144f, 140f, 146f, 150f, 148f), // BULL: heavy trap, half-time
         floatArrayOf(132f, 134f, 136f, 136f, 132f, 138f, 142f, 138f), // FOX: breakbeat rave
-        floatArrayOf(172f, 176f, 178f, 180f, 174f, 182f, 190f, 184f), // MONKEY: jungle stampede
         floatArrayOf(114f, 116f, 118f, 120f, 114f, 120f, 125f, 122f), // HAWK: delivery-van funk
+        floatArrayOf(172f, 176f, 178f, 180f, 174f, 182f, 190f, 184f), // MONKEY: jungle stampede
     )
     private val SNEAK_BPM = arrayOf(
         floatArrayOf(74f, 75f, 76f, 77f, 74f, 78f, 82f, 80f), // BULL: heavy boom-bap
         floatArrayOf(102f, 104f, 106f, 106f, 102f, 108f, 112f, 108f), // FOX: late-night swing
-        floatArrayOf(88f, 90f, 92f, 94f, 90f, 96f, 100f, 96f), // MONKEY: jungle night
         floatArrayOf(90f, 92f, 94f, 96f, 92f, 96f, 100f, 98f), // HAWK: elevator bossa
+        floatArrayOf(88f, 90f, 92f, 94f, 90f, 96f, 100f, 96f), // MONKEY: jungle night
     )
 
     // ---- Loudness trims (measured: each arrangement matches its zone's own track) ----------
@@ -144,16 +144,16 @@ internal object HeroSongs {
     private val HOT_TRIM = arrayOf(
         floatArrayOf(0.78f, 0.78f, 0.77f, 0.79f, 0.79f, 0.82f, 0.86f, 0.75f), // BULL
         floatArrayOf(1.12f, 1.12f, 1.11f, 1.10f, 1.11f, 1.15f, 1.28f, 1.05f), // FOX
-        floatArrayOf(1.12f, 1.20f, 1.21f, 1.25f, 1.27f, 1.24f, 1.44f, 1.15f), // MONKEY
         floatArrayOf(0.98f, 0.93f, 0.95f, 0.95f, 0.99f, 0.96f, 1.09f, 0.92f), // HAWK
+        floatArrayOf(1.12f, 1.20f, 1.21f, 1.25f, 1.27f, 1.24f, 1.44f, 1.15f), // MONKEY
     )
     private val SNEAK_TRIM = arrayOf(
         floatArrayOf(0.75f, 0.71f, 0.70f, 0.70f, 0.72f, 0.74f, 0.70f, 0.73f), // BULL
         floatArrayOf(0.85f, 0.83f, 0.84f, 0.88f, 0.85f, 0.86f, 0.86f, 0.88f), // FOX
-        floatArrayOf(1.01f, 0.98f, 0.94f, 0.96f, 1.04f, 1.02f, 1.03f, 1.04f), // MONKEY
         floatArrayOf(0.93f, 0.90f, 0.92f, 0.89f, 0.91f, 0.94f, 0.92f, 0.93f), // HAWK
+        floatArrayOf(1.01f, 0.98f, 0.94f, 0.96f, 1.04f, 1.02f, 1.03f, 1.04f), // MONKEY
     )
-    private val THEME_TRIM = floatArrayOf(0.73f, 1.07f, 1.15f, 0.91f)
+    private val THEME_TRIM = floatArrayOf(0.73f, 1.07f, 0.91f, 1.15f)
 
     /** A drum tuned to the zone's key: its tonic, on or above MIDI note [lo]. */
     private fun keyed(base: SongSpec, lo: Int): Float = Dsp.midiToHz((lo + Math.floorMod(base.tonic - lo, 12)).toFloat())

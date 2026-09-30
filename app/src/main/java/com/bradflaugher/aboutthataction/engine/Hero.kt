@@ -73,6 +73,15 @@ enum class Hero(
         takedownReach = 0.35f, reactionScale = 1.35f, fireScale = 0.85f,
     ),
     /**
+     * A deadpan parcel courier in brown shorts and a cap, scanner glowing lime. Lives in a box (of course), unplugs the robots, and is always on time.
+     */
+    HAWK(
+        "HAWK", "Parcel courier. Always on time.",
+        "Sneaks unseen, unplugs robots, sly box, fast reloads", "Goes postal. Politely.",
+        0xFF58D25A.toInt(),
+        boxPro = true, sabotage = true, sneakSight = 0.75f, reloadScale = 0.75f,
+    ),
+    /**
      * A small monkey with a very big gun: he ran away from the circus and brought the
      * hardware. The weapons specialist: a 12-round rifle that fires fast, pickup guns that
      * last longer, and he's short enough that high shots sail over him. No hands free for
@@ -83,15 +92,6 @@ enum class Hero(
         "12-round rifle; no takedowns or stomps; high shots miss him", "Oo oo. Ah ah. Pew pew.",
         0xFFFFC23A.toInt(),
         magSize = 12, gunTime = 1.5f, melee = false, height = 0.95f,
-    ),
-    /**
-     * A deadpan parcel courier in brown shorts and a cap, scanner glowing lime. Lives in a box (of course), unplugs the robots, and is always on time.
-     */
-    HAWK(
-        "HAWK", "Parcel courier. Always on time.",
-        "Sneaks unseen, unplugs robots, sly box, fast reloads", "Goes postal. Politely.",
-        0xFF58D25A.toInt(),
-        boxPro = true, sabotage = true, sneakSight = 0.75f, reloadScale = 0.75f,
     ),
     ;
 
