@@ -41,6 +41,13 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
     fun setup(dir: Int, foot: Float) {
         k.setup(dir, foot - 0.045f * HS, HS, kit.bulk)
         k.headR *= kit.head
+        // Longer legs or a shorter back, for a hero built differently (1 = the shared rig).
+        val legs = kit.legs
+        if (legs != 1f) {
+            k.legF.len1 *= legs; k.legF.len2 *= legs
+            k.legB.len1 *= legs; k.legB.len2 *= legs
+        }
+        if (kit.spine != 1f) k.spineLen *= kit.spine
         // Heads up, stacked over the spine: no jutting chin.
         k.headFwd = -0.015f
         k.headLean = 0.15f
@@ -180,6 +187,9 @@ internal abstract class HeroKit(val a: HeroArt) {
     abstract val bulk: Float
     /** Head size on the rig. */
     open val head: Float = 1f
+    /** Leg length and spine length on the rig (1 = the shared proportions). */
+    open val legs: Float = 1f
+    open val spine: Float = 1f
     /** The signature colour (beacon, echoes). */
     abstract val accent: Int
     /** The back-contour rim light, lifted for light. */
