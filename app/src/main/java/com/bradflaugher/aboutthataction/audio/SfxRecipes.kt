@@ -892,31 +892,35 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
                 }
             }
             Hero.MONKEY -> {
-                // The show must go on: a calliope "ta-DAAA!" (open fifths, no third to argue with
-                // the minor chord), then a slide whistle droops and a bulb horn honks twice.
+                // "Ooh-ooh... AAH!": three breathy monkey hoots, each swooping up (the last one big).
+                for ((k, h) in MONKEY_HOOT.withIndex()) voice {
+                    val big = k == MONKEY_HOOT.size - 1
+                    wave = Wave.SINE; wave2 = Wave.TRIANGLE; ratio2 = 2f; level2 = 0.15f; noise = 0.18f
+                    f0 = 293.7f * Dsp.semis(h.toFloat()); f1 = f0 * Dsp.semis(if (big) 12f else 5f); sweep = if (big) 0.3f else 0.12f
+                    filter = FilterMode.LOW; cut0 = 1800f; cut1 = 3000f; cutTime = 0.2f; attack = 0.03f
+                    hold = if (big) 0.25f else 0.05f; decay = if (big) 0.25f else 0.08f; vibRate = if (big) 7f else 0f
+                    vibDepth = 0.01f; gain = if (big) 0.14f else 0.13f; pan = (k - 1f) * 0.35f; reverb = 0.4f
+                    delay = 0.8f + k * 0.2f; priority = 4f
+                }
+                // Then the showman's calliope "ta-DAAA!" (open fifths: no third to argue with the minor chord)...
                 for ((k, s) in MONKEY_TA.withIndex()) voice {
                     wave = Wave.TRIANGLE; wave2 = Wave.SQUARE; ratio2 = 2.01f; level2 = 0.3f; noise = 0.04f
                     f0 = 587.3f * Dsp.semis(s.toFloat()); f1 = f0; filter = FilterMode.LOW; cut0 = 4000f; cut1 = 4000f
                     attack = 0.008f; hold = 0.08f; decay = 0.08f; gain = 0.095f; pan = (k - 0.5f) * 0.3f; reverb = 0.35f
-                    delay = 0.8f; priority = 4f
+                    delay = 1.7f; priority = 4f
                 }
                 for ((k, s) in MONKEY_EXIT.withIndex()) voice {
                     wave = Wave.TRIANGLE; wave2 = Wave.SQUARE; ratio2 = 2.01f; level2 = 0.3f; noise = 0.04f
                     f0 = 587.3f * Dsp.semis(s.toFloat()); f1 = f0; filter = FilterMode.LOW; cut0 = 4500f; cut1 = 2500f
-                    cutTime = 1f; attack = 0.012f; hold = 0.75f; decay = 0.5f; vibRate = 6.5f; vibDepth = 0.006f
+                    cutTime = 1f; attack = 0.012f; hold = 0.5f; decay = 0.3f; vibRate = 6.5f; vibDepth = 0.006f
                     tremRate = 7.5f; tremDepth = 0.3f; gain = 0.075f; pan = (k - 1f) * 0.3f; reverb = 0.4f
-                    delay = 0.98f; priority = 4f
+                    delay = 1.86f; priority = 4f
                 }
+                // ...collapsing into a sad slide whistle, all the way down.
                 voice {
-                    wave = Wave.SINE; noise = 0.12f; f0 = 1175f; f1 = 520f; sweep = 0.55f; filter = FilterMode.LOW
-                    cut0 = 5000f; cut1 = 2500f; cutTime = 0.5f; attack = 0.03f; hold = 0.45f; decay = 0.15f
-                    vibRate = 7f; vibDepth = 0.005f; gain = 0.1f; reverb = 0.3f; delay = 2.1f; priority = 4f
-                }
-                for (k in 0 until 2) voice {
-                    wave = Wave.SAW; wave2 = Wave.SQUARE; ratio2 = 1.01f; level2 = 0.5f; f0 = 330f; f1 = 294f; sweep = 0.15f
-                    filter = FilterMode.BAND; cut0 = 1400f; cut1 = 1100f; cutTime = 0.15f; q = 1.4f; drive = 0.4f
-                    attack = 0.008f; hold = 0.1f; decay = 0.08f; gain = 0.16f; pan = if (k == 0) -0.25f else 0.25f
-                    reverb = 0.25f; delay = 2.85f + k * 0.26f; priority = 4f
+                    wave = Wave.SINE; noise = 0.1f; f0 = 1175f; f1 = 262f; sweep = 1f; filter = FilterMode.LOW
+                    cut0 = 5000f; cut1 = 1500f; cutTime = 1f; attack = 0.04f; hold = 0.85f; decay = 0.2f
+                    vibRate = 5f; vibDepth = 0.012f; gain = 0.1f; reverb = 0.35f; delay = 2.45f; priority = 4f
                 }
             }
             Hero.HAWK -> {
@@ -981,6 +985,8 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
         /** D minor brass: D, D, F, G and a held A, on 16ths with a rest (seconds after the chord). */
         private val FOX_EXIT = intArrayOf(0, 0, 3, 5, 7)
         private val FOX_EXIT_AT = floatArrayOf(0f, 0.11f, 0.33f, 0.44f, 0.6f)
+        /** MONKEY's hoots: ooh (A3), ooh (A3), AAH (D4, swooping up an octave), semitones above D4. */
+        private val MONKEY_HOOT = intArrayOf(-5, -5, 0)
         /** MONKEY's "ta" (A and E, the dominant's open fifth) and his "DAAA" (D, A and D). */
         private val MONKEY_TA = intArrayOf(-5, 2)
         private val MONKEY_EXIT = intArrayOf(0, 7, 12)

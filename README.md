@@ -260,10 +260,12 @@ heats up the beat holds its breath for one beat, then drops. **FOX** plays an
 early-90s street-brawler soundtrack, all FM synths: a smooth late-night new-jack
 swing of electric piano, slap bass and a sultry lead, then a breakbeat rave of
 piano-house stabs, a bouncing bass and bright brass that drops hard when the
-heat climbs. **LION** brought the circus: a creepy tiptoe clown march (bassoon
-oom-pah, a music box, temple blocks, a wobbly calliope and the odd honk), then a
-screaming galop of steam calliope, tuba, snare rolls, crashing cymbals,
-xylophone runs and slide whistles. **HAWK**'s radio is stuck on the courier's
+heat climbs. **MONKEY** ran away from the circus back to the jungle, and
+brought the calliope: sneaking is a jungle night of key-tuned bongos and congas,
+a shaker, crickets, a wooden marimba and the odd monkey "hoo"; with guns hot it's
+a stampede of pounding war drums, log drums and balafon runs with the circus's
+steam calliope screaming on top and slide whistles through every fill. His game
+over goes "ooh-ooh-AAH!", then "ta-DAAA!", then a sad slide whistle. **HAWK**'s radio is stuck on the courier's
 station: elevator-muzak bossa nova (nylon guitar, vibraphone, a cross-stick
 clave and a soft flute), then 70s delivery-van funk with ghost-note breakbeats,
 slap bass, wah clavinet, horn stabs and a cop-show lead; his game over is a

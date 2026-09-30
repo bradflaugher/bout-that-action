@@ -143,6 +143,9 @@ internal class SongSpec(
     val dropThreshold: Float = -1f,
     /** Slide whistle level: it swoops up through every drum fill (a circus gag). */
     val slideWhistle: Float = 0f,
+    /** Where the slide whistle starts (the key's tonic nearest this MIDI note) and how far up it goes (a ratio). */
+    val whistleFrom: Int = 74,
+    val whistleRange: Float = 4f,
 ) {
     /** A single strike at step 0 means "sustain for the whole chord". */
     val padSustain = sustains(padRhythm)
