@@ -99,8 +99,8 @@ class HeroMusicTest {
     /** Each hero plays their own genre at its own tempo; sneaking is always the slower one. */
     @Test
     fun eachHeroPlaysTheirGenreAtItsTempo() {
-        val hot = mapOf(Hero.BULL to 130f..155f, Hero.FOX to 145f..175f, Hero.LION to 145f..180f, Hero.HAWK to 115f..150f)
-        val sneak = mapOf(Hero.BULL to 80f..95f, Hero.FOX to 88f..108f, Hero.LION to 75f..95f, Hero.HAWK to 85f..105f)
+        val hot = mapOf(Hero.BULL to 130f..155f, Hero.FOX to 145f..175f, Hero.LION to 145f..180f, Hero.HAWK to 110f..128f)
+        val sneak = mapOf(Hero.BULL to 80f..95f, Hero.FOX to 88f..108f, Hero.LION to 75f..95f, Hero.HAWK to 88f..102f)
         for (h in Hero.entries) for (z in Zone.entries) {
             val loud = HeroSongs.forZone(h, z, false)
             val quiet = HeroSongs.forZone(h, z, true)
@@ -169,28 +169,34 @@ class HeroMusicTest {
         }
     }
 
-    /** HAWK: jungle drums — hand drums, shakers and crickets sneaking; war drums in threes over fours. */
+    /** HAWK: elevator bossa nova sneaking (nylon guitar, vibes, clave); 70s funk hot (ghost notes, slap, clav, horns). */
     @Test
-    fun hawkIsJungleDrums() {
-        for (z in Zone.entries) for (silent in listOf(false, true)) {
-            val spec = HeroSongs.forZone(Hero.HAWK, z, silent)
-            val what = "$z${if (silent) " sneak" else ""}"
-            for (p in listOf(spec.drumsA, spec.drumsB)) assertEquals("$what: no hi-hats", 0, hits(p.hat) + hits(p.open))
-            assertTrue("$what: shakers", hits(spec.drumsB.jingle) >= 8 && spec.kit.jingleNoise >= 1f)
-            val pitch = 12.0 * kotlin.math.ln(spec.kit.tomHz / 440.0) / kotlin.math.ln(2.0) + 69
-            assertEquals("$what: the drums are tuned to the key", 0, Math.floorMod(Math.round(pitch).toInt() - spec.tonic, 12))
-            if (silent) {
-                assertTrue("$what: crickets", spec.jungle > 0f)
-                assertTrue("$what: hand drums", spec.kit.tomDecay < 0.3f && hits(spec.drumsB.tom) >= 4)
-            } else {
-                assertTrue("$what: war drums", hits(spec.drumsB.tom) >= 8 && spec.kit.tomLevel > 0.9f)
-                // Toms in threes against a four-square kick: onsets every third step.
-                assertTrue("$what: in threes", listOf(0, 3, 6, 9, 12).all { spec.drumsA.tom[it] != '.' })
+    fun hawkIsBossaAndFunk() {
+        for (z in Zone.entries) {
+            val bossa = HeroSongs.forZone(Hero.HAWK, z, true)
+            assertTrue("$z: a nylon guitar comps the chords", bossa.pad.pluck in 0.05f..0.4f && hits(bossa.padRhythm) >= 4)
+            assertTrue("$z: jazzy chords, 7ths and 9ths", (bossa.progA + bossa.progB).all { it.size >= 4 })
+            assertTrue("$z: a vibraphone", bossa.arp.trem > 0.2f && bossa.arp.pluck == 0f)
+            assertTrue("$z: a cross-stick bossa clave", onlyAt(bossa.drumsA.snare, 0, 3, 6, 10, 13) && bossa.kit.snareToneMix > 0.7f)
+            assertTrue("$z: a shaker in 16ths", hits(bossa.drumsA.jingle) == 16 && bossa.kit.jingleNoise >= 1f)
+            for (p in listOf(bossa.drumsA, bossa.drumsB)) assertEquals("$z: brushes, no hi-hats", 0, hits(p.hat) + hits(p.open) + hits(p.clap))
+            assertTrue("$z: the muzak flute never stops", bossa.leadThreshold < 0f && bossa.lead.noise > 0f)
+            val funk = HeroSongs.forZone(Hero.HAWK, z, false)
+            for (p in listOf(funk.drumsA, funk.drumsB)) {
+                assertTrue("$z: a backbeat on 2 and 4", p.snare[4] == 'X' && p.snare[12] == 'X')
+                assertTrue("$z: ghost notes", p.snare.count { it == 'o' } >= 3)
+                assertEquals("$z: 16th hats", 16, hits(p.hat))
             }
+            assertTrue("$z: the slap bass pops octaves", funk.bassA.contains('O') && funk.bassB.contains('O') && funk.bass.envAmt >= 2f)
+            assertTrue("$z: clavinet 16ths through a wah", hits(funk.arpA) >= 12 && funk.arp.q >= 2f && funk.arp.envAmt >= 2f)
+            assertTrue("$z: horn stabs", funk.padRhythm.count { it == 'x' } >= 2 && funk.padRhythm.contains('-'))
+            assertTrue("$z: congas", hits(funk.drumsB.tom) >= 4)
+            val pitch = 12.0 * kotlin.math.ln(funk.kit.tomHz / 440.0) / kotlin.math.ln(2.0) + 69
+            assertEquals("$z: the congas are tuned to the key", 0, Math.floorMod(Math.round(pitch).toInt() - funk.tonic, 12))
         }
     }
 
-    /** Heard, not just written: the 808 trap is the bassiest band, the banjo hoedown brighter than the war drums. */
+    /** Heard, not just written: the 808 trap is the bassiest band; HAWK's bossa is far mellower than his funk. */
     @Test
     fun theGenresSoundApart() {
         for (z in listOf(Zone.TOWER, Zone.MAGMA)) {
@@ -202,7 +208,10 @@ class HeroMusicTest {
             println("$z: " + stats.entries.joinToString { "%s sub=%.2f centroid=%.0f".format(it.key, it.value.first, it.value.second) })
             val bull = stats.getValue(Hero.BULL)
             for (h in Hero.entries - Hero.BULL) assertTrue("$z: BULL's 808s outweigh $h's bass", bull.first > stats.getValue(h).first)
-            assertTrue("$z: HAWK's drums sit darker than LION's banjo", stats.getValue(Hero.HAWK).second < stats.getValue(Hero.LION).second)
+            val bossa = AudioTestUtil.spectrum(AudioTestUtil.mono(take(Hero.HAWK, z, true))).let { AudioTestUtil.bandShare(it, 5000.0, 20000.0) to AudioTestUtil.centroid(it) }
+            val funk = AudioTestUtil.spectrum(AudioTestUtil.mono(take(Hero.HAWK, z, false))).let { AudioTestUtil.bandShare(it, 5000.0, 20000.0) to AudioTestUtil.centroid(it) }
+            println("$z: HAWK bossa air=%.2f centroid=%.0f, funk air=%.2f centroid=%.0f".format(bossa.first, bossa.second, funk.first, funk.second))
+            assertTrue("$z: HAWK's bossa sits well under his funk", bossa.second < funk.second * 0.75 && bossa.first < funk.first * 0.6)
         }
     }
 
