@@ -240,7 +240,12 @@ word or number you type.
 
 The soundtrack is synthesized live: band-limited oscillators, filters,
 drums, delay and reverb. Every zone gets its own procedural track, with its
-own key, tempo and motif-based melodies. The music gets more intense in a
+own key, tempo and motif-based melodies. The title screen plays the main
+theme, "Going Down": a hand-written spy hook (a question that hangs, an
+answer that comes home) over a bouncing octave bass ostinato and a tremolo
+twang guitar, arranged like a real song, with an intro, a B section and a lift
+before the hook comes back bigger with a harmony, looping seamlessly after
+just under two minutes. The music gets more intense in a
 fight and pitches down in slow-mo. SILENT gets its own sneak mix of every
 zone: the same key and chords at a slow tempo over a heartbeat kick, a roomy
 snare, ticking hats and glassy bell notes in a long echo, with rim clicks
