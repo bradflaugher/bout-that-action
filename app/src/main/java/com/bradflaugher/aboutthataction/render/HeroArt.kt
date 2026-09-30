@@ -58,6 +58,7 @@ internal class HeroArt(val f: Frame, val p: ActorPaint, val k: Rig, val body: Ac
     /** The full figure. [skipFrontArm] leaves the near arm (and what goes over it) for a grapple. */
     fun draw(ghost: Boolean, skipFrontArm: Boolean = false) {
         val kit = kit
+        kit.pose()
         kit.look(look, ghost)
         p.twoPass {
             body.arm(k.armB, look, far = true)
@@ -209,6 +210,8 @@ internal abstract class HeroKit(val a: HeroArt) {
     open val pistolScale: Float = 1.3f
     open val flashSize: Float = 0.15f
 
+    /** Before the figure is painted: the hero's own touch on the posed rig (nothing, by default). */
+    open fun pose() {}
     abstract fun look(l: Look, ghost: Boolean)
     /** After the body pen's arm: cuffs, sleeves, gloves. */
     open fun arm(l: Limb, far: Boolean) {}

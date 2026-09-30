@@ -5,6 +5,7 @@ import com.bradflaugher.aboutthataction.engine.Enemy
 import com.bradflaugher.aboutthataction.engine.EnemyKind
 import com.bradflaugher.aboutthataction.engine.EnemyState
 import com.bradflaugher.aboutthataction.engine.HallState
+import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.Geo
 import com.bradflaugher.aboutthataction.engine.PickupKind
 import com.bradflaugher.aboutthataction.engine.PlayerState
@@ -44,6 +45,10 @@ internal class Actors(private val f: Frame) {
         const val HS = HeroArt.HS
         /** The zone's neon catching the box's back edge. */
         const val RIM = 0xFF7CF4FF.toInt()
+        /** When FOX's takedown kick lands, into the takedown (s). */
+        const val KICK_HIT = 0.16f
+        /** How far the guard is booted back off her kick by [t] s into the takedown. */
+        fun kickPush(t: Float) = 0.34f * Rig.easeOut((t - KICK_HIT) / 0.07f) + 0.3f * Rig.smooth((t - KICK_HIT - 0.06f) / 0.16f)
     }
 
     // ================================================================= player
@@ -159,7 +164,20 @@ internal class Actors(private val f: Frame) {
                     g.rotate(flip * dir)
                     g.translate(-cx, -cy)
                 }
-                if (pl.state == PlayerState.TAKEDOWN) {
+                if (pl.state == PlayerState.TAKEDOWN && f.w.hero == Hero.FOX) {
+                    // FOX kicks: the guard reels off her boot, then she's drawn over him.
+                    val victim = takedownVictim()
+                    if (victim != null) {
+                        val keepA = p.alphaMul
+                        val keepF = p.flatAmt
+                        val keepC = p.flat
+                        cast.kickedVictim(victim, gy, dir, pl.stateTime, KICK_HIT, kickPush(pl.stateTime))
+                        p.alphaMul = keepA; p.flatAmt = keepF; p.flat = keepC
+                        poseHero(pl.x, foot, dir)
+                    }
+                    art.draw(ghost = false)
+                    kickImpact(pl.stateTime - KICK_HIT, k.legF)
+                } else if (pl.state == PlayerState.TAKEDOWN) {
                     art.draw(ghost = false, skipFrontArm = true)
                     val victim = takedownVictim()
                     if (victim != null) {
@@ -177,9 +195,51 @@ internal class Actors(private val f: Frame) {
                     art.draw(ghost = false)
                 }
                 if (flip != 0f) g.restore()
+                if (pl.flyingKickTime > 0f) kickImpact(World.KICK_POSE_TIME - pl.flyingKickTime, k.legF)
+                if (pl.spinKickTime > 0f) spinSweep(pl.x, foot, dir, 1f - pl.spinKickTime / World.KICK_POSE_TIME)
             }
         }
         p.reset()
+    }
+
+    /** The boot landing: a hot flash and a burst ring at the heel, [age] s after contact. */
+    private fun kickImpact(age: Float, l: Limb) {
+        if (age > -0.07f && age < 0.05f) {
+            // Speed lines trailing the shin as the leg snaps out.
+            val a = 1f - abs(age + 0.01f) / 0.06f
+            g.blend(Gfx.Blend.ADD)
+            val nx = -(l.ey - l.jy)
+            val ny = l.ex - l.jx
+            for (i in -1..1) {
+                val o = i * 0.07f
+                g.line(l.jx + nx * o, l.jy + ny * o - 0.02f, l.ex + nx * o - (l.ex - l.jx) * 0.25f, l.ey + ny * o - (l.ey - l.jy) * 0.25f, 0.025f, Col.alpha(0xFFFFF0E0.toInt(), 0.5f * a.coerceIn(0f, 1f)))
+            }
+            g.blend(Gfx.Blend.NORMAL)
+        }
+        if (age < 0f || age > 0.12f) return
+        val q = age / 0.12f
+        val x = l.ex + cos(l.pitch) * k.dir * 0.04f
+        val y = l.ey - 0.02f
+        g.blend(Gfx.Blend.ADD)
+        g.glow(x, y, 0.22f + 0.2f * q, Col.alpha(0xFFFFE0B0.toInt(), 0.9f * (1f - q)))
+        g.strokeCircle(x, y, 0.1f + 0.3f * q, 0.05f * (1f - q) + 0.01f, Col.alpha(art.kit.accent, 1f - q))
+        g.blend(Gfx.Blend.NORMAL)
+    }
+
+    /** SPIN KICK: one bright smear round her at knee-to-hip height as the boot comes round. */
+    private fun spinSweep(x: Float, foot: Float, dir: Int, u: Float) {
+        val a = (1f - u).coerceIn(0f, 1f)
+        if (a <= 0.02f) return
+        g.save()
+        g.translate(x, foot - 0.62f * HS)
+        g.scale(1f, 0.32f)
+        g.blend(Gfx.Blend.ADD)
+        val start = if (dir > 0) 200f + 300f * u else -20f - 300f * u
+        g.glow(0f, 0f, 1.0f, Col.alpha(art.kit.accent, 0.25f * a))
+        g.strokeArc(0f, 0f, 0.85f, start, 150f * dir, 0.24f, Col.alpha(art.kit.accent, 0.7f * a))
+        g.strokeArc(0f, 0f, 0.85f, start + 60f * dir, 90f * dir, 0.08f, Col.alpha(0xFFFFF0E0.toInt(), 0.8f * a))
+        g.blend(Gfx.Blend.NORMAL)
+        g.restore()
     }
 
     /**
@@ -260,7 +320,7 @@ internal class Actors(private val f: Frame) {
     /** Double-jump front flip, derived from the jump's age. */
     private fun flipAngle(): Float {
         val pl = f.w.player
-        if (pl.state != PlayerState.NORMAL || pl.jumpsUsed < 2 || pl.z <= 0.01f) return 0f
+        if (pl.state != PlayerState.NORMAL || pl.jumpsUsed < 2 || pl.z <= 0.01f || pl.flyingKickTime > 0f) return 0f
         val age = (World.JUMP_V - pl.vz) / World.GRAVITY
         if (age < 0f || age > 0.42f) return 0f
         return Rig.smooth(age / 0.42f) * 360f
@@ -364,6 +424,7 @@ internal class Actors(private val f: Frame) {
             }
             airborne -> {
                 airPose(x, foot, pl.vz)
+                if (pl.flyingKickTime > 0f) flyingKick(x, World.KICK_POSE_TIME - pl.flyingKickTime)
                 lean = k.lean
             }
             pl.invuln > 1.0f && state == PlayerState.NORMAL -> {
@@ -377,6 +438,11 @@ internal class Actors(private val f: Frame) {
                 k.spine(lean, -0.5f * q * back)
                 k.armFK(k.armF, 1.2f + 0.8f * q, 0.4f)
                 k.armFK(k.armB, -1.4f * q - 0.2f, 0.5f)
+            }
+            state == PlayerState.TAKEDOWN && f.w.hero == Hero.FOX -> {
+                kickPose(x, foot, dir, pl.stateTime)
+                lean = k.lean
+                showGun = false
             }
             state == PlayerState.TAKEDOWN -> {
                 val q = (pl.stateTime / World.TAKEDOWN_TIME).coerceIn(0f, 1f)
@@ -435,6 +501,11 @@ internal class Actors(private val f: Frame) {
         heroNeckX = k.neckX
         heroNeckY = k.neckY
         if (state == PlayerState.TAKEDOWN || state == PlayerState.INTRO && f.w.difficulty.startFloor == 0) return
+        if (pl.flyingKickTime > 0f && airborne) {
+            // The kick owns the arms for its moment: no aiming over it.
+            gunX = k.armF.ex; gunY = k.armF.ey; gunUp = 0.5f
+            return
+        }
 
         val headX = k.headX
         when {
@@ -527,6 +598,51 @@ internal class Actors(private val f: Frame) {
             k.ik(k.armF, fx, fy, false)
             k.ik(k.armB, bx, by, false)
         }
+    }
+
+    /**
+     * FOX's takedown: a side kick at hip height. The knee chambers up to her chest, the leg
+     * shoots out heel first into the guard as she leans back from it over the planted leg,
+     * fists up in guard, then the boot comes back half-way while he reels.
+     */
+    private fun kickPose(x: Float, foot: Float, dir: Int, t: Float) {
+        val chamber = Rig.smooth(t / 0.1f)
+        val ext = Rig.easeOut((t - 0.1f) / (KICK_HIT - 0.1f)) * (1f - 0.45f * Rig.smooth((t - 0.26f) / 0.1f))
+        // She rocks back off the planted leg to give the kick its length.
+        k.stand(x - 0.18f * dir * chamber, 0.05f + 0.03f * chamber, 0.02f, -0.1f)
+        val hx = k.hipX
+        val hy = k.hipY
+        // Chambered: the knee high, the heel tucked under the hip; extended: the heel into his
+        // back (the engine has him 0.45 ahead of her), then riding him as he's booted off it.
+        val cx = hx + 0.12f * dir * HS
+        val cy = hy + 0.2f * HS
+        val reach = (0.45f + 0.18f * chamber - 0.12f + kickPush(t)).coerceAtMost(0.8f * HS)
+        val ex = hx + reach * dir
+        val ey = hy - 0.06f * HS
+        val sx = k.legF.ex
+        val sy = k.legF.ey
+        val tx = if (ext > 0f) Rig.mix(cx, ex, ext) else Rig.mix(sx, cx, chamber)
+        val ty = if (ext > 0f) Rig.mix(cy, ey, ext) else Rig.mix(sy, cy, chamber)
+        k.ik(k.legF, tx, ty, true)
+        k.legF.pitch = Rig.mix(Rig.mix(0f, 0.7f, chamber), -1.35f, ext)
+        k.spine(-0.12f * chamber - 0.5f * ext, 0.3f * ext)
+        // Guard: the near fist up by the chin, the far one out for balance.
+        k.armFK(k.armF, Rig.mix(0.4f, 0.9f, chamber), Rig.mix(0.8f, 2.1f, chamber))
+        k.armFK(k.armB, Rig.mix(0.3f, 1.1f, ext), Rig.mix(1.2f, 1.9f, chamber))
+    }
+
+    /** FOX's FLYING KICK over the air pose: the near leg shot out straight, the other tucked. */
+    private fun flyingKick(x: Float, age: Float) {
+        val ext = Rig.easeOut(age / 0.05f) * (1f - Rig.smooth((age - 0.2f) / 0.1f))
+        val hy = k.hipY
+        k.hip(x, hy)
+        k.legFK(k.legF, Rig.mix(1.35f, 1.95f, ext), Rig.mix(2.1f, 0.04f, ext))
+        k.legFK(k.legB, Rig.mix(0.5f, 0.35f, ext), Rig.mix(1.9f, 2.3f, ext))
+        k.legF.pitch = Rig.mix(0.5f, -1.2f, ext)
+        k.legB.pitch = 0.9f
+        k.spine(Rig.mix(k.lean, -0.35f, ext), 0.2f * ext)
+        k.armFK(k.armF, Rig.mix(1.2f, 0.9f, ext), Rig.mix(0.9f, 2.0f, ext))
+        k.armFK(k.armB, Rig.mix(-1.2f, -1.6f, ext), Rig.mix(0.9f, 0.4f, ext))
     }
 
     /** Low kneel for shooting at a ducking guard (barrel at the low lane). */

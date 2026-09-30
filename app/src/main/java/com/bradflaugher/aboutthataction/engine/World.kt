@@ -1005,6 +1005,8 @@ class World(val config: RunConfig) {
         }
         p.reflexCooldown -= dt
         p.swatTime -= dt
+        p.flyingKickTime -= dt
+        p.spinKickTime -= dt
         p.fragileTime -= dt
         // CLOWN CAR's head start only runs down once you're out where they could see you.
         if (p.unseenTime > 0f && (p.state == PlayerState.NORMAL || p.state == PlayerState.BOX)) p.unseenTime -= dt
@@ -1307,6 +1309,7 @@ class World(val config: RunConfig) {
             p.vx = -dir * FLYING_KICK_REBOUND
             p.vz = max(p.vz, FLYING_KICK_HOP)
             p.invuln = max(p.invuln, KICK_INVULN)
+            p.flyingKickTime = KICK_POSE_TIME
             hitStop = max(hitStop, 0.05f)
             shake = max(shake, 0.35f)
             fx.text(Popup.FLYING_KICK, e.x, Geo.groundY(e.floor) - e.height - 0.8f, TextStyle.TAKEDOWN, 0.8f)
@@ -1325,6 +1328,7 @@ class World(val config: RunConfig) {
         e.asleep = false
         takedowns++
         stats.spinKicks++
+        p.spinKickTime = KICK_POSE_TIME
         events += GameEvent.Takedown
         kill(e, KillMethod.TAKEDOWN, dir)
         e.deathVx = dir * 6f
@@ -2779,6 +2783,8 @@ class World(val config: RunConfig) {
         const val FLYING_KICK_HOP = 6f
         /** ...with a moment's cover (FLYING KICK and SPIN KICK). */
         const val KICK_INVULN = 0.35f
+        /** How long FOX holds a flying kick's extended leg (and a spin kick's sweep) on screen. */
+        const val KICK_POSE_TIME = 0.3f
         /** SPIN KICK: the guards it can reach, this far from her. */
         const val SPIN_KICK_REACH = 2.2f
         /** CANDY RAIN: a heart back every this many kills (LV 2: [CANDY_EVERY_2]). */

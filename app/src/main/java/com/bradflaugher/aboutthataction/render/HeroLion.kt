@@ -60,6 +60,9 @@ internal class LionKit(a: HeroArt) : HeroKit(a) {
         band(l.jx, l.jy, l.ex, l.ey, 0.93f, 0.97f, aw * 0.82f, if (far) GOLD_DARK else GOLD)
         if (far || !p.shading) return
         p.dot(Rig.mix(l.jx, l.ex, 0.845f), Rig.mix(l.jy, l.ey, 0.845f), 0.014f * k.hs, GOLD_LIT)
+        // A strongman's gold armband, biting into the bicep.
+        band(l.ax, l.ay, l.jx, l.jy, 0.54f, 0.66f, aw * 1.36f, GOLD_DARK)
+        band(l.ax, l.ay, l.jx, l.jy, 0.56f, 0.64f, aw * 1.3f, GOLD)
         // The bicep: a shadow round the back, a hard lamp down the front, a shine on the peak.
         frontOf(l.ax, l.ay, l.jx, l.jy)
         val nx = nrm[0] * aw
@@ -217,15 +220,14 @@ internal class LionKit(a: HeroArt) : HeroKit(a) {
         p.shapeLit(SKIN, tx(1.0f, c * 0.5f), ty(1.0f, c * 0.5f), tx(0.3f, -c * 0.5f), ty(0.3f, -c * 0.5f))
         if (p.ink) return
         if (p.shading) {
-            // The bare near pec: lamp across the top, a hard shadow line under it.
-            p.detail(tx(0.86f, c * 0.62f), ty(0.86f, c * 0.62f), tx(1.0f, c * 0.3f), ty(1.0f, c * 0.3f), 0.05f * k.hs, Col.alpha(SKIN_LIT, 0.55f))
-            p.detail(tx(0.72f, c * 0.64f), ty(0.72f, c * 0.64f), tx(0.76f, c * 0.36f), ty(0.76f, c * 0.36f), 0.026f * k.hs, SKIN_SHADOW)
-            p.detail(tx(0.76f, c * 0.36f), ty(0.76f, c * 0.36f), tx(0.86f, c * 0.1f), ty(0.86f, c * 0.1f), 0.02f * k.hs, Col.alpha(SKIN_SHADOW, 0.7f))
+            // The bare near pec: lamp across the top of it, a shadow where it rounds under.
+            p.detail(tx(1.02f, c * 0.46f), ty(1.02f, c * 0.46f), tx(1.08f, c * 0.24f), ty(1.08f, c * 0.24f), 0.045f * k.hs, Col.alpha(SKIN_LIT, 0.6f))
         }
-        // The singlet: red, one strap up over the far shoulder, the near pec left bare.
+        // The singlet: red, one strap up over the far shoulder, a clean diagonal neckline
+        // down to under the near arm, the near pec left bare above it.
         p.begin()
-        for (i in 0 until 5) tp(cA(BODY, i), cS(BODY, i, c, w))
-        tp(NECK_A0, c * 0.6f); tp(NECK_A0 + 0.01f, c * NECK_S0)
+        for (i in 0 until 8) tp(cA(BODY, i), cS(BODY, i, c, w))
+        tp(NECK_A0, c * NECK_S0)
         tp(NECK_A1, c * NECK_S1)
         tp(1.14f, -c * 0.1f); tp(1.14f, -c * 0.3f)
         for (i in 11 until BODY.size / 3) tp(cA(BODY, i), cS(BODY, i, c, w))
@@ -239,13 +241,16 @@ internal class LionKit(a: HeroArt) : HeroKit(a) {
             val f1 = minOf(sideAt(a1, true, c, w), neckline(a1, c)) - 0.004f
             val b0 = sideAt(a0, false, c, w) + 0.004f
             val b1 = sideAt(a1, false, c, w) + 0.004f
+            // Bowed, so each stripe curves round the barrel of him.
             p.begin()
-            tp(a0, b0); tp(a0, f0); tp(a1, f1); tp(a1, b1)
+            tp(a0, b0); tp(a0 - BOW, (b0 + f0) * 0.5f); tp(a0, f0); tp(a1, f1); tp(a1 - BOW, (b1 + f1) * 0.5f); tp(a1, b1)
             p.shapeGradDetail(WHITE, WHITE_SHADE, tx(a1, f1), ty(a1, f1), tx(a0, b0), ty(a0, b0))
             s += 2
         }
         // The singlet's hemmed top edge.
-        p.detail(tx(NECK_A0 + 0.01f, c * NECK_S0), ty(NECK_A0 + 0.01f, c * NECK_S0), tx(NECK_A1, c * NECK_S1), ty(NECK_A1, c * NECK_S1), 0.018f * k.hs, RED_DARK)
+        p.detail(tx(NECK_A0, c * NECK_S0), ty(NECK_A0, c * NECK_S0), tx(NECK_A1, c * NECK_S1), ty(NECK_A1, c * NECK_S1), 0.02f * k.hs, RED_DARK)
+        // A gold star on the belly.
+        star(tx(0.37f, c * 0.2f), ty(0.37f, c * 0.2f), 0.04f * k.hs, GOLD)
         if (p.shading) {
             // The back turned from the lamp: the lats in shadow.
             val sh = ActorPaint.shade(RED)
@@ -277,18 +282,18 @@ internal class LionKit(a: HeroArt) : HeroKit(a) {
         val y = ty(0.09f, w * 0.5f)
         p.dot(x, y, 0.07f * k.hs, GOLD_DARK)
         p.dot(x, y, 0.058f * k.hs, GOLD)
-        star(x, y, 0.046f * k.hs)
+        star(x, y, 0.046f * k.hs, RED)
         addGlow(x, y, 0.1f * k.hs, GOLD, 0.35f)
     }
 
-    private fun star(x: Float, y: Float, r: Float) {
+    private fun star(x: Float, y: Float, r: Float, color: Int) {
         p.begin()
         for (i in 0 until 10) {
             val ang = -1.5708f + i * 0.6283f
             val rr = if (i % 2 == 0) r else r * 0.45f
             p.add(x + cos(ang) * rr, y + sin(ang) * rr)
         }
-        p.shapeDetail(RED)
+        p.shapeDetail(color)
     }
 
     /** Drawn last, over the near arm: the collar sits on top of the shoulders. */
@@ -357,12 +362,15 @@ internal class LionKit(a: HeroArt) : HeroKit(a) {
         val ny = hpY(0.1f)
         val nr = r * 0.28f
         if (p.ink) {
+            hpoly(SIDEBURN).shape(MANE)
             hpoly(STACHE).shape(STACHE_C)
             p.disc(nx, ny, nr, NOSE)
             return
         }
         // The square jaw under the paint.
         if (p.shading) hpoly(JAW).shapeShade(PAINT)
+        // The mane wraps round the front of the jaw: a fluffy sideburn down to chin fluff.
+        hpoly(SIDEBURN).shapeLit(MANE, hpX(0.2f), hpY(-0.2f), hpX(-0.2f), hpY(1.3f), sep = true)
         if (p.hi) {
             // The painted mouth: a big red grin under the moustache.
             p.detail(hpX(0.42f), hpY(0.74f), hpX(0.76f), hpY(0.9f), r * 0.15f, NOSE)
@@ -403,11 +411,12 @@ internal class LionKit(a: HeroArt) : HeroKit(a) {
     }
 
     /**
-     * The mane: a great round lion's mane, really a clown wig gone wild. Scalloped locks all
-     * the way round the face: above, behind, and down past the jaw like sideburns. A deep
-     * amber underlayer peeks between the orange-gold locks, bright gold at the tips. It streams
-     * back when he runs, lifts when he drops and bounces with every stride; each lock wobbles
-     * on its own.
+     * The mane: a great lion's mane, really a clown wig gone wild. Big soft flame-shaped locks
+     * of different lengths all the way round the face: fluff under the jaw, long locks sweeping
+     * back behind the neck, a crown over the forehead, every tip curling back the way the hair
+     * flows. A deep amber underlayer peeks between the orange-gold locks, bright gold at the
+     * tips. It streams back when he runs, lifts when he drops and bounces with every stride;
+     * each lock wobbles on its own.
      */
     private fun mane(ghost: Boolean) {
         val r = k.headR
@@ -421,13 +430,20 @@ internal class LionKit(a: HeroArt) : HeroKit(a) {
             if (layer == 2 && !p.shading) break
             // The underlayer sits half a lock round, a touch bigger; the highlight well inside.
             val shift = if (layer == 0) 0.5f else 0f
-            val scale = when (layer) { 0 -> 1.04f; 1 -> 1f; else -> 0.72f }
+            val scale = when (layer) { 0 -> 1.04f; 1 -> 1f; else -> 0.7f }
             p.begin()
             for (i in 0 until LOCKS) {
-                for (j in 0 until 3) {
-                    val q = (i + shift + LOCK_AT[j]) / LOCKS
+                val len = if (layer == 0) LOCK_R[(i + 1) % LOCKS] else LOCK_R[i]
+                // Hair flows back: under the head the tip leans toward the back (later in the
+                // sweep), over the top it leans back the other way.
+                val mid = MANE_A0 + (i + shift + 0.5f) / LOCKS * MANE_SPAN
+                val lean = mid < 3.14f
+                for (j in 0 until PTS) {
+                    val at = if (lean) LOCK_AT_B[j] else LOCK_AT[j]
+                    val reach = if (lean) LOCK_OUT_B[j] else LOCK_OUT[j]
+                    val q = (i + shift + at) / LOCKS
                     val ang = MANE_A0 + q * MANE_SPAN
-                    val out = (if (j == 0) MANE_IN else MANE_OUT * LOCK_R[i] * LOCK_OUT[j]) * scale
+                    val out = (if (j == 0) MANE_IN else MANE_IN + (MANE_OUT * len - MANE_IN) * reach) * scale
                     val sway = 1f - q
                     val wob = if (live) sin(t * 7f + i * 1.9f + layer) * 0.07f * (0.35f + run) else 0f
                     var u = MANE_U + cos(ang) * out
@@ -438,12 +454,12 @@ internal class LionKit(a: HeroArt) : HeroKit(a) {
                     }
                     p.add(hpX(u), hpY(v))
                     if (layer == 1) {
-                        tipX[i * 3 + j] = hpX(u); tipY[i * 3 + j] = hpY(v)
+                        tipX[i * PTS + j] = hpX(u); tipY[i * PTS + j] = hpY(v)
                     }
                 }
             }
             // Close behind the face.
-            p.add(hpX(0.3f), hpY(0.6f))
+            p.add(hpX(0.4f), hpY(0.7f))
             p.add(hpX(0.3f), hpY(-0.6f))
             when (layer) {
                 0 -> p.shapeLit(MANE_UNDER, hpX(0.1f), hpY(-2.0f), hpX(-1.4f), hpY(1.4f), mid = 0.5f)
@@ -453,34 +469,34 @@ internal class LionKit(a: HeroArt) : HeroKit(a) {
         }
         if (p.ink) return
         if (p.shading && !ghost) {
-            // Bright gold along each lock's outer end.
+            // Bright gold along each lock's outer end, tip to shoulder.
             val cx = hpX(MANE_U)
             val cy = hpY(MANE_V)
             for (i in 0 until LOCKS) {
-                val x1 = tipX[i * 3 + 1]
-                val y1 = tipY[i * 3 + 1]
-                val x2 = tipX[i * 3 + 2]
-                val y2 = tipY[i * 3 + 2]
-                val ins = 0.16f
-                p.detail(Rig.mix(x1, cx, ins), Rig.mix(y1, cy, ins), Rig.mix(x2, cx, ins), Rig.mix(y2, cy, ins), r * 0.2f, Col.alpha(MANE_TIP, 0.85f))
+                val o = i * PTS
+                val mid = MANE_A0 + (i + 0.5f) / LOCKS * MANE_SPAN
+                val tip = o + (if (mid < 3.14f) 3 else 1)
+                val sh = o + 2
+                val ins = 0.14f
+                p.detail(Rig.mix(tipX[tip], cx, ins), Rig.mix(tipY[tip], cy, ins), Rig.mix(tipX[sh], cx, ins), Rig.mix(tipY[sh], cy, ins), r * 0.2f, Col.alpha(MANE_TIP, 0.85f))
             }
         }
         if (look.rim != 0 && !ghost) maneRim()
     }
 
     /** The locks' valleys and tips this frame, for the rim. */
-    private val tipX = FloatArray(LOCKS * 3)
-    private val tipY = FloatArray(LOCKS * 3)
+    private val tipX = FloatArray(LOCKS * PTS)
+    private val tipY = FloatArray(LOCKS * PTS)
 
     /** The rim down the back of the mane: along each lock's trailing edge, just inside the ink. */
     private fun maneRim() {
         g.blend(Gfx.Blend.ADD)
         val rc = p.c(look.rim)
         for (i in RIM_LOCK0 until RIM_LOCK1) {
-            val x0 = tipX[i * 3]
-            val y0 = tipY[i * 3]
-            val x1 = tipX[i * 3 + 1]
-            val y1 = tipY[i * 3 + 1]
+            val x0 = tipX[i * PTS]
+            val y0 = tipY[i * PTS]
+            val x1 = tipX[i * PTS + 1]
+            val y1 = tipY[i * PTS + 1]
             frontOf(x0, y0, x1, y1)
             val ix = nrm[0] * HeroArt.RIM_PX * 0.8f
             val iy = nrm[1] * HeroArt.RIM_PX * 0.8f
@@ -542,20 +558,26 @@ internal class LionKit(a: HeroArt) : HeroKit(a) {
         private const val MANE_V = -0.08f
         private const val MANE_SQUASH = 0.94f
         /** The partings' radius, and the locks' reach (head radii). */
-        private const val MANE_IN = 1.52f
-        private const val MANE_OUT = 1.94f
-        /** From under the jaw, round the back and over the crown to the forehead (radians, v down). */
-        private const val MANE_A0 = 1.1f
-        private const val MANE_SPAN = 4.42f
-        private const val LOCKS = 10
+        private const val MANE_IN = 1.4f
+        private const val MANE_OUT = 1.98f
+        /** From under the chin, round the back and over the crown to the forehead (radians, v down). */
+        private const val MANE_A0 = 0.86f
+        private const val MANE_SPAN = 4.66f
+        private const val LOCKS = 7
+        private const val PTS = 4
         /** The locks the rim runs across: round the back of the head. */
-        private const val RIM_LOCK0 = 3
-        private const val RIM_LOCK1 = 6
-        /** Each lock's reach, jaw to forehead. */
-        private val LOCK_R = floatArrayOf(0.8f, 0.9f, 0.98f, 1.04f, 1.04f, 1.02f, 1.0f, 0.98f, 0.94f, 0.88f)
-        /** Where a lock's three points sit across it, and how far each reaches: a rounded scallop. */
-        private val LOCK_AT = floatArrayOf(0f, 0.3f, 0.7f)
-        private val LOCK_OUT = floatArrayOf(1f, 1f, 1f)
+        private const val RIM_LOCK0 = 2
+        private const val RIM_LOCK1 = 5
+        /** Each lock's length, chin to forehead: fluff under the jaw, long locks behind the neck. */
+        private val LOCK_R = floatArrayOf(0.8f, 1.02f, 1.14f, 1.04f, 0.94f, 1.02f, 0.9f)
+        /**
+         * A flame-shaped lock: the valley, then the tip curled back toward it, the round outer
+         * shoulder and the inner shoulder; and the same lock leaning the other way.
+         */
+        private val LOCK_AT = floatArrayOf(0f, 0.16f, 0.52f, 0.82f)
+        private val LOCK_OUT = floatArrayOf(0f, 1f, 0.78f, 0.5f)
+        private val LOCK_AT_B = floatArrayOf(0f, 0.18f, 0.48f, 0.84f)
+        private val LOCK_OUT_B = floatArrayOf(0f, 0.5f, 0.78f, 1f)
 
         private const val RUFF_AT = 0.97f
         private const val RUFF_H = 0.075f
@@ -566,10 +588,12 @@ internal class LionKit(a: HeroArt) : HeroKit(a) {
         private const val CHEST = 1.24f
         private const val WAIST = 0.9f
         /** The singlet's top edge: from under the near pec ([NECK_A0], [NECK_S0]) up across to the far strap. */
-        private const val NECK_A0 = 0.66f
-        private const val NECK_S0 = 0.5f
-        private const val NECK_A1 = 1.04f
-        private const val NECK_S1 = -0.14f
+        private const val NECK_A0 = 0.94f
+        private const val NECK_S0 = 0.62f
+        private const val NECK_A1 = 1.08f
+        private const val NECK_S1 = -0.1f
+        /** How far the stripes bow down round the body (along the spine). */
+        private const val BOW = 0.035f
 
         /** The clown shoe in the foot frame: (forward, up). */
         private val SHOE_PTS = floatArrayOf(
@@ -578,7 +602,7 @@ internal class LionKit(a: HeroArt) : HeroKit(a) {
         )
 
         /** White stripes round the singlet (along the spine). */
-        private val STRIPES = floatArrayOf(0.22f, 0.32f, 0.44f, 0.54f, 0.66f, 0.76f, 0.88f, 0.98f)
+        private val STRIPES = floatArrayOf(0.2f, 0.3f, 0.44f, 0.54f, 0.66f, 0.76f, 0.88f, 0.98f)
 
         /** A strongman's torso: shoulders like a door, a bulging pec, lats, a tight waist. */
         private val BODY = floatArrayOf(
@@ -615,6 +639,12 @@ internal class LionKit(a: HeroArt) : HeroKit(a) {
         private val JAW = floatArrayOf(
             -0.9f, 0.3f, -0.5f, 0.82f, -0.1f, 1.12f, 0.5f, 1.18f, 1.04f, 1.1f,
             0.98f, 1.0f, 0.5f, 1.06f, -0.06f, 0.98f, -0.44f, 0.66f, -0.8f, 0.14f,
+        )
+        /** From the ear down the back of the jaw, and a curl of fluff under the chin. */
+        private val SIDEBURN = floatArrayOf(
+            -0.72f, 0.0f, -0.4f, 0.1f, -0.22f, 0.46f, 0.0f, 0.82f, 0.32f, 1.02f,
+            0.7f, 1.08f, 0.58f, 1.24f, 0.3f, 1.32f, 0.06f, 1.22f, -0.2f, 1.3f,
+            -0.42f, 1.06f, -0.68f, 0.9f, -0.82f, 0.5f,
         )
         private val DIAMOND = floatArrayOf(
             0.64f, -0.68f, 0.88f, -0.24f, 0.64f, 0.16f, 0.42f, -0.24f,

@@ -44,6 +44,7 @@ class CastScreenshotTest {
             val rows = ArrayList<BufferedImage>()
             for (h in Hero.entries) rows += heroRow(h)
             rows += portraitRow()
+            rows += kickRow()
             val sheet = stack(rows)
             outDir.mkdirs()
             ImageIO.write(sheet, "png", File(outDir, "heroes.png"))
@@ -58,12 +59,14 @@ class CastScreenshotTest {
             // Every hero in every pose, and the portraits: a crash test for each costume.
             for (h in Hero.entries) assertTrue(heroRow(h).width > 0)
             assertTrue(portraitRow().width > 0)
+            assertTrue(kickRow().width > 0)
             return
         }
         val rows = ArrayList<BufferedImage>()
         for ((_, floor) in zones) rows += stageCrop(lineup(floor), 3.1f)
         for (h in Hero.entries) rows += heroRow(h)
         rows += portraitRow()
+        rows += kickRow()
         rows += propsRow()
         rows += pickupsRow()
         val sheet = stack(rows)
@@ -166,6 +169,41 @@ class CastScreenshotTest {
             pose(w)
             crops += stageCrop(w, 1.3f, 7f)
         }
+        return join(crops)
+    }
+
+    /**
+     * FOX's kicks mid-motion: the takedown kick chambering, landing and following through (a
+     * guard caught from behind, then one face to face), the FLYING KICK out and back, and a
+     * takedown with SPIN KICK's sweep.
+     */
+    private fun kickRow(): BufferedImage {
+        val crops = ArrayList<BufferedImage>()
+        fun takedown(t: Float, facing: Int, spin: Float = 0f) {
+            val w = world(9, hero = Hero.FOX)
+            val e = w.put(EnemyKind.AGENT, 7.45f, facing, EnemyState.CHOKED, t)
+            w.player.x = 7f
+            w.player.facing = 1
+            w.player.state = PlayerState.TAKEDOWN
+            w.player.stateTime = t
+            w.player.takedownTarget = e.id
+            w.player.spinKickTime = spin
+            crops += stageCrop(w, 1.3f, 7.3f, half = 150)
+        }
+        for (t in listOf(0.06f, 0.12f, 0.18f, 0.3f)) takedown(t, 1)
+        takedown(0.2f, -1)
+        for (age in listOf(0.03f, 0.1f, 0.24f)) {
+            val w = world(9, hero = Hero.FOX)
+            w.player.x = 7f
+            w.player.facing = 1
+            w.player.z = 1.1f
+            w.player.vz = 5f
+            w.player.vx = -3f
+            w.player.jumpsUsed = 1
+            w.player.flyingKickTime = com.bradflaugher.aboutthataction.engine.World.KICK_POSE_TIME - age
+            crops += stageCrop(w, 1.3f, 7.3f, half = 150)
+        }
+        takedown(0.14f, 1, spin = 0.18f)
         return join(crops)
     }
 

@@ -38,8 +38,9 @@ internal class FoxKit(a: HeroArt) : HeroKit(a) {
         l.legW = 0.88f
         l.armW = 0.86f
         l.feet = Look.FEET_BOOT
-        swagger()
     }
+
+    override fun pose() = swagger()
 
     private var sway = Float.NaN
     private var swayY = Float.NaN

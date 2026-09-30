@@ -326,6 +326,7 @@ class HeroTest {
             assertEquals("LV $level: then the next", level < 2, past.alive)
             assertTrue("out of reach", far.alive)
             assertEquals(level, w.stats.spinKicks)
+            assertEquals("the sweep shows", level > 0, w.player.spinKickTime > 0f)
             if (level > 0) {
                 assertEquals(KillMethod.TAKEDOWN, behind.killedBy)
                 assertEquals("a spin kick is a quiet kill", level, w.silentKills)
@@ -366,6 +367,7 @@ class HeroTest {
                     assertEquals(hp, w.player.hp)
                     assertTrue("she hops back off him", w.player.vx < 0f && w.player.vz > 0f)
                     assertTrue(w.player.invuln > 0f)
+                    assertTrue("the kick shows", w.player.flyingKickTime > 0f)
                     assertTrue(w.fx.texts.any { it.text == Popup.FLYING_KICK })
                 }
             }
