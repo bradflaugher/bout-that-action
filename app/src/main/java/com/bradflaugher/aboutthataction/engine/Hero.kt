@@ -60,7 +60,7 @@ enum class Hero(
     LION(
         "LION", "Small-town sheriff. Lone wolf.",
         "Shrugs off one fatal hit a run; +1 grenade", "Boots on. Stubborn required.",
-        0xFFDA8CFF.toInt(),
+        0xFFFFC23A.toInt(),
         secondWind = true, extraGrenades = 1,
     ),
     /** A mohawked jungle commando, sharp-eyed and fearless. Lives in the box, unplugs the robots, never makes a sound. */
