@@ -80,7 +80,8 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   off. Anyone who didn't see you go walks right past.
 - **Special floors.** About one floor in six is something else: a
   **BLACKOUT** (every light dead, for them too), **NAP TIME** (guards asleep
-  at their posts: tiptoe up for a NIGHT NIGHT), or **PAYDAY** (somebody left
+  at their posts, called out the first time you walk in on one: tiptoe up for
+  a NIGHT NIGHT), or **PAYDAY** (somebody left
   the loot lying around). Some rides come with smooth jazz. The first guard
   of every run is napping on the roof.
 - **Roguelike runs.** Every gold STASH door offers three perks (it's

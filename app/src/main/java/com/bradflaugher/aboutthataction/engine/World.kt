@@ -459,7 +459,10 @@ class World(val config: RunConfig) {
     private fun onHallEntered(f: Int, h: Int) {
         hallTime = 0f
         floors[f]?.let { fs ->
-            if (!fs.announced && fs.plan.event != FloorEvent.NONE) {
+            // Nap time is only news in a hallway where somebody is actually napping.
+            val worthIt = fs.plan.event != FloorEvent.NAP_TIME ||
+                enemies.any { it.alive && it.asleep && it.floor == f && it.hall == h }
+            if (!fs.announced && fs.plan.event != FloorEvent.NONE && worthIt) {
                 fs.announced = true
                 stats.floorEvents++
                 events += GameEvent.FloorEventStarted(fs.plan.event)

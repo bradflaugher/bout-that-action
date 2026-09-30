@@ -701,6 +701,39 @@ class StealthAndEventsTest {
     }
 
     @Test
+    fun napTimeIsOnlyAnnouncedInAHallwayWithSomebodyNapping() {
+        fun napping(w: World, f: Int, h: Int) = w.enemies.any { it.asleep && it.floor == f && it.hall == h }
+        var quiet = 0
+        var loud = 0
+        var walkedIn = false
+        for (seed in 1L..400L) for (f in 3..40) {
+            if (LevelGen.eventOn(seed, f) != FloorEvent.NAP_TIME) continue
+            val w = World(RunConfig(seed, Difficulty(startFloor = f), silent = true))
+            val announced = w.events.any { it is GameEvent.FloorEventStarted && it.event == FloorEvent.NAP_TIME }
+            assertEquals("seed $seed floor $f", napping(w, f, 0), announced)
+            assertEquals(announced, texts(w).contains(FloorEvent.NAP_TIME.title))
+            if (announced) { loud++; continue }
+            quiet++
+            if (walkedIn) continue
+            // Nobody's napping here: walk through a door into a hallway where somebody is.
+            val door = w.playerHall()!!.plan.doors.firstOrNull { it.kind == DoorKind.PASSAGE && napping(w, f, it.to) } ?: continue
+            w.enemies.removeAll { it.floor == f && it.hall == 0 }
+            w.floor(f)!!.halls.forEach { it.spawnTimer = 999f }
+            run(w, 1.5f) // land from the ceiling hatch
+            assertEquals(PlayerState.NORMAL, w.player.state)
+            w.player.x = door.x
+            w.player.grenades = 0
+            w.commands += Command.TAP
+            run(w, World.PASSAGE_TIME + 0.5f)
+            assertEquals(door.to, w.player.hall)
+            assertTrue(texts(w).contains(FloorEvent.NAP_TIME.title))
+            assertEquals(1, w.stats.floorEvents)
+            walkedIn = true
+        }
+        assertTrue("$quiet quiet, $loud announced", quiet > 0 && loud > 0 && walkedIn)
+    }
+
+    @Test
     fun paydayLeavesLootLyingAround() {
         val (seed, f) = floorWith(FloorEvent.PAYDAY)
         val w = World(RunConfig(seed, Difficulty(startFloor = f)))
