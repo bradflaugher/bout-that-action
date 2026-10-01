@@ -59,6 +59,11 @@ enum class Hero(
      */
     val sneaks: Boolean = true,
     /**
+     * GUNS HOT shoots a guard with his back turned from anywhere in range (everyone else's gun
+     * leaves him to be snuck up on). MONKEY's, who can't sneak up on anybody.
+     */
+    val backShots: Boolean = false,
+    /**
      * Standing height, in world units ([Body.HEIGHT] for a grown-up). Under [Body.HIGH] the
      * guards' high shots sail over his head. The art scales the figure to match.
      */
@@ -104,7 +109,7 @@ enum class Hero(
         "MONKEY", "Circus runaway. Big gun.",
         "Always guns hot, 12-round rifle; no takedowns; high shots miss him", "Oo oo. Ah ah. Pew pew.",
         0xFFFFC23A.toInt(),
-        magSize = 12, gunTime = 1.5f, melee = false, sneaks = false, height = 0.95f,
+        magSize = 12, gunTime = 1.5f, melee = false, sneaks = false, backShots = true, height = 0.95f,
     ),
     ;
 

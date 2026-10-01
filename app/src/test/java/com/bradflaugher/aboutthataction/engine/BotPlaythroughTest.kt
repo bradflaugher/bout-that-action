@@ -96,7 +96,8 @@ class BotPlaythroughTest {
     }
 
     /**
-     * Every hero on the AGENT preset, both modes: nobody should be wildly better than the rest.
+     * Every hero on the AGENT preset, both modes (MONKEY has no SILENT, so only GUNS HOT):
+     * nobody should be wildly better than the rest.
      * Fewer runs than the preset report (it's a comparison, not a pacing read) to keep it quick.
      */
     @Test
@@ -107,6 +108,7 @@ class BotPlaythroughTest {
         for (silent in listOf(false, true)) {
             val avg = HashMap<Hero, Double>()
             for (hero in Hero.entries) {
+                if (silent && !hero.sneaks) continue
                 val t = Tally()
                 for (i in 1L..8L) play(i * 1013, Difficulty.Preset.AGENT.difficulty, silent, 360f, t, hero)
                 avg[hero] = t.depths.average()

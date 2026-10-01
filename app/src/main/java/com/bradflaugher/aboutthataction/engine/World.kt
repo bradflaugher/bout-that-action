@@ -1660,7 +1660,8 @@ class World(val config: RunConfig) {
     /**
      * GUNS HOT fires only at threats: anyone who has noticed you, drones and turrets, and an
      * unaware guard facing you from point-blank (he's about to). A guard with his back to you,
-     * or asleep, is yours to sneak up on.
+     * or asleep, is yours to sneak up on; except for MONKEY ([Hero.backShots]), who can't, so
+     * his gun takes a turned back from anywhere in range.
      */
     private fun fireable(e: Enemy): Boolean {
         // SHUSH: a quiet gun picks off anyone, noticed or not (sleepers too).
@@ -1668,10 +1669,11 @@ class World(val config: RunConfig) {
         if (e.kind == EnemyKind.TURRET || e.kind == EnemyKind.DRONE) return true
         if (e.asleep) return false
         if (threatTier(e) <= 1) return true
+        val towardYou = e.facing == (if (player.x >= e.x) 1 else -1)
+        if (hero.backShots && !towardYou) return true
         // Seeing stars (a bonk, a daze) he's no threat yet, and an unaware guard FOX or STIFF ARM
         // can take face to face is theirs to finish by hand.
         if (dazed(e) || takedownWorks(e)) return false
-        val towardYou = e.facing == (if (player.x >= e.x) 1 else -1)
         return towardYou && abs(e.x - player.x) <= AUTO_FIRE_POINT_BLANK
     }
 
@@ -1741,8 +1743,11 @@ class World(val config: RunConfig) {
         val melee = target.kind == EnemyKind.NINJA || target.kind == EnemyKind.DEMON && abs(target.x - p.x) <= 3f
         // Drones and turrets are always fair game: drawn on from the moment they're in range.
         val automated = target.kind == EnemyKind.DRONE || target.kind == EnemyKind.TURRET
-        // SHUSH: a quiet gun doesn't wait for the other fellow to draw.
-        val gunUp = automated || !melee && shush || target.state == EnemyState.AIM || target.fireCooldown > 0f
+        // SHUSH: a quiet gun doesn't wait for the other fellow to draw. Nor does MONKEY's on a
+        // turned back: there's no duel to be fair about.
+        val backTurned = target.facing != (if (p.x >= target.x) 1 else -1)
+        val gunUp = automated || !melee && shush || hero.backShots && backTurned ||
+            target.state == EnemyState.AIM || target.fireCooldown > 0f
         if (target !== drawOn || !gunUp) {
             drawOn = target
             drawTime = 0f

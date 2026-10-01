@@ -860,15 +860,35 @@ class HeroTest {
             }
             assertTrue("silent $silent", fired)
         }
-        // ...and an unaware guard is still left alone.
-        for (silent in listOf(true, false)) {
-            val t = world(Hero.MONKEY, silent = silent)
-            t.player.x = 3f
-            val back = enemy(t, EnemyKind.AGENT, 5f, facing = 1)
-            back.vx = 0f
-            run(t, 0.3f) { back.x = 5f }
-            assertEquals(null, t.aimTarget())
+    }
+
+    @Test
+    fun monkeyShootsTurnedBacksFromMidRange() {
+        // No takedowns, so his gun takes a guard with his back turned from well out of reach;
+        // everyone else's leaves him to be snuck up on.
+        for (hero in listOf(Hero.MONKEY, Hero.BULL)) {
+            val w = world(hero, silent = false)
+            w.player.x = 2f
+            w.player.facing = 1
+            val back = enemy(w, EnemyKind.AGENT, 7f, facing = 1)
+            var shot = false
+            run(w, 1.2f) {
+                back.x = 7f
+                back.vx = 0f
+                if (it.events.any { ev -> ev is GameEvent.Shot && ev.byPlayer }) shot = true
+                it.events.clear()
+            }
+            assertEquals("$hero", hero == Hero.MONKEY, shot)
         }
+        // Not a sleeper (that's SHUSH's), and not past his range.
+        val w = world(Hero.MONKEY, silent = false)
+        w.player.x = 2f
+        w.player.facing = 1
+        val nap = enemy(w, EnemyKind.AGENT, 5f, facing = 1)
+        nap.asleep = true
+        val far = enemy(w, EnemyKind.AGENT, 13.5f, facing = 1)
+        run(w, 0.3f) { far.x = 13.5f; far.vx = 0f; nap.vx = 0f }
+        assertEquals(null, w.aimTarget())
     }
 
     @Test
@@ -957,7 +977,9 @@ class HeroTest {
                 assertEquals(KillMethod.SHOT, back.killedBy)
                 assertEquals("nobody heard a thing", EnemyState.PATROL, bystander.state)
             } else {
-                assertTrue(back.alive)
+                // His gun takes a turned back anyway, but everybody hears it.
+                assertFalse("a turned back, shot", back.alive)
+                assertTrue("and that was loud", bystander.state != EnemyState.PATROL)
             }
         }
     }
