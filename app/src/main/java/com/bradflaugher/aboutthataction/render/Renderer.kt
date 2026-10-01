@@ -113,7 +113,6 @@ class Renderer {
                 hudMoments.challenge()
             }
             hud.draw()
-            hudMoments.sideToast()
         }
         if (showHud && world.phase == Phase.PERK_CHOICE) hud.perkOverlay()
     }

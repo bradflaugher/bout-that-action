@@ -64,6 +64,7 @@ class SideClearTest {
         w.player.x = 3f
         enemy(w, 4.5f, facing = 1)
         run(w, 1.4f) { it.moveAxis = 1 }
+        w.takedowns = 5
         run(w, 0.5f)
         assertTrue(w.sideCleared.isNotEmpty())
         val log = ChallengeLog().withClear(w.sideCleared.first().id, 5).withRun(w, 99)
@@ -93,7 +94,7 @@ class SideClearTest {
     }
 
     @Test
-    fun aRooftopTakedownSideClearsTheMatchingRookieChallenges() {
+    fun rooftopTakedownsSideClearTheMatchingChallenges() {
         val w = endless(silent = true)
         w.player.x = 3f
         val guard = enemy(w, 4.5f, facing = 1)
@@ -101,10 +102,14 @@ class SideClearTest {
         assertFalse(guard.alive)
         assertEquals(1, w.takedowns)
         run(w, 0.5f)
+        // One takedown is no longer worth a challenge on its own (those were retired)...
+        assertTrue(w.sideCleared.none { it.goal == Goal.TAKEDOWNS })
+        // ...but eight are: "take down 5", and the UNTOUCHED and SILENT ONLY ones up to eight.
+        w.takedowns = 8
+        run(w, 0.5f)
         val cleared = w.sideCleared
-        // "Take down 1 guard", AGENT, from the roof, any hero or BULL: UNTOUCHED is fine (no heart lost).
-        val expected = Challenges.all.filter {
-            it.goal == Goal.TAKEDOWNS && it.target == 1 && fits(it, w) && !it.oneHeart && !it.gunsHotOnly
+        val expected = Challenges.active.filter {
+            it.goal == Goal.TAKEDOWNS && it.target <= 8 && fits(it, w) && !it.oneHeart && !it.gunsHotOnly
         }
         assertTrue("there's a rookie one to clear", expected.isNotEmpty())
         for (c in expected) assertTrue("${c.signature()} cleared", c in cleared)
@@ -117,9 +122,13 @@ class SideClearTest {
             assertFalse(c.signature(), c.gunsHotOnly)
             assertTrue(c.signature(), c.goal.measure(w) >= c.target)
         }
-        // FOX's own "take down 1, untouched" exists and needs FOX.
-        val foxOnly = Challenges.all.first { it.goal == Goal.TAKEDOWNS && it.hero == Hero.FOX && it.target == 1 && it.startFloor == 0 }
+        // FOX's own takedown challenges need FOX.
+        val foxOnly = Challenges.active.first {
+            it.goal == Goal.TAKEDOWNS && it.hero == Hero.FOX && it.target <= 8 && it.preset == Difficulty.Preset.AGENT && it.startFloor == 0
+        }
         assertFalse(foxOnly in cleared)
+        // Nothing retired ever clears.
+        assertTrue(cleared.none { Challenges.retired(it) })
         // Events match the list, once each.
         assertEquals(cleared, sides(w))
         assertEquals(cleared.size, cleared.toSet().size)
@@ -127,10 +136,12 @@ class SideClearTest {
 
     @Test
     fun theSameRunAsFoxOrOnChillClearsOnlyItsOwn() {
+        val foxOnly = Challenges.active.filter {
+            it.goal == Goal.TAKEDOWNS && it.hero == Hero.FOX && it.preset == Difficulty.Preset.AGENT && it.startFloor == 0 && !it.modeLocked && !it.oneHeart
+        }.minBy { it.target }
         val fox = endless(hero = Hero.FOX)
-        fox.takedowns = 1
+        fox.takedowns = foxOnly.target
         run(fox, 0.5f)
-        val foxOnly = Challenges.all.first { it.goal == Goal.TAKEDOWNS && it.hero == Hero.FOX && it.target == 1 && it.startFloor == 0 }
         assertTrue(foxOnly in fox.sideCleared)
         assertTrue(fox.sideCleared.all { it.allows(Hero.FOX) && it.preset == Difficulty.Preset.AGENT })
 
@@ -156,7 +167,7 @@ class SideClearTest {
 
     @Test
     fun silentOnlyNeedsSilentAllTheWay() {
-        val silentOnly = Challenges.all.filter { it.silentOnly && it.goal == Goal.TAKEDOWNS && fits(it, endless()) && !it.oneHeart }
+        val silentOnly = Challenges.active.filter { it.silentOnly && it.goal == Goal.TAKEDOWNS && fits(it, endless()) && !it.oneHeart }
         assertTrue(silentOnly.isNotEmpty())
         val target = silentOnly.minOf { it.target }
 
@@ -187,11 +198,12 @@ class SideClearTest {
 
     @Test
     fun gunsHotOnlyNeedsNeverSilent() {
-        val hotOnly = Challenges.all.filter { it.gunsHotOnly && it.goal == Goal.TAKEDOWNS && fits(it, endless()) }
+        // (A plain GUNS HOT ONLY was just the plain one again, so those retired: BULL's stomps are hot-only.)
+        val hotOnly = Challenges.active.filter { it.gunsHotOnly && it.goal == Goal.BONKS && fits(it, endless()) }
         assertTrue(hotOnly.isNotEmpty())
-        val target = hotOnly.maxOf { it.target }.coerceAtMost(60)
+        val target = hotOnly.maxOf { it.target }
         val hot = endless(silent = false)
-        hot.takedowns = target
+        hot.stats.stomps = target
         run(hot, 0.5f)
         assertTrue(hot.sideCleared.any { it.gunsHotOnly })
 
@@ -199,7 +211,7 @@ class SideClearTest {
         dipped.toggleMode()
         dipped.toggleMode()
         assertFalse(dipped.silent)
-        dipped.takedowns = target
+        dipped.stats.stomps = target
         run(dipped, 0.5f)
         assertTrue(dipped.sideCleared.none { it.gunsHotOnly })
     }
@@ -221,7 +233,7 @@ class SideClearTest {
     fun aGoalMetJustBeforeAHitStillCountsUntouched() {
         val w = endless()
         run(w, 0.13f)
-        w.takedowns = 1
+        w.takedowns = Challenges.active.filter { it.untouched && it.goal == Goal.TAKEDOWNS && fits(it, w) }.minOf { it.target }
         // The hit lands before the next regular check: the check just before it still counts it.
         w.player.x = 2.6f
         w.bullets += Bullet(2.2f, 1.1f, w.player.floor, 9f, 0f, byPlayer = false, damage = 1, pierce = 0, bounces = 0, hall = w.player.hall)
@@ -247,20 +259,20 @@ class SideClearTest {
     @Test
     fun knownClearsAreLeftOutAndEachClearsOnce() {
         val probe = endless()
-        probe.takedowns = 1
+        probe.takedowns = 5
         run(probe, 0.5f)
         val first = probe.sideCleared
         assertTrue(first.isNotEmpty())
         val known = setOf(first.first().id)
         val w = endless(known = known)
         assertEquals(probe.side.candidates + first.size - 1, w.side.candidates)
-        w.takedowns = 1
+        w.takedowns = 5
         run(w, 0.5f)
         assertEquals(first.drop(1), w.sideCleared)
         // More of the same never clears anything twice.
-        w.takedowns = 2
+        w.takedowns = 6
         run(w, 0.5f)
-        w.takedowns = 3
+        w.takedowns = 7
         run(w, 0.5f)
         val ids = w.events.filterIsInstance<GameEvent.SideCleared>().map { it.challenge.id }
         assertEquals(ids.size, ids.toSet().size)
@@ -270,13 +282,13 @@ class SideClearTest {
 
     @Test
     fun aChallengeRunSideClearsOthersButNeverItself() {
-        val own = Challenges.all.first {
-            it.goal == Goal.TAKEDOWNS && it.target == 1 && it.untouched && it.hero == null && it.preset == Difficulty.Preset.AGENT && it.startFloor == 0
-        }
+        val own = Challenges.active.filter {
+            it.goal == Goal.TAKEDOWNS && it.untouched && it.hero == null && it.preset == Difficulty.Preset.AGENT && it.startFloor == 0
+        }.minBy { it.target }
         val w = World(own.runConfig(Hero.BULL, coach = false))
         run(w, 1.5f)
-        // One takedown clears its own; five more clear the plain "take down 5" on the side.
-        w.takedowns = 5
+        // Enough takedowns clear its own, and the plain "take down 5" on the side.
+        w.takedowns = own.target
         run(w, 0.5f)
         assertTrue(w.challenge!!.cleared)
         assertEquals(1, w.events.count { it is GameEvent.ChallengeCleared })
@@ -291,6 +303,21 @@ class SideClearTest {
         w.stats.stiffArms = 2
         run(w, 0.5f)
         assertTrue(w.sideCleared.any { it.goal == Goal.STIFF_ARMS && it.target <= 2 })
+    }
+
+    @Test
+    fun aFirstMinuteIsntAFlood() {
+        // The bot's opening minute on AGENT, guns hot, as each hero: a handful at most, not dozens.
+        for (hero in Hero.entries) for (seed in 1L..3L) {
+            val w = World(RunConfig(seed, Difficulty.Preset.AGENT.difficulty, coach = false, hero = hero))
+            val bot = Autopilot(seed)
+            while (w.time < 60f && w.phase != Phase.OVER) {
+                bot.act(w)
+                w.step(dt)
+                w.events.clear()
+            }
+            assertTrue("$hero seed $seed: ${w.sideCleared.size} in a minute", w.sideCleared.size <= 10)
+        }
     }
 
     @Test

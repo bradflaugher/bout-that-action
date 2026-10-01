@@ -257,7 +257,7 @@ class DayClock(private val clock: () -> Long = { LocalDate.now().toEpochDay() })
 fun todaysChallenge(epochDay: Long, log: ChallengeLog): Challenge =
     Challenges.daily(epochDay) { id -> (log.clearedDay(id) ?: Long.MAX_VALUE) < epochDay }
 
-/** "37/1,550 CLEARED". */
+/** "37/1,234 CLEARED": live challenges only (a retired clear stays in the log but not in the count). */
 fun clearedCaption(log: ChallengeLog): String = "${grouped(log.clearedCount.toLong())}/${grouped(Challenges.size.toLong())} CLEARED"
 
 /**
@@ -437,8 +437,9 @@ fun ChallengeRow(c: Challenge, log: ChallengeLog, modifier: Modifier = Modifier,
 }
 
 /**
- * The game over's ALSO CLEARED: the other challenges this run met on the side, up to three by
- * name and "+N MORE" after. Tapping it opens the board.
+ * The game over's ALSO CLEARED: the other challenges this run met on the side (the only place
+ * they show: nothing pops up mid-run), the first couple by name and "+N" after. Tapping it
+ * opens the board.
  */
 @Composable
 fun AlsoClearedCard(items: List<SideClear>, modifier: Modifier = Modifier, onClick: () -> Unit) {

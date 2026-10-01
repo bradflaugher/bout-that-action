@@ -1,6 +1,7 @@
 package com.bradflaugher.aboutthataction
 
 import android.content.Context
+import com.bradflaugher.aboutthataction.engine.Challenges
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.GameEvent
 import com.bradflaugher.aboutthataction.engine.Hero
@@ -80,7 +81,8 @@ data class ChallengeLog(val cleared: Map<Int, Long> = emptyMap(), val best: Map<
     fun clearedDay(id: Int): Long? = cleared[id]
     fun isCleared(id: Int): Boolean = id in cleared
     fun best(id: Int): Int = best[id] ?: 0
-    val clearedCount: Int get() = cleared.size
+    /** Live challenges cleared: a retired one stays in the log but no longer counts toward the board. */
+    val clearedCount: Int get() = cleared.keys.count { id -> Challenges.byId(id)?.let { !Challenges.retired(it) } == true }
 
     /** Cleared on [day], unless it already was (the first clear's day sticks). */
     fun withClear(id: Int, day: Long): ChallengeLog = if (id in cleared) this else copy(cleared = cleared + (id to day))

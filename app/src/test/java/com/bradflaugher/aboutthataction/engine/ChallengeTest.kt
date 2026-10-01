@@ -124,6 +124,40 @@ class ChallengeTest {
     }
 
     @Test
+    fun theNoiseIsRetiredButKeepsItsId() {
+        val active = Challenges.active
+        val retired = all.filter { Challenges.retired(it) }
+        println("challenge catalog: ${active.size} live, ${retired.size} retired")
+        assertEquals(all.size, active.size + retired.size)
+        assertEquals(active.size, Challenges.size)
+        assertTrue("${retired.size} retired", retired.size in 200..400)
+        // Retired ones still resolve by id (old saves name them), in place.
+        for (c in retired) assertEquals(c, Challenges.byId(c.id))
+        assertEquals(active.map { it.id }, active.map { it.id }.sorted())
+        // Every tier and goal stays well stocked.
+        for (t in Tier.entries) assertTrue("$t: ${active.count { it.tier == t }}", active.count { it.tier == t } >= 150)
+        for (g in Goal.entries) assertTrue("$g missing", active.any { it.goal == g })
+        for (h in Hero.entries) assertTrue("$h", active.count { it.hero == h } >= 20)
+        // No live challenge is the plain one again with a hero or a GUNS HOT ONLY lock bolted on.
+        val plain = active.filter { it.rules.isEmpty() && it.hero == null }
+            .associateBy { listOf(it.goal, it.target, it.preset, it.startFloor) }
+        for (c in active) if (c.rules.isEmpty() || c.rules == listOf(Rule.GUNS_HOT_ONLY)) {
+            if (c.rules.isEmpty() && c.hero == null) continue
+            assertNull("restates the plain one: ${c.signature()}", plain[listOf(c.goal, c.target, c.preset, c.startFloor)])
+        }
+        // Nor an UNTOUCHED or SILENT ONLY freebie from the roof asking no more than the plain ROOKIE.
+        for (c in active) if (c.preset == Difficulty.Preset.AGENT && c.startFloor == 0 && c.rules.size == 1 && (c.untouched || c.silentOnly)) {
+            val rookie = Challenges.targets(c.goal, Challenges.Variant())[0]
+            assertTrue("freebie ${c.signature()}", c.target > rookie)
+        }
+    }
+
+    @Test
+    fun theDailyNeverPicksARetiredOne() {
+        for (d in Challenges.FIRST_DAY until Challenges.FIRST_DAY + 400) assertFalse(Challenges.retired(Challenges.daily(d)))
+    }
+
+    @Test
     fun printsASample() {
         val out = StringBuilder("challenge catalog by tier: ")
         out.append(Tier.entries.joinToString { t -> "$t ${all.count { it.tier == t }}" }).append('\n')

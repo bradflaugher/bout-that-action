@@ -40,7 +40,7 @@ data class BoardFilter(val tier: Tier? = null, val hero: Hero? = null, val openO
 
 /**
  * Every challenge, any day: today's pinned on top, then tier and hero filters, NOT CLEARED and
- * SURPRISE ME, and the whole catalog as compact rows (lazily laid out, so 1,550 rows scroll fine).
+ * SURPRISE ME, and the whole catalog as compact rows (lazily laid out, so 1,000+ rows scroll fine).
  */
 @Composable
 fun ChallengesScreen(
@@ -58,7 +58,7 @@ fun ChallengesScreen(
     var hero by rememberSaveable { mutableStateOf(initial.hero?.ordinal ?: -1) }
     var openOnly by rememberSaveable { mutableStateOf(initial.openOnly) }
     val filter = BoardFilter(Tier.entries.getOrNull(tier), Hero.entries.getOrNull(hero), openOnly)
-    val shown = remember(filter, log) { Challenges.all.filter { filter.matches(it, log) } }
+    val shown = remember(filter, log) { Challenges.active.filter { filter.matches(it, log) } }
     val list = rememberLazyListState()
     Box(Modifier.fillMaxSize().veil(alpha = 0.9f).padding(insets)) {
         Column(Modifier.fillMaxSize()) {

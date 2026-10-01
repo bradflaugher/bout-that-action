@@ -53,12 +53,17 @@ the JVM.
     `Rule`, `Tier`, the generated, append-only catalog (`Challenges.all`, ids
     1..N, a golden checksum in `ChallengeTest`; new ones go in a new batch
     after the last id), each hero's bespoke templates, and
-    `Challenges.daily(epochDay, clearedBefore)`. `RunConfig.challenge` makes
+    `Challenges.daily(epochDay, clearedBefore)`. `Challenges.retired` drops the
+    noise (restatements of a plain challenge with just a hero or GUNS HOT ONLY,
+    and roof UNTOUCHED / SILENT ONLY freebies) from `Challenges.active`, the
+    live catalog the board, the daily and side clears use; retired ids keep
+    their place, so to cut more, widen `retired` rather than editing the catalog. `RunConfig.challenge` makes
     `World` apply its setup and keep `World.challenge` (progress, cleared,
     failed) with one-shot `ChallengeCleared` / `ChallengeFailed` events.
     `SideClears` (`World.side`, `World.sideCleared`, `GameEvent.SideCleared`)
     ticks off every other challenge any run genuinely meets (same curve,
     start, hero and rules held up to the goal), minus `RunConfig.knownCleared`.
+    Side clears are quiet mid-run (no plate, no chime): game over lists them.
     Special floors (`FloorEvent`: blackout, nap time, payday) roll from
     `(seed, floor)` on their own RNG stream in `LevelGen.eventOn`, so they
     never change a floor's layout.

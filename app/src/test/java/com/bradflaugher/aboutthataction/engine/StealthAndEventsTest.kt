@@ -734,6 +734,41 @@ class StealthAndEventsTest {
     }
 
     @Test
+    fun paydayIsOnlyAnnouncedInTheHallwayWithTheLoot() {
+        fun loot(w: World, f: Int, h: Int) = w.pickups.any { it.floor == f && it.hall == h && it.life > 60f }
+        var quiet = 0
+        var loud = 0
+        var walkedIn = false
+        for (seed in 1L..400L) for (f in 3..40) {
+            if (LevelGen.eventOn(seed, f) != FloorEvent.PAYDAY) continue
+            val w = World(RunConfig(seed, Difficulty(startFloor = f), silent = true))
+            val announced = w.events.any { it is GameEvent.FloorEventStarted && it.event == FloorEvent.PAYDAY }
+            assertEquals("seed $seed floor $f", loot(w, f, 0), announced)
+            assertEquals(announced, texts(w).contains(FloorEvent.PAYDAY.title))
+            if (announced) { loud++; continue }
+            quiet++
+            assertEquals(0, w.stats.floorEvents)
+            if (walkedIn) continue
+            // The loot's elsewhere: walk through a door into the hallway that has it.
+            val door = w.playerHall()!!.plan.doors.firstOrNull { it.kind == DoorKind.PASSAGE && loot(w, f, it.to) } ?: continue
+            w.enemies.removeAll { it.floor == f && it.hall == 0 }
+            w.floor(f)!!.halls.forEach { it.spawnTimer = 999f }
+            run(w, 1.5f) // land from the ceiling hatch
+            assertEquals(PlayerState.NORMAL, w.player.state)
+            assertFalse("not yet: the loot's next door", texts(w).contains(FloorEvent.PAYDAY.title))
+            w.player.x = door.x
+            w.player.grenades = 0
+            w.commands += Command.TAP
+            run(w, World.PASSAGE_TIME + 0.5f)
+            assertEquals(door.to, w.player.hall)
+            assertTrue(texts(w).contains(FloorEvent.PAYDAY.title))
+            assertEquals(1, w.stats.floorEvents)
+            walkedIn = true
+        }
+        assertTrue("$quiet quiet, $loud announced", quiet > 0 && loud > 0 && walkedIn)
+    }
+
+    @Test
     fun paydayLeavesLootLyingAround() {
         val (seed, f) = floorWith(FloorEvent.PAYDAY)
         val w = World(RunConfig(seed, Difficulty(startFloor = f)))

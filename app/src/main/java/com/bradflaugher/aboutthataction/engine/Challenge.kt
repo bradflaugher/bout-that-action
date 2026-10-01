@@ -643,9 +643,36 @@ object Challenges {
         batch(templates, 1, CATALOG_SEED, used)
     }
 
-    val size: Int get() = all.size
+    /**
+     * Is [c] retired? Retired challenges keep their ids (old saves still point at them) but leave
+     * the board, the daily and side clears, because they were noise rather than challenges:
+     * - restatements: a rule-free challenge (same goal, target, preset and start) again, with
+     *   nothing new but a hero or a GUNS HOT ONLY lock (guns hot is the default, and MONKEY's
+     *   only mode), so they cleared in lockstep with it;
+     * - freebies: from the roof on AGENT under just UNTOUCHED or SILENT ONLY, asking no more than
+     *   the plain ROOKIE does. Nobody's been hit yet in the first minute, and SILENT players
+     *   are SILENT anyway, so they all fell at once.
+     */
+    fun retired(c: Challenge): Boolean {
+        val restated = c.goal.hero == null && (c.rules.isEmpty() || c.rules == HOT) &&
+            (c.hero != null || c.rules.isNotEmpty()) && plainKey(c) in plainKeys
+        val freebie = c.preset == Difficulty.Preset.AGENT && c.startFloor == 0 &&
+            (c.rules == CLEAN || c.rules == SILENT) && c.target <= targets(c.goal, Variant())[0]
+        return restated || freebie
+    }
 
-    /** The challenge with [id], or null. */
+    private fun plainKey(c: Challenge) = listOf(c.goal, c.target, c.preset, c.startFloor)
+
+    /** Every rule-free, anyone-can-go challenge, by what it asks. */
+    private val plainKeys: Set<List<Any>> by lazy { all.filter { it.rules.isEmpty() && it.hero == null }.map(::plainKey).toSet() }
+
+    /** The live catalog, id order: every challenge that isn't [retired]. The board, the daily and side clears use this. */
+    val active: List<Challenge> by lazy { all.filterNot(::retired) }
+
+    /** How many live challenges there are (the board's "N/size CLEARED"). */
+    val size: Int get() = active.size
+
+    /** The challenge with [id], or null. Retired ones still resolve (old saves name them). */
     fun byId(id: Int): Challenge? = all.getOrNull(id - 1)
 
     // ------------------------------------------------------------------ daily
@@ -667,7 +694,7 @@ object Challenges {
     /** Each tier's challenges in one fixed, seeded order: the dailies walk it. */
     private val dailyOrder: Map<Tier, List<Challenge>> by lazy {
         Tier.entries.associateWith { tier ->
-            val list = all.filter { it.tier == tier }.toMutableList()
+            val list = active.filter { it.tier == tier }.toMutableList()
             val rng = Rng(DAILY_SEED + tier.ordinal)
             for (i in list.size - 1 downTo 1) {
                 val j = rng.nextInt(i + 1)
@@ -733,7 +760,7 @@ class SideClears internal constructor(candidates: List<Challenge>, silent: Boole
     /** What this run cleared on the side, in order. */
     val cleared: List<Challenge> get() = clearedList
 
-    /** World time `cleared[i]` cleared at, for the HUD's toast. */
+    /** World time `cleared[i]` cleared at. */
     fun clearedAt(i: Int): Float = clearedTimes[i]
 
     /** Challenges still in the running. */
@@ -768,7 +795,7 @@ class SideClears internal constructor(candidates: List<Challenge>, silent: Boole
         }
     }
 
-    /** Notes [c] as cleared at world time [at] (also how screenshots stage a toast). */
+    /** Notes [c] as cleared at world time [at] (also how tests stage a clear). */
     internal fun record(c: Challenge, at: Float) {
         if (clearedList.size == clearedTimes.size) clearedTimes = clearedTimes.copyOf(clearedTimes.size * 2)
         clearedTimes[clearedList.size] = at
@@ -780,11 +807,6 @@ class SideClears internal constructor(candidates: List<Challenge>, silent: Boole
         const val CHECK_EVERY = 0.25f
 
         /**
-         * The catalog's challenges a run of [config] could meet at all, played on [difficulty]
-         * with [hearts] hearts, starting [silent] or not: never its own challenge, nor any in
-         * [RunConfig.knownCleared].
-         */
-        /**
          * Does a run on [difficulty] play [c]'s curve? Exactly, except that a ONE HEART challenge
          * only cares about the heat: its one heart is checked on the run's real hearts instead
          * (a custom AGENT curve with Hearts at 1 is a ONE HEART AGENT run).
@@ -792,10 +814,15 @@ class SideClears internal constructor(candidates: List<Challenge>, silent: Boole
         private fun sameCurve(c: Challenge, difficulty: Difficulty): Boolean =
             if (c.oneHeart) c.difficulty.copy(hearts = difficulty.hearts) == difficulty else c.difficulty == difficulty
 
+        /**
+         * The live challenges a run of [config] could meet at all, played on [difficulty] with
+         * [hearts] hearts, starting [silent] or not: never its own challenge, a retired one, nor
+         * any in [RunConfig.knownCleared].
+         */
         fun candidates(config: RunConfig, difficulty: Difficulty, hearts: Int, silent: Boolean): List<Challenge> {
             val own = config.challenge?.id
             val hero = config.hero
-            return Challenges.all.filter { c ->
+            return Challenges.active.filter { c ->
                 c.id != own && c.id !in config.knownCleared && c.startFloor == difficulty.startFloor &&
                     sameCurve(c, difficulty) && c.allows(hero) &&
                     !(c.oneHeart && hearts > 1) && !(c.silentOnly && !silent) && !(c.gunsHotOnly && silent)
