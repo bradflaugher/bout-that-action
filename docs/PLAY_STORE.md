@@ -107,3 +107,13 @@ same eight (`-x menuShots` skips the Compose menus):
 ./gradlew :app:screenshots -x menuShots -Pata.full=true -Pata.size=1200x1920 -Pata.shots=<dir>
 ./gradlew :app:screenshots -x menuShots -Pata.full=true -Pata.size=1600x2560 -Pata.shots=<dir>
 ```
+
+The listing mixes in three menu shots (title with DAILY, the CHALLENGES
+board and CUSTOM RUN). `:app:menuShots` renders a 1080x2400 phone, which
+Play rejects (screenshots must be 9:16), so for the listing, temporarily set
+the `"phone"` qualifiers in `MenuShotsTest` to `w411dp-h731dp-420dpi`
+(1078x1918, resize to 1080x1920), `w600dp-h960dp-xhdpi` (1200x1920) or
+`w800dp-h1280dp-xhdpi` (1600x2560), run
+`./gradlew :app:menuShots -Ponly=phone-title-daily,phone-board,phone-custom`,
+take the images from `app/build/menushots/`, then revert the test and
+`docs/screenshots/`.
