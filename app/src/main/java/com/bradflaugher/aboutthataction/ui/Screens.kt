@@ -72,6 +72,8 @@ data class RunSummary(
     val hero: Hero = Hero.BULL,
     /** The difficulty by name ("AGENT", "HELL", "CUSTOM"), for the share message. */
     val difficulty: String = "",
+    /** How the run did on its challenge, for a challenge run. */
+    val challenge: ChallengeStatus? = null,
 )
 
 internal fun grouped(n: Long): String = String.format(Locale.US, "%,d", n)
@@ -156,7 +158,7 @@ private val TITLE_ROW: List<Difficulty.Preset?> = Settings.TITLE_PRESETS + null
 internal fun difficultyBlurb(s: Settings): String = s.preset?.blurb ?: customSummary(s.custom, s.setSeed)
 
 /** "♥3 · ramp ×1.0 · from the roof", or "♥3 · from the roof · seed K7QM 2XAB": the custom run in one short line. */
-internal fun customSummary(d: Difficulty, seed: String? = null): String {
+internal fun customSummary(d: Difficulty, seed: Long? = null): String {
     val from = if (d.startFloor == 0) "the roof" else Zone.baseZoneOf(d.startFloor).title.lowercase(Locale.US)
     if (seed != null) return String.format(Locale.US, "♥%d · from %s · seed %s", d.hearts, from, SeedCode.labelOf(seed))
     return String.format(Locale.US, "♥%d · ramp ×%.1f · from %s", d.hearts, d.ramp, from)
@@ -305,6 +307,8 @@ fun PauseScreen(
     onRestart: () -> Unit,
     onQuit: () -> Unit,
     onSettings: (Settings) -> Unit,
+    /** The run's challenge, if it's a challenge run: shown instead of the seed (the challenge is the seed). */
+    challenge: ChallengeStatus? = null,
 ) {
     Box(
         Modifier.fillMaxSize().veil().scanlines(0.06f).padding(insets).padding(horizontal = Space.m),
@@ -325,7 +329,8 @@ fun PauseScreen(
                     NeonText("PAUSED", size = Type.display, color = Color.White, title = true, letterSpacing = 3.sp, glow = 0.4f)
                 }
             }
-            SeedChip(seedLabel, Modifier.fillMaxWidth(), height = 52.dp, valueSize = Type.body)
+            if (challenge != null) ChallengeStatusCard(challenge)
+            else SeedChip(seedLabel, Modifier.fillMaxWidth(), height = 52.dp, valueSize = Type.body)
             NeonButton("RESUME", Neon.magenta, Modifier.fillMaxWidth().padding(top = Space.xs), style = ButtonStyle.PRIMARY, height = 64.dp,
                 onClick = onResume)
             AudioAndControls(settings, onSettings)

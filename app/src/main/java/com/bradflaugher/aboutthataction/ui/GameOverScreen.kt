@@ -69,6 +69,8 @@ fun GameOverScreen(
     onNewRun: () -> Unit,
     onTitle: () -> Unit,
     records: Records? = null,
+    /** Back to the CHALLENGES board, after a challenge run. */
+    onBoard: () -> Unit = {},
 ) {
     val zoneColor = Neon.zone(run.zone)
     val newBest = run.newBestFloor || run.newBestScore
@@ -109,17 +111,19 @@ fun GameOverScreen(
                     modifier = Modifier.fillMaxWidth().reveal(520, 6.dp))
             }
 
+            run.challenge?.let { ChallengeStatusCard(it, Modifier.reveal(200, 16.dp), big = true) }
+
             Panel(Modifier.fillMaxWidth().reveal(260, 24.dp), accent = zoneColor, padding = Space.m, spacing = Space.xxs) {
                 Kicker("DEEPEST FLOOR", Neon.soft, Modifier.fillMaxWidth(), TextAlign.Center)
                 // With a highlights block to fit, the depth numeral steps down a size.
-                DepthReveal(run, zoneColor, newBest, compact = run.highlights.isNotEmpty()) { clock.value }
+                DepthReveal(run, zoneColor, newBest, compact = run.highlights.isNotEmpty() || run.challenge != null) { clock.value }
                 NeonText(run.zone.title, size = Type.title, color = zoneColor, title = true, letterSpacing = 4.sp,
                     align = TextAlign.Center, modifier = Modifier.fillMaxWidth().reveal(1100, 8.dp))
                 NeonText(run.zone.subtitle.uppercase(Locale.US), size = Type.micro, color = Neon.dim, letterSpacing = 2.sp, glow = 0f,
                     align = TextAlign.Center, modifier = Modifier.fillMaxWidth().reveal(1180, 8.dp))
                 if (newBest) {
                     NewBestBanner(run, Modifier.padding(top = Space.xs)) { clock.value }
-                } else if (records != null && records.bestFloor > 0) {
+                } else if (records != null && records.bestFloor > 0 && run.challenge == null) {
                     NeonText("PERSONAL BEST  ${FloorLabel.of(records.bestFloor)}  ·  ${grouped(records.bestScore)}", size = Type.micro,
                         color = Neon.gold.copy(alpha = 0.75f), letterSpacing = 1.5.sp, glow = 0f, align = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().padding(top = Space.xxs).reveal(1250, 6.dp))
@@ -153,18 +157,31 @@ fun GameOverScreen(
 
             // The seed, to copy or brag with: a friend's PASTE on CUSTOM RUN plays this building.
             val context = LocalContext.current
-            Row(Modifier.fillMaxWidth().reveal(640, 12.dp), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                SeedChip(run.seedLabel, Modifier.weight(1f), color = Neon.gold)
-                NeonButton("SHARE", Neon.gold, Modifier.width(132.dp), height = 56.dp,
+            val share = @Composable { m: Modifier ->
+                NeonButton("SHARE", Neon.gold, m, height = 56.dp,
                     trailing = { Box(Modifier.padding(start = Space.xs).size(16.dp).drawBehind { shareMark(Neon.gold) }) },
                 ) { shareText(context, shareMessage(run)) }
             }
-
-            NeonButton("RETRY SEED", Neon.magenta, Modifier.fillMaxWidth().padding(top = Space.xxs).reveal(700, 16.dp),
-                style = ButtonStyle.PRIMARY, height = 56.dp, onClick = onRetry)
-            Row(Modifier.reveal(780, 16.dp), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                NeonButton("NEW RUN", Neon.cyan, Modifier.weight(1f), onClick = onNewRun)
-                NeonButton("TITLE", Neon.soft, Modifier.weight(1f), style = ButtonStyle.GHOST, onClick = onTitle)
+            if (run.challenge == null) {
+                Row(Modifier.fillMaxWidth().reveal(640, 12.dp), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                    SeedChip(run.seedLabel, Modifier.weight(1f), color = Neon.gold)
+                    share(Modifier.width(132.dp))
+                }
+                NeonButton("RETRY SEED", Neon.magenta, Modifier.fillMaxWidth().padding(top = Space.xxs).reveal(700, 16.dp),
+                    style = ButtonStyle.PRIMARY, height = 56.dp, onClick = onRetry)
+                Row(Modifier.reveal(780, 16.dp), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                    NeonButton("NEW RUN", Neon.cyan, Modifier.weight(1f), onClick = onNewRun)
+                    NeonButton("TITLE", Neon.soft, Modifier.weight(1f), style = ButtonStyle.GHOST, onClick = onTitle)
+                }
+            } else {
+                // A challenge run has no seed to show (the challenge is the seed): retry, brag, or pick another.
+                NeonButton("RETRY CHALLENGE", Neon.magenta, Modifier.fillMaxWidth().padding(top = Space.xxs).reveal(700, 16.dp),
+                    style = ButtonStyle.PRIMARY, height = 56.dp, onClick = onRetry)
+                Row(Modifier.reveal(780, 16.dp), horizontalArrangement = Arrangement.spacedBy(Space.xs)) {
+                    share(Modifier.weight(1f))
+                    NeonButton("BOARD", Neon.gold, Modifier.weight(1f), onClick = onBoard)
+                    NeonButton("TITLE", Neon.soft, Modifier.weight(1f), style = ButtonStyle.GHOST, onClick = onTitle)
+                }
             }
         }
     }

@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -30,6 +32,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bradflaugher.aboutthataction.ChallengeLog
+import com.bradflaugher.aboutthataction.engine.Challenge
+import com.bradflaugher.aboutthataction.engine.ChallengeRun
+import com.bradflaugher.aboutthataction.engine.Challenges
+import com.bradflaugher.aboutthataction.engine.Hero
+import com.bradflaugher.aboutthataction.engine.Rule
+import com.bradflaugher.aboutthataction.engine.Tier
+import java.time.LocalDate
+import java.util.Locale
 
 /**
  * What the title's DAILY CHALLENGE card shows: plain display data, so the card
@@ -44,6 +55,10 @@ data class DailyCard(
     /** At most a couple of tiny chips: "SILENT ONLY", "ONE HEART". */
     val rules: List<String> = emptyList(),
     val cleared: Boolean = false,
+    /** The line above the name: "TODAY · ELITE". */
+    val kicker: String = "DAILY",
+    /** The small word on the stub, over the number. */
+    val stub: String = "NO.",
 )
 
 /** Cleared, in the menus: the Black Labs green. */
@@ -77,10 +92,10 @@ fun DailyChallengeCard(card: DailyCard, modifier: Modifier = Modifier, onClick: 
             .padding(start = 6.dp, end = Space.m, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TicketStub(card.number, c)
+        TicketStub(card.stub, card.number, c)
         Column(Modifier.weight(1f).padding(start = Space.s), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.xxs)) {
-                Kicker("DAILY", c.copy(alpha = 0.85f), Modifier.padding(end = Space.xxs))
+                Kicker(card.kicker, c.copy(alpha = 0.85f), Modifier.padding(end = Space.xxs))
                 for (rule in card.rules.take(2)) RuleChip(rule, c)
             }
             FitText(card.name, Type.title, if (card.cleared) Neon.soft else Color.White, Modifier.fillMaxWidth(),
@@ -101,7 +116,7 @@ fun DailyChallengeCard(card: DailyCard, modifier: Modifier = Modifier, onClick: 
 
 /** "NO. 37" on a little gold stub. */
 @Composable
-private fun TicketStub(number: Int, c: Color) {
+private fun TicketStub(stub: String, number: Int, c: Color) {
     Column(
         Modifier
             .width(52.dp)
@@ -122,7 +137,7 @@ private fun TicketStub(number: Int, c: Color) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        NeonText("NO.", size = 9.sp, color = c.copy(alpha = 0.75f), letterSpacing = 1.5.sp, glow = 0f)
+        FitText(stub, 9.sp, c.copy(alpha = 0.75f), Modifier.fillMaxWidth(), title = false, letterSpacing = 1.5.sp, glow = 0f)
         FitText(number.toString(), Type.title, c, Modifier.fillMaxWidth(), letterSpacing = 0.5.sp, glow = 0.6f)
     }
 }
@@ -159,4 +174,227 @@ internal fun DrawScope.check(color: Color) {
     drawLine(color.copy(alpha = 0.3f), Offset(w * 0.4f, h * 0.8f), Offset(w * 0.88f, h * 0.22f), sw * 2.4f)
     drawLine(color, Offset(w * 0.15f, h * 0.55f), Offset(w * 0.4f, h * 0.8f), sw)
     drawLine(color, Offset(w * 0.4f, h * 0.8f), Offset(w * 0.88f, h * 0.22f), sw)
+}
+
+// ------------------------------------------------------------------ challenge data, for the menus
+
+/** A rule in a word or two, for the board's narrow tag column. */
+fun shortRule(r: Rule): String = when (r) {
+    Rule.SILENT_ONLY -> "SILENT"
+    Rule.GUNS_HOT_ONLY -> "GUNS HOT"
+    Rule.ONE_HEART -> "ONE HEART"
+    Rule.UNTOUCHED -> "UNTOUCHED"
+}
+
+/** "#0274". */
+fun idLabel(id: Int): String = String.format(Locale.US, "#%04d", id)
+
+/** Each tier's color: cool and easy up to hot and nasty. */
+fun tierColor(t: Tier): Color = when (t) {
+    Tier.ROOKIE -> Color(0xFF9AD8FF)
+    Tier.PRO -> Neon.cyan
+    Tier.ACE -> Color(0xFFB78CFF)
+    Tier.ELITE -> Neon.lava
+    Tier.LEGEND -> Neon.blood
+}
+
+/** "OCT 1": a short date for a day counted from 1970-01-01. */
+fun shortDate(epochDay: Long): String {
+    val d = LocalDate.ofEpochDay(epochDay)
+    return d.month.name.take(3) + " " + d.dayOfMonth
+}
+
+/** Today's daily number, never below 1 (a phone whose clock is set before day one still gets #1). */
+fun dailyNumber(epochDay: Long): Long = Challenges.dailyNumber(epochDay).coerceAtLeast(1)
+
+/** The title's card for today's [c]. */
+fun dailyCard(c: Challenge, epochDay: Long, log: ChallengeLog): DailyCard = DailyCard(
+    number = dailyNumber(epochDay).toInt(),
+    name = c.name,
+    goal = c.goalText(),
+    rules = c.chips(),
+    cleared = log.isCleared(c.id),
+    kicker = "TODAY · " + c.tier.title,
+    stub = "DAILY",
+)
+
+/** Today's challenge for this player: the same for everyone who's cleared the same ones before today. */
+fun todaysChallenge(epochDay: Long, log: ChallengeLog): Challenge =
+    Challenges.daily(epochDay) { id -> (log.clearedDay(id) ?: Long.MAX_VALUE) < epochDay }
+
+/** "37/1,550 CLEARED". */
+fun clearedCaption(log: ChallengeLog): String = "${grouped(log.clearedCount.toLong())}/${grouped(Challenges.size.toLong())} CLEARED"
+
+/**
+ * Why [h] can't play [c], to follow their name (null if they can): "can't take anyone down",
+ * "is always GUNS HOT", "doesn't have FOX's moves".
+ */
+fun whyNot(c: Challenge, h: Hero): String? {
+    if (c.allows(h)) return null
+    val own = c.goal.hero
+    return when {
+        c.hero != null -> "sits this one out: it's ${c.hero.title}'s"
+        own != null && own != h -> "doesn't have ${own.title}'s moves"
+        c.goal.melee && !h.melee -> "can't take anyone down"
+        (c.goal.sneak || Rule.SILENT_ONLY in c.rules) && !h.sneaks -> "is always GUNS HOT"
+        else -> "sits this one out"
+    }
+}
+
+/** Where a challenge stands, for pause and game over. */
+data class ChallengeStatus(
+    val id: Int,
+    val name: String,
+    val tier: Tier,
+    val goal: String,
+    /** "KILLS 12/30" for this run. */
+    val hud: String,
+    val fraction: Float,
+    val cleared: Boolean,
+    val failed: Boolean,
+    /** "KILLS 18/30": the best ever, when there is one. */
+    val best: String? = null,
+    /** Cleared on an earlier run. */
+    val clearedBefore: Boolean = false,
+) {
+    companion object {
+        fun of(run: ChallengeRun, log: ChallengeLog): ChallengeStatus {
+            val c = run.challenge
+            val best = maxOf(log.best(c.id), run.progress)
+            return ChallengeStatus(
+                id = c.id, name = c.name, tier = c.tier, goal = c.goalText(), hud = run.hudText(), fraction = run.fraction,
+                cleared = run.cleared, failed = run.failed,
+                best = if (best > 0) c.hudText(best) else null,
+                clearedBefore = log.isCleared(c.id) && !run.cleared,
+            )
+        }
+    }
+}
+
+/** A gold progress bar (green once cleared). */
+@Composable
+fun GoalBar(fraction: Float, cleared: Boolean, modifier: Modifier = Modifier, failed: Boolean = false) {
+    val c = when {
+        cleared -> ClearedGreen
+        failed -> Neon.blood
+        else -> Neon.gold
+    }
+    Box(
+        modifier.fillMaxWidth().height(6.dp).drawBehind {
+            val r = androidx.compose.ui.geometry.CornerRadius(size.height / 2)
+            drawRoundRect(Neon.faint.copy(alpha = 0.45f), cornerRadius = r)
+            val w = size.width * fraction.coerceIn(0f, 1f)
+            if (w > 0f) {
+                drawRoundRect(c.copy(alpha = 0.3f), Offset(0f, -2f), androidx.compose.ui.geometry.Size(w, size.height + 4f), r)
+                drawRoundRect(c, size = androidx.compose.ui.geometry.Size(w, size.height), cornerRadius = r)
+            }
+        },
+    )
+}
+
+/**
+ * The run's challenge in a gold card: number, tier and name, the goal, and where it stands
+ * (CLEARED, BUSTED or a bar). Pause and game over both use it.
+ */
+@Composable
+fun ChallengeStatusCard(st: ChallengeStatus, modifier: Modifier = Modifier, big: Boolean = false) {
+    val accent = when {
+        st.cleared -> ClearedGreen
+        st.failed -> Neon.blood
+        else -> Neon.gold
+    }
+    Column(
+        modifier
+            .fillMaxWidth()
+            .drawBehind {
+                val o = Shapes.small.createOutline(size, layoutDirection, this)
+                drawOutline(o, Brush.verticalGradient(listOf(accent.copy(alpha = 0.16f), Neon.ink.copy(alpha = 0.85f))))
+                drawOutline(o, accent.copy(alpha = 0.6f), style = Stroke(1.dp.toPx()))
+                cornerTicks(accent, 8.dp, 2.dp)
+            }
+            .padding(horizontal = Space.m, vertical = Space.s),
+        verticalArrangement = Arrangement.spacedBy(Space.xxs),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Kicker(idLabel(st.id) + "  ·  ", Neon.gold)
+            FitText(st.tier.title, Type.micro, tierColor(st.tier), Modifier.weight(1f), title = false, letterSpacing = 3.sp, glow = 0f,
+                alignment = Alignment.CenterStart)
+            val tag = when {
+                st.cleared -> "CLEARED"
+                st.failed -> "BUSTED"
+                st.clearedBefore -> "CLEARED BEFORE"
+                else -> null
+            }
+            if (st.cleared) Box(Modifier.padding(end = Space.xxs).size(14.dp).drawBehind { check(ClearedGreen) })
+            if (tag != null) {
+                FitText(tag, Type.micro, if (st.failed) Neon.blood else ClearedGreen, Modifier.widthIn(max = 140.dp), title = false,
+                    letterSpacing = 3.sp, glow = 0f, alignment = Alignment.CenterEnd)
+            }
+        }
+        FitText(st.name, if (big) Type.headline else Type.title, Color.White, Modifier.fillMaxWidth(), letterSpacing = 2.sp,
+            glow = 0.35f, alignment = Alignment.CenterStart)
+        NeonText(st.goal, size = Type.small, color = Neon.soft, glow = 0f)
+        GoalBar(st.fraction, st.cleared, Modifier.padding(top = Space.xxs), failed = st.failed)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            FitText(st.hud, Type.small, accent, Modifier.weight(1f), title = false, letterSpacing = 1.5.sp, glow = 0.3f,
+                alignment = Alignment.CenterStart)
+            if (st.best != null && !st.cleared) {
+                FitText("BEST " + st.best, Type.micro, Neon.dim, Modifier.weight(1f), title = false, letterSpacing = 1.5.sp, glow = 0f,
+                    alignment = Alignment.CenterEnd)
+            }
+        }
+    }
+}
+
+/**
+ * One challenge on the board, compact: the tier stripe, number, name and goal, a hero badge,
+ * and a check or a sliver of best progress.
+ */
+@Composable
+fun ChallengeRow(c: Challenge, log: ChallengeLog, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val tc = tierColor(c.tier)
+    val cleared = log.isCleared(c.id)
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    Row(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .semantics { contentDescription = "${idLabel(c.id)} ${c.name}, ${c.tier.title}. ${c.goalText()}" + if (cleared) ". Cleared" else "" }
+            .drawBehind {
+                val o = Shapes.small.createOutline(size, layoutDirection, this)
+                drawOutline(o, if (pressed) tc.copy(alpha = 0.18f) else Neon.ink.copy(alpha = 0.78f))
+                drawOutline(o, (if (cleared) ClearedGreen else tc).copy(alpha = if (cleared) 0.35f else 0.28f), style = Stroke(1.dp.toPx()))
+                // the tier stripe
+                drawRect(tc, Offset(0f, size.height * 0.2f), androidx.compose.ui.geometry.Size(3.dp.toPx(), size.height * 0.6f))
+            }
+            .clickable(source, null, role = Role.Button, onClick = onClick)
+            .padding(start = Space.s, end = Space.s, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.width(52.dp)) {
+            FitText(idLabel(c.id), Type.micro, Neon.dim, Modifier.fillMaxWidth(), title = false, letterSpacing = 1.sp, glow = 0f,
+                alignment = Alignment.CenterStart)
+            FitText(c.tier.title, 9.sp, tc, Modifier.fillMaxWidth(), title = false, letterSpacing = 1.sp, glow = 0f,
+                alignment = Alignment.CenterStart)
+        }
+        Column(Modifier.weight(1f).padding(horizontal = Space.xs), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            FitText(c.name, Type.body, if (cleared) Neon.soft else Color.White, Modifier.fillMaxWidth(), letterSpacing = 1.5.sp,
+                glow = 0f, alignment = Alignment.CenterStart)
+            NeonText(c.goalText(), size = Type.small, color = Neon.dim, glow = 0f, maxLines = 1)
+        }
+        Column(Modifier.width(72.dp), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            val h = c.hero
+            if (h != null) FitText(h.title, 9.sp, h.tint, Modifier.fillMaxWidth(), title = false, letterSpacing = 1.sp, glow = 0.4f,
+                alignment = Alignment.CenterEnd)
+            for (r in c.rules.take(if (h != null) 1 else 2)) {
+                FitText(shortRule(r), 9.sp, Neon.gold.copy(alpha = 0.8f), Modifier.fillMaxWidth(), title = false, letterSpacing = 1.sp,
+                    glow = 0f, alignment = Alignment.CenterEnd)
+            }
+            when {
+                cleared -> Box(Modifier.size(16.dp).drawBehind { check(ClearedGreen) })
+                log.best(c.id) > 0 -> GoalBar(log.best(c.id).toFloat() / c.target.coerceAtLeast(1), false, Modifier.width(44.dp))
+            }
+        }
+    }
 }

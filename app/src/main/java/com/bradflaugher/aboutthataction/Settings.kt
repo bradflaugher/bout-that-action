@@ -5,7 +5,7 @@ import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.SeedCode
 
-/** A fresh building every run, or one you set (on the CUSTOM RUN screen). A saved DAILY loads as RANDOM. */
+/** A fresh building every run, or one you set (on the CUSTOM RUN screen). */
 enum class SeedMode(val label: String) { RANDOM("RANDOM"), CUSTOM("SET SEED") }
 
 /** Everything the player can tweak. Persisted in SharedPreferences. */
@@ -19,7 +19,7 @@ data class Settings(
     val custom: Difficulty = Difficulty(),
     /** Only custom runs use a set seed; the presets always get a fresh building. */
     val seedMode: SeedMode = SeedMode.RANDOM,
-    /** A seed code ("K7QM 2XAB") or, from older versions, any text. */
+    /** The set seed's code as typed so far: up to 8 characters of [SeedCode.ALPHABET]. */
     val seedText: String = "",
     /** SILENT (never fire) instead of GUNS HOT (auto-fire). Flipped by the HUD button, kept between runs. */
     val silent: Boolean = false,
@@ -43,31 +43,57 @@ data class Settings(
             ?.let { if (it == Difficulty.Preset.STRAIGHT_TO_HELL) "HELL" else it.label }
         ?: "CUSTOM"
 
-    /** The seed text a new run will use, or null for a fresh random building. */
-    val setSeed: String? get() = seedText.trim().takeIf { preset == null && seedMode == SeedMode.CUSTOM && it.isNotEmpty() }
+    /** The seed a new run will use, or null for a fresh random building (a preset, RANDOM, or no full code yet). */
+    val setSeed: Long? get() = if (preset == null && seedMode == SeedMode.CUSTOM) SeedCode.decode(seedText) else null
 
     /** The seed for a new run under these settings; [random] should draw below [SeedCode.LIMIT] so it has a code. */
-    fun newSeed(random: () -> Long): Long = setSeed?.let(SeedCode::seedOf) ?: random()
-
-    /** How the next run's seed reads, given the seed it drew. */
-    fun seedLabel(seed: Long): String = setSeed?.let(SeedCode::labelOf) ?: SeedCode.labelOf(seed)
+    fun newSeed(random: () -> Long): Long = setSeed ?: random()
 
     companion object {
         /** The difficulty row on the title, before CUSTOM. */
         val TITLE_PRESETS = listOf(Difficulty.Preset.CHILL, Difficulty.Preset.AGENT, Difficulty.Preset.BRUTAL)
-
-        /**
-         * The preset and custom curve from what was saved. A saved STRAIGHT TO HELL (from before
-         * it became a template on the CUSTOM screen) carries on as a custom run with Hell's curve.
-         */
-        fun savedDifficulty(presetName: String?, custom: Difficulty): Pair<Difficulty.Preset?, Difficulty> =
-            if (presetName == Difficulty.Preset.STRAIGHT_TO_HELL.name) null to Difficulty.Preset.STRAIGHT_TO_HELL.difficulty
-            else TITLE_PRESETS.firstOrNull { it.name == presetName } to custom
     }
 }
 
-/** Best results, kept per device. */
+/**
+ * Best results of endless runs, kept per device. Challenge runs don't count: they bring their
+ * own difficulty and start floor, so a DEEPEST from one wouldn't mean the same thing.
+ */
 data class Records(val bestScore: Long = 0, val bestFloor: Int = 0, val runs: Int = 0)
+
+/**
+ * The player's challenge history: the day each challenge was first cleared (days since
+ * 1970-01-01, on the device's own calendar) and the best progress on each. Kept as two
+ * compact strings ("274:20727,12:20730") in SharedPreferences.
+ */
+data class ChallengeLog(val cleared: Map<Int, Long> = emptyMap(), val best: Map<Int, Int> = emptyMap()) {
+    fun clearedDay(id: Int): Long? = cleared[id]
+    fun isCleared(id: Int): Boolean = id in cleared
+    fun best(id: Int): Int = best[id] ?: 0
+    val clearedCount: Int get() = cleared.size
+
+    /** Cleared on [day], unless it already was (the first clear's day sticks). */
+    fun withClear(id: Int, day: Long): ChallengeLog = if (id in cleared) this else copy(cleared = cleared + (id to day))
+
+    /** Remembers [progress] if it beats the best so far. */
+    fun withBest(id: Int, progress: Int): ChallengeLog = if (progress <= best(id)) this else copy(best = best + (id to progress))
+
+    companion object {
+        fun encode(m: Map<Int, Number>): String = m.entries.sortedBy { it.key }.joinToString(",") { "${it.key}:${it.value}" }
+
+        /** Reads [encode]'s strings back; anything malformed is skipped, never fatal. */
+        fun decode(s: String?): Map<Int, Long> {
+            if (s.isNullOrBlank()) return emptyMap()
+            val out = HashMap<Int, Long>()
+            for (part in s.split(',')) {
+                val k = part.substringBefore(':').toIntOrNull() ?: continue
+                val v = part.substringAfter(':', "").toLongOrNull() ?: continue
+                out[k] = v
+            }
+            return out
+        }
+    }
+}
 
 class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("about_that_action", Context.MODE_PRIVATE)
@@ -82,10 +108,9 @@ class Prefs(context: Context) {
             hearts = sp.getInt("c_hearts", d.custom.hearts),
             startFloor = sp.getInt("c_floor", d.custom.startFloor),
         )
-        val (preset, custom) = Settings.savedDifficulty(presetName, saved)
         return Settings(
-            preset = preset,
-            custom = custom,
+            preset = Settings.TITLE_PRESETS.firstOrNull { it.name == presetName },
+            custom = saved,
             seedMode = SeedMode.entries.firstOrNull { it.name == sp.getString("seed_mode", null) } ?: d.seedMode,
             seedText = sp.getString("seed_text", d.seedText) ?: "",
             silent = sp.getBoolean("silent", d.silent),
@@ -117,6 +142,15 @@ class Prefs(context: Context) {
             .putFloat("sfx", s.sfxVolume)
             .putString("hero", s.hero.name)
             .apply()
+    }
+
+    fun loadChallenges() = ChallengeLog(
+        cleared = ChallengeLog.decode(sp.getString("ch_cleared", null)),
+        best = ChallengeLog.decode(sp.getString("ch_best", null)).mapValues { it.value.toInt() },
+    )
+
+    fun saveChallenges(log: ChallengeLog) {
+        sp.edit().putString("ch_cleared", ChallengeLog.encode(log.cleared)).putString("ch_best", ChallengeLog.encode(log.best)).apply()
     }
 
     fun loadRecords() = Records(sp.getLong("best_score", 0), sp.getInt("best_floor", 0), sp.getInt("runs", 0))

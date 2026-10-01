@@ -42,6 +42,7 @@ import com.bradflaugher.aboutthataction.audio.AudioOutput
 import com.bradflaugher.aboutthataction.audio.SoundEngine
 import com.bradflaugher.aboutthataction.engine.AlertPhase
 import com.bradflaugher.aboutthataction.engine.Autopilot
+import com.bradflaugher.aboutthataction.engine.Challenge
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.GameEvent
 import com.bradflaugher.aboutthataction.engine.Hero
@@ -50,7 +51,17 @@ import com.bradflaugher.aboutthataction.engine.RunReport
 import com.bradflaugher.aboutthataction.engine.SeedCode
 import com.bradflaugher.aboutthataction.engine.World
 import com.bradflaugher.aboutthataction.engine.Zone
+import com.bradflaugher.aboutthataction.ui.BriefingScreen
+import com.bradflaugher.aboutthataction.ui.ChallengeStatus
+import com.bradflaugher.aboutthataction.ui.ChallengesScreen
 import com.bradflaugher.aboutthataction.ui.CustomScreen
+import com.bradflaugher.aboutthataction.ui.clearedCaption
+import com.bradflaugher.aboutthataction.ui.dailyCard
+import com.bradflaugher.aboutthataction.ui.dailyNumber
+import com.bradflaugher.aboutthataction.ui.idLabel
+import com.bradflaugher.aboutthataction.ui.presetLabel
+import com.bradflaugher.aboutthataction.ui.todaysChallenge
+import java.time.LocalDate
 import com.bradflaugher.aboutthataction.ui.GameOverScreen
 import com.bradflaugher.aboutthataction.ui.HeroPickerScreen
 import com.bradflaugher.aboutthataction.ui.Motion
@@ -62,7 +73,7 @@ import kotlin.random.Random
 
 class MainActivity : ComponentActivity(), GameView.Host {
 
-    private enum class Screen { TITLE, CUSTOM, HEROES, SETTINGS, PLAYING, PAUSED, GAME_OVER }
+    private enum class Screen { TITLE, CUSTOM, HEROES, SETTINGS, CHALLENGES, BRIEFING, PLAYING, PAUSED, GAME_OVER }
 
     private lateinit var prefs: Prefs
     private lateinit var sound: SoundEngine
@@ -75,6 +86,10 @@ class MainActivity : ComponentActivity(), GameView.Host {
     private var heroesFrom = Screen.TITLE
     private var settings by mutableStateOf(Settings())
     private var records by mutableStateOf(Records())
+    private var challengeLog by mutableStateOf(ChallengeLog())
+    /** The challenge on the BRIEFING screen, and where its back button goes. */
+    private var briefing by mutableStateOf<Challenge?>(null)
+    private var briefingFrom = Screen.TITLE
     private var lastRun by mutableStateOf<RunSummary?>(null)
     private var insetTop by mutableStateOf(0)
     private var insetBottom by mutableStateOf(0)
@@ -98,6 +113,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
         prefs = Prefs(this)
         settings = prefs.loadSettings()
         records = prefs.loadRecords()
+        challengeLog = prefs.loadChallenges()
         sound = SoundEngine()
         audio = AudioOutput(sound)
         haptics = Haptics(this)
@@ -124,7 +140,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
                     Screen.PLAYING -> pause()
                     Screen.PAUSED -> resume()
                     Screen.HEROES -> heroesBack()
-                    Screen.CUSTOM -> { screen = Screen.TITLE }
+                    Screen.CUSTOM, Screen.CHALLENGES -> { screen = Screen.TITLE }
+                    Screen.BRIEFING -> { screen = briefingFrom }
                     Screen.SETTINGS, Screen.GAME_OVER -> toTitle()
                     Screen.TITLE -> Unit
                 }
@@ -145,6 +162,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
                     contentAlignment = Alignment.Center,
                     label = "screen",
                 ) { target ->
+                    val day = today()
+                    val daily = todaysChallenge(day, challengeLog)
                     when (target) {
                         Screen.TITLE -> TitleScreen(
                             settings, records, pad,
@@ -157,8 +176,30 @@ class MainActivity : ComponentActivity(), GameView.Host {
                                 screen = Screen.CUSTOM
                             },
                             onHeroes = { openHeroes(Screen.TITLE) },
-                            onChallenges = {},
+                            onChallenges = { screen = Screen.CHALLENGES },
+                            daily = dailyCard(daily, day, challengeLog),
+                            onDaily = { openBriefing(daily, Screen.TITLE) },
+                            challengesCaption = clearedCaption(challengeLog),
                         )
+                        Screen.CHALLENGES -> ChallengesScreen(
+                            challengeLog, daily, dailyCard(daily, day, challengeLog), pad,
+                            onOpen = { openBriefing(it, Screen.CHALLENGES) },
+                            onBack = { screen = Screen.TITLE },
+                        )
+                        Screen.BRIEFING -> briefing?.let { c ->
+                            BriefingScreen(
+                                c, settings.hero, challengeLog, pad,
+                                dailyNumber = if (c.id == daily.id) dailyNumber(day) else null,
+                                onPickHero = { h ->
+                                    if (h != settings.hero) {
+                                        updateSettings(settings.copy(hero = h))
+                                        showAttract(music = false)
+                                    }
+                                },
+                                onPlay = { startChallenge(c) },
+                                onBack = { screen = briefingFrom },
+                            )
+                        }
                         Screen.CUSTOM -> CustomScreen(
                             settings, pad,
                             // A pasted brag can switch heroes: the demo behind the title stars them too.
@@ -181,9 +222,16 @@ class MainActivity : ComponentActivity(), GameView.Host {
                         Screen.PAUSED -> PauseScreen(
                             settings, runSeedLabel, runConfig?.hero ?: settings.hero, pad,
                             onResume = ::resume,
-                            onRestart = { runConfig?.let { startRun(it) } },
-                            onQuit = ::toTitle,
+                            onRestart = {
+                                recordBest()
+                                runConfig?.let { startRun(it) }
+                            },
+                            onQuit = {
+                                recordBest()
+                                toTitle()
+                            },
                             onSettings = ::updateSettings,
+                            challenge = gameView.world?.challenge?.let { ChallengeStatus.of(it, challengeLog) },
                         )
                         Screen.GAME_OVER -> lastRun?.let { run ->
                             GameOverScreen(
@@ -192,6 +240,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
                                 onNewRun = ::startRun,
                                 onTitle = ::toTitle,
                                 records = records,
+                                onBoard = { toMenu(Screen.CHALLENGES) },
                             )
                         }
                         Screen.PLAYING -> Unit
@@ -313,7 +362,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
         val s = settings
         // 40 bits, so every run has a shareable code.
         val seed = s.newSeed { Random.nextLong(SeedCode.LIMIT) }
-        runSeedLabel = s.seedLabel(seed)
+        runSeedLabel = SeedCode.labelOf(seed)
         runDifficulty = s.difficultyName
         startRun(RunConfig(seed, s.difficulty, silent = s.silent, coach = s.coach, hero = s.hero))
     }
@@ -349,11 +398,45 @@ class MainActivity : ComponentActivity(), GameView.Host {
         screen = Screen.PLAYING
     }
 
-    private fun toTitle() {
+    private fun toTitle() = toMenu(Screen.TITLE)
+
+    /** Out of a run to a menu, with the demo back behind it. */
+    private fun toMenu(to: Screen) {
         startAudio()
         sound.setPaused(false)
-        screen = Screen.TITLE
+        screen = to
         showAttract()
+    }
+
+    // ------------------------------------------------------------- challenges
+
+    /** Today, on the device's own calendar (days since 1970-01-01): the daily turns over at local midnight. */
+    private fun today(): Long = LocalDate.now().toEpochDay()
+
+    private fun openBriefing(c: Challenge, from: Screen) {
+        briefing = c
+        briefingFrom = from
+        screen = Screen.BRIEFING
+    }
+
+    /** A challenge run: its own building, curve and start, as the picked hero (if they're allowed). */
+    private fun startChallenge(c: Challenge) {
+        runSeedLabel = idLabel(c.id)
+        runDifficulty = presetLabel(c.preset)
+        startRun(c.runConfig(settings.hero, settings.coach))
+    }
+
+    private fun updateChallenges(log: ChallengeLog) {
+        if (log == challengeLog) return
+        challengeLog = log
+        prefs.saveChallenges(log)
+    }
+
+    /** The best progress of the run on screen, if it's a challenge run (at game over, quit and restart). */
+    private fun recordBest(world: World? = gameView.world) {
+        val run = world?.challenge ?: return
+        if (world.config.challenge == null || gameView.attract) return
+        updateChallenges(challengeLog.withBest(run.challenge.id, run.progress))
     }
 
     /** A hero card settled on the picker: remember them, play their theme, star them in the demo. */
@@ -396,6 +479,11 @@ class MainActivity : ComponentActivity(), GameView.Host {
         if (gameView.attract) return
         sound.trigger(event)
         haptics.onEvent(event)
+        // A clear counts the moment it happens, even if the run is quit straight after.
+        if (event is GameEvent.ChallengeCleared) {
+            val id = event.challenge.id
+            runOnUiThread { updateChallenges(challengeLog.withClear(id, today())) }
+        }
         // The GUNS HOT / SILENT choice sticks between runs.
         if (event is GameEvent.ModeToggled) runOnUiThread { if (settings.silent != event.silent) updateSettings(settings.copy(silent = event.silent)) }
     }
@@ -437,10 +525,17 @@ class MainActivity : ComponentActivity(), GameView.Host {
     override fun onGameOver(world: World) {
         if (screen != Screen.PLAYING) return
         val old = records
-        val newBestScore = world.score > old.bestScore
-        val newBestFloor = world.deepest > old.bestFloor
-        records = Records(maxOf(old.bestScore, world.score), maxOf(old.bestFloor, world.deepest), old.runs + 1)
-        prefs.saveRecords(records)
+        val ch = world.challenge
+        // Challenge runs bring their own curve and start floor, so they don't touch the endless records.
+        val newBestScore = ch == null && world.score > old.bestScore
+        val newBestFloor = ch == null && world.deepest > old.bestFloor
+        if (ch == null) {
+            records = Records(maxOf(old.bestScore, world.score), maxOf(old.bestFloor, world.deepest), old.runs + 1)
+            prefs.saveRecords(records)
+        }
+        // The status reads the log from before this run, so "best" compares against earlier runs.
+        val status = ch?.let { ChallengeStatus.of(it, challengeLog) }
+        recordBest(world)
         val report = RunReport.of(world)
         lastRun = RunSummary(
             floor = world.deepest,
@@ -458,6 +553,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
             highlights = report.highlights,
             hero = world.hero,
             difficulty = runDifficulty,
+            challenge = status,
         )
         endSlowMo()
         sound.gameOver()
@@ -485,7 +581,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
     /** How deep a menu sits under the title (-1 for screens outside the menu stack). */
     private fun menuDepth(s: Screen): Int = when (s) {
         Screen.TITLE -> 0
-        Screen.SETTINGS, Screen.CUSTOM -> 1
+        Screen.SETTINGS, Screen.CUSTOM, Screen.CHALLENGES -> 1
+        Screen.BRIEFING -> if (briefingFrom == Screen.CHALLENGES) 2 else 1
         Screen.HEROES -> if (heroesFrom == Screen.CUSTOM) 2 else 1
         else -> -1
     }

@@ -78,8 +78,9 @@ the JVM.
   is the API. `AudioOutput.kt` streams it to an `AudioTrack`.
 - `AndroidGfx.kt` — `Gfx` on `android.graphics.Canvas`.
 - `GameView.kt` — `SurfaceView` + game thread; touch → `GestureInput`.
-- `MainActivity.kt`, `ui/` — Compose menus (title, custom run, settings, pause, game
-  over), `Settings.kt` (prefs, seeds), `Haptics.kt`.
+- `MainActivity.kt`, `ui/` — Compose menus (title, custom run, challenges board
+  and briefing, settings, pause, game
+  over), `Settings.kt` (prefs, seeds, the challenge log: first-clear day and best progress per id), `Haptics.kt`.
 - `app/src/test/` — JVM tests: `engine/` (mechanics, level generation,
   fuzzing, a heuristic bot that plays full runs per preset), `input/`
   (gestures), `render/` (AWT `Gfx` backend, headless screenshots), `audio/`.

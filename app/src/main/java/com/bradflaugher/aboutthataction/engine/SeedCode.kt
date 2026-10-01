@@ -6,10 +6,9 @@ package com.bradflaugher.aboutthataction.engine
  * "K7QM 2XAB". Random runs draw a seed below [LIMIT], so every run has a code.
  *
  * Parsing is deliberately plain: uppercase, drop everything that isn't a letter or digit,
- * and if that leaves 8 characters all in [ALPHABET], it's a code. There's no look-alike
- * mapping (the alphabet already avoids them, and the menus show codes in the same font
- * people type them from). Anything else is free text, seeded through [Rng.seedFromText]
- * and shown as typed, so old seeds like "CARDBOARD" keep their buildings.
+ * and if that leaves 8 characters all in [ALPHABET], it's a code; anything else isn't.
+ * There's no look-alike mapping (the alphabet already avoids them, and the menus show codes
+ * in the same font people type them from).
  */
 object SeedCode {
     const val ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -48,15 +47,6 @@ object SeedCode {
 
     /** "K7QM2XAB" → "K7QM 2XAB". */
     fun pretty(code: String): String = if (code.length == LENGTH) code.substring(0, 4) + " " + code.substring(4) else code
-
-    /** The run seed for whatever the player typed: a code, or any other text (old seeds). */
-    fun seedOf(text: String): Long = decode(text) ?: Rng.seedFromText(text)
-
-    /** How a typed seed reads back: a code tidied to "K7QM 2XAB", anything else as typed. */
-    fun labelOf(text: String): String {
-        val t = text.trim()
-        return if (decode(t) != null) pretty(normalize(t)) else t.uppercase()
-    }
 
     /** How a run's seed reads: its code, or just the number for a seed without one. */
     fun labelOf(seed: Long): String = encode(seed)?.let(::pretty) ?: seed.toString()
