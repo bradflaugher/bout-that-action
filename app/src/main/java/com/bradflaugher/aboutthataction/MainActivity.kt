@@ -177,14 +177,15 @@ class MainActivity : ComponentActivity(), GameView.Host {
                             },
                             onHeroes = { openHeroes(Screen.TITLE) },
                             onChallenges = { screen = Screen.CHALLENGES },
-                            daily = dailyCard(daily, day, challengeLog),
+                            daily = dailyCard(daily, day, challengeLog, settings.hero),
                             onDaily = { openBriefing(daily, Screen.TITLE) },
                             challengesCaption = clearedCaption(challengeLog),
                         )
                         Screen.CHALLENGES -> ChallengesScreen(
-                            challengeLog, daily, dailyCard(daily, day, challengeLog), pad,
+                            challengeLog, daily, dailyCard(daily, day, challengeLog, settings.hero), pad,
                             onOpen = { openBriefing(it, Screen.CHALLENGES) },
                             onBack = { screen = Screen.TITLE },
+                            pick = settings.hero,
                         )
                         Screen.BRIEFING -> briefing?.let { c ->
                             BriefingScreen(
@@ -231,7 +232,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
                                 toTitle()
                             },
                             onSettings = ::updateSettings,
-                            challenge = gameView.world?.challenge?.let { ChallengeStatus.of(it, challengeLog) },
+                            challenge = gameView.world?.let { w -> w.challenge?.let { ChallengeStatus.of(it, challengeLog, w.hero) } },
                         )
                         Screen.GAME_OVER -> lastRun?.let { run ->
                             GameOverScreen(
@@ -534,7 +535,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
             prefs.saveRecords(records)
         }
         // The status reads the log from before this run, so "best" compares against earlier runs.
-        val status = ch?.let { ChallengeStatus.of(it, challengeLog) }
+        val status = ch?.let { ChallengeStatus.of(it, challengeLog, world.hero) }
         recordBest(world)
         val report = RunReport.of(world)
         lastRun = RunSummary(

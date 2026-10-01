@@ -93,10 +93,13 @@ class MenuShotsTest {
     private val open = Challenges.all.firstOrNull { it.hero == null && it.heroes.size == 3 && it.rules.size == 2 }
         ?: Challenges.all.first { it.hero == null && it.heroes.size in 2..3 && it.rules.isNotEmpty() }
 
+    /** One whose goal counts a hero perk, so it starts with it: the longest chip there is. */
+    private val perky = Challenges.all.first { it.startPerk != null && it.chips().any { c -> c.length >= 20 } }
+
     private fun status(c: Challenge, progress: Int, cleared: Boolean, best: Int = 0) = ChallengeStatus(
-        id = c.id, name = c.name, tier = c.tier, goal = c.goalText(), hud = c.hudText(progress),
+        id = c.id, name = c.name, tier = c.tier, goal = c.goalText(c.heroFor(Hero.BULL)), hud = c.hudText(progress, c.heroFor(Hero.BULL)),
         fraction = (progress.toFloat() / c.target).coerceAtMost(1f), cleared = cleared, failed = false,
-        best = if (best > 0) c.hudText(best) else null,
+        best = if (best > 0) c.hudText(best, c.heroFor(Hero.BULL)) else null,
     )
 
     private val run = RunSummary(
@@ -169,6 +172,13 @@ class MenuShotsTest {
             }
             shot("$device-briefing-daily", 900, world()) {
                 BriefingScreen(today, Hero.BULL, log, insets, dailyNumber = Challenges.dailyNumber(day), onPickHero = {}, onPlay = {}, onBack = {})
+            }
+            shot("$device-briefing-perk", 900, world(perky.heroFor(Hero.BULL))) {
+                BriefingScreen(perky, Hero.BULL, log, insets, onPickHero = {}, onPlay = {}, onBack = {})
+            }
+            shot("$device-title-perk", 1800, world(perky.heroFor(Hero.BULL))) {
+                TitleScreen(s.copy(hero = perky.heroFor(Hero.BULL)), records, insets, {}, {}, {}, {}, {},
+                    daily = dailyCard(perky, day, log, perky.heroFor(Hero.BULL)), challengesCaption = caption)
             }
             shot("$device-pause-challenge", 700, world()) {
                 PauseScreen(s, "#0001", Hero.FOX, insets, {}, {}, {}, {}, challenge = status(open, open.target / 3, false, open.target / 2))

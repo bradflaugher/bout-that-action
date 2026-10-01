@@ -76,6 +76,21 @@ class ChallengeMenuTest {
     }
 
     @Test
+    fun goalsReadTheWayThePickedHeroPlaysThem() {
+        val bonks = Challenges.all.first { it.hero == null && it.goal.name == "BONKS" && it.allows(Hero.BULL) && it.allows(Hero.FOX) }
+        val day = Challenges.FIRST_DAY
+        assertTrue(dailyCard(bonks, day, ChallengeLog(), Hero.BULL).goal.startsWith("Stomp"))
+        assertTrue(dailyCard(bonks, day, ChallengeLog(), Hero.FOX).goal.startsWith("Bonk"))
+    }
+
+    @Test
+    fun aLongChipGoesAloneOnTheCard() {
+        assertEquals(listOf("STARTS WITH FLYING KICK"), chipsThatFit(listOf("STARTS WITH FLYING KICK", "FROM DEEP METRO")))
+        assertEquals(listOf("SILENT ONLY", "ONE HEART"), chipsThatFit(listOf("SILENT ONLY", "ONE HEART", "NO MONKEY")))
+        assertTrue(chipsThatFit(emptyList()).isEmpty())
+    }
+
+    @Test
     fun challengeBragsNameTheChallengeNotTheSeed() {
         val c = Challenges.byId(274)!!
         val st = ChallengeStatus(c.id, c.name, c.tier, c.goalText(), c.hudText(c.target), 1f, cleared = true, failed = false)

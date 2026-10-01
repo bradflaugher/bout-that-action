@@ -51,6 +51,8 @@ fun ChallengesScreen(
     onOpen: (Challenge) -> Unit,
     onBack: () -> Unit,
     initial: BoardFilter = BoardFilter(),
+    /** The player's hero, so goals read the way they'd play them (BULL stomps). */
+    pick: Hero = Hero.BULL,
 ) {
     var tier by rememberSaveable { mutableStateOf(initial.tier?.ordinal ?: -1) }
     var hero by rememberSaveable { mutableStateOf(initial.hero?.ordinal ?: -1) }
@@ -94,7 +96,7 @@ fun ChallengesScreen(
                             align = TextAlign.Center, modifier = w.padding(Space.l))
                     }
                 }
-                items(shown, key = { it.id }, contentType = { "row" }) { c -> ChallengeRow(c, log, w) { onOpen(c) } }
+                items(shown, key = { it.id }, contentType = { "row" }) { c -> ChallengeRow(c, log, w, filter.hero ?: pick) { onOpen(c) } }
             }
         }
     }

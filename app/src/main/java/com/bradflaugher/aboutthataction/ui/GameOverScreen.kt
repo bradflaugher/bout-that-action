@@ -74,6 +74,9 @@ fun GameOverScreen(
 ) {
     val zoneColor = Neon.zone(run.zone)
     val newBest = run.newBestFloor || run.newBestScore
+    // A cleared challenge is a win, however the run ended: the header celebrates instead.
+    val won = run.challenge?.cleared == true
+    val tint = if (won) Neon.gold else Neon.blood
     val clock = rememberClock()
     val flash = remember { Animatable(1f) }
     LaunchedEffect(Unit) { flash.animateTo(0f, tween(420, easing = LinearEasing)) }
@@ -82,15 +85,15 @@ fun GameOverScreen(
         Modifier
             .fillMaxSize()
             .drawBehind {
-                drawRect(Color(0xFF0C0208).copy(alpha = 0.9f))
+                drawRect((if (won) Color(0xFF070A06) else Color(0xFF0C0208)).copy(alpha = 0.9f))
                 drawRect(
                     Brush.radialGradient(
-                        listOf(Color.Transparent, Neon.blood.copy(alpha = 0.22f)),
+                        listOf(Color.Transparent, tint.copy(alpha = if (won) 0.12f else 0.22f)),
                         center = center, radius = size.maxDimension * 0.62f,
                     ),
                 )
                 // the hit flash
-                if (flash.value > 0f) drawRect(Neon.blood.copy(alpha = 0.45f * flash.value), blendMode = BlendMode.Plus)
+                if (flash.value > 0f) drawRect(tint.copy(alpha = 0.45f * flash.value), blendMode = BlendMode.Plus)
             }
             .scanlines(0.1f)
             .padding(insets),
@@ -105,7 +108,7 @@ fun GameOverScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Space.xs),
         ) {
-            MissionFailed()
+            MissionHeader(won)
             if (run.quip.isNotBlank()) {
                 NeonText("\u201C${run.quip}\u201D", size = Type.small, color = Neon.soft, glow = 0f, align = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().reveal(520, 6.dp))
@@ -211,13 +214,19 @@ private fun Highlights(items: List<Pair<String, String>>, heroColor: Color, modi
 
 /** "MISSION FAILED" slams down from oversized, channels split, then settles. */
 @Composable
-private fun MissionFailed() {
+private fun MissionHeader(won: Boolean) {
     val slam = progress(0, 380)
     val bar = progress(200, 420)
+    // Won: CASE CLOSED / MISSION ACCOMPLISHED in gold. Otherwise the red SIGNAL LOST / MISSION FAILED.
+    val kicker = if (won) "CASE CLOSED" else "SIGNAL LOST"
+    val headline = if (won) "MISSION ACCOMPLISHED" else "MISSION FAILED"
+    val accent = if (won) ClearedGreen else Neon.blood
+    val ink = if (won) Neon.gold else Color(0xFFFF4A5A)
+    val ghost = if (won) Neon.lava else Neon.blood
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.graphicsLayer { alpha = bar }, verticalAlignment = Alignment.CenterVertically) {
-            LiveDot(Neon.blood)
-            Kicker("SIGNAL LOST", Neon.blood, Modifier.padding(start = Space.xs))
+            LiveDot(accent)
+            Kicker(kicker, accent, Modifier.padding(start = Space.xs))
         }
         Box(
             Modifier
@@ -232,9 +241,9 @@ private fun MissionFailed() {
             contentAlignment = Alignment.Center,
         ) {
             val split = (1f - slam) * 14f + 2f
-            FitText("MISSION FAILED", 40.sp, Neon.cyan.copy(alpha = 0.5f), Modifier.graphicsLayer { translationX = -split }, glow = 0f)
-            FitText("MISSION FAILED", 40.sp, Neon.blood.copy(alpha = 0.6f), Modifier.graphicsLayer { translationX = split }, glow = 0f)
-            FitText("MISSION FAILED", 40.sp, Color(0xFFFF4A5A), glow = 1f)
+            FitText(headline, 40.sp, Neon.cyan.copy(alpha = 0.5f), Modifier.graphicsLayer { translationX = -split }, glow = 0f)
+            FitText(headline, 40.sp, ghost.copy(alpha = 0.6f), Modifier.graphicsLayer { translationX = split }, glow = 0f)
+            FitText(headline, 40.sp, ink, glow = 1f)
         }
         Box(
             Modifier
@@ -242,7 +251,7 @@ private fun MissionFailed() {
                 .fillMaxWidth(0.7f)
                 .height(2.dp)
                 .graphicsLayer { scaleX = bar }
-                .drawBehind { drawRect(Brush.horizontalGradient(listOf(Color.Transparent, Neon.blood, Color.Transparent))) },
+                .drawBehind { drawRect(Brush.horizontalGradient(listOf(Color.Transparent, if (won) Neon.gold else Neon.blood, Color.Transparent))) },
         )
     }
 }
