@@ -32,10 +32,10 @@ Every verb has exactly one gesture, and no gesture means two things:
 | Grenade button | Grenade |
 | Walk into a guard's back | Takedown |
 | Jump + tap | Swat out the ceiling lamp overhead |
-| Mode button | GUNS HOT ⇄ SILENT |
+| Mode button | GUNS HOT ⇄ SILENT (locked for the MONKEY: always GUNS HOT) |
 
 The gun is not a gesture any more. In **GUNS HOT** it fires itself (see
-"Auto-fire" below); in **SILENT** it never fires (the MONKEY's excepted). That frees the tap, the
+"Auto-fire" below); in **SILENT** it never fires. That frees the tap, the
 most reliable gesture on glass, for the thing every floor now asks of you:
 choosing a door.
 
@@ -194,7 +194,9 @@ fires at **threats**: a guard who hasn't noticed you is left alone
 unless he's facing you within 2.5 u (`AUTO_FIRE_POINT_BLANK`); one with his
 back to you, or asleep, is never shot, so even GUNS HOT keeps the choice of
 sneaking past or walking in for the takedown (drones and turrets are always
-fair game). Guards stepping out of a door get a quarter-second before the gun
+fair game). The MONKEY has no takedowns, so his gun (`Hero.backShots`) also
+takes any awake guard with his back turned, anywhere in range, without
+waiting for him to draw. Guards stepping out of a door get a quarter-second before the gun
 turns on them. Hidden (box, doorway, boxed in the car) the gun holds.
 
 **The gun answers a raised gun (`AUTO_FIRE_DRAW` = 0.3 s).** A ranged
@@ -208,12 +210,18 @@ faster than you draw. Without this the gun, which sees exactly as far as the
 guards do, dropped every guard the instant he noticed you, and on the gentler
 presets nobody ever fired.
 
-**SILENT.** The gun never fires (except the MONKEY's, at anyone who's onto
-him: he has no takedowns). Guards only notice what they see, see a
+**SILENT.** The gun never fires. Guards only notice what they see, see a
 little less far (6.5 u instead of 7.5, `SILENT_SIGHT_RANGE`) and take 35%
 longer to react (`SILENT_REACTION`). Every kill that isn't a shot or a blast
 (takedown, stomp, light, hazard) scores double. It's the riskier, richer way
 down.
+
+**Locked modes (`World.modeLocked`).** The MONKEY has no SILENT
+(`Hero.sneaks` = false): his run is always GUNS HOT, whatever mode was saved,
+and a run can also keep its starting mode (`RunConfig.lockMode`). The mode
+button then dims behind a padlock (the MONKEY's reads ALWAYS HOT); a tap on it
+rattles the lock and pops "OOK?" (the MONKEY) or "SILENT ONLY" / "GUNS HOT
+ONLY", and changes nothing, not even the saved mode.
 
 **Jump + tap on a light.** An airborne tap swats out the live lamp overhead
 (within 1.1 u sideways, `LIGHT_REACH`) by hand: no gun, no ammo, either mode.
