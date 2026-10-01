@@ -73,5 +73,15 @@ class SeedCodeTest {
         assertEquals(Difficulty(start = 5f, ramp = 4f, cap = 8f, hearts = 9, startFloor = 0), SeedCode.find("CURVE 9/9/99/42/7").curve)
         // A named difficulty next to a curve doesn't override it.
         assertNull(SeedCode.find("AGENT CURVE 0.15/1/4/3/0").preset)
+        // Numbers too big to parse are no curve at all, never a crash.
+        assertNull(SeedCode.find("CURVE 1/1/1/999999999999999999999/0").curve)
+        assertNull(SeedCode.find("CURVE 1/1/1/3/999999999999999999999").curve)
+    }
+
+    @Test
+    fun findReadsTheStartingMode() {
+        assertEquals(true, SeedCode.find("I hit B9 as FOX in SILENT on AGENT. Seed K7QM 2XAB.").silent)
+        assertEquals(false, SeedCode.find("I hit B9 as FOX in GUNS HOT on AGENT. Seed K7QM 2XAB.").silent)
+        assertNull(SeedCode.find("I hit B9 as MONKEY on AGENT. Seed K7QM 2XAB.").silent)
     }
 }

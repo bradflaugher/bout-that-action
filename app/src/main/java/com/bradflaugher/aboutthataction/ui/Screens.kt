@@ -74,6 +74,8 @@ data class RunSummary(
     val difficulty: String = "",
     /** A custom curve's numbers, so a friend's PASTE plays the very same run (null for a named one). */
     val curve: Difficulty? = null,
+    /** The mode the run started in (true SILENT, false GUNS HOT), or null for a hero with no choice. */
+    val startSilent: Boolean? = null,
     /** How the run did on its challenge, for a challenge run. */
     val challenge: ChallengeStatus? = null,
     /** Other challenges the run met on the side, in the order they cleared. */

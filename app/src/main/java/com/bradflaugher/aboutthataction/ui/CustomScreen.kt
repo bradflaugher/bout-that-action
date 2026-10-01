@@ -242,9 +242,10 @@ private fun SeedGroup(s: Settings, onChange: (Settings) -> Unit) {
                 } else {
                     val curve = shared.curve ?: shared.preset?.difficulty ?: s.custom
                     onChange(s.copy(preset = null, seedMode = SeedMode.CUSTOM, seedText = code,
-                        custom = curve, hero = shared.hero ?: s.hero))
+                        custom = curve, hero = shared.hero ?: s.hero, silent = shared.silent ?: s.silent))
                     note = listOfNotNull("Loaded ${SeedCode.pretty(code)}", shared.preset?.let(::presetLabel),
-                        shared.curve?.let { "their curve" }, shared.hero?.title)
+                        shared.curve?.let { "their curve" }, shared.hero?.title,
+                        shared.silent?.let { if (it) "SILENT" else "GUNS HOT" })
                         .joinToString(" · ") + "."
                 }
             }

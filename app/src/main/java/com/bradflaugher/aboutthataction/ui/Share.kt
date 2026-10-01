@@ -79,7 +79,13 @@ fun shareMessage(run: RunSummary): String {
         else -> "on ${run.difficulty}"
     }
     val dare = listOf("Beat that.", "Your move.", "Bring a box.", "Mind the lamps.")[(run.floor and 0x7fffffff) % 4]
-    return "I hit ${FloorLabel.of(run.floor)} as ${run.hero.title} $on in 'Bout That Action. Seed ${run.seedLabel}. $dare"
+    // The starting mode too, for the heroes who have a choice (MONKEY is always GUNS HOT).
+    val mode = when (run.startSilent) {
+        true -> " in SILENT"
+        false -> " in GUNS HOT"
+        null -> ""
+    }
+    return "I hit ${FloorLabel.of(run.floor)} as ${run.hero.title}$mode $on in 'Bout That Action. Seed ${run.seedLabel}. $dare"
 }
 
 /**

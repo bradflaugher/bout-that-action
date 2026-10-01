@@ -335,7 +335,8 @@ building, open **Custom run**, pick **SET SEED** and type the code, or tap
 **PASTE** with their message on the clipboard: it picks up the seed, and the
 difficulty and hero too when the message names them. A custom curve travels
 whole in the brag (`CURVE 0.8/1.7/5/2/50`: starting heat, ramp, heat cap,
-hearts, start floor), so PASTE plays the very same run. A set seed only applies
+hearts, start floor), and so does the mode you started in (SILENT or GUNS
+HOT), so PASTE plays the very same run. A set seed only applies
 to custom runs; the presets always get a fresh building.
 
 ## Sound

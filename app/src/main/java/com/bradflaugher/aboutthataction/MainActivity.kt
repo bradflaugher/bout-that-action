@@ -599,6 +599,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
             hero = world.hero,
             difficulty = runDifficulty,
             curve = world.difficulty.takeIf { runDifficulty == "CUSTOM" && world.challenge == null },
+            startSilent = world.config.silent.takeIf { world.hero.sneaks && world.challenge == null },
             challenge = status,
             alsoCleared = world.sideCleared.map { SideClear(it.id, it.name, it.tier) },
         )

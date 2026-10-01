@@ -52,7 +52,14 @@ object SeedCode {
     fun labelOf(seed: Long): String = encode(seed)?.let(::pretty) ?: seed.toString()
 
     /** What a share message carries: a code, and maybe a difficulty (a preset or a whole custom curve) and a hero. */
-    data class Shared(val code: String?, val preset: Difficulty.Preset?, val hero: Hero?, val curve: Difficulty? = null)
+    data class Shared(
+        val code: String?,
+        val preset: Difficulty.Preset?,
+        val hero: Hero?,
+        val curve: Difficulty? = null,
+        /** The starting mode, when the message names one: true for SILENT, false for GUNS HOT. */
+        val silent: Boolean? = null,
+    )
 
     /**
      * A custom curve as a tag a share message can carry and [find] can read back:
@@ -67,17 +74,22 @@ object SeedCode {
 
     private val CURVE = Regex("CURVE\\s*(\\d+(?:\\.\\d+)?)/(\\d+(?:\\.\\d+)?)/(\\d+(?:\\.\\d+)?)/(\\d+)/(\\d+)")
 
-    /** A [curveTag] read back, clamped to what the CUSTOM RUN steppers allow; null if there's none. */
+    /**
+     * A [curveTag] read back, clamped to what the CUSTOM RUN steppers allow; null if there's none.
+     * Pasted text is anyone's: a number too long to parse means no curve, never a crash.
+     */
     private fun curveIn(up: String): Difficulty? {
         val m = CURVE.find(up) ?: return null
         val (start, ramp, cap, hearts, floor) = m.destructured
         val starts = Zone.entries.filter { it != Zone.ROOFTOP }.map { it.startFloor }
+        val h = hearts.toIntOrNull() ?: return null
+        val f = floor.toIntOrNull() ?: return null
         return Difficulty(
-            start = start.toFloat().coerceIn(0f, 5f),
-            ramp = ramp.toFloat().coerceIn(0f, 4f),
-            cap = cap.toFloat().coerceIn(0.5f, 8f),
-            hearts = hearts.toInt().coerceIn(1, 9),
-            startFloor = floor.toInt().takeIf { it == 0 || it in starts } ?: 0,
+            start = (start.toFloatOrNull() ?: return null).coerceIn(0f, 5f),
+            ramp = (ramp.toFloatOrNull() ?: return null).coerceIn(0f, 4f),
+            cap = (cap.toFloatOrNull() ?: return null).coerceIn(0.5f, 8f),
+            hearts = h.coerceIn(1, 9),
+            startFloor = f.takeIf { it == 0 || it in starts } ?: 0,
         )
     }
 
@@ -110,6 +122,11 @@ object SeedCode {
         val curve = curveIn(rest)
         val preset = if (curve != null) null else PRESETS.firstOrNull { it.first.containsMatchIn(rest) }?.second
         val hero = Hero.entries.firstOrNull { word(it.name).containsMatchIn(rest) }
-        return Shared(code, preset, hero, curve)
+        val silent = when {
+            word("SILENT").containsMatchIn(rest) -> true
+            Regex("(?<![A-Z])GUNS\\W*HOT(?![A-Z])").containsMatchIn(rest) -> false
+            else -> null
+        }
+        return Shared(code, preset, hero, curve, silent)
     }
 }

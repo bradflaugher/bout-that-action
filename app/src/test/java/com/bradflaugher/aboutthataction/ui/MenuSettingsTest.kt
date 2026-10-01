@@ -67,6 +67,11 @@ class MenuSettingsTest {
         val custom = shareMessage(run.copy(difficulty = "CUSTOM", curve = mine))
         assertTrue(custom, custom.contains("on a custom curve (CURVE 0.8/1.7/5/2/50)"))
         assertEquals(SeedCode.Shared("K7QM2XAB", null, Hero.MONKEY, mine), SeedCode.find(custom))
+        // The starting mode travels too, for the heroes who have a choice.
+        val fox = run.copy(hero = Hero.FOX, startSilent = true)
+        assertTrue(shareMessage(fox), shareMessage(fox).startsWith("I hit B42 as FOX in SILENT on AGENT"))
+        assertEquals(SeedCode.Shared("K7QM2XAB", Difficulty.Preset.AGENT, Hero.FOX, silent = true), SeedCode.find(shareMessage(fox)))
+        assertEquals(false, SeedCode.find(shareMessage(fox.copy(startSilent = false))).silent)
     }
 
     @Test
