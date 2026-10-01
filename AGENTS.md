@@ -63,6 +63,8 @@ the JVM.
   world, HUD and overlays through it. `HeroArt` paints the player on one shared
   rig, dressed by a `HeroKit` per hero (`HeroBull`, `HeroFox`, `HeroHawk`,
   `HeroMonkey`); `HeroPortrait` draws that same figure for the hero picker.
+  `Graffiti` is spray paint (strokes, tags, drips): MONKEY's vandalism on the
+  rooftop billboard.
 - `audio/` — procedural synth, sequencer, songs per zone, SFX; `SoundEngine`
   is the API. `AudioOutput.kt` streams it to an `AudioTrack`.
 - `AndroidGfx.kt` — `Gfx` on `android.graphics.Canvas`.

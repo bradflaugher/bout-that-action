@@ -14,8 +14,14 @@ import kotlin.math.sqrt
 data class RunConfig(
     val seed: Long,
     val difficulty: Difficulty = Difficulty(),
-    /** Start in SILENT mode (never fire) instead of GUNS HOT (auto-fire). Toggled mid-run by [Command.TOGGLE_MODE]. */
+    /**
+     * Start in SILENT mode (never fire) instead of GUNS HOT (auto-fire). Toggled mid-run by
+     * [Command.TOGGLE_MODE]. Ignored for a hero who never sneaks ([Hero.sneaks]): MONKEY is
+     * always GUNS HOT.
+     */
     val silent: Boolean = false,
+    /** Keep the starting mode for the whole run: [Command.TOGGLE_MODE] does nothing ([World.modeLocked]). */
+    val lockMode: Boolean = false,
     /**
      * Coach tips: on a run from the roof, the first few floors pop a one-line hint the first
      * time each verb would help ("SWIPE DOWN: HIDE"). Text only; never changes the run.
@@ -69,7 +75,14 @@ class World(val config: RunConfig) {
      * SILENT: the player never fires (takedowns, stomps, the box, doorways, grenades and
      * lights only) and silent kills pay a bonus. Otherwise GUNS HOT: auto-fire at threats.
      */
-    var silent = config.silent
+    var silent = config.silent && config.hero.sneaks
+        private set
+
+    /** The mode can't change this run: a hero with no SILENT (MONKEY), or a locked run ([RunConfig.lockMode]). */
+    val modeLocked: Boolean get() = !hero.sneaks || config.lockMode
+
+    /** [time] of the last poke at a locked mode button (the HUD gives it a shake), or -9. */
+    var lockPokeAt = -9f
         private set
 
     var phase = Phase.PLAYING
@@ -606,13 +619,27 @@ class World(val config: RunConfig) {
         fx.text(tip.text, p.x, Geo.groundY(p.floor) - 2.9f, TextStyle.WARN, 1.8f)
     }
 
-    /** GUNS HOT ⇄ SILENT. */
+    /**
+     * GUNS HOT ⇄ SILENT. A locked mode ([modeLocked]) stays put: MONKEY just looks puzzled,
+     * anyone else gets a reminder. No [GameEvent.ModeToggled] then, so the saved mode stays.
+     */
     fun toggleMode() {
+        val p = player
+        val y = Geo.groundY(p.floorF) - p.z - 2.3f
+        if (modeLocked) {
+            if (p.state == PlayerState.DEAD) return
+            lockPokeAt = time
+            if (!hero.sneaks) {
+                fx.text(Popup.OOK, p.x, y, TextStyle.WARN, 0.9f)
+            } else {
+                fx.text(if (silent) Popup.SILENT_ONLY else Popup.HOT_ONLY, p.x, y, TextStyle.WARN, 0.8f)
+            }
+            return
+        }
         silent = !silent
         events += GameEvent.ModeToggled(silent)
-        val p = player
         if (p.state != PlayerState.DEAD) {
-            fx.text(if (silent) "SILENT" else "GUNS HOT", p.x, Geo.groundY(p.floorF) - p.z - 2.3f, TextStyle.WARN, 0.8f)
+            fx.text(if (silent) "SILENT" else "GUNS HOT", p.x, y, TextStyle.WARN, 0.8f)
         }
     }
 
@@ -1624,32 +1651,29 @@ class World(val config: RunConfig) {
     /** The enemy auto-aim would shoot right now (the renderer aims the gun pose at it). */
     fun aimTarget(): Enemy? = if (holstered) null else pickTarget(11f, ::fireable)
 
-    /** SHUSH: MONKEY's shots are quiet (no alarm, and quiet kills in SILENT). */
+    /** SHUSH: MONKEY's shots are quiet (nobody hears them) and pick off guards unawares. */
     val shush: Boolean get() = stacks(Perk.SHUSH) > 0
 
-    /**
-     * The gun stays put away: SILENT, for everyone who can take a guard down by hand. MONKEY
-     * can't, so in SILENT his gun still answers anyone onto him (loud, unless it's SHUSHed).
-     */
-    val holstered: Boolean get() = silent && melee
+    /** The gun stays put away: SILENT never fires. */
+    val holstered: Boolean get() = silent
 
     /**
      * GUNS HOT fires only at threats: anyone who has noticed you, drones and turrets, and an
      * unaware guard facing you from point-blank (he's about to). A guard with his back to you,
-     * or asleep, is yours to sneak up on.
+     * or asleep, is yours to sneak up on; except for MONKEY ([Hero.backShots]), who can't, so
+     * his gun takes a turned back from anywhere in range.
      */
     private fun fireable(e: Enemy): Boolean {
         // SHUSH: a quiet gun picks off anyone, noticed or not (sleepers too).
         if (!melee && shush) return true
-        // MONKEY in SILENT: only whoever is onto him.
-        if (silent) return e.state == EnemyState.ALERT || e.state == EnemyState.AIM || e.state == EnemyState.WINDUP
         if (e.kind == EnemyKind.TURRET || e.kind == EnemyKind.DRONE) return true
         if (e.asleep) return false
         if (threatTier(e) <= 1) return true
+        val towardYou = e.facing == (if (player.x >= e.x) 1 else -1)
+        if (hero.backShots && !towardYou) return true
         // Seeing stars (a bonk, a daze) he's no threat yet, and an unaware guard FOX or STIFF ARM
         // can take face to face is theirs to finish by hand.
         if (dazed(e) || takedownWorks(e)) return false
-        val towardYou = e.facing == (if (player.x >= e.x) 1 else -1)
         return towardYou && abs(e.x - player.x) <= AUTO_FIRE_POINT_BLANK
     }
 
@@ -1719,8 +1743,11 @@ class World(val config: RunConfig) {
         val melee = target.kind == EnemyKind.NINJA || target.kind == EnemyKind.DEMON && abs(target.x - p.x) <= 3f
         // Drones and turrets are always fair game: drawn on from the moment they're in range.
         val automated = target.kind == EnemyKind.DRONE || target.kind == EnemyKind.TURRET
-        // SHUSH: a quiet gun doesn't wait for the other fellow to draw.
-        val gunUp = automated || !melee && shush || target.state == EnemyState.AIM || target.fireCooldown > 0f
+        // SHUSH: a quiet gun doesn't wait for the other fellow to draw. Nor does MONKEY's on a
+        // turned back: there's no duel to be fair about.
+        val backTurned = target.facing != (if (p.x >= target.x) 1 else -1)
+        val gunUp = automated || !melee && shush || hero.backShots && backTurned ||
+            target.state == EnemyState.AIM || target.fireCooldown > 0f
         if (target !== drawOn || !gunUp) {
             drawOn = target
             drawTime = 0f
@@ -2034,7 +2061,7 @@ class World(val config: RunConfig) {
         }
         var points = (e.kind.score + bonus) * mult
         // SILENT pays: every kill without a gunshot is worth double.
-        val quiet = silent && (quietBlast || (method == KillMethod.SHOT && shush) || (method != KillMethod.SHOT && method != KillMethod.EXPLOSION))
+        val quiet = silent && (quietBlast || (method != KillMethod.SHOT && method != KillMethod.EXPLOSION))
         if (quiet) {
             points *= 2
             silentKills++

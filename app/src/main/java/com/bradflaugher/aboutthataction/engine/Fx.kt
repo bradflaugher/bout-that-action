@@ -49,6 +49,11 @@ object Popup {
     const val FLATTENED = "FLATTENED"
     /** MONKEY: a high shot that sailed right over his head. */
     const val TOO_SHORT = "TOO SHORT!"
+    /** MONKEY poking the mode button: he doesn't do SILENT. */
+    const val OOK = "OOK?"
+    /** The mode button on a run that keeps its mode ([RunConfig.lockMode]). */
+    const val SILENT_ONLY = "SILENT ONLY"
+    const val HOT_ONLY = "GUNS HOT ONLY"
     /** HAWK's SABOTAGE: a drone or turret unplugged by hand. */
     const val UNPLUGGED = "UNPLUGGED"
     /** FOX's FLYING KICK: a guard kicked flat from the air. */

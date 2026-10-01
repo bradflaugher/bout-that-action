@@ -4,6 +4,7 @@ import com.bradflaugher.aboutthataction.engine.DoorKind
 import com.bradflaugher.aboutthataction.engine.HallState
 import com.bradflaugher.aboutthataction.engine.Geo
 import com.bradflaugher.aboutthataction.engine.HazardKind
+import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.PlayerState
 import com.bradflaugher.aboutthataction.engine.Shaft
 import com.bradflaugher.aboutthataction.engine.World
@@ -26,6 +27,7 @@ internal class Building(private val f: Frame) {
     private val poly get() = f.poly
     private val walls = EnvWalls(f)
     private val rooms = EnvRooms(f, walls)
+    private val graffiti = Graffiti(f)
     private val cutBuf = FloatArray(16)
 
     companion object {
@@ -1223,6 +1225,7 @@ internal class Building(private val f: Frame) {
     /**
      * The tutorial, as a rooftop billboard: the four gestures, then the two HUD buttons drawn
      * the way the HUD draws them (mode, then grenade), and the takedown on the ticker below.
+     * MONKEY's has been vandalized ([Graffiti.monkeyBoard]).
      */
     private fun billboard(pal: Palette, gy: Float) {
         val x0 = 2.75f
@@ -1288,6 +1291,11 @@ internal class Building(private val f: Frame) {
         g.fillRoundRect(x0 + 0.1f, ty0, x1 - 0.1f, ty0 + 0.42f, 0.06f, 0xFF120308.toInt())
         g.strokeRoundRect(x0 + 0.1f, ty0, x1 - 0.1f, ty0 + 0.42f, 0.06f, 0.02f, 0x80FF3048.toInt())
         f.worldText("SNEAK UP BEHIND = TAKEDOWN", (x0 + x1) / 2f, ty0 + 0.3f, 0.27f, 0xFFFF4A5E.toInt())
+        // MONKEY has no SILENT and no takedowns, and he got up here with a can of paint.
+        if (f.w.hero == Hero.MONKEY) {
+            val hotL = hotX - g.textWidth("GUNS HOT", bs * f.s, Gfx.Font.TITLE) / f.s
+            graffiti.monkeyBoard(x1, y0, hotL, slashX - 0.08f, actX, my, x0 + 0.1f, x1 - 0.1f, ty0, ty0 + 0.42f)
+        }
     }
 
     /** A billboard row's action, right-aligned with a leader line back to its gesture, shrunk to fit. */

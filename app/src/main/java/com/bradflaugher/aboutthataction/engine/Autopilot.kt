@@ -7,7 +7,8 @@ import kotlin.math.abs
  * to a hallway with a ride down, calls and rides elevators, takes stash, jumps low shots,
  * boxes high ones and times hazards. In GUNS HOT it lets the auto-fire work; in SILENT it
  * sneaks up behind guards, waits out the ones looking its way, stomps drones and grenades
- * turrets. MONKEY, who can't take anyone down, lets his gun do it in both modes. Human-ish on purpose: it notices bullets ~220 ms late and misses one in [missOneIn].
+ * turrets. MONKEY, who can't take anyone down and is always GUNS HOT, lets his gun do it. It
+ * never touches the mode button. Human-ish on purpose: it notices bullets ~220 ms late and misses one in [missOneIn].
  *
  * Plays the attract-mode demo behind the title screen, and the balance tests.
  */
@@ -126,7 +127,7 @@ class Autopilot(seed: Long, private val missOneIn: Int = 3) {
         }
 
         if (!w.hero.melee) {
-            // MONKEY: no takedowns, so it's all the gun, in either mode. Hold still while it
+            // MONKEY: no takedowns and no SILENT, so it's all the gun. Hold still while it
             // works; walk into anyone else (he notices, and then the gun has him).
             val target = w.aimTarget()
             if (target != null && abs(target.x - p.x) < World.AUTO_FIRE_RANGE && holdTime < 4f) {

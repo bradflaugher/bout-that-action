@@ -9,7 +9,8 @@ BUILT FOR THUMBS
 
 TWO WAYS TO PLAY
 • GUNS HOT: you auto-fire at anything in range.
-• SILENT: you never fire (well, the monkey does), guards only notice what they see, and quiet kills pay double.
+• SILENT: you never fire, guards only notice what they see, and quiet kills pay double.
+• Except the monkey. He's always guns hot. He spray-painted the tutorial billboard to make sure you know.
 
 FOUR HEROES
 Bull the bruiser, Fox the high-kicking street brawler, Hawk the parcel courier who lives in a box and Monkey the circus runaway with a very big gun. Each has their own trait, three perks of their own and their own take on the music.

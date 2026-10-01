@@ -153,6 +153,24 @@ class MechanicsTest {
         w.step(dt)
         assertFalse(w.silent)
         assertTrue(w.events.contains(GameEvent.ModeToggled(false)))
+        assertFalse(w.modeLocked)
+    }
+
+    @Test
+    fun aLockedModeStaysPutEitherWay() {
+        for (silent in listOf(true, false)) {
+            val w = World(RunConfig(11L, Difficulty(startFloor = 3), silent = silent, lockMode = true, hero = Hero.FOX))
+            run(w, 1.5f)
+            w.events.clear()
+            assertTrue(w.modeLocked)
+            assertEquals(silent, w.silent)
+            w.commands += Command.TOGGLE_MODE
+            w.step(dt)
+            assertEquals("still $silent", silent, w.silent)
+            assertFalse("no flip, so the saved mode stays", w.events.any { it is GameEvent.ModeToggled })
+            assertTrue(w.fx.texts.any { it.text == if (silent) Popup.SILENT_ONLY else Popup.HOT_ONLY })
+            assertEquals(w.time, w.lockPokeAt, 1.5f * dt)
+        }
     }
 
     @Test
