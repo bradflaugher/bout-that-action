@@ -20,6 +20,7 @@ concurrency:
 
 jobs:
   build:
+    name: build
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
@@ -126,12 +127,15 @@ jobs:
           if-no-files-found: error
 
   release:
+    name: release
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.build.outputs.signed == 'true'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: write
+      contents: write # publish the new GitHub release, delete the previous one
+      id-token: write # sign the build provenance attestation (OIDC)
+      attestations: write # store the attestation
 
     steps:
       - name: Download signed APK and bundle
@@ -139,6 +143,15 @@ jobs:
         with:
           name: bout-that-action-${{ needs.build.outputs.version }}
           path: release-apk
+
+      # Signed build provenance for the APK and bundle: anyone can check a
+      # download came from this repository's CI with `gh attestation verify`.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            release-apk/bout-that-action.apk
+            release-apk/bout-that-action.aab
 
       # Exactly one release lives at a time: publish the new date-labeled
       # release, then delete every other release and its tag.

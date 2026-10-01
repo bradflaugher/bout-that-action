@@ -20,6 +20,13 @@ download with:
 sha256sum -c bout-that-action.apk.sha256
 ```
 
+Each APK and bundle also carries a signed build provenance attestation,
+which proves it was built by this repository's CI from a specific commit:
+
+```sh
+gh attestation verify bout-that-action.apk --repo bradflaugher/bout-that-action
+```
+
 ## Design notes
 
 - The only permission is `VIBRATE`. There is no `INTERNET` permission, so
