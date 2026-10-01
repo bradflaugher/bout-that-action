@@ -345,7 +345,9 @@ internal class Hud(private val f: Frame) {
             silent -> "SILENT"
             else -> "GUNS HOT"
         }
-        HudType.tracked(g, label, cx, cy + r + 2.6f * u, 2.1f * u, Col.alpha(col, if (locked) 0.85f else 1f), Gfx.Font.HUD, Gfx.Align.CENTER, 0.3f * u)
+        // ALWAYS HOT is the longest label: tracked a little tighter so it keeps clear of the edge.
+        val track = if (label.length > 8) 0.18f * u else 0.3f * u
+        HudType.tracked(g, label, cx, cy + r + 2.6f * u, 2.1f * u, Col.alpha(col, if (locked) 0.85f else 1f), Gfx.Font.HUD, Gfx.Align.CENTER, track)
     }
 
     /**

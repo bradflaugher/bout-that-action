@@ -53,6 +53,7 @@ class ScreenshotTest {
 
     private val scenes = listOf(
         Scene("rooftop", 1.3f, ::rooftop),
+        Scene("rooftop-monkey", 1.3f, ::rooftopMonkey),
         Scene("tower", 2.0f, ::tower),
         Scene("box", 3.1f, ::box),
         Scene("stash", 4.2f, ::stash),
@@ -393,6 +394,13 @@ class ScreenshotTest {
 
     private fun rooftop(): World {
         val w = newWorld(7)
+        w.run(0.36f)
+        return w
+    }
+
+    /** MONKEY's roof: he got to the billboard first (and the mode button is locked GUNS HOT). */
+    private fun rooftopMonkey(): World {
+        val w = newWorld(7, hero = Hero.MONKEY)
         w.run(0.36f)
         return w
     }
