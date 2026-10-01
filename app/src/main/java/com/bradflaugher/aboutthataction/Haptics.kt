@@ -33,6 +33,10 @@ class Haptics(context: Context) {
     private val takedown = compose(VibrationEffect.EFFECT_HEAVY_CLICK, Part(QUICK_RISE, 0.6f), Part(CLICK, 1f, 40))
     private val boom = VibrationEffect.createWaveform(longArrayOf(0, 60, 30, 90), intArrayOf(0, 255, 0, 160), -1)
     private val death = VibrationEffect.createWaveform(longArrayOf(0, 120, 60, 300), intArrayOf(0, 255, 0, 200), -1)
+    /** CHALLENGE CLEARED: two quick taps and a long swell. */
+    private val cleared = compose(
+        VibrationEffect.EFFECT_HEAVY_CLICK, Part(CLICK, 0.7f), Part(CLICK, 0.7f, 110), Part(SLOW_RISE, 0.9f, 60), Part(THUD, 1f, 20),
+    )
     private val perk = compose(VibrationEffect.EFFECT_HEAVY_CLICK, Part(SLOW_RISE, 0.7f), Part(CLICK, 0.9f))
 
     private class Part(val primitive: Int, val scale: Float, val delayMs: Int = 0)
@@ -81,6 +85,8 @@ class Haptics(context: Context) {
             is GameEvent.FloorEventStarted -> play(click)
             GameEvent.BoxKicked, GameEvent.FoundHiding -> play(thud)
             GameEvent.StashLocked -> light(empty)
+            is GameEvent.ChallengeCleared -> play(cleared)
+            is GameEvent.ChallengeFailed -> play(thud)
             else -> Unit
         }
     }

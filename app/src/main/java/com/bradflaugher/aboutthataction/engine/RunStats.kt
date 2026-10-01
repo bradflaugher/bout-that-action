@@ -40,6 +40,8 @@ class RunStats {
     var lightKills = 0
     var hazardKills = 0
     var shotKills = 0
+    /** Shot down while packing a pickup gun (SHOTGUN, MINIGUN). */
+    var gunKills = 0
     var blastKills = 0
     var boxHides = 0
     var doorHides = 0

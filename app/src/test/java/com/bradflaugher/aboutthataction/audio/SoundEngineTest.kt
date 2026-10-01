@@ -137,6 +137,23 @@ class SoundEngineTest {
     }
 
     @Test
+    fun challengeStingersSoundOff() {
+        val c = com.bradflaugher.aboutthataction.engine.Challenges.all.first()
+        for (ev in listOf(GameEvent.ChallengeCleared(c), GameEvent.ChallengeFailed(c))) {
+            val e = SoundEngine()
+            e.setMusicVolume(0f)
+            e.trigger(ev)
+            val out = render(e, 1.6f)
+            assertSane(out, ev.toString())
+            val sr = AudioTestUtil.SR
+            // Both carry on past the first hit: the fanfare's chord, the trombone's last waaah.
+            val tail = rms(out.copyOfRange(sr * 2 * 50 / 100, sr * 2 * 100 / 100))
+            println("%s tail rms %.4f".format(ev::class.simpleName, tail))
+            assertTrue("$ev should ring on ($tail)", tail > 0.01)
+        }
+    }
+
+    @Test
     fun beingSpottedDrivesTheMusicHarder() {
         fun take(phase: com.bradflaugher.aboutthataction.engine.AlertPhase): Double {
             val e = SoundEngine()

@@ -23,6 +23,13 @@ data class RunConfig(
     val coach: Boolean = true,
     /** Who's playing: a trait, three hero-only perks, a look and a soundtrack. */
     val hero: Hero = Hero.BULL,
+    /**
+     * The challenge this run is for, if any: [World] applies its setup (preset, start floor,
+     * ONE HEART) and tracks its goal. Build the whole config with [Challenge.runConfig].
+     */
+    val challenge: Challenge? = null,
+    /** GUNS HOT / SILENT can't be switched this run ([Command.TOGGLE_MODE] does nothing). */
+    val lockMode: Boolean = false,
 )
 
 enum class Phase { PLAYING, PERK_CHOICE, DYING, OVER }
@@ -46,7 +53,8 @@ enum class Flash { NONE, HURT, WHITE, GOLD }
  */
 class World(val config: RunConfig) {
     val seed = config.seed
-    val difficulty = config.difficulty
+    /** A challenge brings its own curve and start floor. */
+    val difficulty = config.challenge?.difficulty ?: config.difficulty
     val hero = config.hero
     private val rng = Rng(seed xor 0x5EED5EEDL)
 
@@ -69,8 +77,17 @@ class World(val config: RunConfig) {
      * SILENT: the player never fires (takedowns, stomps, the box, doorways, grenades and
      * lights only) and silent kills pay a bonus. Otherwise GUNS HOT: auto-fire at threats.
      */
-    var silent = config.silent
+    var silent = config.challenge?.let { it.silentOnly || (config.silent && !it.gunsHotOnly) } ?: config.silent
         private set
+
+    /**
+     * Is GUNS HOT / SILENT locked for this run? [Challenge.runConfig] sets [RunConfig.lockMode]
+     * for SILENT ONLY and GUNS HOT ONLY. (The lead merges MONKEY's always-hot in here too.)
+     */
+    val modeLocked: Boolean get() = config.lockMode
+
+    /** Where the run stands on its challenge, or null on an endless run. */
+    val challenge: ChallengeRun? = config.challenge?.let { ChallengeRun(it) }
 
     var phase = Phase.PLAYING
         private set
@@ -201,7 +218,8 @@ class World(val config: RunConfig) {
     fun stacks(perk: Perk): Int = perks[perk] ?: 0
 
     init {
-        player.maxHp = difficulty.hearts + hero.extraHearts
+        // ONE HEART means one, whoever you are.
+        player.maxHp = if (config.challenge?.oneHeart == true) 1 else difficulty.hearts + hero.extraHearts
         player.hp = player.maxHp
         player.magSize = magSize
         player.ammo = magSize
@@ -286,6 +304,7 @@ class World(val config: RunConfig) {
 
         camY += (targetCamY() - camY) * min(1f, dt * 7f)
         ensureFloors()
+        challenge?.update(this)?.let { onChallenge(it) }
 
         if (phase == Phase.DYING) {
             dyingTime += dt
@@ -606,8 +625,18 @@ class World(val config: RunConfig) {
         fx.text(tip.text, p.x, Geo.groundY(p.floor) - 2.9f, TextStyle.WARN, 1.8f)
     }
 
-    /** GUNS HOT ⇄ SILENT. */
+    /** A challenge just cleared (it doesn't end the run: keep going for score) or failed. */
+    private fun onChallenge(e: GameEvent) {
+        events += e
+        if (e is GameEvent.ChallengeCleared) {
+            flash = Flash.GOLD
+            flashAmount = 0.6f
+        }
+    }
+
+    /** GUNS HOT ⇄ SILENT, unless the mode is locked this run. */
     fun toggleMode() {
+        if (modeLocked) return
         silent = !silent
         events += GameEvent.ModeToggled(silent)
         val p = player
@@ -2017,7 +2046,10 @@ class World(val config: RunConfig) {
         comboTimer = COMBO_WINDOW
         stats.bestCombo = max(stats.bestCombo, combo)
         when (method) {
-            KillMethod.SHOT -> stats.shotKills++
+            KillMethod.SHOT -> {
+                stats.shotKills++
+                if (player.weapon != null) stats.gunKills++
+            }
             KillMethod.STOMP -> stats.stomps++
             KillMethod.LIGHT -> stats.lightKills++
             KillMethod.HAZARD -> stats.hazardKills++
