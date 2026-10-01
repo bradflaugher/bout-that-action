@@ -83,6 +83,7 @@ class ScreenshotTest {
         Scene("challenge", 2.2f, ::challengeHud),
         Scene("cleared", 3.0f, ::challengeCleared),
         Scene("busted", 3.2f, ::challengeBusted),
+        Scene("sideclear", 2.0f, ::sideClear),
     )
 
     @Test
@@ -966,6 +967,36 @@ class ScreenshotTest {
         run.progressAt = w.time - 0.1f
         w.visit(0, 1)
         w.ambient(EnemyKind.AGENT, EnemyKind.HEAVY)
+        return w
+    }
+
+    /** An endless run mid-fight, for the side-clear toasts. */
+    private fun sideClearWorld(): World {
+        val f = 9
+        val w = newWorld(seedWithHalls(f, calmSeed(f, 2100), 3), f)
+        w.run(1.6f)
+        w.settle(X(3.0f), 2.2f)
+        w.perks[Perk.RAPID_FIRE] = 1
+        val p = w.player
+        p.x = X(3.0f)
+        p.facing = 1
+        p.state = PlayerState.NORMAL
+        p.ammo = 5
+        val gy = Geo.groundY(f)
+        val ko = w.enemy(EnemyKind.AGENT, X(4.3f), 1, EnemyState.DEAD, 0.5f)
+        ko.hurtFlash = 0f
+        w.popup("TAKEDOWN", X(4.3f), gy - 2.4f, TextStyle.TAKEDOWN, 1.2f, 0.5f)
+        w.enemy(EnemyKind.AGENT, X(8.6f), -1, EnemyState.PATROL, 0.4f).vx = -0.7f
+        w.visit(0, 1)
+        w.ambient(EnemyKind.AGENT, EnemyKind.HEAVY)
+        return w
+    }
+
+    /** A challenge ticked off on the side: the small gold plate under the HUD, a beat in. */
+    private fun sideClear(): World {
+        val w = sideClearWorld()
+        val c = Challenges.all.filter { it.goal == Goal.TAKEDOWNS }.maxBy { it.name.length }
+        w.side.record(c, w.time - 0.7f)
         return w
     }
 

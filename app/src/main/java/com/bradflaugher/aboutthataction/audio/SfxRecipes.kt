@@ -99,6 +99,15 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
             GameEvent.StashLocked -> emptyClick()
             is GameEvent.ChallengeCleared -> challengeCleared()
             is GameEvent.ChallengeFailed -> challengeFailed()
+            is GameEvent.SideCleared -> sideCleared()
+        }
+    }
+
+    /** Another challenge ticked off on the side: a soft two-note chime, a polite tap on the shoulder. */
+    private fun sideCleared() {
+        for ((k, f) in floatArrayOf(1318.5f, 1975.5f).withIndex()) voice {
+            wave = Wave.TRIANGLE; f0 = f; f1 = f; attack = 0.003f; decay = 0.22f + k * 0.12f
+            gain = 0.09f; pan = if (k == 0) -0.15f else 0.15f; reverb = 0.35f; delay = k * 0.07f; priority = 1.5f
         }
     }
 

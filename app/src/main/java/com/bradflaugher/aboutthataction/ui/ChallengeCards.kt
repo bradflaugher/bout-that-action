@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -233,6 +235,24 @@ fun dailyCard(c: Challenge, epochDay: Long, log: ChallengeLog, pick: Hero = Hero
     stub = "DAILY",
 )
 
+/**
+ * Today on the device's own calendar (days since 1970-01-01), for the daily, as Compose state:
+ * [refresh] it on resume and on every menu change and the daily follows the date across
+ * midnight or a long nap in the background. [clock] is swappable for tests.
+ */
+class DayClock(private val clock: () -> Long = { LocalDate.now().toEpochDay() }) {
+    var day by mutableLongStateOf(clock())
+        private set
+
+    /** Reads the date again; true if it moved. */
+    fun refresh(): Boolean {
+        val now = clock()
+        if (now == day) return false
+        day = now
+        return true
+    }
+}
+
 /** Today's challenge for this player: the same for everyone who's cleared the same ones before today. */
 fun todaysChallenge(epochDay: Long, log: ChallengeLog): Challenge =
     Challenges.daily(epochDay) { id -> (log.clearedDay(id) ?: Long.MAX_VALUE) < epochDay }
@@ -415,3 +435,54 @@ fun ChallengeRow(c: Challenge, log: ChallengeLog, modifier: Modifier = Modifier,
         }
     }
 }
+
+/**
+ * The game over's ALSO CLEARED: the other challenges this run met on the side, up to three by
+ * name and "+N MORE" after. Tapping it opens the board.
+ */
+@Composable
+fun AlsoClearedCard(items: List<SideClear>, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    if (items.isEmpty()) return
+    val c = ClearedGreen
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val shown = items.take(ALSO_SHOWN)
+    val more = items.size - shown.size
+    Column(
+        modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "Also cleared ${items.size}: " + shown.joinToString(", ") { it.name } +
+                    (if (more > 0) " and $more more" else "") + ". Opens the challenges board"
+            }
+            .drawBehind {
+                val o = Shapes.small.createOutline(size, layoutDirection, this)
+                drawOutline(o, Brush.verticalGradient(listOf(c.copy(alpha = if (pressed) 0.2f else 0.1f), Neon.ink.copy(alpha = 0.85f))))
+                drawOutline(o, c.copy(alpha = 0.4f), style = Stroke(1.dp.toPx()))
+            }
+            .clickable(source, null, role = Role.Button, onClick = onClick)
+            .padding(horizontal = Space.m, vertical = Space.s),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.padding(end = Space.xs).size(14.dp).drawBehind { check(c) })
+            Kicker(if (items.size == 1) "ALSO CLEARED" else "ALSO CLEARED  ·  ${items.size}", c, Modifier.weight(1f))
+            Box(Modifier.size(9.dp, 14.dp).drawBehind { chevronRight(c.copy(alpha = 0.7f)) })
+        }
+        for (it in shown) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                FitText(idLabel(it.id), Type.micro, Neon.dim, Modifier.width(48.dp), title = false, letterSpacing = 1.sp, glow = 0f,
+                    alignment = Alignment.CenterStart)
+                FitText(it.name, Type.body, Color.White, Modifier.weight(1f), letterSpacing = 1.5.sp, glow = 0.2f,
+                    alignment = Alignment.CenterStart)
+                FitText(it.tier.title, 9.sp, tierColor(it.tier), Modifier.width(52.dp), title = false, letterSpacing = 1.sp, glow = 0f,
+                    alignment = Alignment.CenterEnd)
+            }
+        }
+        if (more > 0) {
+            NeonText("+$more MORE ON THE BOARD", size = Type.micro, color = Neon.soft, letterSpacing = 2.sp, glow = 0f)
+        }
+    }
+}
+
+private const val ALSO_SHOWN = 3

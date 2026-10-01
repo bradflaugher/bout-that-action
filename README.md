@@ -251,6 +251,22 @@ hearts and pops each time it moves; clearing it is a big gold moment, and then
 the run carries on for score. Only a live run counts: nothing clears once
 you're down.
 
+Challenges also tick themselves off when any run meets them — the same
+difficulty, start and rules — so there's nothing to grind. An endless AGENT
+run from the roof that takes a guard down without losing a heart has just
+cleared "take down 1, UNTOUCHED" (any building counts; SILENT ONLY means
+SILENT the whole way to the goal, UNTOUCHED means no heart lost before it).
+A small gold plate drops in under the HUD for each one ("5 AT ONCE" when
+they land together), and game over lists them under **ALSO CLEARED**. A
+goal that counts a perk's move counts once you've picked the perk up, too.
+
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="docs/screenshots/sideclear.png" alt="A small gold plate under the HUD: CHALLENGE CLEARED and the challenge's name"><p><em><b>Side clear.</b> Ticked off on the way</em></p></td>
+    <td align="center" width="50%"><img src="docs/screenshots/menu-alsocleared.png" alt="Game over with an ALSO CLEARED card listing three challenges and two more"><p><em><b>Also cleared.</b> Everything else the run did</em></p></td>
+  </tr>
+</table>
+
 **The daily challenge** is the same for everyone on the same (local) day:
 gentle on Monday, building to a LEGEND on Sunday. Already cleared that one on
 an earlier day? You get a stand-in, picked the same way for everyone who's

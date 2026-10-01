@@ -502,6 +502,123 @@ internal class HudMoments(private val f: Frame) {
         HudType.tracked(g, "UNTOUCHED? NOT ANY MORE.", W / 2f, cy + 6.4f * u, 2f * u, Col.alpha(0xFFE8E4F4.toInt(), 0.8f * a), Gfx.Font.HUD, Gfx.Align.CENTER, 0.35f * u)
     }
 
+    // ============================================================ side clears
+
+    private var toastWorld: World? = null
+    private var toastFirst = -1
+    private var toastCount = 0
+    private var toastKicker = ""
+    private var toastMain = ""
+
+    /**
+     * Other challenges met on the side: a small gold plate drops in under the HUD, holds a couple
+     * of seconds and fades. They queue (never stack), and ones landing together share a plate
+     * ("5 AT ONCE"). Quiet on purpose: no flash, no medal, and nothing outside PLAYING (it
+     * waits out a perk pick, since the world clock stands still there).
+     */
+    fun sideToast() {
+        val w = f.w
+        if (w.phase != Phase.PLAYING) return
+        val side = w.side
+        val n = side.cleared.size
+        if (n == 0) return
+        val now = f.wt
+        // Walk the queue: each plate starts when its first clear lands or the last one leaves,
+        // whichever is later, and takes in everything that arrived by then (or just after).
+        var i = 0
+        var prevStart = -99f
+        var start = 0f
+        var count = 0
+        while (i < n) {
+            val s = max(side.clearedAt(i), prevStart + TOAST_TIME)
+            if (s > now) return
+            var j = i + 1
+            while (j < n && side.clearedAt(j) <= s + TOAST_MERGE) j++
+            if (now < s + TOAST_TIME) {
+                start = s
+                count = j - i
+                break
+            }
+            prevStart = s
+            i = j
+        }
+        if (i >= n || count == 0) return
+        if (w !== toastWorld || i != toastFirst || count != toastCount) {
+            toastWorld = w
+            toastFirst = i
+            toastCount = count
+            val c = side.cleared[i]
+            if (count == 1) {
+                toastKicker = "CHALLENGE CLEARED  ·  #" + c.id.toString().padStart(4, '0')
+                toastMain = c.name
+            } else {
+                toastKicker = "CHALLENGES CLEARED"
+                toastMain = "$count AT ONCE"
+            }
+        }
+        val age = now - start
+        val W = g.width
+        val u = Hud.unit(W)
+        val inK = HudType.outCubic(HudType.clamp01(age / 0.3f))
+        val a = HudType.clamp01(age / 0.18f) * HudType.clamp01((TOAST_TIME - age) / 0.45f)
+        if (a <= 0f) return
+        val gold = CH_GOLD
+        val ks = 1.6f * u
+        val kt = 0.38f * u
+        var ms = 2.9f * u
+        var mt = 0.28f * u
+        val kw = HudType.trackedWidth(g, toastKicker, ks, Gfx.Font.HUD, kt)
+        var mw = HudType.trackedWidth(g, toastMain, ms, Gfx.Font.TITLE, mt)
+        val maxText = 58f * u
+        if (mw > maxText) {
+            ms *= maxText / mw
+            mt *= maxText / mw
+            mw = maxText
+        }
+        val d = 5.4f * u
+        val ch = 8.2f * u
+        val cw = 1.2f * u + d + 1.8f * u + max(kw, mw) + 3f * u
+        val cx = W / 2f
+        val cy = f.topInset + 45.5f * u - (1f - inK) * 3f * u
+        val l = cx - cw / 2f
+        val r = cx + cw / 2f
+        val t = cy - ch / 2f
+        val b = cy + ch / 2f
+
+        g.blend(Gfx.Blend.ADD)
+        g.save()
+        g.translate(cx, cy)
+        g.scale(1f, 0.4f)
+        g.glow(0f, 0f, cw * 0.62f, Col.alpha(gold, 0.16f * a))
+        g.restore()
+        g.blend(Gfx.Blend.NORMAL)
+        g.fillRoundRect(l, t + 0.7f * u, r, b + 0.7f * u, ch / 2f, Col.alpha(0xFF000000.toInt(), 0.5f * a))
+        g.fillRoundRect(l, t, r, b, ch / 2f, Col.alpha(0xFF0B0913.toInt(), 0.95f * a))
+        g.fillVerticalGradient(l + ch / 2f, t + 0.25f * u, r - ch / 2f, t + ch * 0.5f, Col.alpha(gold, 0.14f * a), Col.alpha(gold, 0f))
+        g.strokeRoundRect(l, t, r, b, ch / 2f, 0.22f * u, Col.alpha(gold, 0.8f * a))
+
+        // The tick, drawing itself in.
+        val icx = l + 1.2f * u + d / 2f
+        val ir = d / 2f
+        g.fillCircle(icx, cy, ir, Col.alpha(gold, a))
+        val k = HudType.clamp01((age - 0.12f) / 0.3f)
+        val ink = Col.alpha(0xFF0C0A14.toInt(), a)
+        val sw = 0.55f * u
+        val ax = icx - ir * 0.46f
+        val ay = cy + ir * 0.02f
+        val mx = icx - ir * 0.1f
+        val my = cy + ir * 0.38f
+        if (k > 0f) g.line(ax, ay, ax + (mx - ax) * min(1f, k * 2f), ay + (my - ay) * min(1f, k * 2f), sw, ink)
+        if (k > 0.5f) {
+            val e = (k - 0.5f) * 2f
+            g.line(mx, my, mx + ir * 0.55f * e, my - ir * 0.78f * e, sw, ink)
+        }
+
+        val x0 = icx + ir + 1.8f * u
+        HudType.tracked(g, toastKicker, x0, cy - 0.7f * u, ks, Col.alpha(gold, 0.92f * a), Gfx.Font.HUD, Gfx.Align.LEFT, kt)
+        HudType.tracked(g, toastMain, x0, cy + 2.8f * u, ms, Col.alpha(0xFFFFFFFF.toInt(), a), Gfx.Font.TITLE, Gfx.Align.LEFT, mt)
+    }
+
     // ============================================================ coach tips
 
     private var tipSrc: String? = null
@@ -635,6 +752,9 @@ internal class HudMoments(private val f: Frame) {
         /** Seconds the CHALLENGE CLEARED and BUSTED cards stay up. */
         const val CLEAR_TIME = 3.6f
         const val BUST_TIME = 2.4f
+        /** Seconds a side-clear plate stays up, and how soon after one lands another still joins it. */
+        const val TOAST_TIME = 2.6f
+        const val TOAST_MERGE = 0.4f
         const val CH_GOLD = 0xFFFFC23A.toInt()
         const val CH_PINK = 0xFFFF3D9A.toInt()
         const val CH_RED = 0xFFFF3348.toInt()

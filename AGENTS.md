@@ -56,6 +56,9 @@ the JVM.
     `Challenges.daily(epochDay, clearedBefore)`. `RunConfig.challenge` makes
     `World` apply its setup and keep `World.challenge` (progress, cleared,
     failed) with one-shot `ChallengeCleared` / `ChallengeFailed` events.
+    `SideClears` (`World.side`, `World.sideCleared`, `GameEvent.SideCleared`)
+    ticks off every other challenge any run genuinely meets (same curve,
+    start, hero and rules held up to the goal), minus `RunConfig.knownCleared`.
     Special floors (`FloorEvent`: blackout, nap time, payday) roll from
     `(seed, floor)` on their own RNG stream in `LevelGen.eventOn`, so they
     never change a floor's layout.

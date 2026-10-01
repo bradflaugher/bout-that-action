@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,6 +55,8 @@ import com.bradflaugher.aboutthataction.engine.Zone
 import com.bradflaugher.aboutthataction.ui.BriefingScreen
 import com.bradflaugher.aboutthataction.ui.ChallengeStatus
 import com.bradflaugher.aboutthataction.ui.ChallengesScreen
+import com.bradflaugher.aboutthataction.ui.SideClear
+import com.bradflaugher.aboutthataction.ui.DayClock
 import com.bradflaugher.aboutthataction.ui.CustomScreen
 import com.bradflaugher.aboutthataction.ui.clearedCaption
 import com.bradflaugher.aboutthataction.ui.dailyCard
@@ -87,6 +90,14 @@ class MainActivity : ComponentActivity(), GameView.Host {
     private var settings by mutableStateOf(Settings())
     private var records by mutableStateOf(Records())
     private var challengeLog by mutableStateOf(ChallengeLog())
+    /**
+     * Today (local calendar), for the daily: state, refreshed on every resume and every menu
+     * change, so the daily turns over at midnight even if the app sat in the background.
+     */
+    private val dayClock = DayClock()
+    private val day: Long get() = dayClock.day
+    /** World time of the last side-clear chime (game thread only). */
+    private var sideChimeAt = -9f
     /** The challenge on the BRIEFING screen, and where its back button goes. */
     private var briefing by mutableStateOf<Challenge?>(null)
     private var briefingFrom = Screen.TITLE
@@ -135,6 +146,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
             val density = LocalDensity.current
             val pad = with(density) { PaddingValues(top = insetTop.toDp(), bottom = insetBottom.toDp()) }
             // Back on the title leaves the app, with the system's predictive back-to-home animation.
+            // Back to the title or the board (or anywhere): the daily follows the date.
+            LaunchedEffect(screen) { refreshDay() }
             BackHandler(enabled = screen != Screen.TITLE) {
                 when (screen) {
                     Screen.PLAYING -> pause()
@@ -162,7 +175,6 @@ class MainActivity : ComponentActivity(), GameView.Host {
                     contentAlignment = Alignment.Center,
                     label = "screen",
                 ) { target ->
-                    val day = today()
                     val daily = todaysChallenge(day, challengeLog)
                     when (target) {
                         Screen.TITLE -> TitleScreen(
@@ -260,6 +272,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
     override fun onResume() {
         super.onResume()
         resumed = true
+        refreshDay()
         registerReceiver(noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
         startAudio()
         gameView.onHostResume()
@@ -372,13 +385,15 @@ class MainActivity : ComponentActivity(), GameView.Host {
         startAudio()
         runConfig = config
         runSeed = config.seed
+        sideChimeAt = -9f
         if (runSeedLabel.isEmpty()) runSeedLabel = SeedCode.labelOf(config.seed)
         musicZone = null
         musicAlert = AlertPhase.CALM
         sound.setAlert(AlertPhase.CALM)
         // Before the first frame's setZone, so the run opens in this hero's arrangement.
         sound.setHero(config.hero)
-        gameView.world = World(config.copy(silent = settings.silent, coach = settings.coach))
+        // Ones already cleared never side-clear again: a toast is always news.
+        gameView.world = World(config.copy(silent = settings.silent, coach = settings.coach, knownCleared = challengeLog.cleared.keys))
         gameView.attract = false
         gameView.paused = false
         screen = Screen.PLAYING
@@ -413,6 +428,11 @@ class MainActivity : ComponentActivity(), GameView.Host {
 
     /** Today, on the device's own calendar (days since 1970-01-01): the daily turns over at local midnight. */
     private fun today(): Long = LocalDate.now().toEpochDay()
+
+    /** Picks up a new day (midnight passed, or the clock moved): the title's daily follows. */
+    private fun refreshDay() {
+        dayClock.refresh()
+    }
 
     private fun openBriefing(c: Challenge, from: Screen) {
         briefing = c
@@ -478,12 +498,15 @@ class MainActivity : ComponentActivity(), GameView.Host {
 
     override fun onGameEvent(event: GameEvent, world: World) {
         if (gameView.attract) return
-        sound.trigger(event)
+        // Side clears come in bunches: one soft chime for the bunch.
+        val chime = event !is GameEvent.SideCleared || world.time - sideChimeAt > SIDE_CHIME_GAP
+        if (event is GameEvent.SideCleared && chime) sideChimeAt = world.time
+        if (chime) sound.trigger(event)
         haptics.onEvent(event)
-        // A clear counts the moment it happens, even if the run is quit straight after.
-        if (event is GameEvent.ChallengeCleared) {
-            val id = event.challenge.id
-            runOnUiThread { updateChallenges(challengeLog.withClear(id, today())) }
+        // A clear counts the moment it happens, even if the run is quit straight after; a side
+        // clear (another challenge met on the way) counts just the same.
+        if (event is GameEvent.ChallengeCleared || event is GameEvent.SideCleared) {
+            runOnUiThread { updateChallenges(challengeLog.withEvent(event, today())) }
         }
         // The GUNS HOT / SILENT choice sticks between runs.
         if (event is GameEvent.ModeToggled) runOnUiThread { if (settings.silent != event.silent) updateSettings(settings.copy(silent = event.silent)) }
@@ -555,6 +578,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
             hero = world.hero,
             difficulty = runDifficulty,
             challenge = status,
+            alsoCleared = world.sideCleared.map { SideClear(it.id, it.name, it.tier) },
         )
         endSlowMo()
         sound.gameOver()
@@ -595,5 +619,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
         /** The squattest window (height / width) the game plays in; wider ones get side bars. */
         private const val MIN_ASPECT = 1.6f
         private const val NIGHT = 0xFF07060F
+        /** World seconds between side-clear chimes. */
+        private const val SIDE_CHIME_GAP = 0.5f
     }
 }

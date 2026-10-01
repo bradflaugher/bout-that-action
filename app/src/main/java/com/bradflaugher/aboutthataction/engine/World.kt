@@ -34,6 +34,11 @@ data class RunConfig(
      * ONE HEART) and tracks its goal. Build the whole config with [Challenge.runConfig].
      */
     val challenge: Challenge? = null,
+    /**
+     * Challenge ids the player has already cleared: they're left out of [World.sideCleared], so
+     * a side clear is only ever news. Reporting only: it never changes the run.
+     */
+    val knownCleared: Set<Int> = emptySet(),
 )
 
 enum class Phase { PLAYING, PERK_CHOICE, DYING, OVER }
@@ -95,6 +100,12 @@ class World(val config: RunConfig) {
 
     /** Where the run stands on its challenge, or null on an endless run. */
     val challenge: ChallengeRun? = config.challenge?.let { ChallengeRun(it) }
+
+    /** The other challenges this run meets on its own ([SideClears]); filled in at the end of init. */
+    val side: SideClears
+    /** Every challenge this run cleared on the side, in order (never its own [challenge]). */
+    val sideCleared: List<Challenge> get() = side.cleared
+    private var sideCheckAt = 0f
 
     var phase = Phase.PLAYING
         private set
@@ -251,6 +262,7 @@ class World(val config: RunConfig) {
         camY = targetCamY()
         onFloorEntered(start)
         onHallEntered(start, 0)
+        side = SideClears(SideClears.candidates(config, difficulty, player.maxHp, silent), silent)
     }
 
     // ------------------------------------------------------------------ step
@@ -314,6 +326,10 @@ class World(val config: RunConfig) {
         camY += (targetCamY() - camY) * min(1f, dt * 7f)
         ensureFloors()
         challenge?.update(this)?.let { onChallenge(it) }
+        if (time >= sideCheckAt) {
+            sideCheckAt = time + SideClears.CHECK_EVERY
+            side.check(this, events)
+        }
 
         if (phase == Phase.DYING) {
             dyingTime += dt
@@ -660,7 +676,10 @@ class World(val config: RunConfig) {
             }
             return
         }
+        // Anything met while the old mode held counts under it.
+        side.check(this, events)
         silent = !silent
+        side.modeChanged(silent)
         events += GameEvent.ModeToggled(silent)
         if (p.state != PlayerState.DEAD) {
             fx.text(if (silent) "SILENT" else "GUNS HOT", p.x, y, TextStyle.WARN, 0.8f)
@@ -1838,7 +1857,8 @@ class World(val config: RunConfig) {
         val startX = p.x + p.facing * 0.35f
 
         fun shoot(z: Float, vz: Float = 0f, range: Float = 30f, damage: Int = dmg) {
-            bullets += Bullet(startX, z, f, p.facing * PLAYER_BULLET_V, vz, true, damage, pierce, bounce, range = range, hall = h)
+            // A pickup gun's rounds say so as they leave the barrel: the gun may run out before they land.
+            bullets += Bullet(startX, z, f, p.facing * PLAYER_BULLET_V, vz, true, damage, pierce, bounce, range = range, hall = h, bigGun = p.weapon != null)
         }
 
         // Where to aim: straight at a standing target, low at a ducking one, up at a turret.
@@ -2046,13 +2066,13 @@ class World(val config: RunConfig) {
         fx.text(Popup.HUH, e.x, Geo.groundY(e.floor) - e.height - 1.0f, TextStyle.WARN, 0.8f)
     }
 
-    private fun damageEnemy(e: Enemy, dmg: Int, method: KillMethod, dir: Int) {
+    private fun damageEnemy(e: Enemy, dmg: Int, method: KillMethod, dir: Int, bigGun: Boolean = false) {
         if (!e.alive) return
         e.hp -= dmg
         e.hurtFlash = 0.12f
         val y = Geo.groundY(e.floor) - e.targetZ
         if (e.hp <= 0) {
-            kill(e, method, dir)
+            kill(e, method, dir, bigGun)
         } else {
             events += GameEvent.BulletHit(onPlayer = false, armored = e.kind == EnemyKind.HEAVY || e.kind == EnemyKind.TURRET, pan = pan(e.x))
             fx.burst(ParticleKind.SPARK, e.x, y, 6, 5f, 0.2f, 0.08f, dir = -dir.toFloat())
@@ -2061,7 +2081,8 @@ class World(val config: RunConfig) {
         }
     }
 
-    private fun kill(e: Enemy, method: KillMethod, dir: Int) {
+    /** [bigGun]: a shot from a pickup gun (set on the bullet when it was fired). */
+    private fun kill(e: Enemy, method: KillMethod, dir: Int, bigGun: Boolean = false) {
         if (e.state == EnemyState.DEAD) return
         e.state = EnemyState.DEAD
         e.stateTime = 0f
@@ -2079,7 +2100,7 @@ class World(val config: RunConfig) {
         when (method) {
             KillMethod.SHOT -> {
                 stats.shotKills++
-                if (player.weapon != null) stats.gunKills++
+                if (bigGun) stats.gunKills++
             }
             KillMethod.STOMP -> stats.stomps++
             KillMethod.LIGHT -> stats.lightKills++
@@ -2201,6 +2222,10 @@ class World(val config: RunConfig) {
             fx.burst(ParticleKind.CARDBOARD, p.x, y + 0.5f, 10, 5f, 0.8f, 0.14f, upBias = 0.4f)
             p.state = PlayerState.NORMAL
         }
+        // Anything met before this hit counts (UNTOUCHED included, and nothing posthumous): the
+        // run's own challenge and the side ones alike.
+        challenge?.update(this)?.let { onChallenge(it) }
+        side.check(this, events)
         p.hp--
         stats.logHurt(hurt)
         p.invuln = 1.3f
@@ -2533,7 +2558,7 @@ class World(val config: RunConfig) {
                     }
                     if (abs(e.x - b.x) < e.halfWidth + 0.1f && b.z >= e.z - 0.05f && b.z <= e.z + e.height + 0.05f) {
                         b.hitIds += e.id
-                        damageEnemy(e, b.damage, KillMethod.SHOT, sign(b.vx).toInt())
+                        damageEnemy(e, b.damage, KillMethod.SHOT, sign(b.vx).toInt(), b.bigGun)
                         if (b.pierce > 0) b.pierce-- else {
                             b.dead = true
                             break
@@ -2877,6 +2902,8 @@ class World(val config: RunConfig) {
             return
         }
         perkOffer = offer
+        // Anything met on the way in counts before a perk (VITALITY's heart) changes the run.
+        side.check(this, events)
         phase = Phase.PERK_CHOICE
         events += GameEvent.PerkOffered
     }

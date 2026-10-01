@@ -102,6 +102,10 @@ class MenuShotsTest {
         best = if (best > 0) c.hudText(best, c.heroFor(Hero.BULL)) else null,
     )
 
+    /** What an endless run ticked off on the side: five, so the card shows three and "+2 MORE". */
+    private val alsoCleared = Challenges.all.filter { it.preset == com.bradflaugher.aboutthataction.engine.Difficulty.Preset.AGENT && it.startFloor == 0 }
+        .take(5).map { SideClear(it.id, it.name, it.tier) }
+
     private val run = RunSummary(
         floor = 58, zone = Zone.METRO, score = 142_880, kills = 71, takedowns = 19, seconds = 734f,
         seedLabel = "K7QM 2XAB", newBestScore = false, newBestFloor = false,
@@ -188,6 +192,13 @@ class MenuShotsTest {
             }
             shot("$device-gameover-challenge", 3500, world()) {
                 GameOverScreen(run.copy(seedLabel = idLabel(open.id), challenge = status(open, open.target / 3, false, open.target / 2)), insets, {}, {}, {}, records)
+            }
+            shot("$device-gameover-also", 3500, world()) {
+                GameOverScreen(run.copy(alsoCleared = alsoCleared), insets, {}, {}, {}, records)
+            }
+            shot("$device-gameover-also-challenge", 3500, world()) {
+                GameOverScreen(run.copy(seedLabel = idLabel(today.id), challenge = status(today, today.target + 2, true), alsoCleared = alsoCleared.take(2)),
+                    insets, {}, {}, {}, records)
             }
             shot("$device-pause", 700, world()) {
                 PauseScreen(s, "K7QM 2XAB", Hero.FOX, insets, {}, {}, {}, {})
@@ -332,6 +343,7 @@ class MenuShotsTest {
             "phone-board" to "menu-challenges",
             "phone-briefing" to "menu-briefing",
             "phone-gameover-cleared" to "menu-cleared",
+            "phone-gameover-also" to "menu-alsocleared",
         )
     }
 }

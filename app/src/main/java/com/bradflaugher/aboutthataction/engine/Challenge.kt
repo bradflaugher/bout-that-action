@@ -291,13 +291,15 @@ class ChallengeRun(val challenge: Challenge) {
             failedAt = w.time
             return GameEvent.ChallengeFailed(challenge)
         }
-        if (w.phase != Phase.PLAYING) return null
+        // Busted is over: what the run does after the hit isn't progress on it (nor a best).
+        // Cleared keeps counting, for the HUD and the brag.
+        if (w.phase != Phase.PLAYING || failed) return null
         val now = challenge.goal.measure(w)
         if (now > progress) {
             progress = now
             progressAt = w.time
         }
-        if (cleared || failed) return null
+        if (cleared) return null
         if (progress >= target) {
             cleared = true
             clearedAt = w.time
@@ -700,5 +702,96 @@ object Challenges {
             if (!clearedBefore(c.id)) return c
         }
         return order[start]
+    }
+}
+
+/**
+ * Side clears: every OTHER challenge in the catalog this run genuinely meets, ticked off
+ * achievement-style (endless runs and challenge runs alike), so nobody has to grind one they'd
+ * have done anyway. A challenge counts when the run plays its exact difficulty curve, from its
+ * start floor, as a hero it allows, and every one of its rules held right up to the moment the
+ * goal was reached:
+ * - SILENT ONLY: SILENT the whole time so far; GUNS HOT ONLY: never SILENT so far;
+ * - ONE HEART: the run has never had more than one heart;
+ * - UNTOUCHED: no heart lost yet (a shield or VEST soaking a hit is fine, as on the real thing).
+ * The seed doesn't matter: it's credit for doing the thing, in any building. A goal that counts
+ * what a perk does (STIFF ARMS, the kicks) counts here too once the run picks that perk up: its
+ * own run hands the perk over at the start, so earning it the hard way is, if anything, more.
+ *
+ * Only a live run counts (PLAYING; never while dying). [World] filters the candidates once at
+ * the start, drops whole groups the moment a rule breaks, and checks the rest a few times a
+ * second (plus just before a heart is lost or the mode flips, so a goal met a moment earlier
+ * still counts). It never changes the run: it only reports.
+ */
+class SideClears internal constructor(candidates: List<Challenge>, silent: Boolean) {
+    private val pending = ArrayList(candidates)
+    private val clearedList = ArrayList<Challenge>()
+    private var clearedTimes = FloatArray(8)
+    private var everHot = !silent
+    private var everSilent = silent
+
+    /** What this run cleared on the side, in order. */
+    val cleared: List<Challenge> get() = clearedList
+
+    /** World time `cleared[i]` cleared at, for the HUD's toast. */
+    fun clearedAt(i: Int): Float = clearedTimes[i]
+
+    /** Challenges still in the running. */
+    val candidates: Int get() = pending.size
+
+    /** The mode just flipped: one of the mode-locked groups is out for good (at the next check). */
+    internal fun modeChanged(silent: Boolean) {
+        if (silent) everSilent = true else everHot = true
+    }
+
+    /** Drops every candidate whose rules the run has broken. */
+    private fun prune(w: World) {
+        val hurt = w.stats.hurts > 0
+        val hearts = w.player.maxHp > 1
+        if (!hurt && !hearts && !everHot && !everSilent) return
+        pending.removeAll { c ->
+            (c.untouched && hurt) || (c.oneHeart && hearts) || (c.silentOnly && everHot) || (c.gunsHotOnly && everSilent)
+        }
+    }
+
+    /** Clears whatever the run has met by now, adding a [GameEvent.SideCleared] for each to [events]. */
+    internal fun check(w: World, events: MutableList<GameEvent>) {
+        if (w.phase != Phase.PLAYING || pending.isEmpty()) return
+        prune(w)
+        val it = pending.iterator()
+        while (it.hasNext()) {
+            val c = it.next()
+            if (c.goal.measure(w) < c.target) continue
+            it.remove()
+            record(c, w.time)
+            events += GameEvent.SideCleared(c)
+        }
+    }
+
+    /** Notes [c] as cleared at world time [at] (also how screenshots stage a toast). */
+    internal fun record(c: Challenge, at: Float) {
+        if (clearedList.size == clearedTimes.size) clearedTimes = clearedTimes.copyOf(clearedTimes.size * 2)
+        clearedTimes[clearedList.size] = at
+        clearedList += c
+    }
+
+    companion object {
+        /** Seconds of world time between checks. */
+        const val CHECK_EVERY = 0.25f
+
+        /**
+         * The catalog's challenges a run of [config] could meet at all, played on [difficulty]
+         * with [hearts] hearts, starting [silent] or not: never its own challenge, nor any in
+         * [RunConfig.knownCleared].
+         */
+        fun candidates(config: RunConfig, difficulty: Difficulty, hearts: Int, silent: Boolean): List<Challenge> {
+            val own = config.challenge?.id
+            val hero = config.hero
+            return Challenges.all.filter { c ->
+                c.id != own && c.id !in config.knownCleared && c.startFloor == difficulty.startFloor &&
+                    c.difficulty == difficulty && c.allows(hero) &&
+                    !(c.oneHeart && hearts > 1) && !(c.silentOnly && !silent) && !(c.gunsHotOnly && silent)
+            }
+        }
     }
 }

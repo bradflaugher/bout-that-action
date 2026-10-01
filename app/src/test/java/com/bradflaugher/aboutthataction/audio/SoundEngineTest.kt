@@ -154,6 +154,24 @@ class SoundEngineTest {
     }
 
     @Test
+    fun aSideClearIsASoftTickNotAFanfare() {
+        val c = com.bradflaugher.aboutthataction.engine.Challenges.all.first()
+        fun loud(ev: GameEvent): Double {
+            val e = SoundEngine()
+            e.setMusicVolume(0f)
+            e.trigger(ev)
+            val out = render(e, 0.8f)
+            assertSane(out, ev.toString())
+            return rms(out)
+        }
+        val side = loud(GameEvent.SideCleared(c))
+        val big = loud(GameEvent.ChallengeCleared(c))
+        println("side clear rms %.4f, challenge cleared rms %.4f".format(side, big))
+        assertTrue("a side clear should be heard ($side)", side > 0.002)
+        assertTrue("a side clear should stay well under the big moment ($side vs $big)", side < big * 0.6)
+    }
+
+    @Test
     fun beingSpottedDrivesTheMusicHarder() {
         fun take(phase: com.bradflaugher.aboutthataction.engine.AlertPhase): Double {
             val e = SoundEngine()

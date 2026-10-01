@@ -91,4 +91,45 @@ class HudChallengeTest {
         val bull = frame(r, world(generic, Hero.BULL))
         assertTrue(bull.lines().map { it.first }.toString(), bull.lines().any { it.first.contains("STOMPS0/6") })
     }
+
+    @Test
+    fun sideClearsToastOneAtATimeAndShareAPlateWhenTheyLandTogether() {
+        // Nothing clears on its own here: only the staged ones.
+        val w = World(com.bradflaugher.aboutthataction.engine.RunConfig(3L, coach = false, knownCleared = Challenges.all.map { it.id }.toSet()))
+        w.viewAspect = 2400f / 1080f
+        repeat(180) {
+            w.step(1f / 120f)
+            w.events.clear()
+        }
+        val r = Renderer()
+        fun shown(): String = frame(r, w).lines().joinToString("|") { it.first }
+        fun key(c: Challenge) = c.name.replace(" ", "")
+        fun advance(seconds: Float) {
+            var t = 0f
+            while (t < seconds) {
+                w.step(1f / 120f)
+                w.events.clear()
+                t += 1f / 120f
+            }
+        }
+        val (a, b) = Challenges.all.take(2)
+        val five = Challenges.all.drop(2).take(5)
+        assertTrue(shown(), !shown().contains("CLEARED"))
+        w.side.record(a, w.time)
+        w.side.record(b, w.time + 0.9f)
+        advance(0.3f)
+        assertTrue(shown(), shown().contains(key(a)))
+        // B landed while A was up: it waits its turn, then gets its own plate.
+        advance(1.0f)
+        assertTrue(shown(), shown().contains(key(a)) && !shown().contains(key(b)))
+        advance(2.0f)
+        assertTrue(shown(), shown().contains(key(b)))
+        advance(2.8f)
+        assertTrue(shown(), !shown().contains("CLEARED"))
+        // Five at once: one plate for the lot.
+        for (c in five) w.side.record(c, w.time)
+        advance(0.3f)
+        assertTrue(shown(), shown().contains("5ATONCE"))
+        assertTrue(shown(), five.none { shown().contains(key(it)) })
+    }
 }

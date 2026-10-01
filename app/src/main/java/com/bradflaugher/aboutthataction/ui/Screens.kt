@@ -74,7 +74,12 @@ data class RunSummary(
     val difficulty: String = "",
     /** How the run did on its challenge, for a challenge run. */
     val challenge: ChallengeStatus? = null,
+    /** Other challenges the run met on the side, in the order they cleared. */
+    val alsoCleared: List<SideClear> = emptyList(),
 )
+
+/** A challenge cleared on the side, for the game over's ALSO CLEARED list. */
+data class SideClear(val id: Int, val name: String, val tier: com.bradflaugher.aboutthataction.engine.Tier)
 
 internal fun grouped(n: Long): String = String.format(Locale.US, "%,d", n)
 

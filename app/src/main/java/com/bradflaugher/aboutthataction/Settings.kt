@@ -2,6 +2,7 @@ package com.bradflaugher.aboutthataction
 
 import android.content.Context
 import com.bradflaugher.aboutthataction.engine.Difficulty
+import com.bradflaugher.aboutthataction.engine.GameEvent
 import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.SeedCode
 
@@ -49,6 +50,14 @@ data class Settings(
     /** The seed for a new run under these settings; [random] should draw below [SeedCode.LIMIT] so it has a code. */
     fun newSeed(random: () -> Long): Long = setSeed ?: random()
 
+    /**
+     * These settings as a fresh launch should start them: a SET SEED left without a whole code
+     * (half typed, or junk) comes back as RANDOM with an empty box, so what CUSTOM RUN shows is
+     * always what seeds the run.
+     */
+    fun loaded(): Settings =
+        if (seedMode == SeedMode.CUSTOM && SeedCode.decode(seedText) == null) copy(seedMode = SeedMode.RANDOM, seedText = "") else this
+
     companion object {
         /** The difficulty row on the title, before CUSTOM. */
         val TITLE_PRESETS = listOf(Difficulty.Preset.CHILL, Difficulty.Preset.AGENT, Difficulty.Preset.BRUTAL)
@@ -74,6 +83,16 @@ data class ChallengeLog(val cleared: Map<Int, Long> = emptyMap(), val best: Map<
 
     /** Cleared on [day], unless it already was (the first clear's day sticks). */
     fun withClear(id: Int, day: Long): ChallengeLog = if (id in cleared) this else copy(cleared = cleared + (id to day))
+
+    /**
+     * Logs [event] if it clears something: the run's own challenge or one met on the side
+     * ([GameEvent.SideCleared]) count the same, on [day]. Anything else leaves the log alone.
+     */
+    fun withEvent(event: GameEvent, day: Long): ChallengeLog = when (event) {
+        is GameEvent.ChallengeCleared -> withClear(event.challenge.id, day)
+        is GameEvent.SideCleared -> withClear(event.challenge.id, day)
+        else -> this
+    }
 
     /** Remembers [progress] if it beats the best so far. */
     fun withBest(id: Int, progress: Int): ChallengeLog = if (progress <= best(id)) this else copy(best = best + (id to progress))
@@ -120,7 +139,7 @@ class Prefs(context: Context) {
             musicVolume = sp.getFloat("music", d.musicVolume),
             sfxVolume = sp.getFloat("sfx", d.sfxVolume),
             hero = Hero.fromSaved(sp.getString("hero", null)) ?: d.hero,
-        )
+        ).loaded()
     }
 
     fun saveSettings(s: Settings) {

@@ -430,6 +430,47 @@ class ChallengeTest {
     }
 
     @Test
+    fun aBustedUntouchedRunStopsCountingProgress() {
+        val w = world(custom(Goal.TAKEDOWNS, 40, Rule.UNTOUCHED))
+        val run = w.challenge!!
+        w.takedowns = 2
+        run(w, 0.1f)
+        assertEquals(2, run.progress)
+        w.player.x = 5f
+        Bullet(2f, 1.1f, w.player.floor, 9f, 0f, byPlayer = false, damage = 1, pierce = 0, bounces = 0, hall = w.player.hall).also { w.bullets += it }
+        run(w, 0.6f)
+        assertTrue(run.failed)
+        // After the bust, takedowns are just takedowns: no progress, so no "best" from them.
+        w.takedowns = 30
+        run(w, 0.3f)
+        assertEquals(2, run.progress)
+    }
+
+    @Test
+    fun bigGunKillsGoByTheGunThatFiredTheShot() {
+        fun shotLands(bigGun: Boolean, inHand: PickupKind?): World {
+            val w = world(custom(Goal.GUN_KILLS, 5), silent = true)
+            w.player.x = 3f
+            val e = enemy(w, 6f, facing = 1)
+            // The gun runs out (or turns up) between the shot and the hit.
+            w.player.weapon = inHand
+            w.player.weaponTime = if (inHand != null) 10f else 0f
+            w.bullets += Bullet(3.4f, 1f, w.player.floor, 20f, 0f, byPlayer = true, damage = 5, pierce = 0, bounces = 0, hall = w.player.hall, bigGun = bigGun)
+            run(w, 0.4f)
+            assertFalse(e.alive)
+            return w
+        }
+        // Fired from a pickup gun that expired before it landed: still a BIG GUNS kill.
+        val expired = shotLands(bigGun = true, inHand = null)
+        assertEquals(1, expired.stats.gunKills)
+        assertEquals(1, expired.challenge!!.progress)
+        // Fired from the pistol, then a gun picked up before it landed: not one.
+        val collected = shotLands(bigGun = false, inHand = PickupKind.SHOTGUN)
+        assertEquals(0, collected.stats.gunKills)
+        assertEquals(1, collected.stats.shotKills)
+    }
+
+    @Test
     fun noPosthumousClears() {
         val w = world(custom(Goal.TAKEDOWNS, 1, Rule.ONE_HEART))
         val run = w.challenge!!

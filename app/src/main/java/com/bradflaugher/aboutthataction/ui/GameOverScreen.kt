@@ -115,6 +115,7 @@ fun GameOverScreen(
             }
 
             run.challenge?.let { ChallengeStatusCard(it, Modifier.reveal(200, 16.dp), big = true) }
+            AlsoClearedCard(run.alsoCleared, Modifier.reveal(if (run.challenge != null) 300 else 200, 16.dp), onClick = onBoard)
 
             Panel(Modifier.fillMaxWidth().reveal(260, 24.dp), accent = zoneColor, padding = Space.m, spacing = Space.xxs) {
                 Kicker("DEEPEST FLOOR", Neon.soft, Modifier.fillMaxWidth(), TextAlign.Center)

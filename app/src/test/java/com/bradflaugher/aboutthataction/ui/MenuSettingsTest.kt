@@ -36,6 +36,21 @@ class MenuSettingsTest {
     }
 
     @Test
+    fun aSavedSetSeedWithoutAWholeCodeLoadsAsRandom() {
+        val whole = Settings(preset = null, seedMode = SeedMode.CUSTOM, seedText = "K7QM2XAB")
+        assertEquals(whole, whole.loaded())
+        for (text in listOf("", "K7QM", "K7QM2XAB9", "!!!!????")) {
+            val back = whole.copy(seedText = text).loaded()
+            assertEquals(SeedMode.RANDOM, back.seedMode)
+            assertEquals("", back.seedText)
+            assertNull(back.setSeed)
+        }
+        // RANDOM is left as it is.
+        val random = Settings(seedMode = SeedMode.RANDOM, seedText = "K7QM")
+        assertEquals(random, random.loaded())
+    }
+
+    @Test
     fun theShareMessagePastesBackIntoTheSameRun() {
         val run = RunSummary(floor = 92, zone = Zone.MINES, score = 1, kills = 0, takedowns = 0, seconds = 0f,
             seedLabel = "K7QM 2XAB", newBestScore = false, newBestFloor = false, hero = Hero.MONKEY, difficulty = "AGENT")

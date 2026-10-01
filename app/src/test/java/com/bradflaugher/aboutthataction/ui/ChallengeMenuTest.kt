@@ -2,6 +2,7 @@ package com.bradflaugher.aboutthataction.ui
 
 import com.bradflaugher.aboutthataction.ChallengeLog
 import com.bradflaugher.aboutthataction.engine.Challenges
+import com.bradflaugher.aboutthataction.engine.GameEvent
 import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.Tier
 import com.bradflaugher.aboutthataction.engine.Zone
@@ -28,6 +29,42 @@ class ChallengeMenuTest {
         // Junk never crashes a load.
         assertEquals(mapOf(3 to 4L), ChallengeLog.decode("x:1,,3:4,5:,:9,7"))
         assertTrue(ChallengeLog.decode(null).isEmpty())
+    }
+
+    @Test
+    fun sideClearsAreLoggedLikeTheRunsOwnClear() {
+        val own = Challenges.byId(10)!!
+        val side = Challenges.byId(20)!!
+        val log = ChallengeLog()
+            .withEvent(GameEvent.ChallengeCleared(own), 20_730)
+            .withEvent(GameEvent.SideCleared(side), 20_731)
+            .withEvent(GameEvent.SideCleared(side), 20_740)
+            .withEvent(GameEvent.ChallengeFailed(own), 20_741)
+            .withEvent(GameEvent.Jump, 20_742)
+        assertEquals(mapOf(10 to 20_730L, 20 to 20_731L), log.cleared)
+        assertTrue(log.best.isEmpty())
+    }
+
+    @Test
+    fun aDailyClearedOnTheSideShowsClearedToday() {
+        val day = Challenges.FIRST_DAY + 12
+        val daily = todaysChallenge(day, ChallengeLog())
+        val log = ChallengeLog().withEvent(GameEvent.SideCleared(daily), day)
+        assertEquals(daily, todaysChallenge(day, log))
+        assertTrue(dailyCard(daily, day, log).cleared)
+    }
+
+    @Test
+    fun theDayClockFollowsTheDate() {
+        var now = Challenges.FIRST_DAY
+        val clock = DayClock { now }
+        assertEquals(now, clock.day)
+        assertFalse(clock.refresh())
+        // Midnight passes in the background: the next resume (or menu) picks up the new day.
+        now += 1
+        assertTrue(clock.refresh())
+        assertEquals(Challenges.FIRST_DAY + 1, clock.day)
+        assertTrue(todaysChallenge(clock.day, ChallengeLog()) != todaysChallenge(Challenges.FIRST_DAY, ChallengeLog()))
     }
 
     @Test
