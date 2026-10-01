@@ -8,6 +8,7 @@ import com.bradflaugher.aboutthataction.engine.Perk
 import com.bradflaugher.aboutthataction.engine.Phase
 import com.bradflaugher.aboutthataction.engine.PickupKind
 import com.bradflaugher.aboutthataction.engine.PlayerState
+import com.bradflaugher.aboutthataction.engine.World
 import com.bradflaugher.aboutthataction.engine.Zone
 import kotlin.math.max
 import kotlin.math.min
@@ -76,6 +77,8 @@ internal class Hud(private val f: Frame) {
         private const val LOCK_RATTLE = 0.45f
         private const val MARGIN = 4f
         private const val TOP = 2.5f
+        /** The challenge kicker's widest, in units: about as wide as the widest pill. */
+        private const val MAX_KICKER = 54f
 
         private const val WHITE = 0xFFFFFFFF.toInt()
         private const val INK = 0xFFF4F0FF.toInt()
@@ -725,6 +728,8 @@ internal class Hud(private val f: Frame) {
 
     // -------------------------------------------------------------- challenge
 
+    /** The run the caches below belong to: a new World (a retry of the same challenge) starts them over. */
+    private var chWorld: World? = null
     private var chId = -1
     private var chKicker = ""
     private var chProgress = Int.MIN_VALUE
@@ -741,10 +746,13 @@ internal class Hud(private val f: Frame) {
     private fun challengeLine(x: Float, top: Float, u: Float) {
         val run = f.w.challenge ?: return
         val ch = run.challenge
-        if (ch.id != chId) {
+        if (ch.id != chId || f.w !== chWorld) {
+            chWorld = f.w
             chId = ch.id
             chKicker = "CHALLENGE  ·  " + ch.name
             chFill = -1f
+            chProgress = Int.MIN_VALUE
+            chState = -1
         }
         val state = if (run.cleared) 1 else if (run.failed) 2 else 0
         if (run.progress != chProgress || state != chState) {
@@ -753,7 +761,7 @@ internal class Hud(private val f: Frame) {
             chText = when (state) {
                 1 -> "CLEARED"
                 2 -> "BUSTED"
-                else -> run.hudText()
+                else -> run.hudText(f.w.hero)
             }
         }
         val col = when (state) {
@@ -772,7 +780,15 @@ internal class Hud(private val f: Frame) {
         // Kicker: a gold tick and the challenge's name.
         val ky = top + 1.9f * u
         g.fillRect(x, ky - 1.6f * u, x + 0.5f * u, ky + 0.1f * u, Col.alpha(col, 0.9f))
-        HudType.tracked(g, chKicker, x + 1.5f * u, ky, 1.9f * u, Col.alpha(Col.lerp(col, WHITE, 0.35f), 0.82f), Gfx.Font.HUD, Gfx.Align.LEFT, 0.3f * u)
+        // Fitted like the pill: a 23-letter name shrinks rather than running into the score.
+        var ks = 1.9f * u
+        var kt = 0.3f * u
+        val kw = HudType.trackedWidth(g, chKicker, ks, Gfx.Font.HUD, kt)
+        if (kw > MAX_KICKER * u) {
+            ks *= MAX_KICKER * u / kw
+            kt *= MAX_KICKER * u / kw
+        }
+        HudType.tracked(g, chKicker, x + 1.5f * u, ky, ks, Col.alpha(Col.lerp(col, WHITE, 0.35f), 0.82f), Gfx.Font.HUD, Gfx.Align.LEFT, kt)
 
         // The pill.
         val h = 6.2f * u

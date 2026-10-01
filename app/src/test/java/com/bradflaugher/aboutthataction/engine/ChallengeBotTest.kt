@@ -4,9 +4,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The [Autopilot] takes on the catalog: every ROOKIE challenge, and an even sample of each
- * harder tier. It's how the tier targets were calibrated, and it keeps them honest: ROOKIE
- * should mostly fall to a decent run, and each tier up should fall less often.
+ * The [Autopilot] takes on the catalog: an even sample of every tier (a bigger one of ROOKIE),
+ * each run capped at [SECONDS] of play. It's how the tier targets were calibrated, and it keeps
+ * them honest: ROOKIE should mostly fall to a decent run, and each tier up should fall less often.
  */
 class ChallengeBotTest {
     private val dt = 1f / 120f
@@ -19,7 +19,7 @@ class ChallengeBotTest {
     }
 
     /** Plays [c] with the bot until it clears, busts, dies or [seconds] run out. */
-    private fun play(c: Challenge, seconds: Float = 600f): Boolean {
+    private fun play(c: Challenge, seconds: Float = SECONDS): Boolean {
         val base = c.runConfig(Hero.BULL, coach = false)
         val w = World(base.copy(silent = silentFor(c, base.hero)))
         val bot = Autopilot(c.seed)
@@ -35,12 +35,13 @@ class ChallengeBotTest {
     @Test
     fun theBotTakesOnTheCatalog() {
         val rate = HashMap<Tier, Double>()
-        val report = StringBuilder("challenge bot report (Autopilot, up to 600 s a run)\n")
+        val report = StringBuilder("challenge bot report (Autopilot, up to ${SECONDS.toInt()} s a run)\n")
         val rookieMisses = HashMap<String, Int>()
         val rookieByGoal = HashMap<Goal, IntArray>()
         for (tier in Tier.entries) {
             val pool = Challenges.all.filter { it.tier == tier }
-            val sample = if (tier == Tier.ROOKIE) pool else pool.filterIndexed { i, _ -> i % (pool.size / SAMPLE).coerceAtLeast(1) == 0 }.take(SAMPLE)
+            val n = if (tier == Tier.ROOKIE) ROOKIE_SAMPLE else SAMPLE
+            val sample = pool.filterIndexed { i, _ -> i % (pool.size / n).coerceAtLeast(1) == 0 }.take(n)
             var cleared = 0
             for (c in sample) {
                 val ok = play(c)
@@ -59,9 +60,14 @@ class ChallengeBotTest {
         println(report)
         assertTrue("ROOKIE should mostly fall to the bot: $rate", rate.getValue(Tier.ROOKIE) >= 0.6)
         assertTrue("tiers get harder: $rate", rate.getValue(Tier.ROOKIE) > rate.getValue(Tier.ACE) && rate.getValue(Tier.ACE) > rate.getValue(Tier.LEGEND))
+        assertTrue("never easier a tier up: $rate", Tier.entries.zipWithNext().all { (a, b) -> rate.getValue(a) >= rate.getValue(b) })
+        assertTrue("LEGEND is rare: $rate", rate.getValue(Tier.LEGEND) <= 0.15)
     }
 
     private companion object {
+        const val ROOKIE_SAMPLE = 80
         const val SAMPLE = 40
+        /** Long enough for a decent run to get somewhere; ROOKIE asks for a first decent run. */
+        const val SECONDS = 300f
     }
 }

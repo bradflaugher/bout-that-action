@@ -924,6 +924,23 @@ class HeroTest {
         val far = enemy(w, EnemyKind.AGENT, 13.5f, facing = 1)
         run(w, 0.3f) { far.x = 13.5f; far.vx = 0f; nap.vx = 0f }
         assertEquals(null, w.aimTarget())
+        // Inside the gun's sight but past auto-fire's reach: he doesn't aim at what he won't shoot.
+        val v = world(Hero.MONKEY, silent = false)
+        v.player.x = 2f
+        v.player.facing = 1
+        val out = enemy(v, EnemyKind.AGENT, 2f + World.AUTO_FIRE_RANGE + 2f, facing = 1)
+        var shot = false
+        run(v, 1.2f) {
+            out.x = 2f + World.AUTO_FIRE_RANGE + 2f
+            out.vx = 0f
+            assertEquals(null, it.aimTarget())
+            if (it.events.any { ev -> ev is GameEvent.Shot && ev.byPlayer }) shot = true
+            it.events.clear()
+        }
+        assertFalse(shot)
+        // Walk into range and the gun comes up on him.
+        out.x = 2f + World.AUTO_FIRE_RANGE - 1f
+        assertEquals(out, v.aimTarget())
     }
 
     @Test

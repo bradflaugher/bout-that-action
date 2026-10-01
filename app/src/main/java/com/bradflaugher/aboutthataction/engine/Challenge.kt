@@ -19,6 +19,7 @@ enum class Tier(val title: String) {
  * [label] is the HUD's short name ("KILLS 12/30"); [melee] goals need takedowns (not MONKEY),
  * [sneak] goals need SILENT mode, [guns] goals need gunfire (never under SILENT ONLY), and a
  * goal with a [hero] counts something only that hero does (a trait, or one of their perks).
+ * A goal with a [perk] counts what that perk does, so its run starts with the perk.
  */
 enum class Goal(
     val label: String,
@@ -26,6 +27,7 @@ enum class Goal(
     val sneak: Boolean = false,
     val guns: Boolean = false,
     val hero: Hero? = null,
+    val perk: Perk? = null,
 ) {
     /** Floors below the start. */
     DEPTH("DEPTH"),
@@ -49,11 +51,11 @@ enum class Goal(
     /** Shot down while packing a pickup gun. */
     GUN_KILLS("BIG GUNS", guns = true),
     /** BULL's STIFF ARM: guards flattened on the run. */
-    STIFF_ARMS("STIFF ARMS", melee = true, hero = Hero.BULL),
+    STIFF_ARMS("STIFF ARMS", melee = true, hero = Hero.BULL, perk = Perk.STIFF_ARM),
     /** FOX's FLYING KICK. */
-    FLYING_KICKS("FLYING KICKS", melee = true, hero = Hero.FOX),
+    FLYING_KICKS("FLYING KICKS", melee = true, hero = Hero.FOX, perk = Perk.FLYING_KICK),
     /** FOX's SPIN KICK. */
-    SPIN_KICKS("SPIN KICKS", melee = true, hero = Hero.FOX),
+    SPIN_KICKS("SPIN KICKS", melee = true, hero = Hero.FOX, perk = Perk.SPIN_KICK),
     /** HAWK's SABOTAGE: drones and turrets unplugged by hand. */
     UNPLUGS("UNPLUGGED", hero = Hero.HAWK),
     /** MONKEY's height: high shots that sail right over his head. */
@@ -97,7 +99,8 @@ enum class Rule(val title: String, val blurb: String) {
     SILENT_ONLY("SILENT ONLY", "Locked in SILENT. Not one shot."),
     GUNS_HOT_ONLY("GUNS HOT ONLY", "Locked in GUNS HOT. Let it rip."),
     ONE_HEART("ONE HEART", "You start with a single heart."),
-    UNTOUCHED("UNTOUCHED", "Get hit once and it's a bust."),
+    /** Losing a heart busts it; a SHIELD or VEST soaking up a hit doesn't. */
+    UNTOUCHED("UNTOUCHED", "Lose a heart and it's a bust."),
 }
 
 /**
@@ -120,8 +123,8 @@ data class Challenge(
     val startFloor: Int,
     val tier: Tier,
 ) {
-    /** The building this challenge always plays. */
-    val seed: Long get() = Rng.mix(id * 0x9E3779B97F4A7C15uL.toLong() + SEED_SALT)
+    /** The building this challenge always plays: a seed with a code, so it can be shared as one. */
+    val seed: Long get() = seedFor(id)
 
     val silentOnly: Boolean get() = Rule.SILENT_ONLY in rules
     val gunsHotOnly: Boolean get() = Rule.GUNS_HOT_ONLY in rules
@@ -156,30 +159,39 @@ data class Challenge(
         lockMode = modeLocked,
     )
 
-    /** The goal in a short sentence: "Take down 12 guards", "Reach B7". */
-    fun goalText(): String = goalText(goal, target, startFloor, hero)
+    /**
+     * The goal in a short sentence: "Take down 12 guards", "Reach B7". [player] is who plays it
+     * (BULL stomps where the others bonk); a forced hero always wins, and left out it's that one.
+     */
+    fun goalText(player: Hero? = null): String = goalText(goal, target, startFloor, hero ?: player)
 
-    /** The HUD's name for the goal ("STOMPS" when it's BULL landing on heads). */
-    val hudLabel: String get() = if (goal == Goal.BONKS && hero == Hero.BULL) "STOMPS" else goal.label
+    /** The HUD's name for the goal, played as [player] ("STOMPS" when it's BULL landing on heads). */
+    fun hudLabel(player: Hero? = null): String = if (goal == Goal.BONKS && (hero ?: player) == Hero.BULL) "STOMPS" else goal.label
+
+    /** The perk this challenge's run starts with (its goal counts what the perk does), if any. */
+    val startPerk: Perk? get() = goal.perk
 
     /**
-     * The HUD's compact progress line for [progress]: "KILLS 12/30", "41F / 38F", "SCORE 8,200/20,000".
+     * The HUD's compact progress line for [progress], played as [player]: "KILLS 12/30",
+     * "41F / 38F", "SCORE 8,200/20,000".
      */
-    fun hudText(progress: Int): String = when (goal) {
+    fun hudText(progress: Int, player: Hero? = null): String = when (goal) {
         Goal.DEPTH -> FloorLabel.of(startFloor + progress.coerceIn(0, target)) + " / " + FloorLabel.of(startFloor + target)
-        Goal.SCORE -> hudLabel + " " + grouped(progress.coerceAtMost(target)) + "/" + grouped(target)
-        else -> hudLabel + " " + progress.coerceAtMost(target) + "/" + target
+        Goal.SCORE -> hudLabel(player) + " " + grouped(progress.coerceAtMost(target)) + "/" + grouped(target)
+        else -> hudLabel(player) + " " + progress.coerceAtMost(target) + "/" + target
     }
 
     /**
      * Short chips for everything that isn't the goal, in reading order: the rules, the hero
-     * ("AS FOX", or "NO MONKEY" when the goal rules him out), the start zone and a non-AGENT preset.
+     * ("AS FOX", or "NO MONKEY" when the goal rules him out), a perk the run starts with
+     * ("STARTS WITH STIFF ARM"), the start zone and a non-AGENT preset.
      */
     fun chips(): List<String> {
-        val out = ArrayList<String>(4)
+        val out = ArrayList<String>(5)
         for (r in rules) out += r.title
         if (hero != null) out += "AS " + hero.title
         else Hero.entries.filterNot { allows(it) }.forEach { out += "NO " + it.title }
+        startPerk?.let { out += "STARTS WITH " + it.title }
         if (startFloor > 0) out += "FROM " + startZone.title
         if (preset != Difficulty.Preset.AGENT) out += preset.label
         return out
@@ -187,10 +199,16 @@ data class Challenge(
 
     /** Every field, in one line: what the golden test checks the catalog against. */
     internal fun signature(): String =
-        "$id|$name|$goal|$target|${rules.joinToString(",")}|${hero ?: "-"}|$preset|$startFloor|$tier"
+        "$id|$name|$goal|$target|${rules.joinToString(",")}|${hero ?: "-"}|$preset|$startFloor|$tier|$seed"
 
     companion object {
         private const val SEED_SALT = 0x0C4A11E46EL
+
+        /**
+         * Challenge [id]'s building: 40 mixed bits, so it's below [SeedCode.LIMIT] and shareable
+         * as a code ("K7QM 2XAB") like any other run.
+         */
+        fun seedFor(id: Int): Long = Rng.mix(id * 0x9E3779B97F4A7C15uL.toLong() + SEED_SALT) ushr 24
 
         private fun grouped(n: Int): String {
             val raw = n.toString()
@@ -245,7 +263,7 @@ class ChallengeRun(val challenge: Challenge) {
         internal set
     var cleared = false
         internal set
-    /** UNTOUCHED took a hit before the target: this run can't clear it any more. */
+    /** UNTOUCHED lost a heart before the target: this run can't clear it any more. */
     var failed = false
         internal set
     /** World time it cleared / failed / last moved (-1 = not yet), for the HUD's moments. */
@@ -259,22 +277,27 @@ class ChallengeRun(val challenge: Challenge) {
     /** 0..1 of the way there. */
     val fraction: Float get() = (progress.toFloat() / target.coerceAtLeast(1)).coerceIn(0f, 1f)
 
-    /** The HUD line for where it stands now. */
-    fun hudText(): String = challenge.hudText(progress)
+    /** The HUD line for where it stands now, played as [hero] (BULL's bonks are STOMPS). */
+    fun hudText(hero: Hero? = null): String = challenge.hudText(progress, hero)
 
-    /** Reads the run; returns the one-shot event if this step cleared or failed it. */
+    /**
+     * Reads the run; returns the one-shot event if this step cleared or failed it. Only a live
+     * run counts: once the player is down (dying, or over) nothing more moves and nothing
+     * clears, though the hit that downed an UNTOUCHED run still busts it.
+     */
     internal fun update(w: World): GameEvent? {
+        if (!cleared && !failed && challenge.untouched && w.stats.hurts > 0) {
+            failed = true
+            failedAt = w.time
+            return GameEvent.ChallengeFailed(challenge)
+        }
+        if (w.phase != Phase.PLAYING) return null
         val now = challenge.goal.measure(w)
         if (now > progress) {
             progress = now
             progressAt = w.time
         }
         if (cleared || failed) return null
-        if (challenge.untouched && w.stats.hurts > 0) {
-            failed = true
-            failedAt = w.time
-            return GameEvent.ChallengeFailed(challenge)
-        }
         if (progress >= target) {
             cleared = true
             clearedAt = w.time
@@ -311,7 +334,7 @@ object Challenges {
     private val ONE = listOf(Rule.ONE_HEART)
     private val CLEAN = listOf(Rule.UNTOUCHED)
 
-    /** The twists every goal gets (when they make sense together). */
+    /** The twists every goal of batch 1 gets (when they make sense together). Frozen: append in a new batch. */
     internal val variants: List<Variant> = listOf(
         Variant(),
         Variant(preset = Difficulty.Preset.CHILL, scale = 1.25f),
@@ -338,6 +361,7 @@ object Challenges {
      * Each hero's own challenges, built around what only they do. BULL lands like a piano and
      * bulldozes; FOX kicks; HAWK lives in a box, unplugs robots and delivers; MONKEY is a very
      * small monkey with a very big gun (always hot: no takedowns, stomps or SILENT for him).
+     * Batch 1's, frozen: new hero ideas go in a later batch.
      */
     internal val heroTemplates: List<Template> = listOf(
         hero(Hero.BULL, Goal.BONKS),
@@ -473,9 +497,19 @@ object Challenges {
         return out
     }
 
+    /**
+     * The generic goals of the first batch, spelled out (not `Goal.entries`), so a goal added
+     * later can't slip into batch 1 and reshuffle it: new goals go in a new batch.
+     */
+    internal val batch1Goals: List<Goal> = listOf(
+        Goal.DEPTH, Goal.KILLS, Goal.TAKEDOWNS, Goal.SHOT_KILLS, Goal.SILENT_KILLS, Goal.GHOST_FLOORS,
+        Goal.SCORE, Goal.BOX_AMBUSHES, Goal.BONKS, Goal.NAP_TAKEDOWNS, Goal.LIGHT_KILLS, Goal.BLAST_KILLS,
+        Goal.COMBO, Goal.HAZARD_KILLS, Goal.CLOSE_CALLS, Goal.STASHES, Goal.EXPRESS_RIDES, Goal.GUN_KILLS,
+    )
+
     /** Every family in the first batch: generic goals × twists, then the heroes' own. */
     internal val templates: List<Template> by lazy {
-        val generic = Goal.entries.filter { it.hero == null }.flatMap { goal ->
+        val generic = batch1Goals.flatMap { goal ->
             variants.filter { valid(goal, it) }.map { Template(goal, it) }
         }
         generic + heroTemplates.onEach { check(valid(it.goal, it.v)) { "bad hero template $it" } }
@@ -485,20 +519,20 @@ object Challenges {
 
     /** Fun names, spy-caper flavoured: an adjective and a word that fits the goal. */
     private val adjectives = listOf(
-        "VELVET", "NEON", "MIDNIGHT", "SNEAKY", "CHROME", "GOLDEN", "TURBO", "COSMIC", "FUZZY",
+        "NEON", "MIDNIGHT", "SNEAKY", "CHROME", "GOLDEN", "TURBO", "COSMIC", "FUZZY",
         "SECRET", "DOUBLE", "PLATINUM", "PINK", "ROGUE", "LUCKY", "CRIMSON", "PAPER", "DISCO",
-        "ATOMIC", "JAZZY", "SATIN", "SHADOW", "LASER", "ROCKET", "SLY", "MEGA", "HYPER",
-        "ELECTRIC", "SUGAR", "LEMON", "BUBBLE", "SPICY", "FROSTY", "THUNDER", "DIAMOND", "SILVER",
+        "ATOMIC", "JAZZY", "SHADOW", "LASER", "ROCKET", "SLY", "MEGA", "HYPER",
+        "ELECTRIC", "SUGAR", "LEMON", "BUBBLE", "FROSTY", "THUNDER", "DIAMOND", "SILVER",
         "COPPER", "MINT", "MANGO", "POCKET", "TINY", "GRAND", "ROYAL", "MIGHTY", "QUIET",
         "FANCY", "SNAPPY", "SLICK", "SMOOTH", "DAPPER", "CLASSY", "BREEZY", "ZIPPY", "WOBBLY",
-        "RUBBER", "TITANIUM", "SPARKLY", "MOONLIT", "LOBBY", "PENTHOUSE", "NIGHT SHIFT", "OVERTIME",
+        "RUBBER", "TITANIUM", "SPARKLY", "MOONLIT", "LOBBY", "ROOFTOP", "NIGHT SHIFT", "OVERTIME",
         "BANANA", "TUXEDO", "CASHMERE", "HONEY", "CHERRY", "TOP SECRET", "UNDERCOVER", "COCONUT",
     )
 
     private val nouns: Map<Goal, List<String>> = mapOf(
         Goal.DEPTH to listOf("DESCENT", "PLUNGE", "DIVE", "FREEFALL", "DEEP END", "SINKER", "ANCHOR", "SPIRAL", "DROP", "BASEMENT", "DOWNHILL", "TUMBLE"),
         Goal.KILLS to listOf("BRAWL", "RUCKUS", "RUMBLE", "SHOWDOWN", "MAYHEM", "FRACAS", "KERFUFFLE", "HOOPLA", "TUSSLE", "STAMPEDE", "BLOWOUT", "HULLABALOO"),
-        Goal.TAKEDOWNS to listOf("HUG", "SQUEEZE", "TACKLE", "NOOGIE", "HEADLOCK", "HANDSHAKE", "GRIP", "WRESTLER", "CUDDLE", "SLEEPER", "BEAR HUG", "PRETZEL"),
+        Goal.TAKEDOWNS to listOf("SUPLEX", "BODY SLAM", "TACKLE", "NOOGIE", "HEADLOCK", "HANDSHAKE", "ARM WRESTLE", "WRESTLER", "TAP OUT", "PILEDRIVER", "FULL NELSON", "PRETZEL"),
         Goal.SHOT_KILLS to listOf("TRIGGER", "BLASTER", "SHOOTOUT", "PEW PEW", "CROSSFIRE", "SHARPSHOOTER", "MUZZLE", "BULLSEYE", "CAP GUN", "QUICKDRAW", "SIX SHOOTER", "TRICK SHOT"),
         Goal.SILENT_KILLS to listOf("WHISPER", "HUSH", "MIME", "LIBRARIAN", "TIPTOE", "MUFFLE", "SOFT STEP", "PIN DROP", "SLIPPERS", "SHUSHER", "MOUSE", "LULL"),
         Goal.GHOST_FLOORS to listOf("GHOST", "PHANTOM", "SPECTER", "MIRAGE", "WISP", "FOG", "ECHO", "VAPOR", "POLTERGEIST", "CLOAK", "SMOKE", "RUMOR"),
@@ -507,13 +541,13 @@ object Challenges {
         Goal.BONKS to listOf("BONK", "NOGGIN", "BEANIE", "BOING", "BOUNCE", "TRAMPOLINE", "POGO", "HAT TRICK", "HOPSCOTCH", "KANGAROO", "SPRING", "BONKERS"),
         Goal.NAP_TAKEDOWNS to listOf("NAP", "LULLABY", "SNOOZE", "BEDTIME", "SIESTA", "PILLOW", "DREAM", "NIGHTCAP", "YAWN", "TUCK-IN", "SANDMAN", "SLUMBER"),
         Goal.LIGHT_KILLS to listOf("LIGHTS OUT", "CHANDELIER", "BULB", "LAMP", "FUSE", "SWITCH", "WATT", "DIMMER", "SPOTLIGHT", "LANTERN", "BLACKOUT", "FLICKER"),
-        Goal.BLAST_KILLS to listOf("KABOOM", "FIREWORKS", "POPCORN", "BOOM", "CONFETTI", "BANG", "FIRECRACKER", "PINEAPPLE", "SPARKLER", "DYNAMO", "WHOOMPH", "BIG BANG"),
+        Goal.BLAST_KILLS to listOf("KABOOM", "FIREWORKS", "POPCORN", "BOOM", "CONFETTI", "BIG BANG", "FIRECRACKER", "PINEAPPLE", "SPARKLER", "DYNAMO", "WHOOMPH", "KAPOW"),
         Goal.COMBO to listOf("CHAIN", "COMBO", "RHYTHM", "ENCORE", "MEDLEY", "DOMINO", "CASCADE", "RALLY", "FLURRY", "TANGO", "CONGA", "DRUMROLL"),
         Goal.HAZARD_KILLS to listOf("SIZZLE", "HOT FOOT", "ZAPPER", "OOPS", "BANANA PEEL", "TRAPDOOR", "HOT POTATO", "SPARKY", "STEAM", "TOASTER", "WHOOPSIE", "HOT SEAT"),
         Goal.CLOSE_CALLS to listOf("CLOSE SHAVE", "WHISKER", "HAIRCUT", "NEAR MISS", "SQUEAKER", "DODGE", "BREEZE", "LIMBO", "SWERVE", "DUCK", "WIGGLE", "SIDESTEP"),
         Goal.STASHES to listOf("STASH", "VAULT", "SAFE", "LOCKER", "GOODIE BAG", "CUBBY", "PANTRY", "HOARD", "CACHE", "CLOSET", "TREASURE", "SWAG"),
         Goal.EXPRESS_RIDES to listOf("EXPRESS", "SHUTTLE", "NONSTOP", "ROCKET", "RED-EYE", "COMMUTE", "FAST LANE", "HOTLINE", "SHORTCUT", "DUMBWAITER", "ZOOMER", "JETPACK"),
-        Goal.GUN_KILLS to listOf("BIG IRON", "HAND CANNON", "BOOMSTICK", "HOSE", "ARSENAL", "HARDWARE", "SPRAY", "TOOLKIT", "LEAD SHOWER", "BUZZSAW", "LAWN MOWER", "LEAF BLOWER"),
+        Goal.GUN_KILLS to listOf("BIG IRON", "HAND CANNON", "BOOMSTICK", "POPGUN", "ARSENAL", "HARDWARE", "BIG SPLASH", "TOOLKIT", "PEA SHOOTER", "BUZZSAW", "LAWN MOWER", "LEAF BLOWER"),
     )
 
     /** Each hero's own words, and a few names saved for their best challenges. */
@@ -523,11 +557,11 @@ object Challenges {
         Hero.BULL to HeroWords(
             listOf("BULL IN A CHINA SHOP", "TAKE IT BY THE HORNS", "GOLD CHAIN GANG", "SEEING RED", "RUNNING OF THE BULL", "BULLDOZER"),
             listOf("GOLD CHAIN", "HEAVYWEIGHT", "BRASS", "IRON", "RAGING", "MAIN EVENT", "BIG", "QUILTED", "CHAMPION", "THUNDERING", "BOMBER", "SUPER"),
-            listOf("RODEO", "MATADOR", "WRECKING BALL", "STAMPEDE", "KNOCKOUT", "TITLE BELT", "HORNS", "MOSH PIT", "BULLDOZER", "SNOWPLOW", "PIANO DROP", "FREIGHT TRAIN"),
+            listOf("RODEO", "MATADOR", "WRECKING BALL", "STAMPEDE", "KNOCKOUT", "TITLE BELT", "HAYMAKER", "MOSH PIT", "BULLDOZER", "SNOWPLOW", "PIANO DROP", "FREIGHT TRAIN"),
         ),
         Hero.FOX to HeroWords(
             listOf("FOX IN THE HENHOUSE", "RED GLOVE RUMBA", "PONYTAIL OF DOOM", "KICKS FIRST", "SLY AS A FOX", "HIGH KICK HEIST"),
-            listOf("RED GLOVE", "PONYTAIL", "HIGH KICK", "STREET", "SWIFT", "FLASHY", "SLY", "CRIMSON", "SPINNING", "LIGHTNING", "BAGGY PANTS", "TWIRLY"),
+            listOf("RED GLOVE", "PONYTAIL", "HIGH KICK", "STREET", "SWIFT", "DAZZLING", "SLY", "CRIMSON", "SPINNING", "LIGHTNING", "BAGGY PANTS", "TWIRLY"),
             listOf("ROUNDHOUSE", "SPLITS", "DOJO", "CARTWHEEL", "HENHOUSE", "DEN", "TAIL WHIP", "SIDEKICK", "KICKFLIP", "BACKFLIP", "TORNADO", "PIROUETTE"),
         ),
         Hero.HAWK to HeroWords(
@@ -537,7 +571,7 @@ object Challenges {
         ),
         Hero.MONKEY to HeroWords(
             listOf("BANANA SPLIT", "BARREL OF MONKEYS", "MONKEY BUSINESS", "GO BANANAS", "TOP BANANA", "CHEEKY MONKEY", "OOK OOK BOOM", "PEW PEW PARADE"),
-            listOf("BANANA", "CHEEKY", "CIRCUS", "BIG TOP", "JUNGLE", "TINY", "OOK OOK", "CHIMPY", "PEELED", "FUNKY", "RUNAWAY", "MONKEY"),
+            listOf("BANANA", "CHEEKY", "CIRCUS", "BIG TOP", "JUNGLE", "TINY", "OOK OOK", "CHIMPY", "BOUNCY", "FUNKY", "RUNAWAY", "MONKEY"),
             listOf("BUSINESS", "SPLIT", "BARREL", "BUNCH", "PEEL", "TRAPEZE", "PARADE", "JAMBOREE", "SHINDIG", "ENCORE", "RINGMASTER", "SMOOTHIE"),
         ),
     )
@@ -566,21 +600,29 @@ object Challenges {
 
     private const val CATALOG_SEED = 0x5EC12E7L
 
-    /** The first batch: every template at every tier, shuffled once, numbered from 1. */
-    private fun batch1(): List<Challenge> {
+    /**
+     * One batch: every template in [batch] at every tier, shuffled once with [seed] and numbered
+     * from [firstId], named uniquely against [used] (every earlier batch's names).
+     *
+     * Batch 1 is [templates] with [CATALOG_SEED]. Its inputs ([batch1Goals], [variants],
+     * [heroTemplates], [baseTargets], the name pools) are frozen: changing any of them moves
+     * shipped challenges, and the golden test fails. A batch 2 gets its own template list
+     * (new goals, twists or hero ideas) and seed, and is appended in [all] after batch 1's last
+     * id; if it wants new words, give it its own pools rather than editing these.
+     */
+    private fun batch(batch: List<Template>, firstId: Int, seed: Long, used: HashSet<String>): List<Challenge> {
         val raw = ArrayList<Pair<Template, Int>>()
-        for (t in templates) for (tier in Tier.entries.indices) raw += t to tier
+        for (t in batch) for (tier in Tier.entries.indices) raw += t to tier
         // A fixed shuffle so the board mixes goals, heroes and tiers.
-        val rng = Rng(CATALOG_SEED)
+        val rng = Rng(seed)
         for (i in raw.size - 1 downTo 1) {
             val j = rng.nextInt(i + 1)
             val tmp = raw[i]; raw[i] = raw[j]; raw[j] = tmp
         }
-        val used = HashSet<String>()
-        val names = Rng(CATALOG_SEED xor 0x4E414D45L)
+        val names = Rng(seed xor 0x4E414D45L)
         return raw.mapIndexed { i, (t, tier) ->
             Challenge(
-                id = i + 1,
+                id = firstId + i,
                 name = named(names, t, used),
                 goal = t.goal,
                 target = targets(t.goal, t.v)[tier],
@@ -593,8 +635,11 @@ object Challenges {
         }
     }
 
-    /** Every challenge, id order (`all[i].id == i + 1`). */
-    val all: List<Challenge> by lazy { batch1() }
+    /** Every challenge, id order (`all[i].id == i + 1`): batch 1, then any later batches appended. */
+    val all: List<Challenge> by lazy {
+        val used = HashSet<String>()
+        batch(templates, 1, CATALOG_SEED, used)
+    }
 
     val size: Int get() = all.size
 
