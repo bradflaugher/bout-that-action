@@ -54,6 +54,11 @@ enum class Hero(
      */
     val melee: Boolean = true,
     /**
+     * Has a SILENT mode at all. False for MONKEY: his run is always GUNS HOT, whatever the
+     * saved mode says, and the mode button is locked ([World.modeLocked]).
+     */
+    val sneaks: Boolean = true,
+    /**
      * Standing height, in world units ([Body.HEIGHT] for a grown-up). Under [Body.HIGH] the
      * guards' high shots sail over his head. The art scales the figure to match.
      */
@@ -93,13 +98,13 @@ enum class Hero(
      * A small monkey with a very big gun: he ran away from the circus and brought the
      * hardware. The weapons specialist: a 12-round rifle that fires fast, pickup guns that
      * last longer, and he's short enough that high shots sail over him. No hands free for
-     * takedowns, no stomps: the gun does all the talking, even in SILENT.
+     * takedowns, no stomps, no SILENT: he's always GUNS HOT, and the gun does all the talking.
      */
     MONKEY(
         "MONKEY", "Circus runaway. Big gun.",
-        "12-round rifle; no takedowns or stomps; high shots miss him", "Oo oo. Ah ah. Pew pew.",
+        "Always guns hot, 12-round rifle; no takedowns; high shots miss him", "Oo oo. Ah ah. Pew pew.",
         0xFFFFC23A.toInt(),
-        magSize = 12, gunTime = 1.5f, melee = false, height = 0.95f,
+        magSize = 12, gunTime = 1.5f, melee = false, sneaks = false, height = 0.95f,
     ),
     ;
 

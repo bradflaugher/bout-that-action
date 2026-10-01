@@ -72,6 +72,8 @@ internal class Hud(private val f: Frame) {
         /** GUNS HOT orange, SILENT violet and grenade lime: the billboard draws the buttons in these too. */
         const val HOT = 0xFFFF6A3A.toInt()
         const val QUIET = 0xFF9C8CFF.toInt()
+        /** How long a poke at a locked mode button rattles it. */
+        private const val LOCK_RATTLE = 0.45f
         private const val MARGIN = 4f
         private const val TOP = 2.5f
 
@@ -296,28 +298,36 @@ internal class Hud(private val f: Frame) {
 
     /**
      * GUNS HOT / SILENT, right under pause: a crosshair (hot orange) or a struck-through one
-     * (quiet violet), with the mode named under it and a ring that pops when it flips.
+     * (quiet violet), with the mode named under it and a ring that pops when it flips. A
+     * locked mode ([World.modeLocked]) sits dimmer behind a little padlock, and a poke at it
+     * rattles the lock instead of flipping anything. MONKEY's says ALWAYS HOT.
      */
     private fun modeButton(u: Float) {
-        val silent = f.w.silent
+        val w = f.w
+        val silent = w.silent
+        val locked = w.modeLocked
         if (lastSilent != null && lastSilent != silent) modeAt = f.t
         lastSilent = silent
         val c = modeBuf
         modeCenter(g.width, f.topInset, c)
-        val cx = c[0]
+        val poke = w.time - w.lockPokeAt
+        // A poke at a locked button: a quick, decaying side-to-side rattle.
+        val rattle = if (locked && poke in 0f..LOCK_RATTLE) sin(poke * 52f) * (1f - poke / LOCK_RATTLE) else 0f
+        val cx = c[0] + rattle * 0.55f * u
         val cy = c[1]
         val r = c[2]
         val col = if (silent) QUIET else HOT
+        val dim = if (locked) 0.55f else 1f
         val age = since(modeAt)
         val pop = if (age in 0f..0.3f) 1f + 0.18f * HudType.decay(age / 0.3f) else 1f
         g.fillCircle(cx, cy + 0.3f * u, r, 0x55000000)
         g.fillCircle(cx, cy, r * pop, 0x8C0C0A14.toInt())
-        g.strokeCircle(cx, cy, (r - 0.12f * u) * pop, 0.3f * u, Col.alpha(col, 0.85f))
+        g.strokeCircle(cx, cy, (r - 0.12f * u) * pop, 0.3f * u, Col.alpha(col, 0.85f * dim))
         if (age in 0f..0.5f) g.strokeCircle(cx, cy, r * (1f + age * 1.6f), 0.35f * u, Col.alpha(col, 0.7f * (1f - age / 0.5f)))
         // Crosshair.
         val k = r * 0.5f
         val sw = 0.36f * u
-        val ic = if (silent) Col.alpha(col, 0.75f) else INK
+        val ic = if (silent) Col.alpha(col, 0.75f * dim) else Col.alpha(INK, dim)
         g.strokeCircle(cx, cy, k * 0.72f, sw, ic)
         g.line(cx - k, cy, cx - k * 0.4f, cy, sw, ic)
         g.line(cx + k * 0.4f, cy, cx + k, cy, sw, ic)
@@ -325,11 +335,43 @@ internal class Hud(private val f: Frame) {
         g.line(cx, cy + k * 0.4f, cx, cy + k, sw, ic)
         if (silent) {
             g.line(cx - k * 0.85f, cy + k * 0.85f, cx + k * 0.85f, cy - k * 0.85f, sw * 1.6f, 0xFF0C0A14.toInt())
-            g.line(cx - k * 0.85f, cy + k * 0.85f, cx + k * 0.85f, cy - k * 0.85f, sw, col)
+            g.line(cx - k * 0.85f, cy + k * 0.85f, cx + k * 0.85f, cy - k * 0.85f, sw, Col.alpha(col, dim))
         } else {
-            g.fillCircle(cx, cy, sw * 0.9f, col)
+            g.fillCircle(cx, cy, sw * 0.9f, Col.alpha(col, dim))
         }
-        HudType.tracked(g, if (silent) "SILENT" else "GUNS HOT", cx, cy + r + 2.6f * u, 2.1f * u, col, Gfx.Font.HUD, Gfx.Align.CENTER, 0.3f * u)
+        if (locked) padlock(cx + r * 0.7f, cy + r * 0.66f, r * 0.44f, col, rattle * 16f)
+        val label = when {
+            !w.hero.sneaks -> "ALWAYS HOT"
+            silent -> "SILENT"
+            else -> "GUNS HOT"
+        }
+        HudType.tracked(g, label, cx, cy + r + 2.6f * u, 2.1f * u, Col.alpha(col, if (locked) 0.85f else 1f), Gfx.Font.HUD, Gfx.Align.CENTER, 0.3f * u)
+    }
+
+    /**
+     * A tiny padlock badge centred at (x, y), [s] its radius: a dark coin ringed in [col] with
+     * the lock on it, tilted [tilt] degrees while it rattles.
+     */
+    private fun padlock(x: Float, y: Float, s: Float, col: Int, tilt: Float) {
+        g.fillCircle(x, y + s * 0.1f, s, 0x66000000)
+        g.fillCircle(x, y, s, 0xF20C0A14.toInt())
+        g.strokeCircle(x, y, s * 0.94f, s * 0.12f, col)
+        g.save()
+        g.translate(x, y)
+        g.rotate(tilt)
+        val bw = s * 0.92f
+        val bh = s * 0.66f
+        val top = -s * 0.08f
+        val sh = s * 0.15f
+        // Shackle: an arch over the body.
+        g.strokeArc(0f, top, bw * 0.3f, 180f, 180f, sh, col)
+        g.line(-bw * 0.3f, top, -bw * 0.3f, top + bh * 0.2f, sh, col)
+        g.line(bw * 0.3f, top, bw * 0.3f, top + bh * 0.2f, sh, col)
+        g.fillRoundRect(-bw / 2f, top + bh * 0.02f, bw / 2f, top + bh, s * 0.1f, col)
+        // Keyhole.
+        g.fillCircle(0f, top + bh * 0.42f, s * 0.1f, 0xFF0C0A14.toInt())
+        g.line(0f, top + bh * 0.42f, 0f, top + bh * 0.75f, s * 0.08f, 0xFF0C0A14.toInt())
+        g.restore()
     }
 
     // --------------------------------------------------------- grenade button

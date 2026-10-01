@@ -827,18 +827,30 @@ class HeroTest {
     }
 
     @Test
-    fun inSilentTheMonkeyShootsBackLoudly() {
-        for (hero in listOf(Hero.MONKEY, Hero.BULL)) {
-            val w = world(hero, silent = true)
-            w.player.x = 3f
-            w.player.facing = 1
-            val sleeper = enemy(w, EnemyKind.AGENT, 1f, facing = -1)
-            sleeper.asleep = true
-            val onto = enemy(w, EnemyKind.AGENT, 6f, facing = -1)
+    fun monkeyIsAlwaysGunsHot() {
+        // A saved SILENT doesn't take: he starts GUNS HOT, and the mode button is locked.
+        val w = world(Hero.MONKEY, silent = true)
+        assertFalse(w.silent)
+        assertTrue(w.modeLocked)
+        assertFalse(w.holstered)
+        w.commands += Command.TOGGLE_MODE
+        w.step(dt)
+        assertFalse("still GUNS HOT", w.silent)
+        assertFalse("no flip, so the saved mode stays", w.events.any { it is GameEvent.ModeToggled })
+        assertTrue("he just looks puzzled", w.fx.texts.any { it.text == Popup.OOK })
+        // Everyone else still flips.
+        for (hero in Hero.entries) assertEquals("$hero", hero != Hero.MONKEY, hero.sneaks)
+        assertFalse(world(Hero.HAWK, silent = true).modeLocked)
+        // So whoever is onto him gets shot at, saved SILENT or not...
+        for (silent in listOf(true, false)) {
+            val t = world(Hero.MONKEY, silent = silent)
+            t.player.x = 3f
+            t.player.facing = 1
+            val onto = enemy(t, EnemyKind.AGENT, 6f, facing = -1)
             onto.state = EnemyState.AIM
             onto.hp = 99
             var fired = false
-            run(w, 1f) {
+            run(t, 1f) {
                 it.player.hp = it.player.maxHp
                 it.player.invuln = 9f
                 onto.fireCooldown = 99f
@@ -846,16 +858,16 @@ class HeroTest {
                 if (it.events.any { ev -> ev is GameEvent.Shot && ev.byPlayer }) fired = true
                 it.events.clear()
             }
-            assertEquals("$hero", hero == Hero.MONKEY, fired)
+            assertTrue("silent $silent", fired)
         }
-        // An unaware guard is left alone, in either mode.
+        // ...and an unaware guard is still left alone.
         for (silent in listOf(true, false)) {
-            val w = world(Hero.MONKEY, silent = silent)
-            w.player.x = 3f
-            val back = enemy(w, EnemyKind.AGENT, 5f, facing = 1)
+            val t = world(Hero.MONKEY, silent = silent)
+            t.player.x = 3f
+            val back = enemy(t, EnemyKind.AGENT, 5f, facing = 1)
             back.vx = 0f
-            run(w, 0.3f) { back.x = 5f }
-            assertEquals(null, w.aimTarget())
+            run(t, 0.3f) { back.x = 5f }
+            assertEquals(null, t.aimTarget())
         }
     }
 
@@ -925,7 +937,7 @@ class HeroTest {
     @Test
     fun shushPicksOffGuardsQuietly() {
         for (perk in listOf(true, false)) {
-            val w = world(Hero.MONKEY, silent = true)
+            val w = world(Hero.MONKEY)
             if (perk) w.perks[Perk.SHUSH] = 1
             w.player.x = 3f
             w.player.facing = 1
@@ -943,7 +955,6 @@ class HeroTest {
             if (perk) {
                 assertFalse("an unaware guard, shot", back.alive)
                 assertEquals(KillMethod.SHOT, back.killedBy)
-                assertEquals("a quiet kill in SILENT", 1, w.silentKills)
                 assertEquals("nobody heard a thing", EnemyState.PATROL, bystander.state)
             } else {
                 assertTrue(back.alive)
