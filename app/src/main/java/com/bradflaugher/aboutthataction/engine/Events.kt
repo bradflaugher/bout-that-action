@@ -61,6 +61,12 @@ sealed interface GameEvent {
     data object BoxKicked : GameEvent
     /** A guard who watched you hide in a doorway pulled you out of it. */
     data object FoundHiding : GameEvent
+    /** The run's challenge just cleared (the run goes on). */
+    data class ChallengeCleared(val challenge: Challenge) : GameEvent
+    /** The run's challenge can't be cleared any more (UNTOUCHED took a hit). */
+    data class ChallengeFailed(val challenge: Challenge) : GameEvent
+    /** Another challenge, not the run's own, was just met on the side ([World.sideCleared]). Once each. */
+    data class SideCleared(val challenge: Challenge) : GameEvent
     /** Tapped a STASH door while your hallway is on alert: it won't budge. */
     data object StashLocked : GameEvent
 }

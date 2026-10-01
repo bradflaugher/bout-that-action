@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -181,6 +182,8 @@ fun NeonButton(
     height: Dp = 56.dp,
     textSize: TextUnit = if (style == ButtonStyle.PRIMARY) Type.headline else Type.title,
     trailing: (@Composable RowScope.() -> Unit)? = null,
+    /** A small second line under the label ("SEED · SOUND"); the button grows for big fonts. */
+    caption: String? = null,
     onClick: () -> Unit,
 ) {
     val source = remember { MutableInteractionSource() }
@@ -196,7 +199,7 @@ fun NeonButton(
     } else 0f
     Row(
         modifier
-            .height(height.coerceAtLeast(Space.touch))
+            .then(if (caption == null) Modifier.height(height.coerceAtLeast(Space.touch)) else Modifier.heightIn(min = height.coerceAtLeast(Space.touch)))
             .pressScale(source)
             .drawBehind {
                 val o = shapeOutline(shape)
@@ -250,14 +253,21 @@ fun NeonButton(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Shrinks rather than truncates on narrow phones.
-        FitText(
-            label,
-            textSize,
-            if (style == ButtonStyle.PRIMARY) Color.White else color,
-            Modifier.weight(1f, fill = false),
-            letterSpacing = if (style == ButtonStyle.PRIMARY) 4.sp else 2.5.sp,
-            glow = if (style == ButtonStyle.PRIMARY) 0.35f else 0.5f,
-        )
+        val ink = if (style == ButtonStyle.PRIMARY) Color.White else color
+        val spacing = if (style == ButtonStyle.PRIMARY) 4.sp else 2.5.sp
+        val glow = if (style == ButtonStyle.PRIMARY) 0.35f else 0.5f
+        if (caption == null) {
+            FitText(label, textSize, ink, Modifier.weight(1f, fill = false), letterSpacing = spacing, glow = glow)
+        } else {
+            Column(
+                Modifier.weight(1f, fill = false).padding(vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                FitText(label, textSize, ink, letterSpacing = spacing, glow = glow)
+                FitText(caption, Type.micro, ink.copy(alpha = 0.62f), title = false, letterSpacing = 2.sp, glow = 0f)
+            }
+        }
         trailing?.invoke(this)
     }
 }
@@ -288,6 +298,34 @@ fun DrawScope.chevronLeft(color: Color) {
     val w = 2.5.dp.toPx()
     drawLine(color, Offset(c.x + s * 0.5f, c.y - s), Offset(c.x - s * 0.5f, c.y), w)
     drawLine(color, Offset(c.x - s * 0.5f, c.y), Offset(c.x + s * 0.5f, c.y + s), w)
+}
+
+/**
+ * A sub-screen's header bar: back chevron, kicker over a big title, an optional readout on the
+ * right, and a glowing hairline under it. It stays put while the screen scrolls under it.
+ */
+@Composable
+fun MenuHeader(
+    kicker: String,
+    title: String,
+    accent: Color,
+    onBack: () -> Unit,
+    line: List<Color> = listOf(accent.copy(alpha = 0.6f), Neon.magenta.copy(alpha = 0.3f), Color.Transparent),
+    trailing: @Composable RowScope.() -> Unit = {},
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = Space.m, vertical = Space.s),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton("Back", accent, onBack) { chevronLeft(it) }
+        Column(Modifier.weight(1f).padding(start = Space.m)) {
+            FitText(kicker, Type.micro, accent.copy(alpha = 0.8f), Modifier.fillMaxWidth(), title = false, letterSpacing = 3.sp,
+                glow = 0f, alignment = Alignment.CenterStart)
+            FitText(title, 28.sp, Color.White, Modifier.fillMaxWidth(), letterSpacing = 3.sp, glow = 0.35f, alignment = Alignment.CenterStart)
+        }
+        trailing()
+    }
+    Box(Modifier.fillMaxWidth().height(1.dp).drawBehind { drawRect(Brush.horizontalGradient(line)) })
 }
 
 // ------------------------------------------------------------------ surfaces

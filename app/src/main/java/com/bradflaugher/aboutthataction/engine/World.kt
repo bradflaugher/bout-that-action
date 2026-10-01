@@ -14,8 +14,14 @@ import kotlin.math.sqrt
 data class RunConfig(
     val seed: Long,
     val difficulty: Difficulty = Difficulty(),
-    /** Start in SILENT mode (never fire) instead of GUNS HOT (auto-fire). Toggled mid-run by [Command.TOGGLE_MODE]. */
+    /**
+     * Start in SILENT mode (never fire) instead of GUNS HOT (auto-fire). Toggled mid-run by
+     * [Command.TOGGLE_MODE]. Ignored for a hero who never sneaks ([Hero.sneaks]): MONKEY is
+     * always GUNS HOT.
+     */
     val silent: Boolean = false,
+    /** Keep the starting mode for the whole run: [Command.TOGGLE_MODE] does nothing ([World.modeLocked]). */
+    val lockMode: Boolean = false,
     /**
      * Coach tips: on a run from the roof, the first few floors pop a one-line hint the first
      * time each verb would help ("SWIPE DOWN: HIDE"). Text only; never changes the run.
@@ -23,6 +29,16 @@ data class RunConfig(
     val coach: Boolean = true,
     /** Who's playing: a trait, three hero-only perks, a look and a soundtrack. */
     val hero: Hero = Hero.BULL,
+    /**
+     * The challenge this run is for, if any: [World] applies its setup (preset, start floor,
+     * ONE HEART) and tracks its goal. Build the whole config with [Challenge.runConfig].
+     */
+    val challenge: Challenge? = null,
+    /**
+     * Challenge ids the player has already cleared: they're left out of [World.sideCleared], so
+     * a side clear is only ever news. Reporting only: it never changes the run.
+     */
+    val knownCleared: Set<Int> = emptySet(),
 )
 
 enum class Phase { PLAYING, PERK_CHOICE, DYING, OVER }
@@ -46,7 +62,8 @@ enum class Flash { NONE, HURT, WHITE, GOLD }
  */
 class World(val config: RunConfig) {
     val seed = config.seed
-    val difficulty = config.difficulty
+    /** A challenge brings its own curve and start floor. */
+    val difficulty = config.challenge?.difficulty ?: config.difficulty
     val hero = config.hero
     private val rng = Rng(seed xor 0x5EED5EEDL)
 
@@ -69,8 +86,26 @@ class World(val config: RunConfig) {
      * SILENT: the player never fires (takedowns, stomps, the box, doorways, grenades and
      * lights only) and silent kills pay a bonus. Otherwise GUNS HOT: auto-fire at threats.
      */
-    var silent = config.silent
+    var silent = config.hero.sneaks && (config.challenge?.let { it.silentOnly || (config.silent && !it.gunsHotOnly) } ?: config.silent)
         private set
+
+    /**
+     * The mode can't change this run: a hero with no SILENT (MONKEY), or a locked run
+     * ([RunConfig.lockMode], set by [Challenge.runConfig] for SILENT ONLY and GUNS HOT ONLY).
+     */
+    val modeLocked: Boolean get() = !hero.sneaks || config.lockMode
+
+    /** [time] of the last poke at a locked mode button (the HUD gives it a shake), or -9. */
+    var lockPokeAt = -9f
+
+    /** Where the run stands on its challenge, or null on an endless run. */
+    val challenge: ChallengeRun? = config.challenge?.let { ChallengeRun(it) }
+
+    /** The other challenges this run meets on its own ([SideClears]); filled in at the end of init. */
+    val side: SideClears
+    /** Every challenge this run cleared on the side, in order (never its own [challenge]). */
+    val sideCleared: List<Challenge> get() = side.cleared
+    private var sideCheckAt = 0f
 
     var phase = Phase.PLAYING
         private set
@@ -201,8 +236,11 @@ class World(val config: RunConfig) {
     fun stacks(perk: Perk): Int = perks[perk] ?: 0
 
     init {
-        player.maxHp = difficulty.hearts + hero.extraHearts
+        // ONE HEART means one, whoever you are.
+        player.maxHp = if (config.challenge?.oneHeart == true) 1 else difficulty.hearts + hero.extraHearts
         player.hp = player.maxHp
+        // A challenge that counts what a perk does (STIFF ARMS, the kicks) starts with that perk.
+        config.challenge?.startPerk?.let { perks[it] = 1 }
         player.magSize = magSize
         player.ammo = magSize
         player.grenades = 1 + hero.extraGrenades
@@ -224,6 +262,7 @@ class World(val config: RunConfig) {
         camY = targetCamY()
         onFloorEntered(start)
         onHallEntered(start, 0)
+        side = SideClears(SideClears.candidates(config, difficulty, player.maxHp, silent), silent)
     }
 
     // ------------------------------------------------------------------ step
@@ -286,6 +325,11 @@ class World(val config: RunConfig) {
 
         camY += (targetCamY() - camY) * min(1f, dt * 7f)
         ensureFloors()
+        challenge?.update(this)?.let { onChallenge(it) }
+        if (time >= sideCheckAt) {
+            sideCheckAt = time + SideClears.CHECK_EVERY
+            side.check(this, events)
+        }
 
         if (phase == Phase.DYING) {
             dyingTime += dt
@@ -606,13 +650,39 @@ class World(val config: RunConfig) {
         fx.text(tip.text, p.x, Geo.groundY(p.floor) - 2.9f, TextStyle.WARN, 1.8f)
     }
 
-    /** GUNS HOT ⇄ SILENT. */
+    /** A challenge just cleared (it doesn't end the run: keep going for score) or failed. */
+    private fun onChallenge(e: GameEvent) {
+        events += e
+        if (e is GameEvent.ChallengeCleared) {
+            flash = Flash.GOLD
+            flashAmount = 0.6f
+        }
+    }
+
+    /**
+     * GUNS HOT ⇄ SILENT. A locked mode ([modeLocked]) stays put: MONKEY just looks puzzled,
+     * anyone else gets a reminder. No [GameEvent.ModeToggled] then, so the saved mode stays.
+     */
     fun toggleMode() {
-        silent = !silent
-        events += GameEvent.ModeToggled(silent)
         val p = player
+        val y = Geo.groundY(p.floorF) - p.z - 2.3f
+        if (modeLocked) {
+            if (p.state == PlayerState.DEAD) return
+            lockPokeAt = time
+            if (!hero.sneaks) {
+                fx.text(Popup.OOK, p.x, y, TextStyle.WARN, 0.9f)
+            } else {
+                fx.text(if (silent) Popup.SILENT_ONLY else Popup.HOT_ONLY, p.x, y, TextStyle.WARN, 0.8f)
+            }
+            return
+        }
+        // Anything met while the old mode held counts under it.
+        side.check(this, events)
+        silent = !silent
+        side.modeChanged(silent)
+        events += GameEvent.ModeToggled(silent)
         if (p.state != PlayerState.DEAD) {
-            fx.text(if (silent) "SILENT" else "GUNS HOT", p.x, Geo.groundY(p.floorF) - p.z - 2.3f, TextStyle.WARN, 0.8f)
+            fx.text(if (silent) "SILENT" else "GUNS HOT", p.x, y, TextStyle.WARN, 0.8f)
         }
     }
 
@@ -1621,35 +1691,41 @@ class World(val config: RunConfig) {
         else -> -1
     }
 
-    /** The enemy auto-aim would shoot right now (the renderer aims the gun pose at it). */
-    fun aimTarget(): Enemy? = if (holstered) null else pickTarget(11f, ::fireable)
+    /**
+     * The enemy auto-aim would shoot right now (the renderer aims the gun pose at it): what
+     * [autoFire] picks in its range, else a real threat a little further out (the gun tracks
+     * him as he comes). Never a turned back out of range: MONKEY doesn't aim at a guard he
+     * won't shoot.
+     */
+    fun aimTarget(): Enemy? = if (holstered) null else pickTarget(autoFireRange, ::fireable)
+        ?: pickTarget(11f) { fireable(it) && (threatTier(it) <= 1 || it.kind == EnemyKind.TURRET || it.kind == EnemyKind.DRONE) }
 
-    /** SHUSH: MONKEY's shots are quiet (no alarm, and quiet kills in SILENT). */
+    /** How far [autoFire] reaches: the minigun sees the whole hallway. */
+    private val autoFireRange: Float get() = if (player.weapon == PickupKind.MINIGUN) 11f else AUTO_FIRE_RANGE
+
+    /** SHUSH: MONKEY's shots are quiet (nobody hears them) and pick off guards unawares. */
     val shush: Boolean get() = stacks(Perk.SHUSH) > 0
 
-    /**
-     * The gun stays put away: SILENT, for everyone who can take a guard down by hand. MONKEY
-     * can't, so in SILENT his gun still answers anyone onto him (loud, unless it's SHUSHed).
-     */
-    val holstered: Boolean get() = silent && melee
+    /** The gun stays put away: SILENT never fires. */
+    val holstered: Boolean get() = silent
 
     /**
      * GUNS HOT fires only at threats: anyone who has noticed you, drones and turrets, and an
      * unaware guard facing you from point-blank (he's about to). A guard with his back to you,
-     * or asleep, is yours to sneak up on.
+     * or asleep, is yours to sneak up on; except for MONKEY ([Hero.backShots]), who can't, so
+     * his gun takes a turned back from anywhere in range.
      */
     private fun fireable(e: Enemy): Boolean {
         // SHUSH: a quiet gun picks off anyone, noticed or not (sleepers too).
         if (!melee && shush) return true
-        // MONKEY in SILENT: only whoever is onto him.
-        if (silent) return e.state == EnemyState.ALERT || e.state == EnemyState.AIM || e.state == EnemyState.WINDUP
         if (e.kind == EnemyKind.TURRET || e.kind == EnemyKind.DRONE) return true
         if (e.asleep) return false
         if (threatTier(e) <= 1) return true
+        val towardYou = e.facing == (if (player.x >= e.x) 1 else -1)
+        if (hero.backShots && !towardYou) return true
         // Seeing stars (a bonk, a daze) he's no threat yet, and an unaware guard FOX or STIFF ARM
         // can take face to face is theirs to finish by hand.
         if (dazed(e) || takedownWorks(e)) return false
-        val towardYou = e.facing == (if (player.x >= e.x) 1 else -1)
         return towardYou && abs(e.x - player.x) <= AUTO_FIRE_POINT_BLANK
     }
 
@@ -1710,7 +1786,7 @@ class World(val config: RunConfig) {
         }
         // Threats only: a guard who hasn't noticed you is yours to choose: sneak past, walk in
         // for the takedown, or wait for him to turn.
-        val target = pickTarget(if (p.weapon == PickupKind.MINIGUN) 11f else AUTO_FIRE_RANGE, ::fireable)
+        val target = pickTarget(autoFireRange, ::fireable)
         if (target == null) {
             drawOn = null
             return
@@ -1719,8 +1795,11 @@ class World(val config: RunConfig) {
         val melee = target.kind == EnemyKind.NINJA || target.kind == EnemyKind.DEMON && abs(target.x - p.x) <= 3f
         // Drones and turrets are always fair game: drawn on from the moment they're in range.
         val automated = target.kind == EnemyKind.DRONE || target.kind == EnemyKind.TURRET
-        // SHUSH: a quiet gun doesn't wait for the other fellow to draw.
-        val gunUp = automated || !melee && shush || target.state == EnemyState.AIM || target.fireCooldown > 0f
+        // SHUSH: a quiet gun doesn't wait for the other fellow to draw. Nor does MONKEY's on a
+        // turned back: there's no duel to be fair about.
+        val backTurned = target.facing != (if (p.x >= target.x) 1 else -1)
+        val gunUp = automated || !melee && shush || hero.backShots && backTurned ||
+            target.state == EnemyState.AIM || target.fireCooldown > 0f
         if (target !== drawOn || !gunUp) {
             drawOn = target
             drawTime = 0f
@@ -1778,7 +1857,8 @@ class World(val config: RunConfig) {
         val startX = p.x + p.facing * 0.35f
 
         fun shoot(z: Float, vz: Float = 0f, range: Float = 30f, damage: Int = dmg) {
-            bullets += Bullet(startX, z, f, p.facing * PLAYER_BULLET_V, vz, true, damage, pierce, bounce, range = range, hall = h)
+            // A pickup gun's rounds say so as they leave the barrel: the gun may run out before they land.
+            bullets += Bullet(startX, z, f, p.facing * PLAYER_BULLET_V, vz, true, damage, pierce, bounce, range = range, hall = h, bigGun = p.weapon != null)
         }
 
         // Where to aim: straight at a standing target, low at a ducking one, up at a turret.
@@ -1986,13 +2066,13 @@ class World(val config: RunConfig) {
         fx.text(Popup.HUH, e.x, Geo.groundY(e.floor) - e.height - 1.0f, TextStyle.WARN, 0.8f)
     }
 
-    private fun damageEnemy(e: Enemy, dmg: Int, method: KillMethod, dir: Int) {
+    private fun damageEnemy(e: Enemy, dmg: Int, method: KillMethod, dir: Int, bigGun: Boolean = false) {
         if (!e.alive) return
         e.hp -= dmg
         e.hurtFlash = 0.12f
         val y = Geo.groundY(e.floor) - e.targetZ
         if (e.hp <= 0) {
-            kill(e, method, dir)
+            kill(e, method, dir, bigGun)
         } else {
             events += GameEvent.BulletHit(onPlayer = false, armored = e.kind == EnemyKind.HEAVY || e.kind == EnemyKind.TURRET, pan = pan(e.x))
             fx.burst(ParticleKind.SPARK, e.x, y, 6, 5f, 0.2f, 0.08f, dir = -dir.toFloat())
@@ -2001,7 +2081,8 @@ class World(val config: RunConfig) {
         }
     }
 
-    private fun kill(e: Enemy, method: KillMethod, dir: Int) {
+    /** [bigGun]: a shot from a pickup gun (set on the bullet when it was fired). */
+    private fun kill(e: Enemy, method: KillMethod, dir: Int, bigGun: Boolean = false) {
         if (e.state == EnemyState.DEAD) return
         e.state = EnemyState.DEAD
         e.stateTime = 0f
@@ -2017,7 +2098,10 @@ class World(val config: RunConfig) {
         comboTimer = COMBO_WINDOW
         stats.bestCombo = max(stats.bestCombo, combo)
         when (method) {
-            KillMethod.SHOT -> stats.shotKills++
+            KillMethod.SHOT -> {
+                stats.shotKills++
+                if (bigGun) stats.gunKills++
+            }
             KillMethod.STOMP -> stats.stomps++
             KillMethod.LIGHT -> stats.lightKills++
             KillMethod.HAZARD -> stats.hazardKills++
@@ -2034,7 +2118,7 @@ class World(val config: RunConfig) {
         }
         var points = (e.kind.score + bonus) * mult
         // SILENT pays: every kill without a gunshot is worth double.
-        val quiet = silent && (quietBlast || (method == KillMethod.SHOT && shush) || (method != KillMethod.SHOT && method != KillMethod.EXPLOSION))
+        val quiet = silent && (quietBlast || (method != KillMethod.SHOT && method != KillMethod.EXPLOSION))
         if (quiet) {
             points *= 2
             silentKills++
@@ -2138,6 +2222,10 @@ class World(val config: RunConfig) {
             fx.burst(ParticleKind.CARDBOARD, p.x, y + 0.5f, 10, 5f, 0.8f, 0.14f, upBias = 0.4f)
             p.state = PlayerState.NORMAL
         }
+        // Anything met before this hit counts (UNTOUCHED included, and nothing posthumous): the
+        // run's own challenge and the side ones alike.
+        challenge?.update(this)?.let { onChallenge(it) }
+        side.check(this, events)
         p.hp--
         stats.logHurt(hurt)
         p.invuln = 1.3f
@@ -2470,7 +2558,7 @@ class World(val config: RunConfig) {
                     }
                     if (abs(e.x - b.x) < e.halfWidth + 0.1f && b.z >= e.z - 0.05f && b.z <= e.z + e.height + 0.05f) {
                         b.hitIds += e.id
-                        damageEnemy(e, b.damage, KillMethod.SHOT, sign(b.vx).toInt())
+                        damageEnemy(e, b.damage, KillMethod.SHOT, sign(b.vx).toInt(), b.bigGun)
                         if (b.pierce > 0) b.pierce-- else {
                             b.dead = true
                             break
@@ -2797,7 +2885,11 @@ class World(val config: RunConfig) {
     // ----------------------------------------------------------------- perks
 
     private fun offerPerks() {
-        val available = Perk.entries.filter { it.offeredTo(hero) && stacks(it) < it.maxStacks }.toMutableList()
+        // ONE HEART holds all run: no VITALITY on it.
+        val oneHeart = config.challenge?.oneHeart == true
+        val available = Perk.entries.filter {
+            it.offeredTo(hero) && stacks(it) < it.maxStacks && !(oneHeart && it == Perk.VITALITY)
+        }.toMutableList()
         val offer = ArrayList<Perk>(3)
         while (offer.size < 3 && available.isNotEmpty()) {
             val p = available.removeAt(rng.nextInt(available.size))
@@ -2810,6 +2902,11 @@ class World(val config: RunConfig) {
             return
         }
         perkOffer = offer
+        // Anything met on the way in (a STASHES or SCORE goal) counts now, before the perk
+        // overlay: quitting from it mustn't lose the clear, and a perk (VITALITY's heart) mustn't
+        // change what the run met.
+        challenge?.update(this)?.let { onChallenge(it) }
+        side.check(this, events)
         phase = Phase.PERK_CHOICE
         events += GameEvent.PerkOffered
     }

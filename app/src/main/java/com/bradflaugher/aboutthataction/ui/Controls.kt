@@ -110,9 +110,10 @@ fun <T> Segmented(
                         },
                     contentAlignment = Alignment.Center,
                 ) {
-                    NeonText(label(o), size = Type.small, color = c, align = TextAlign.Center,
+                    // Shrinks to fit (narrow phones, big font settings) rather than running into its neighbour.
+                    FitText(label(o), Type.small, c, Modifier.padding(horizontal = 6.dp), title = false,
                         letterSpacing = if (options.size > 4) 0.5.sp else 1.5.sp,
-                        glow = if (on) 0.5f else 0f, maxLines = 1)
+                        glow = if (on) 0.5f else 0f)
                 }
             }
         }

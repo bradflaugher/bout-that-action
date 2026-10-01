@@ -4,6 +4,8 @@ import com.bradflaugher.aboutthataction.engine.FloatingText
 import com.bradflaugher.aboutthataction.engine.FloorEvent
 import com.bradflaugher.aboutthataction.engine.FloorLabel
 import com.bradflaugher.aboutthataction.engine.Geo
+import com.bradflaugher.aboutthataction.engine.Phase
+import com.bradflaugher.aboutthataction.engine.World
 import com.bradflaugher.aboutthataction.engine.TextStyle
 import kotlin.math.PI
 import kotlin.math.abs
@@ -240,6 +242,383 @@ internal class HudMoments(private val f: Frame) {
     private val charCache = Array(128) { it.toChar().toString() }
     private fun charStr(c: Char) = if (c.code < 128) charCache[c.code] else c.toString()
 
+    // ============================================================ challenges
+
+    private var chWorld: World? = null
+    private var chId = -1
+    private var chName = ""
+    private var chFoot = ""
+    private val rayBuf = FloatArray(6)
+
+    /**
+     * CHALLENGE CLEARED: a gold band bursts open across the screen with a sunburst behind it,
+     * a tick stamp slams down, CLEARED drops in letter by letter, and confetti rains. Then it
+     * folds away and the run goes on. A busted UNTOUCHED gets a smaller red BUSTED band.
+     */
+    fun challenge() {
+        val run = f.w.challenge ?: return
+        val cleared = run.cleared
+        if (!cleared && !run.failed) return
+        // No party on the way out: a clear just before the fatal hit keeps its card off the death.
+        if (cleared && f.w.phase != Phase.PLAYING && f.w.phase != Phase.PERK_CHOICE) return
+        val at = if (cleared) run.clearedAt else run.failedAt
+        val life = if (cleared) CLEAR_TIME else BUST_TIME
+        val age = f.wt - at
+        if (at < 0f || age < 0f || age > life) return
+        val ch = run.challenge
+        if (ch.id != chId || f.w !== chWorld) {
+            chWorld = f.w
+            chId = ch.id
+            chName = ch.name
+            chFoot = "#" + ch.id + "  ·  " + ch.tier.title + "  ·  KEEP GOING FOR SCORE"
+        }
+        val w = f.w
+        val W = g.width
+        val H = g.height
+        val u = Hud.unit(W)
+        val stageBottom = (Geo.groundY(w.player.floorF) + Building.SLAB - f.camY) * f.s
+        var cy = min(H * 0.7f, max(H * 0.36f, stageBottom + 26f * u))
+        if (w.bannerZone != null && w.bannerTime > 0f) cy = min(H * 0.8f, cy + 30f * u)
+        val out = HudType.clamp01((life - age) / 0.45f)
+        val open = HudType.outCubic(HudType.clamp01(age / 0.35f)) * HudType.outCubic(out)
+        val a = HudType.clamp01(age / 0.12f) * out
+        if (a <= 0f) return
+        if (cleared) clearedCard(cy, age, open, a, out, u) else bustedCard(cy, age, open, a, u)
+    }
+
+    private fun clearedCard(cy: Float, age: Float, open: Float, a: Float, out: Float, u: Float) {
+        val W = g.width
+        val H = g.height
+        val gold = CH_GOLD
+        // The pop: a gold wash over everything.
+        if (age < 0.3f) {
+            g.blend(Gfx.Blend.ADD)
+            g.fillRect(0f, 0f, W, H, Col.alpha(gold, 0.2f * (1f - age / 0.3f)))
+            g.blend(Gfx.Blend.NORMAL)
+        }
+        // Sunburst: soft rays fanning out from the stamp, turning slowly.
+        val sx = W / 2f
+        val sy = cy - 9.5f * u
+        val rays = 16
+        val reach = W * 0.62f * (0.4f + 0.6f * open)
+        val turn = age * 9f
+        g.blend(Gfx.Blend.ADD)
+        for (i in 0 until rays) {
+            val ang = ((i * 360f / rays) + turn) * (PI.toFloat() / 180f)
+            val half = (360f / rays) * 0.2f * (PI.toFloat() / 180f)
+            val xy = rayBuf
+            xy[0] = sx; xy[1] = sy
+            xy[2] = sx + cos(ang - half) * reach; xy[3] = sy + sin(ang - half) * reach
+            xy[4] = sx + cos(ang + half) * reach; xy[5] = sy + sin(ang + half) * reach
+            // Bright at the medal, gone by the tip.
+            g.fillPolygonGradient(
+                xy, sx, sy, sx + cos(ang) * reach, sy + sin(ang) * reach,
+                Col.alpha(gold, 0.26f * a), Col.alpha(gold, 0.08f * a), Col.alpha(gold, 0f), 0.35f,
+            )
+        }
+        g.glow(sx, sy, 30f * u * open, Col.alpha(gold, 0.25f * a))
+        g.blend(Gfx.Blend.NORMAL)
+
+        // The band, opening from its centre line.
+        val half = 15.5f * u * open
+        val feather = 9f * u * open
+        val dark = Col.alpha(0xFF07050C.toInt(), 0.93f * a)
+        g.fillVerticalGradient(0f, cy - half - feather, W, cy - half, 0x00000000, dark)
+        g.fillRect(0f, cy - half, W, cy + half, dark)
+        g.fillVerticalGradient(0f, cy + half, W, cy + half + feather, dark, 0x00000000)
+        g.fillVerticalGradient(0f, cy - half, W, cy + half, Col.alpha(gold, 0.12f * a), Col.alpha(CH_PINK, 0.05f * a))
+        // Gold rules wiping outward, top and bottom.
+        val lw = W * 0.86f * HudType.outCubic(HudType.clamp01((age - 0.05f) / 0.45f)) * out
+        val ly1 = cy - half + 1.4f * u
+        val ly2 = cy + half - 1.4f * u
+        g.fillRect(W / 2f - lw / 2f, ly1, W / 2f + lw / 2f, ly1 + 0.3f * u, Col.alpha(gold, 0.9f * a))
+        g.fillRect(W / 2f - lw / 2f, ly2 - 0.3f * u, W / 2f + lw / 2f, ly2, Col.alpha(gold, 0.9f * a))
+        g.blend(Gfx.Blend.ADD)
+        g.glow(W / 2f - lw / 2f, ly1, 2.4f * u, Col.alpha(gold, a))
+        g.glow(W / 2f + lw / 2f, ly1, 2.4f * u, Col.alpha(gold, a))
+        g.glow(W / 2f - lw / 2f, ly2, 2.4f * u, Col.alpha(CH_PINK, a))
+        g.glow(W / 2f + lw / 2f, ly2, 2.4f * u, Col.alpha(CH_PINK, a))
+        g.blend(Gfx.Blend.NORMAL)
+
+        // The stamp: a gold medal with a tick, slammed down from big.
+        val sk = HudType.clamp01((age - 0.08f) / 0.32f)
+        if (sk > 0f) {
+            val sc = 2.2f - 1.2f * HudType.outBack(sk, 2.2f)
+            val r = 5.4f * u * sc
+            val sa = HudType.clamp01(sk * 3f) * a
+            val ringAge = age - 0.4f
+            if (ringAge in 0f..0.6f) {
+                val q = ringAge / 0.6f
+                g.strokeCircle(sx, sy, 5.4f * u * (1f + q * 1.8f), 0.5f * u * (1f - q), Col.alpha(gold, 0.9f * (1f - q) * a))
+            }
+            g.fillCircle(sx, sy + 0.6f * u, r, Col.alpha(0xFF000000.toInt(), 0.5f * sa))
+            g.fillCircle(sx, sy, r, Col.alpha(gold, sa))
+            g.fillCircle(sx, sy - r * 0.08f, r * 0.84f, Col.alpha(0xFFFFE08A.toInt(), sa))
+            g.strokeCircle(sx, sy, r * 0.72f, 0.28f * u * sc, Col.alpha(0xFFB87A10.toInt(), 0.7f * sa))
+            // Notched medal rim.
+            for (i in 0 until 16) {
+                val ang = i * (PI.toFloat() / 8f) + 0.2f
+                g.fillCircle(sx + cos(ang) * r, sy + sin(ang) * r, 0.55f * u * sc, Col.alpha(gold, sa))
+            }
+            val ink = Col.alpha(0xFF2A1A04.toInt(), sa)
+            val tk = HudType.clamp01((age - 0.3f) / 0.22f)
+            val ax = sx - r * 0.38f
+            val ay = sy + r * 0.0f
+            val mx = sx - r * 0.1f
+            val my = sy + r * 0.3f
+            val ex = sx + r * 0.42f
+            val ey = sy - r * 0.32f
+            val sw = 0.95f * u * sc
+            if (tk > 0f) {
+                val k1 = min(1f, tk * 2f)
+                g.line(ax, ay, ax + (mx - ax) * k1, ay + (my - ay) * k1, sw, ink)
+                if (tk > 0.5f) {
+                    val k2 = (tk - 0.5f) * 2f
+                    g.line(mx, my, mx + (ex - mx) * k2, my + (ey - my) * k2, sw, ink)
+                }
+            }
+            g.blend(Gfx.Blend.ADD)
+            g.glow(sx - r * 0.35f, sy - r * 0.4f, r * 0.5f, Col.alpha(0xFFFFFFFF.toInt(), 0.35f * sa))
+            g.blend(Gfx.Blend.NORMAL)
+        }
+
+        // Kicker over the title.
+        val ka = HudType.clamp01((age - 0.2f) / 0.3f) * a
+        HudType.tracked(g, "CHALLENGE", W / 2f, cy - 1.6f * u, 2.4f * u, Col.alpha(gold, ka), Gfx.Font.HUD, Gfx.Align.CENTER, 0.9f * u)
+
+        // CLEARED, letter by letter, chroma converging.
+        val title = "CLEARED"
+        var size = 11f * u
+        val tracking = 1f * u + age * 0.15f * u
+        val tw = HudType.trackedWidth(g, title, size, Gfx.Font.TITLE, tracking)
+        if (tw > W * 0.84f) size *= W * 0.84f / tw
+        val tw2 = HudType.trackedWidth(g, title, size, Gfx.Font.TITLE, tracking)
+        val baseY = cy + 7.6f * u
+        g.blend(Gfx.Blend.ADD)
+        g.save()
+        g.translate(W / 2f, baseY - size * 0.36f)
+        g.scale(1f, 0.3f)
+        g.glow(0f, 0f, tw2 * 0.7f, Col.alpha(gold, 0.4f * a))
+        g.restore()
+        g.blend(Gfx.Blend.NORMAL)
+        var x = W / 2f - tw2 / 2f
+        for (i in title.indices) {
+            val cs = charStr(title[i])
+            val cw = g.textWidth(cs, size, Gfx.Font.TITLE)
+            val k = HudType.clamp01((age - 0.22f - i * 0.045f) / 0.3f)
+            if (k > 0f) {
+                val e = HudType.outBack(k, 2.4f)
+                val dy = (1f - e) * -5f * u
+                val split = (1f - HudType.outCubic(k)) * 2.6f * u
+                val la = HudType.clamp01(k * 2f) * a
+                if (split > 0.05f * u) {
+                    g.blend(Gfx.Blend.ADD)
+                    g.text(cs, x - split, baseY + dy, size, Col.alpha(CH_PINK, 0.75f * la), Gfx.Font.TITLE)
+                    g.text(cs, x + split, baseY + dy, size, Col.alpha(0xFF2BE8FF.toInt(), 0.75f * la), Gfx.Font.TITLE)
+                    g.blend(Gfx.Blend.NORMAL)
+                }
+                g.text(cs, x + 0.45f * u, baseY + dy + 0.6f * u, size, Col.alpha(0xFF000000.toInt(), 0.65f * la), Gfx.Font.TITLE)
+                // Gold-to-white face: a bright top over a gold body.
+                g.text(cs, x, baseY + dy, size, Col.alpha(Col.lerp(0xFFFFFFFF.toInt(), gold, 0.25f), la), Gfx.Font.TITLE)
+            }
+            x += cw + tracking
+        }
+
+        // The challenge's name and the foot line.
+        val na = HudType.clamp01((age - 0.6f) / 0.35f) * a
+        if (na > 0f) {
+            var ns = 3.4f * u
+            val nw = HudType.trackedWidth(g, chName, ns, Gfx.Font.TITLE, 0.4f * u)
+            if (nw > W * 0.8f) ns *= W * 0.8f / nw
+            HudType.tracked(g, chName, W / 2f, cy + 12.4f * u, ns, Col.alpha(0xFFFFFFFF.toInt(), na), Gfx.Font.TITLE, Gfx.Align.CENTER, 0.4f * u)
+            var fs = 1.9f * u
+            val fw = HudType.trackedWidth(g, chFoot, fs, Gfx.Font.HUD, 0.35f * u)
+            if (fw > W * 0.86f) fs *= W * 0.86f / fw
+            HudType.tracked(g, chFoot, W / 2f, ly2 + 3.4f * u, fs, Col.alpha(0xFFE8E4F4.toInt(), 0.75f * na), Gfx.Font.HUD, Gfx.Align.CENTER, 0.35f * u)
+        }
+
+        confetti(sx, sy, age, a, u)
+    }
+
+    /** Thrown up from the stamp, then fluttering down, spinning, in the challenge colours. */
+    private fun confetti(ox: Float, oy: Float, age: Float, a: Float, u: Float) {
+        val t = age - 0.35f
+        if (t <= 0f) return
+        val n = 46
+        for (i in 0 until n) {
+            val ang = (-PI.toFloat() / 2f) + (hash(i, 31) - 0.5f) * 2.6f
+            val speed = (38f + 46f * hash(i, 32)) * u
+            val drag = 1.6f
+            val e = (1f - kotlin.math.exp(-drag * t)) / drag
+            val fall = 26f * u * t * t
+            val flutter = sin(t * (5f + 4f * hash(i, 33)) + i) * 2.2f * u
+            val x = ox + cos(ang) * speed * e + flutter
+            val y = oy + sin(ang) * speed * e + fall
+            val life = 2.2f + 0.9f * hash(i, 34)
+            val la = a * HudType.clamp01((life - t) / 0.5f)
+            if (la <= 0f) continue
+            val c = CONFETTI[i % CONFETTI.size]
+            val spin = t * (6f + 8f * hash(i, 35)) + i
+            val w = (0.8f + 0.6f * hash(i, 36)) * u
+            val h = w * (0.35f + 0.65f * abs(cos(spin)))
+            val ca = cos(spin * 0.7f)
+            val sa = sin(spin * 0.7f)
+            poly.quad(
+                g,
+                x - ca * w + sa * h, y - sa * w - ca * h,
+                x + ca * w + sa * h, y + sa * w - ca * h,
+                x + ca * w - sa * h, y + sa * w + ca * h,
+                x - ca * w - sa * h, y - sa * w + ca * h,
+                Col.alpha(c, la),
+            )
+        }
+    }
+
+    private fun bustedCard(cy: Float, age: Float, open: Float, a: Float, u: Float) {
+        val W = g.width
+        val H = g.height
+        val red = CH_RED
+        if (age < 0.2f) {
+            g.blend(Gfx.Blend.ADD)
+            g.fillRect(0f, 0f, W, H, Col.alpha(red, 0.12f * (1f - age / 0.2f)))
+            g.blend(Gfx.Blend.NORMAL)
+        }
+        val half = 9f * u * open
+        val feather = 6f * u * open
+        val dark = Col.alpha(0xFF0A0408.toInt(), 0.9f * a)
+        g.fillVerticalGradient(0f, cy - half - feather, W, cy - half, 0x00000000, dark)
+        g.fillRect(0f, cy - half, W, cy + half, dark)
+        g.fillVerticalGradient(0f, cy + half, W, cy + half + feather, dark, 0x00000000)
+        g.fillVerticalGradient(0f, cy - half, W, cy + half, Col.alpha(red, 0.1f * a), Col.alpha(red, 0.02f * a))
+        g.fillRect(0f, cy - half, W, cy - half + 0.3f * u, Col.alpha(red, 0.8f * a))
+        hazardTrim(-2f * u, W + 2f * u, cy + half, 0f, u, a)
+        // BUSTED, shaking off the hit.
+        val shake = if (age < 0.4f) sin(age * 70f) * 1.2f * u * (1f - age / 0.4f) else 0f
+        val size = 8.4f * u
+        val baseY = cy + 1.6f * u
+        HudType.tracked(g, "BUSTED", W / 2f + shake + 0.4f * u, baseY + 0.5f * u, size, Col.alpha(0xFF000000.toInt(), 0.6f * a), Gfx.Font.TITLE, Gfx.Align.CENTER, 0.8f * u)
+        HudType.tracked(g, "BUSTED", W / 2f + shake, baseY, size, Col.alpha(0xFFFFFFFF.toInt(), a), Gfx.Font.TITLE, Gfx.Align.CENTER, 0.8f * u)
+        HudType.tracked(g, "CHALLENGE  ·  " + chName, W / 2f, cy - half + 3.4f * u, 2f * u, Col.alpha(red, 0.95f * a), Gfx.Font.HUD, Gfx.Align.CENTER, 0.45f * u)
+        HudType.tracked(g, "UNTOUCHED? NOT ANY MORE.", W / 2f, cy + 6.4f * u, 2f * u, Col.alpha(0xFFE8E4F4.toInt(), 0.8f * a), Gfx.Font.HUD, Gfx.Align.CENTER, 0.35f * u)
+    }
+
+    // ============================================================ side clears
+
+    private var toastWorld: World? = null
+    private var toastFirst = -1
+    private var toastCount = 0
+    private var toastKicker = ""
+    private var toastMain = ""
+
+    /**
+     * Other challenges met on the side: a small gold plate drops in under the HUD, holds a couple
+     * of seconds and fades. They queue (never stack), and ones landing together share a plate
+     * ("5 AT ONCE"). Quiet on purpose: no flash, no medal, and nothing outside PLAYING (it
+     * waits out a perk pick, since the world clock stands still there).
+     */
+    fun sideToast() {
+        val w = f.w
+        if (w.phase != Phase.PLAYING) return
+        val side = w.side
+        val n = side.cleared.size
+        if (n == 0) return
+        val now = f.wt
+        // Walk the queue: each plate starts when its first clear lands or the last one leaves,
+        // whichever is later, and takes in everything that arrived by then (or just after).
+        var i = 0
+        var prevStart = -99f
+        var start = 0f
+        var count = 0
+        while (i < n) {
+            val s = max(side.clearedAt(i), prevStart + TOAST_TIME)
+            if (s > now) return
+            var j = i + 1
+            while (j < n && side.clearedAt(j) <= s + TOAST_MERGE) j++
+            if (now < s + TOAST_TIME) {
+                start = s
+                count = j - i
+                break
+            }
+            prevStart = s
+            i = j
+        }
+        if (i >= n || count == 0) return
+        if (w !== toastWorld || i != toastFirst || count != toastCount) {
+            toastWorld = w
+            toastFirst = i
+            toastCount = count
+            val c = side.cleared[i]
+            if (count == 1) {
+                toastKicker = "CHALLENGE CLEARED  ·  #" + c.id.toString().padStart(4, '0')
+                toastMain = c.name
+            } else {
+                toastKicker = "CHALLENGES CLEARED"
+                toastMain = "$count AT ONCE"
+            }
+        }
+        val age = now - start
+        val W = g.width
+        val u = Hud.unit(W)
+        val inK = HudType.outCubic(HudType.clamp01(age / 0.3f))
+        val a = HudType.clamp01(age / 0.18f) * HudType.clamp01((TOAST_TIME - age) / 0.45f)
+        if (a <= 0f) return
+        val gold = CH_GOLD
+        val ks = 1.6f * u
+        val kt = 0.38f * u
+        var ms = 2.9f * u
+        var mt = 0.28f * u
+        val kw = HudType.trackedWidth(g, toastKicker, ks, Gfx.Font.HUD, kt)
+        var mw = HudType.trackedWidth(g, toastMain, ms, Gfx.Font.TITLE, mt)
+        val maxText = 58f * u
+        if (mw > maxText) {
+            ms *= maxText / mw
+            mt *= maxText / mw
+            mw = maxText
+        }
+        val d = 5.4f * u
+        val ch = 8.2f * u
+        val cw = 1.2f * u + d + 1.8f * u + max(kw, mw) + 3f * u
+        val cx = W / 2f
+        val cy = f.topInset + 45.5f * u - (1f - inK) * 3f * u
+        val l = cx - cw / 2f
+        val r = cx + cw / 2f
+        val t = cy - ch / 2f
+        val b = cy + ch / 2f
+
+        g.blend(Gfx.Blend.ADD)
+        g.save()
+        g.translate(cx, cy)
+        g.scale(1f, 0.4f)
+        g.glow(0f, 0f, cw * 0.62f, Col.alpha(gold, 0.16f * a))
+        g.restore()
+        g.blend(Gfx.Blend.NORMAL)
+        g.fillRoundRect(l, t + 0.7f * u, r, b + 0.7f * u, ch / 2f, Col.alpha(0xFF000000.toInt(), 0.5f * a))
+        g.fillRoundRect(l, t, r, b, ch / 2f, Col.alpha(0xFF0B0913.toInt(), 0.95f * a))
+        g.fillVerticalGradient(l + ch / 2f, t + 0.25f * u, r - ch / 2f, t + ch * 0.5f, Col.alpha(gold, 0.14f * a), Col.alpha(gold, 0f))
+        g.strokeRoundRect(l, t, r, b, ch / 2f, 0.22f * u, Col.alpha(gold, 0.8f * a))
+
+        // The tick, drawing itself in.
+        val icx = l + 1.2f * u + d / 2f
+        val ir = d / 2f
+        g.fillCircle(icx, cy, ir, Col.alpha(gold, a))
+        val k = HudType.clamp01((age - 0.12f) / 0.3f)
+        val ink = Col.alpha(0xFF0C0A14.toInt(), a)
+        val sw = 0.55f * u
+        val ax = icx - ir * 0.46f
+        val ay = cy + ir * 0.02f
+        val mx = icx - ir * 0.1f
+        val my = cy + ir * 0.38f
+        if (k > 0f) g.line(ax, ay, ax + (mx - ax) * min(1f, k * 2f), ay + (my - ay) * min(1f, k * 2f), sw, ink)
+        if (k > 0.5f) {
+            val e = (k - 0.5f) * 2f
+            g.line(mx, my, mx + ir * 0.55f * e, my - ir * 0.78f * e, sw, ink)
+        }
+
+        val x0 = icx + ir + 1.8f * u
+        HudType.tracked(g, toastKicker, x0, cy - 0.7f * u, ks, Col.alpha(gold, 0.92f * a), Gfx.Font.HUD, Gfx.Align.LEFT, kt)
+        HudType.tracked(g, toastMain, x0, cy + 2.8f * u, ms, Col.alpha(0xFFFFFFFF.toInt(), a), Gfx.Font.TITLE, Gfx.Align.LEFT, mt)
+    }
+
     // ============================================================ coach tips
 
     private var tipSrc: String? = null
@@ -370,6 +749,18 @@ internal class HudMoments(private val f: Frame) {
     }
 
     private companion object {
+        /** Seconds the CHALLENGE CLEARED and BUSTED cards stay up. */
+        const val CLEAR_TIME = 3.6f
+        const val BUST_TIME = 2.4f
+        /** Seconds a side-clear plate stays up, and how soon after one lands another still joins it. */
+        const val TOAST_TIME = 2.6f
+        const val TOAST_MERGE = 0.4f
+        const val CH_GOLD = 0xFFFFC23A.toInt()
+        const val CH_PINK = 0xFFFF3D9A.toInt()
+        const val CH_RED = 0xFFFF3348.toInt()
+        val CONFETTI = intArrayOf(
+            0xFFFFC23A.toInt(), 0xFFFF3D9A.toInt(), 0xFF2BE8FF.toInt(), 0xFFFFFFFF.toInt(), 0xFF9AE040.toInt(), 0xFFFFE08A.toInt(),
+        )
         /** Seconds a coach tip stays up. */
         const val TIP_TIME = 3.4f
         const val TIP = 0xFFFFC14A.toInt()

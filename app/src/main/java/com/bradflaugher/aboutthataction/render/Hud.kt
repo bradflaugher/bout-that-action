@@ -8,6 +8,7 @@ import com.bradflaugher.aboutthataction.engine.Perk
 import com.bradflaugher.aboutthataction.engine.Phase
 import com.bradflaugher.aboutthataction.engine.PickupKind
 import com.bradflaugher.aboutthataction.engine.PlayerState
+import com.bradflaugher.aboutthataction.engine.World
 import com.bradflaugher.aboutthataction.engine.Zone
 import kotlin.math.max
 import kotlin.math.min
@@ -72,8 +73,12 @@ internal class Hud(private val f: Frame) {
         /** GUNS HOT orange, SILENT violet and grenade lime: the billboard draws the buttons in these too. */
         const val HOT = 0xFFFF6A3A.toInt()
         const val QUIET = 0xFF9C8CFF.toInt()
+        /** How long a poke at a locked mode button rattles it. */
+        private const val LOCK_RATTLE = 0.45f
         private const val MARGIN = 4f
         private const val TOP = 2.5f
+        /** The challenge kicker's widest, in units: about as wide as the widest pill. */
+        private const val MAX_KICKER = 54f
 
         private const val WHITE = 0xFFFFFFFF.toInt()
         private const val INK = 0xFFF4F0FF.toInt()
@@ -84,6 +89,9 @@ internal class Hud(private val f: Frame) {
         private const val GOLD = 0xFFFFD24A.toInt()
         private const val PINK = 0xFFFF3D9A.toInt()
         const val LIME = 0xFF9AE040.toInt()
+        /** The challenges' gold (a touch warmer than the score's), and the red of a busted one. */
+        const val CHALLENGE = 0xFFFFC23A.toInt()
+        private const val BUSTED = 0xFFFF4A5E.toInt()
 
         fun unit(width: Float) = width / 100f
 
@@ -270,6 +278,8 @@ internal class Hud(private val f: Frame) {
         val left = MARGIN * u
         depthBlock(left, top, u, neon)
         heartsRow(left, top + 15f * u, u)
+        // The challenge sits under the perks (or where they'd be), and stays for the way out.
+        challengeLine(left, top + (if (w.perks.isEmpty()) 22.5f else 29.5f) * u, u)
         if (f.dying) {
             // On the way out only the story of the run remains: where, and how much.
             scoreBlock(top, u)
@@ -296,28 +306,36 @@ internal class Hud(private val f: Frame) {
 
     /**
      * GUNS HOT / SILENT, right under pause: a crosshair (hot orange) or a struck-through one
-     * (quiet violet), with the mode named under it and a ring that pops when it flips.
+     * (quiet violet), with the mode named under it and a ring that pops when it flips. A
+     * locked mode ([World.modeLocked]) sits dimmer behind a little padlock, and a poke at it
+     * rattles the lock instead of flipping anything. MONKEY's says ALWAYS HOT.
      */
     private fun modeButton(u: Float) {
-        val silent = f.w.silent
+        val w = f.w
+        val silent = w.silent
+        val locked = w.modeLocked
         if (lastSilent != null && lastSilent != silent) modeAt = f.t
         lastSilent = silent
         val c = modeBuf
         modeCenter(g.width, f.topInset, c)
-        val cx = c[0]
+        val poke = w.time - w.lockPokeAt
+        // A poke at a locked button: a quick, decaying side-to-side rattle.
+        val rattle = if (locked && poke in 0f..LOCK_RATTLE) sin(poke * 52f) * (1f - poke / LOCK_RATTLE) else 0f
+        val cx = c[0] + rattle * 0.55f * u
         val cy = c[1]
         val r = c[2]
         val col = if (silent) QUIET else HOT
+        val dim = if (locked) 0.55f else 1f
         val age = since(modeAt)
         val pop = if (age in 0f..0.3f) 1f + 0.18f * HudType.decay(age / 0.3f) else 1f
         g.fillCircle(cx, cy + 0.3f * u, r, 0x55000000)
         g.fillCircle(cx, cy, r * pop, 0x8C0C0A14.toInt())
-        g.strokeCircle(cx, cy, (r - 0.12f * u) * pop, 0.3f * u, Col.alpha(col, 0.85f))
+        g.strokeCircle(cx, cy, (r - 0.12f * u) * pop, 0.3f * u, Col.alpha(col, 0.85f * dim))
         if (age in 0f..0.5f) g.strokeCircle(cx, cy, r * (1f + age * 1.6f), 0.35f * u, Col.alpha(col, 0.7f * (1f - age / 0.5f)))
         // Crosshair.
         val k = r * 0.5f
         val sw = 0.36f * u
-        val ic = if (silent) Col.alpha(col, 0.75f) else INK
+        val ic = if (silent) Col.alpha(col, 0.75f * dim) else Col.alpha(INK, dim)
         g.strokeCircle(cx, cy, k * 0.72f, sw, ic)
         g.line(cx - k, cy, cx - k * 0.4f, cy, sw, ic)
         g.line(cx + k * 0.4f, cy, cx + k, cy, sw, ic)
@@ -325,11 +343,45 @@ internal class Hud(private val f: Frame) {
         g.line(cx, cy + k * 0.4f, cx, cy + k, sw, ic)
         if (silent) {
             g.line(cx - k * 0.85f, cy + k * 0.85f, cx + k * 0.85f, cy - k * 0.85f, sw * 1.6f, 0xFF0C0A14.toInt())
-            g.line(cx - k * 0.85f, cy + k * 0.85f, cx + k * 0.85f, cy - k * 0.85f, sw, col)
+            g.line(cx - k * 0.85f, cy + k * 0.85f, cx + k * 0.85f, cy - k * 0.85f, sw, Col.alpha(col, dim))
         } else {
-            g.fillCircle(cx, cy, sw * 0.9f, col)
+            g.fillCircle(cx, cy, sw * 0.9f, Col.alpha(col, dim))
         }
-        HudType.tracked(g, if (silent) "SILENT" else "GUNS HOT", cx, cy + r + 2.6f * u, 2.1f * u, col, Gfx.Font.HUD, Gfx.Align.CENTER, 0.3f * u)
+        if (locked) padlock(cx + r * 0.7f, cy + r * 0.66f, r * 0.44f, col, rattle * 16f)
+        val label = when {
+            !w.hero.sneaks -> "ALWAYS HOT"
+            silent -> "SILENT"
+            else -> "GUNS HOT"
+        }
+        // ALWAYS HOT is the longest label: tracked a little tighter so it keeps clear of the edge.
+        val track = if (label.length > 8) 0.18f * u else 0.3f * u
+        HudType.tracked(g, label, cx, cy + r + 2.6f * u, 2.1f * u, Col.alpha(col, if (locked) 0.85f else 1f), Gfx.Font.HUD, Gfx.Align.CENTER, track)
+    }
+
+    /**
+     * A tiny padlock badge centred at (x, y), [s] its radius: a dark coin ringed in [col] with
+     * the lock on it, tilted [tilt] degrees while it rattles.
+     */
+    private fun padlock(x: Float, y: Float, s: Float, col: Int, tilt: Float) {
+        g.fillCircle(x, y + s * 0.1f, s, 0x66000000)
+        g.fillCircle(x, y, s, 0xF20C0A14.toInt())
+        g.strokeCircle(x, y, s * 0.94f, s * 0.12f, col)
+        g.save()
+        g.translate(x, y)
+        g.rotate(tilt)
+        val bw = s * 0.92f
+        val bh = s * 0.66f
+        val top = -s * 0.08f
+        val sh = s * 0.15f
+        // Shackle: an arch over the body.
+        g.strokeArc(0f, top, bw * 0.3f, 180f, 180f, sh, col)
+        g.line(-bw * 0.3f, top, -bw * 0.3f, top + bh * 0.2f, sh, col)
+        g.line(bw * 0.3f, top, bw * 0.3f, top + bh * 0.2f, sh, col)
+        g.fillRoundRect(-bw / 2f, top + bh * 0.02f, bw / 2f, top + bh, s * 0.1f, col)
+        // Keyhole.
+        g.fillCircle(0f, top + bh * 0.42f, s * 0.1f, 0xFF0C0A14.toInt())
+        g.line(0f, top + bh * 0.42f, 0f, top + bh * 0.75f, s * 0.08f, 0xFF0C0A14.toInt())
+        g.restore()
     }
 
     // --------------------------------------------------------- grenade button
@@ -672,6 +724,169 @@ internal class Hud(private val f: Frame) {
                 px += pw + 0.35f * u
             }
         }
+    }
+
+    // -------------------------------------------------------------- challenge
+
+    /** The run the caches below belong to: a new World (a retry of the same challenge) starts them over. */
+    private var chWorld: World? = null
+    private var chId = -1
+    private var chKicker = ""
+    private var chProgress = Int.MIN_VALUE
+    private var chState = -1
+    private var chText = ""
+    /** The bar's shown fill, easing toward the real one. */
+    private var chFill = -1f
+
+    /**
+     * The run's challenge, compact: a kicker with its name, then a pill with a target (a tick
+     * once cleared, a cross if busted), the progress ("KILLS 12/30") and a thin gold bar along
+     * its foot. It pops and flares each time the number moves.
+     */
+    private fun challengeLine(x: Float, top: Float, u: Float) {
+        val run = f.w.challenge ?: return
+        val ch = run.challenge
+        if (ch.id != chId || f.w !== chWorld) {
+            chWorld = f.w
+            chId = ch.id
+            chKicker = "CHALLENGE  ·  " + ch.name
+            chFill = -1f
+            chProgress = Int.MIN_VALUE
+            chState = -1
+        }
+        val state = if (run.cleared) 1 else if (run.failed) 2 else 0
+        if (run.progress != chProgress || state != chState) {
+            chProgress = run.progress
+            chState = state
+            chText = when (state) {
+                1 -> "CLEARED"
+                2 -> "BUSTED"
+                else -> run.hudText(f.w.hero)
+            }
+        }
+        val col = when (state) {
+            1 -> GOLD
+            2 -> BUSTED
+            else -> CHALLENGE
+        }
+        // Real seconds since it moved, cleared or broke (world clock: it holds still in a pause).
+        val moved = f.wt - run.progressAt
+        val stamp = f.wt - (if (state == 1) run.clearedAt else if (state == 2) run.failedAt else -99f)
+        val pulse = if (run.progressAt >= 0f && moved in 0f..0.5f) HudType.decay(moved / 0.5f) else 0f
+        val flare = if (stamp in 0f..0.8f) HudType.decay(stamp / 0.8f) else 0f
+        val target = if (state == 2) chFill.coerceAtLeast(0f) else run.fraction
+        chFill = if (chFill < 0f || f.dt == 0f) target else chFill + (target - chFill) * min(1f, f.dt * 8f)
+
+        // Kicker: a gold tick and the challenge's name.
+        val ky = top + 1.9f * u
+        g.fillRect(x, ky - 1.6f * u, x + 0.5f * u, ky + 0.1f * u, Col.alpha(col, 0.9f))
+        // Fitted like the pill: a 23-letter name shrinks rather than running into the score.
+        var ks = 1.9f * u
+        var kt = 0.3f * u
+        val kw = HudType.trackedWidth(g, chKicker, ks, Gfx.Font.HUD, kt)
+        if (kw > MAX_KICKER * u) {
+            ks *= MAX_KICKER * u / kw
+            kt *= MAX_KICKER * u / kw
+        }
+        HudType.tracked(g, chKicker, x + 1.5f * u, ky, ks, Col.alpha(Col.lerp(col, WHITE, 0.35f), 0.82f), Gfx.Font.HUD, Gfx.Align.LEFT, kt)
+
+        // The pill.
+        val h = 6.2f * u
+        val pt = top + 3.1f * u
+        var ts = 3.2f * u
+        val tracking = 0.22f * u
+        val maxText = 46f * u
+        var tw = HudType.trackedWidth(g, chText, ts, Gfx.Font.TITLE, tracking)
+        if (tw > maxText) {
+            ts *= maxText / tw
+            tw = maxText
+        }
+        val l = x
+        val r = x + h + 1.6f * u + tw + 2.4f * u
+        val b = pt + h
+        val pop = 1f + 0.1f * max(pulse, flare)
+        g.save()
+        g.translate(l, pt + h / 2f)
+        g.scale(pop, pop)
+        g.translate(-l, -(pt + h / 2f))
+        if (pulse > 0f || flare > 0f || state == 1) {
+            val glowA = 0.1f + 0.35f * max(pulse, flare) + if (state == 1) 0.08f * HudType.wave(f.t, 0.6f) else 0f
+            g.blend(Gfx.Blend.ADD)
+            g.save()
+            g.translate((l + r) / 2f, pt + h / 2f)
+            g.scale(1f, 0.38f)
+            g.glow(0f, 0f, (r - l) * 0.62f, Col.alpha(col, glowA))
+            g.restore()
+            g.blend(Gfx.Blend.NORMAL)
+        }
+        g.fillRoundRect(l, pt + 0.3f * u, r, b + 0.3f * u, h / 2f, 0x66000000)
+        g.fillRoundRect(l, pt, r, b, h / 2f, 0xD90C0A14.toInt())
+        g.fillVerticalGradient(l + h / 2f, pt + 0.3f * u, r - h / 2f, pt + h * 0.55f, Col.alpha(col, if (state == 1) 0.24f else 0.12f), Col.alpha(col, 0f))
+        g.strokeRoundRect(l, pt, r, b, h / 2f, 0.22f * u, Col.alpha(col, 0.55f + 0.45f * max(pulse, flare)))
+        // Progress along the foot, inside the rounded ends.
+        val bl = l + h * 0.55f
+        val br = r - h * 0.45f
+        val by = b - 1.05f * u
+        g.fillRoundRect(bl, by, br, by + 0.5f * u, 0.25f * u, 0x2EFFFFFF)
+        val fx = bl + (br - bl) * chFill
+        if (chFill > 0f) {
+            g.fillRoundRect(bl, by, max(bl + 0.5f * u, fx), by + 0.5f * u, 0.25f * u, col)
+            if (state == 0) {
+                g.blend(Gfx.Blend.ADD)
+                g.glow(fx, by + 0.25f * u, (1.4f + 1.6f * pulse) * u, Col.alpha(col, 0.55f + 0.4f * pulse))
+                g.blend(Gfx.Blend.NORMAL)
+            }
+        }
+        // Badge: a target while it's on, a tick once cleared, a cross once busted.
+        val icx = l + h / 2f
+        val icy = pt + h / 2f
+        val ir = h / 2f - 0.75f * u
+        g.fillCircle(icx, icy, ir, Col.alpha(col, if (state == 0) 0.2f else 1f))
+        val ink = 0xFF0C0A14.toInt()
+        when (state) {
+            1 -> {
+                val k = HudType.clamp01(stamp / 0.25f)
+                val sw = 0.55f * u
+                val ax = icx - ir * 0.48f
+                val ay = icy + ir * 0.02f
+                val mx = icx - ir * 0.12f
+                val my = icy + ir * 0.38f
+                g.line(ax, ay, ax + (mx - ax) * min(1f, k * 2f), ay + (my - ay) * min(1f, k * 2f), sw, ink)
+                if (k > 0.5f) {
+                    val e = (k - 0.5f) * 2f
+                    g.line(mx, my, mx + (ir * 0.55f) * e, my - (ir * 0.78f) * e, sw, ink)
+                }
+            }
+            2 -> {
+                val d = ir * 0.42f
+                g.line(icx - d, icy - d, icx + d, icy + d, 0.5f * u, ink)
+                g.line(icx - d, icy + d, icx + d, icy - d, 0.5f * u, ink)
+            }
+            else -> {
+                g.strokeCircle(icx, icy, ir * 0.62f, 0.32f * u, col)
+                g.fillCircle(icx, icy, ir * 0.22f + 0.15f * u * pulse, col)
+            }
+        }
+        val textC = when {
+            state != 0 -> col
+            pulse > 0f -> Col.lerp(INK, CHALLENGE, pulse)
+            else -> INK
+        }
+        HudType.tracked(g, chText, l + h + 1.6f * u, icy + ts * 0.36f - 0.25f * u, ts, textC, Gfx.Font.TITLE, Gfx.Align.LEFT, tracking)
+        // Cleared: a glint sweeps the pill now and then.
+        if (state == 1) {
+            val ph = fract(f.t * 0.35f)
+            if (ph < 0.3f) {
+                val gx = l + (r - l) * (ph / 0.3f)
+                g.save()
+                g.clipRect(l, pt, r, b)
+                g.blend(Gfx.Blend.ADD)
+                poly.quad(g, gx - 1.2f * u, b, gx + 0.4f * u, pt, gx + 1.6f * u, pt, gx, b, Col.alpha(WHITE, 0.18f))
+                g.blend(Gfx.Blend.NORMAL)
+                g.restore()
+            }
+        }
+        g.restore()
     }
 
     // ------------------------------------------------------- score + pause

@@ -97,6 +97,54 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
             GameEvent.BoxKicked -> boxKicked()
             GameEvent.FoundHiding -> hideDoor()
             GameEvent.StashLocked -> emptyClick()
+            is GameEvent.ChallengeCleared -> challengeCleared()
+            is GameEvent.ChallengeFailed -> challengeFailed()
+            is GameEvent.SideCleared -> sideCleared()
+        }
+    }
+
+    /** Another challenge ticked off on the side: a soft two-note chime, a polite tap on the shoulder. */
+    private fun sideCleared() {
+        for ((k, f) in floatArrayOf(1318.5f, 1975.5f).withIndex()) voice {
+            wave = Wave.TRIANGLE; f0 = f; f1 = f; attack = 0.003f; decay = 0.22f + k * 0.12f
+            gain = 0.09f; pan = if (k == 0) -0.15f else 0.15f; reverb = 0.35f; delay = k * 0.07f; priority = 1.5f
+        }
+    }
+
+    /**
+     * CHALLENGE CLEARED: a spy-movie brass hit. Two short stabs, then a big major-ninth chord
+     * that swells open, a bell on top and a glittery run up into it.
+     */
+    private fun challengeCleared() {
+        val root = 196f
+        for (k in 0 until 2) voice {
+            wave = Wave.SAW; wave2 = Wave.SQUARE; level2 = 0.5f; ratio2 = 1.004f; f0 = root * Dsp.semis(if (k == 0) 7f else 9f); f1 = f0
+            filter = FilterMode.LOW; cut0 = 4200f; cut1 = 1200f; cutTime = 0.09f; attack = 0.002f; decay = 0.1f
+            gain = 0.12f; reverb = 0.2f; delay = k * 0.11f; priority = 3f
+        }
+        for ((k, sm) in FANFARE.withIndex()) voice {
+            wave = Wave.SAW; wave2 = Wave.SAW; ratio2 = 1.006f; level2 = 0.8f; f0 = root * Dsp.semis(sm.toFloat()); f1 = f0
+            filter = FilterMode.LOW; cut0 = 600f; cut1 = 5200f; cutTime = 0.35f; q = 1.1f; attack = 0.01f; hold = 0.35f
+            decay = 1.1f; drive = 0.6f; gain = 0.07f; pan = (k - 2f) * 0.22f; reverb = 0.45f; delay = 0.24f; priority = 3f
+        }
+        voice { wave = Wave.SINE; f0 = 98f; f1 = 98f; attack = 0.005f; hold = 0.3f; decay = 0.8f; gain = 0.32f; delay = 0.24f; priority = 3f }
+        bell(1568f, 0.26f)
+        arp(784f, PENTA, 0.035f, Wave.TRIANGLE, 0.3f, 0.06f, start = 0.3f, verb = 0.5f)
+        voice {
+            level1 = 0f; noise = 1f; filter = FilterMode.HIGH; cut0 = 5000f; cut1 = 9000f; cutTime = 0.5f; attack = 0.2f
+            decay = 0.6f; gain = 0.06f; reverb = 0.5f; delay = 0.24f
+        }
+    }
+
+    /** UNTOUCHED, touched: a sad little trombone, wah-wah-wah-waaah. */
+    private fun challengeFailed() {
+        for ((k, sm) in WAH_WAH.withIndex()) voice {
+            val last = k == WAH_WAH.size - 1
+            wave = Wave.SAW; wave2 = Wave.SQUARE; level2 = 0.4f; ratio2 = 1.003f; f0 = 233f * Dsp.semis(sm.toFloat()); f1 = f0 * if (last) 0.96f else 1f
+            sweep = if (last) 0.8f else 0.2f; filter = FilterMode.LOW; cut0 = 500f; cut1 = 1500f; cutTime = 0.12f; q = 2f
+            attack = 0.03f; hold = if (last) 0.45f else 0.12f; decay = if (last) 0.5f else 0.12f
+            vibRate = if (last) 6f else 0f; vibDepth = if (last) 0.025f else 0f
+            gain = 0.12f; reverb = 0.25f; delay = k * 0.3f; priority = 2.5f
         }
     }
 
@@ -972,6 +1020,10 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
 
     companion object {
         private val PENTA = intArrayOf(0, 2, 4, 7, 9)
+        /** Root, fifth, octave, ninth and tenth over it: a bright, open spy-brass chord. */
+        private val FANFARE = intArrayOf(0, 7, 12, 14, 16)
+        /** The sad trombone, a half step at a time. */
+        private val WAH_WAH = intArrayOf(0, -1, -2, -3)
         /** The alert stab: E5, F5 and B5, a bright cluster with a bite. */
         private val ALERT_STAB = floatArrayOf(659.3f, 698.5f, 987.8f)
         private val LULLABY = intArrayOf(0, -3, -7)

@@ -15,7 +15,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -66,9 +69,14 @@ fun GameOverScreen(
     onNewRun: () -> Unit,
     onTitle: () -> Unit,
     records: Records? = null,
+    /** Back to the CHALLENGES board, after a challenge run. */
+    onBoard: () -> Unit = {},
 ) {
     val zoneColor = Neon.zone(run.zone)
     val newBest = run.newBestFloor || run.newBestScore
+    // A cleared challenge is a win, however the run ended: the header celebrates instead.
+    val won = run.challenge?.cleared == true
+    val tint = if (won) Neon.gold else Neon.blood
     val clock = rememberClock()
     val flash = remember { Animatable(1f) }
     LaunchedEffect(Unit) { flash.animateTo(0f, tween(420, easing = LinearEasing)) }
@@ -77,15 +85,15 @@ fun GameOverScreen(
         Modifier
             .fillMaxSize()
             .drawBehind {
-                drawRect(Color(0xFF0C0208).copy(alpha = 0.9f))
+                drawRect((if (won) Color(0xFF070A06) else Color(0xFF0C0208)).copy(alpha = 0.9f))
                 drawRect(
                     Brush.radialGradient(
-                        listOf(Color.Transparent, Neon.blood.copy(alpha = 0.22f)),
+                        listOf(Color.Transparent, tint.copy(alpha = if (won) 0.12f else 0.22f)),
                         center = center, radius = size.maxDimension * 0.62f,
                     ),
                 )
                 // the hit flash
-                if (flash.value > 0f) drawRect(Neon.blood.copy(alpha = 0.45f * flash.value), blendMode = BlendMode.Plus)
+                if (flash.value > 0f) drawRect(tint.copy(alpha = 0.45f * flash.value), blendMode = BlendMode.Plus)
             }
             .scanlines(0.1f)
             .padding(insets),
@@ -100,23 +108,26 @@ fun GameOverScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Space.xs),
         ) {
-            MissionFailed()
+            MissionHeader(won)
             if (run.quip.isNotBlank()) {
                 NeonText("\u201C${run.quip}\u201D", size = Type.small, color = Neon.soft, glow = 0f, align = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().reveal(520, 6.dp))
             }
 
+            run.challenge?.let { ChallengeStatusCard(it, Modifier.reveal(200, 16.dp), big = true) }
+            AlsoClearedCard(run.alsoCleared, Modifier.reveal(if (run.challenge != null) 300 else 200, 16.dp), onClick = onBoard)
+
             Panel(Modifier.fillMaxWidth().reveal(260, 24.dp), accent = zoneColor, padding = Space.m, spacing = Space.xxs) {
                 Kicker("DEEPEST FLOOR", Neon.soft, Modifier.fillMaxWidth(), TextAlign.Center)
                 // With a highlights block to fit, the depth numeral steps down a size.
-                DepthReveal(run, zoneColor, newBest, compact = run.highlights.isNotEmpty()) { clock.value }
+                DepthReveal(run, zoneColor, newBest, compact = run.highlights.isNotEmpty() || run.challenge != null) { clock.value }
                 NeonText(run.zone.title, size = Type.title, color = zoneColor, title = true, letterSpacing = 4.sp,
                     align = TextAlign.Center, modifier = Modifier.fillMaxWidth().reveal(1100, 8.dp))
                 NeonText(run.zone.subtitle.uppercase(Locale.US), size = Type.micro, color = Neon.dim, letterSpacing = 2.sp, glow = 0f,
                     align = TextAlign.Center, modifier = Modifier.fillMaxWidth().reveal(1180, 8.dp))
                 if (newBest) {
                     NewBestBanner(run, Modifier.padding(top = Space.xs)) { clock.value }
-                } else if (records != null && records.bestFloor > 0) {
+                } else if (records != null && records.bestFloor > 0 && run.challenge == null) {
                     NeonText("PERSONAL BEST  ${FloorLabel.of(records.bestFloor)}  ·  ${grouped(records.bestScore)}", size = Type.micro,
                         color = Neon.gold.copy(alpha = 0.75f), letterSpacing = 1.5.sp, glow = 0f, align = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().padding(top = Space.xxs).reveal(1250, 6.dp))
@@ -144,15 +155,37 @@ fun GameOverScreen(
                         String.format(Locale.US, "%d:%02d", it / 60, it % 60)
                     }
                 }
-                // The hero and seed ride along as the grid's last cells (filling an odd row's gap).
-                Highlights(run.highlights + ("HERO" to run.hero.title) + ("SEED" to run.seedLabel), run.hero.tint, Modifier.padding(top = Space.xs).reveal(1000, 6.dp))
+                // The hero rides along as the grid's last cell.
+                Highlights(run.highlights + ("HERO" to run.hero.title), run.hero.tint, Modifier.padding(top = Space.xs).reveal(1000, 6.dp))
             }
 
-            NeonButton("RETRY SEED", Neon.magenta, Modifier.fillMaxWidth().padding(top = Space.xxs).reveal(700, 16.dp),
-                style = ButtonStyle.PRIMARY, height = 56.dp, onClick = onRetry)
-            Row(Modifier.reveal(780, 16.dp), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                NeonButton("NEW RUN", Neon.cyan, Modifier.weight(1f), onClick = onNewRun)
-                NeonButton("TITLE", Neon.soft, Modifier.weight(1f), style = ButtonStyle.GHOST, onClick = onTitle)
+            // The seed, to copy or brag with: a friend's PASTE on CUSTOM RUN plays this building.
+            val context = LocalContext.current
+            val share = @Composable { m: Modifier ->
+                NeonButton("SHARE", Neon.gold, m, height = 56.dp,
+                    trailing = { Box(Modifier.padding(start = Space.xs).size(16.dp).drawBehind { shareMark(Neon.gold) }) },
+                ) { shareText(context, shareMessage(run)) }
+            }
+            if (run.challenge == null) {
+                Row(Modifier.fillMaxWidth().reveal(640, 12.dp), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                    SeedChip(run.seedLabel, Modifier.weight(1f), color = Neon.gold)
+                    share(Modifier.width(132.dp))
+                }
+                NeonButton("RETRY SEED", Neon.magenta, Modifier.fillMaxWidth().padding(top = Space.xxs).reveal(700, 16.dp),
+                    style = ButtonStyle.PRIMARY, height = 56.dp, onClick = onRetry)
+                Row(Modifier.reveal(780, 16.dp), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                    NeonButton("NEW RUN", Neon.cyan, Modifier.weight(1f), onClick = onNewRun)
+                    NeonButton("TITLE", Neon.soft, Modifier.weight(1f), style = ButtonStyle.GHOST, onClick = onTitle)
+                }
+            } else {
+                // A challenge run has no seed to show (the challenge is the seed): retry, brag, or pick another.
+                NeonButton("RETRY CHALLENGE", Neon.magenta, Modifier.fillMaxWidth().padding(top = Space.xxs).reveal(700, 16.dp),
+                    style = ButtonStyle.PRIMARY, height = 56.dp, onClick = onRetry)
+                Row(Modifier.reveal(780, 16.dp), horizontalArrangement = Arrangement.spacedBy(Space.xs)) {
+                    share(Modifier.weight(1f))
+                    NeonButton("BOARD", Neon.gold, Modifier.weight(1f), onClick = onBoard)
+                    NeonButton("TITLE", Neon.soft, Modifier.weight(1f), style = ButtonStyle.GHOST, onClick = onTitle)
+                }
             }
         }
     }
@@ -182,13 +215,19 @@ private fun Highlights(items: List<Pair<String, String>>, heroColor: Color, modi
 
 /** "MISSION FAILED" slams down from oversized, channels split, then settles. */
 @Composable
-private fun MissionFailed() {
+private fun MissionHeader(won: Boolean) {
     val slam = progress(0, 380)
     val bar = progress(200, 420)
+    // Won: CASE CLOSED / MISSION ACCOMPLISHED in gold. Otherwise the red SIGNAL LOST / MISSION FAILED.
+    val kicker = if (won) "CASE CLOSED" else "SIGNAL LOST"
+    val headline = if (won) "MISSION ACCOMPLISHED" else "MISSION FAILED"
+    val accent = if (won) ClearedGreen else Neon.blood
+    val ink = if (won) Neon.gold else Color(0xFFFF4A5A)
+    val ghost = if (won) Neon.lava else Neon.blood
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.graphicsLayer { alpha = bar }, verticalAlignment = Alignment.CenterVertically) {
-            LiveDot(Neon.blood)
-            Kicker("SIGNAL LOST", Neon.blood, Modifier.padding(start = Space.xs))
+            LiveDot(accent)
+            Kicker(kicker, accent, Modifier.padding(start = Space.xs))
         }
         Box(
             Modifier
@@ -203,9 +242,9 @@ private fun MissionFailed() {
             contentAlignment = Alignment.Center,
         ) {
             val split = (1f - slam) * 14f + 2f
-            FitText("MISSION FAILED", 40.sp, Neon.cyan.copy(alpha = 0.5f), Modifier.graphicsLayer { translationX = -split }, glow = 0f)
-            FitText("MISSION FAILED", 40.sp, Neon.blood.copy(alpha = 0.6f), Modifier.graphicsLayer { translationX = split }, glow = 0f)
-            FitText("MISSION FAILED", 40.sp, Color(0xFFFF4A5A), glow = 1f)
+            FitText(headline, 40.sp, Neon.cyan.copy(alpha = 0.5f), Modifier.graphicsLayer { translationX = -split }, glow = 0f)
+            FitText(headline, 40.sp, ghost.copy(alpha = 0.6f), Modifier.graphicsLayer { translationX = split }, glow = 0f)
+            FitText(headline, 40.sp, ink, glow = 1f)
         }
         Box(
             Modifier
@@ -213,7 +252,7 @@ private fun MissionFailed() {
                 .fillMaxWidth(0.7f)
                 .height(2.dp)
                 .graphicsLayer { scaleX = bar }
-                .drawBehind { drawRect(Brush.horizontalGradient(listOf(Color.Transparent, Neon.blood, Color.Transparent))) },
+                .drawBehind { drawRect(Brush.horizontalGradient(listOf(Color.Transparent, if (won) Neon.gold else Neon.blood, Color.Transparent))) },
         )
     }
 }

@@ -27,7 +27,7 @@ internal class PopupArt(private val f: Frame) {
         if (ft.style == TextStyle.WARN && s === f.w.coachTip) return HIDE // the coach plate
         if (ft.style == TextStyle.BIG && (s == FloorEvent.BLACKOUT.title || s == FloorEvent.NAP_TIME.title || s == FloorEvent.PAYDAY.title)) return HIDE
         return when (s) {
-            Popup.HUH -> BUBBLE
+            Popup.HUH, Popup.OOK -> BUBBLE
             Popup.HEY, Popup.WAKE -> SHOUT
             Popup.BONK -> BONK
             Popup.BOXD -> BOXD

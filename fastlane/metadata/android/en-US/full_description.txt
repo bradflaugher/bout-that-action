@@ -9,16 +9,20 @@ BUILT FOR THUMBS
 
 TWO WAYS TO PLAY
 • GUNS HOT: you auto-fire at anything in range.
-• SILENT: you never fire (well, the monkey does), guards only notice what they see, and quiet kills pay double.
+• SILENT: you never fire, guards only notice what they see, and quiet kills pay double.
+• Except the monkey. He's always guns hot. He spray-painted the tutorial billboard to make sure you know.
 
 FOUR HEROES
 Bull the bruiser, Fox the high-kicking street brawler, Hawk the parcel courier who lives in a box and Monkey the circus runaway with a very big gun. Each has their own trait, three perks of their own and their own take on the music.
+
+1,550 CHALLENGES
+Silly names, real goals: ghost floors, box ambushes, bonk heads, tuck in nappers, survive close calls. Some lock you in SILENT, give you one heart or bust on the first hit. Five tiers, ROOKIE to LEGEND, every one playable any day, and any run that meets one ticks it off, so there's nothing to grind. And a daily challenge that's the same for everyone (no streaks, no rewards, no countdown).
 
 EVERY FLOOR IS NEW
 The building never ends and never repeats. Floors, the soundtrack and every sound effect are generated as you play. Blackouts, nap time and payday floors keep things weird.
 
 YOUR GAME, YOUR RULES
-Pick a difficulty from CHILL to STRAIGHT TO HELL, or tune the heat curve yourself. Share a seed to play the same building as a friend.
+Pick a difficulty from CHILL to STRAIGHT TO HELL, or tune the heat curve yourself. Every run has a short seed code: share it, and a friend plays the very same building.
 
 NO NONSENSE
 Phones, tablets and foldables: it always plays in portrait, and pauses itself when a call, the notification shade or unplugged headphones interrupt.

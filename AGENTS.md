@@ -49,6 +49,16 @@ the JVM.
     routes through passages to a ride down, calls cars, and plays both modes.
   - `RunStats.kt` (highlights, the hurt log, the fatal hit) and
     `RunReport.kt` (the game-over card: playstyle title, death line, quip).
+  - `Challenge.kt` — challenges: `Goal` (read straight off `World` stats),
+    `Rule`, `Tier`, the generated, append-only catalog (`Challenges.all`, ids
+    1..N, a golden checksum in `ChallengeTest`; new ones go in a new batch
+    after the last id), each hero's bespoke templates, and
+    `Challenges.daily(epochDay, clearedBefore)`. `RunConfig.challenge` makes
+    `World` apply its setup and keep `World.challenge` (progress, cleared,
+    failed) with one-shot `ChallengeCleared` / `ChallengeFailed` events.
+    `SideClears` (`World.side`, `World.sideCleared`, `GameEvent.SideCleared`)
+    ticks off every other challenge any run genuinely meets (same curve,
+    start, hero and rules held up to the goal), minus `RunConfig.knownCleared`.
     Special floors (`FloorEvent`: blackout, nap time, payday) roll from
     `(seed, floor)` on their own RNG stream in `LevelGen.eventOn`, so they
     never change a floor's layout.
@@ -57,18 +67,23 @@ the JVM.
   - `Hero.kt` — the four heroes (`RunConfig.hero`): each trait is data on the
     enum, and `Perk.hero` / `Perk.offeredTo` keep three perks per hero.
   - `Entities.kt`, `Perk.kt`, `Fx.kt`, `Events.kt`, `Rng.kt` (SplitMix64).
+  - `SeedCode.kt` — shareable 8-character seed codes (40 bits, no look-alikes)
+    and the parser that pulls a code, difficulty and hero out of a pasted brag.
 - `input/GestureInput.kt` — multi-touch gesture classifier (run drag with
   instant reversal, flicks mid-drag, zero-latency taps; grenades are a HUD button, not a gesture).
 - `render/` — `Gfx.kt` is the tiny drawing interface; `Renderer` draws the
   world, HUD and overlays through it. `HeroArt` paints the player on one shared
   rig, dressed by a `HeroKit` per hero (`HeroBull`, `HeroFox`, `HeroHawk`,
   `HeroMonkey`); `HeroPortrait` draws that same figure for the hero picker.
+  `Graffiti` is spray paint (strokes, tags, drips): MONKEY's vandalism on the
+  rooftop billboard.
 - `audio/` — procedural synth, sequencer, songs per zone, SFX; `SoundEngine`
   is the API. `AudioOutput.kt` streams it to an `AudioTrack`.
 - `AndroidGfx.kt` — `Gfx` on `android.graphics.Canvas`.
 - `GameView.kt` — `SurfaceView` + game thread; touch → `GestureInput`.
-- `MainActivity.kt`, `ui/` — Compose menus (title, settings, pause, game
-  over), `Settings.kt` (prefs, seeds), `Haptics.kt`.
+- `MainActivity.kt`, `ui/` — Compose menus (title, custom run, challenges board
+  and briefing, settings, pause, game
+  over), `Settings.kt` (prefs, seeds, the challenge log: first-clear day and best progress per id), `Haptics.kt`.
 - `app/src/test/` — JVM tests: `engine/` (mechanics, level generation,
   fuzzing, a heuristic bot that plays full runs per preset), `input/`
   (gestures), `render/` (AWT `Gfx` backend, headless screenshots), `audio/`.
@@ -88,6 +103,14 @@ the JVM.
   STRAIGHT_TO_HELL.
 - Fun, not compulsion: no streaks, daily rewards, timers or "come back"
   nags. Text is short, silly and family-friendly.
+- The daily challenge is a shared pick, nothing more: the same challenge for
+  everyone on the same local day (the date is passed in; no clock in
+  `engine/`), a deterministic stand-in if you cleared it on an earlier day.
+  No streaks, rewards, countdowns or nags; every challenge is playable any
+  day from the board. Never generate an impossible challenge (the catalog
+  tests enforce it: no melee, SILENT or silent-takeout goals for MONKEY, no
+  shot goals under SILENT ONLY), and recalibrate tiers with
+  `ChallengeBotTest` when balance moves.
 - Enums the renderer switches on exhaustively (`Perk`, `PickupKind`,
   `TextStyle`, `ParticleKind`, `ContextAction`, `EnemyKind`, states) need a
   render change alongside any new value; prefer fields and events.

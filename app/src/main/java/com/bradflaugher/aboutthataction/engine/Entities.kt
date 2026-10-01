@@ -211,6 +211,8 @@ class Bullet(
     val from: EnemyKind? = null,
     /** The shooter stepped out of a door moments ago (a door ambush). */
     val ambush: Boolean = false,
+    /** Fired from a pickup gun (the player's): its kills are BIG GUNS kills, whatever's in hand when it lands. */
+    val bigGun: Boolean = false,
 ) {
     var dead = false
     var life = 0f
