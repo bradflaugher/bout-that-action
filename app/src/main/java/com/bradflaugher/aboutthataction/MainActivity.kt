@@ -291,9 +291,9 @@ class MainActivity : ComponentActivity(), GameView.Host {
     override fun onPause() {
         if (screen == Screen.PLAYING) pause()
         gameView.onHostPause()
-        // The game thread has stopped: keep a challenge run's best now, in case the system
-        // never brings this activity back.
-        recordBest()
+        // The game thread has stopped: save what the run has earned now (its best, and any clear
+        // whose event is still queued for the main thread), in case the system never brings us back.
+        gameView.world?.let { w -> if (!gameView.attract) updateChallenges(challengeLog.withRun(w, today())) }
         audio.pause()
         resumed = false
         unregisterReceiver(noisy)
@@ -473,7 +473,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
         prefs.saveChallenges(log)
     }
 
-    /** The best progress of the run on screen, if it's a challenge run (at game over, quit, restart and onPause). */
+    /** The best progress of the run on screen, if it's a challenge run (at game over, quit and restart). */
     private fun recordBest(world: World? = gameView.world) {
         val run = world?.challenge ?: return
         if (world.config.challenge == null || gameView.attract) return

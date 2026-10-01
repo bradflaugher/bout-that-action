@@ -5,6 +5,7 @@ import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.GameEvent
 import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.SeedCode
+import com.bradflaugher.aboutthataction.engine.World
 
 /** A fresh building every run, or one you set (on the CUSTOM RUN screen). */
 enum class SeedMode(val label: String) { RANDOM("RANDOM"), CUSTOM("SET SEED") }
@@ -92,6 +93,20 @@ data class ChallengeLog(val cleared: Map<Int, Long> = emptyMap(), val best: Map<
         is GameEvent.ChallengeCleared -> withClear(event.challenge.id, day)
         is GameEvent.SideCleared -> withClear(event.challenge.id, day)
         else -> this
+    }
+
+    /**
+     * Everything [world] has earned so far, straight from the world rather than from events still
+     * queued for the main thread: its own challenge's best and clear, and every side clear, on [day].
+     */
+    fun withRun(world: World, day: Long): ChallengeLog {
+        var log = this
+        world.challenge?.let { run ->
+            log = log.withBest(run.challenge.id, run.progress)
+            if (run.cleared) log = log.withClear(run.challenge.id, day)
+        }
+        for (c in world.sideCleared) log = log.withClear(c.id, day)
+        return log
     }
 
     /** Remembers [progress] if it beats the best so far. */

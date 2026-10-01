@@ -1,5 +1,6 @@
 package com.bradflaugher.aboutthataction.engine
 
+import com.bradflaugher.aboutthataction.ChallengeLog
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -55,6 +56,24 @@ class SideClearTest {
     /** Does [c] play [w]'s preset, start and hero (an AGENT run from the roof)? */
     private fun fits(c: Challenge, w: World) =
         c.preset == Difficulty.Preset.AGENT && c.startFloor == 0 && c.allows(w.hero)
+
+    @Test
+    fun aPausedRunSavesItsClearsStraightFromTheWorld() {
+        // onPause can't wait for queued SideCleared events: the log reads the world itself.
+        val w = endless(silent = true)
+        w.player.x = 3f
+        enemy(w, 4.5f, facing = 1)
+        run(w, 1.4f) { it.moveAxis = 1 }
+        run(w, 0.5f)
+        assertTrue(w.sideCleared.isNotEmpty())
+        val log = ChallengeLog().withClear(w.sideCleared.first().id, 5).withRun(w, 99)
+        for (c in w.sideCleared) assertTrue(c.signature(), log.clearedDay(c.id) != null)
+        // The first clear's day sticks; the rest land on today.
+        assertEquals(5L, log.clearedDay(w.sideCleared.first().id))
+        w.sideCleared.drop(1).forEach { assertEquals(99L, log.clearedDay(it.id)) }
+        // An endless run has no best of its own to keep.
+        assertTrue(log.best.isEmpty())
+    }
 
     @Test
     fun aRooftopTakedownSideClearsTheMatchingRookieChallenges() {
