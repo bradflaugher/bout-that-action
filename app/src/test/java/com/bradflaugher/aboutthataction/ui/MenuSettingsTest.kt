@@ -62,6 +62,11 @@ class MenuSettingsTest {
         assertEquals(Difficulty.Preset.STRAIGHT_TO_HELL, SeedCode.find(shareMessage(run.copy(difficulty = hell))).preset)
         assertNull(SeedCode.find(shareMessage(run.copy(difficulty = "CUSTOM"))).preset)
         assertEquals("CUSTOM", Settings(preset = null, custom = Difficulty(hearts = 7)).difficultyName)
+        // A genuinely custom curve travels whole, so the friend plays the very same run.
+        val mine = Difficulty(start = 0.8f, ramp = 1.7f, cap = 5f, hearts = 2, startFloor = 50)
+        val custom = shareMessage(run.copy(difficulty = "CUSTOM", curve = mine))
+        assertTrue(custom, custom.contains("on a custom curve (CURVE 0.8/1.7/5/2/50)"))
+        assertEquals(SeedCode.Shared("K7QM2XAB", null, Hero.MONKEY, mine), SeedCode.find(custom))
     }
 
     @Test

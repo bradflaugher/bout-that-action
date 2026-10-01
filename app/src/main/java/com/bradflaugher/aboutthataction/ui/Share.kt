@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bradflaugher.aboutthataction.engine.FloorLabel
+import com.bradflaugher.aboutthataction.engine.SeedCode
 import kotlinx.coroutines.delay
 
 // Sharing needs no permission: the system share sheet and the clipboard do the work.
@@ -72,7 +73,11 @@ fun shareMessage(run: RunSummary): String {
         return if (c.cleared) "I cleared $what in 'Bout That Action. Your move."
         else "I got ${c.hud} on $what in 'Bout That Action. Your move."
     }
-    val on = if (run.difficulty.isBlank() || run.difficulty == "CUSTOM") "on a custom curve" else "on ${run.difficulty}"
+    val on = when {
+        run.curve != null -> "on a custom curve (${SeedCode.curveTag(run.curve)})"
+        run.difficulty.isBlank() || run.difficulty == "CUSTOM" -> "on a custom curve"
+        else -> "on ${run.difficulty}"
+    }
     val dare = listOf("Beat that.", "Your move.", "Bring a box.", "Mind the lamps.")[(run.floor and 0x7fffffff) % 4]
     return "I hit ${FloorLabel.of(run.floor)} as ${run.hero.title} $on in 'Bout That Action. Seed ${run.seedLabel}. $dare"
 }

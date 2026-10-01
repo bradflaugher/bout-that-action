@@ -517,7 +517,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
     // ------------------------------------------------------------- GameView.Host
 
     override fun onGameEvent(event: GameEvent, world: World) {
-        if (gameView.attract) return
+        // (The demo, or a frame still in flight from the world DROP IN just replaced.)
+        if (gameView.attract || world !== gameView.world) return
         // Side clears come in bunches: one soft chime for the bunch.
         val chime = event !is GameEvent.SideCleared || world.time - sideChimeAt > SIDE_CHIME_GAP
         if (event is GameEvent.SideCleared && chime) sideChimeAt = world.time
@@ -597,6 +598,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
             highlights = report.highlights,
             hero = world.hero,
             difficulty = runDifficulty,
+            curve = world.difficulty.takeIf { runDifficulty == "CUSTOM" && world.challenge == null },
             challenge = status,
             alsoCleared = world.sideCleared.map { SideClear(it.id, it.name, it.tier) },
         )

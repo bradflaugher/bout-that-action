@@ -72,6 +72,8 @@ data class RunSummary(
     val hero: Hero = Hero.BULL,
     /** The difficulty by name ("AGENT", "HELL", "CUSTOM"), for the share message. */
     val difficulty: String = "",
+    /** A custom curve's numbers, so a friend's PASTE plays the very same run (null for a named one). */
+    val curve: Difficulty? = null,
     /** How the run did on its challenge, for a challenge run. */
     val challenge: ChallengeStatus? = null,
     /** Other challenges the run met on the side, in the order they cleared. */

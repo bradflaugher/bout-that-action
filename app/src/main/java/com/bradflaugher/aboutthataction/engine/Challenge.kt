@@ -784,12 +784,20 @@ class SideClears internal constructor(candidates: List<Challenge>, silent: Boole
          * with [hearts] hearts, starting [silent] or not: never its own challenge, nor any in
          * [RunConfig.knownCleared].
          */
+        /**
+         * Does a run on [difficulty] play [c]'s curve? Exactly, except that a ONE HEART challenge
+         * only cares about the heat: its one heart is checked on the run's real hearts instead
+         * (a custom AGENT curve with Hearts at 1 is a ONE HEART AGENT run).
+         */
+        private fun sameCurve(c: Challenge, difficulty: Difficulty): Boolean =
+            if (c.oneHeart) c.difficulty.copy(hearts = difficulty.hearts) == difficulty else c.difficulty == difficulty
+
         fun candidates(config: RunConfig, difficulty: Difficulty, hearts: Int, silent: Boolean): List<Challenge> {
             val own = config.challenge?.id
             val hero = config.hero
             return Challenges.all.filter { c ->
                 c.id != own && c.id !in config.knownCleared && c.startFloor == difficulty.startFloor &&
-                    c.difficulty == difficulty && c.allows(hero) &&
+                    sameCurve(c, difficulty) && c.allows(hero) &&
                     !(c.oneHeart && hearts > 1) && !(c.silentOnly && !silent) && !(c.gunsHotOnly && silent)
             }
         }

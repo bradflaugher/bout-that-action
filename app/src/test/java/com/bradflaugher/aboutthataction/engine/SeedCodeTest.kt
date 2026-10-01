@@ -62,4 +62,16 @@ class SeedCodeTest {
         assertNull(SeedCode.find("seed AGEN T234").preset)
         assertEquals(SeedCode.Shared(null, Difficulty.Preset.BRUTAL, Hero.FOX), SeedCode.find("fox on brutal, no seed"))
     }
+
+    @Test
+    fun aCustomCurveRoundTripsAndIsClampedToTheSteppers() {
+        for (d in listOf(Difficulty(), Difficulty(start = 0f, ramp = 0f, cap = 0.5f, hearts = 1), Difficulty(start = 5f, ramp = 4f, cap = 8f, hearts = 9, startFloor = 150))) {
+            assertEquals(d, SeedCode.find("seed K7QM 2XAB " + SeedCode.curveTag(d)).curve)
+        }
+        assertEquals("CURVE 0.15/1/4/3/0", SeedCode.curveTag(Difficulty()))
+        // Out of range or a floor no zone starts on: brought back in line.
+        assertEquals(Difficulty(start = 5f, ramp = 4f, cap = 8f, hearts = 9, startFloor = 0), SeedCode.find("CURVE 9/9/99/42/7").curve)
+        // A named difficulty next to a curve doesn't override it.
+        assertNull(SeedCode.find("AGENT CURVE 0.15/1/4/3/0").preset)
+    }
 }

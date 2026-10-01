@@ -76,6 +76,23 @@ class SideClearTest {
     }
 
     @Test
+    fun aCustomOneHeartCurveCountsForOneHeartChallenges() {
+        // AGENT's heat with Hearts at 1 is a ONE HEART AGENT run, as FOX (no extra hearts).
+        val oneHeart = Difficulty.Preset.AGENT.difficulty.copy(hearts = 1)
+        val config = RunConfig(1L, oneHeart, coach = false, hero = Hero.FOX)
+        val got = SideClears.candidates(config, oneHeart, hearts = 1, silent = false)
+        val want = Challenges.all.filter {
+            it.oneHeart && it.preset == Difficulty.Preset.AGENT && it.startFloor == 0 && it.allows(Hero.FOX) && !it.silentOnly
+        }
+        assertTrue("there are ONE HEART AGENT ones", want.isNotEmpty())
+        assertTrue(got.containsAll(want))
+        // Only ONE HEART ones ignore the heart count: a plain AGENT challenge wants AGENT's own 3.
+        assertTrue(got.all { it.oneHeart })
+        // And BULL's extra heart still rules him out.
+        assertTrue(SideClears.candidates(config.copy(hero = Hero.BULL), oneHeart, hearts = 2, silent = false).none { it.oneHeart })
+    }
+
+    @Test
     fun aRooftopTakedownSideClearsTheMatchingRookieChallenges() {
         val w = endless(silent = true)
         w.player.x = 3f

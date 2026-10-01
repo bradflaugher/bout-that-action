@@ -51,8 +51,35 @@ object SeedCode {
     /** How a run's seed reads: its code, or just the number for a seed without one. */
     fun labelOf(seed: Long): String = encode(seed)?.let(::pretty) ?: seed.toString()
 
-    /** What a share message carries: a code, and maybe a difficulty and a hero. */
-    data class Shared(val code: String?, val preset: Difficulty.Preset?, val hero: Hero?)
+    /** What a share message carries: a code, and maybe a difficulty (a preset or a whole custom curve) and a hero. */
+    data class Shared(val code: String?, val preset: Difficulty.Preset?, val hero: Hero?, val curve: Difficulty? = null)
+
+    /**
+     * A custom curve as a tag a share message can carry and [find] can read back:
+     * "CURVE 0.8/1.7/5/2/50" (starting heat / ramp / heat cap / hearts / start floor).
+     */
+    fun curveTag(d: Difficulty): String =
+        "CURVE " + listOf(num(d.start), num(d.ramp), num(d.cap), d.hearts.toString(), d.startFloor.toString()).joinToString("/")
+
+    /** Up to two decimals (AGENT starts at 0.15), no trailing zeros: 0.8, 1.7, 5. */
+    private fun num(f: Float): String =
+        String.format(java.util.Locale.US, "%.2f", f).trimEnd('0').trimEnd('.')
+
+    private val CURVE = Regex("CURVE\\s*(\\d+(?:\\.\\d+)?)/(\\d+(?:\\.\\d+)?)/(\\d+(?:\\.\\d+)?)/(\\d+)/(\\d+)")
+
+    /** A [curveTag] read back, clamped to what the CUSTOM RUN steppers allow; null if there's none. */
+    private fun curveIn(up: String): Difficulty? {
+        val m = CURVE.find(up) ?: return null
+        val (start, ramp, cap, hearts, floor) = m.destructured
+        val starts = Zone.entries.filter { it != Zone.ROOFTOP }.map { it.startFloor }
+        return Difficulty(
+            start = start.toFloat().coerceIn(0f, 5f),
+            ramp = ramp.toFloat().coerceIn(0f, 4f),
+            cap = cap.toFloat().coerceIn(0.5f, 8f),
+            hearts = hearts.toInt().coerceIn(1, 9),
+            startFloor = floor.toInt().takeIf { it == 0 || it in starts } ?: 0,
+        )
+    }
 
     private const val C = "[A-HJ-NP-Z2-9]"
     private val AFTER_SEED = Regex("SEED\\W*($C{4})[ -]?($C{4})(?![A-Z0-9])")
@@ -80,8 +107,9 @@ object SeedCode {
             ?: normalize(up).takeIf { decode(it) != null }
         // The difficulty is read from the text around the code, not from inside it.
         val rest = if (code == null) up else up.replace(Regex("${code.substring(0, 4)}[ -]?${code.substring(4)}"), " ")
-        val preset = PRESETS.firstOrNull { it.first.containsMatchIn(rest) }?.second
+        val curve = curveIn(rest)
+        val preset = if (curve != null) null else PRESETS.firstOrNull { it.first.containsMatchIn(rest) }?.second
         val hero = Hero.entries.firstOrNull { word(it.name).containsMatchIn(rest) }
-        return Shared(code, preset, hero)
+        return Shared(code, preset, hero, curve)
     }
 }
