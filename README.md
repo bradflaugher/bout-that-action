@@ -268,8 +268,8 @@ hero and NOT CLEARED, with a SURPRISE ME for a random one you haven't done.
 A clear counts the moment it happens, even if you quit right after; your best
 progress on each is kept too. Pause shows the goal and where you stand; game
 over shows the result (a cleared one turns the red MISSION FAILED into a gold
-MISSION ACCOMPLISHED), with RETRY CHALLENGE, SHARE ("I cleared #0274 NAP
-QUEEN in 'Bout That Action. Your move.") and BOARD. Challenge runs bring their
+MISSION ACCOMPLISHED), with RETRY CHALLENGE, SHARE ("I cleared #0006
+BANANA SPLIT in 'Bout That Action. Your move.") and BOARD. Challenge runs bring their
 own curve and start floor, so they don't count toward your endless DEEPEST
 and BEST.
 
