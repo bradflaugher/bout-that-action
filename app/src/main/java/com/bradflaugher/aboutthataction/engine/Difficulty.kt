@@ -31,9 +31,9 @@ data class Difficulty(
     }
 
     enum class Preset(val label: String, val blurb: String, val difficulty: Difficulty) {
-        CHILL("CHILL", "Slow ramp, 5 hearts", Difficulty(start = 0f, ramp = 0.55f, cap = 2.5f, hearts = 5)),
+        CHILL("CHILL", "Slow ramp · 5 hearts", Difficulty(start = 0f, ramp = 0.55f, cap = 2.5f, hearts = 5)),
         AGENT("AGENT", "The intended descent", Difficulty()),
-        BRUTAL("BRUTAL", "Hot start, steep ramp, 2 hearts", Difficulty(start = 0.8f, ramp = 1.7f, cap = 5f, hearts = 2)),
+        BRUTAL("BRUTAL", "Steep ramp · 2 hearts", Difficulty(start = 0.8f, ramp = 1.7f, cap = 5f, hearts = 2)),
         STRAIGHT_TO_HELL("STRAIGHT TO HELL", "Start in Hell, at B100. Good luck", Difficulty(start = 0.4f, ramp = 1f, cap = 5f, hearts = 3, startFloor = 150)),
     }
 }

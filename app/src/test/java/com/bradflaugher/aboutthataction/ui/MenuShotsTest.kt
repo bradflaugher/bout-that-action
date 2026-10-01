@@ -66,6 +66,12 @@ class MenuShotsTest {
     private val insets = PaddingValues(top = 32.dp, bottom = 16.dp)
     private val records = Records(bestScore = 184_250, bestFloor = 67, runs = 12)
 
+    /** A custom curve with a long LIVE FEED summary. */
+    private val hellish = Difficulty(start = 1.2f, ramp = 2.4f, cap = 6f, hearts = 2, startFloor = 75)
+
+    /** A sample daily challenge card (the card is display data; any challenge fills it). */
+    private val daily = DailyCard(37, "VELVET BOX", "Take down 12 guards from your box", listOf("SILENT ONLY", "ONE HEART"))
+
     private val run = RunSummary(
         floor = 58, zone = Zone.METRO, score = 142_880, kills = 71, takedowns = 19, seconds = 734f,
         seedLabel = "48213377", newBestScore = false, newBestFloor = false,
@@ -88,6 +94,24 @@ class MenuShotsTest {
             }
             shot("$device-title-hawk", 1800, world(Hero.HAWK)) {
                 TitleScreen(s.copy(hero = Hero.HAWK), records, insets, {}, {}, {}, {}, {})
+            }
+            shot("$device-title-brutal", 1800, world()) {
+                TitleScreen(s.copy(preset = Difficulty.Preset.BRUTAL), records, insets, {}, {}, {}, {}, {})
+            }
+            shot("$device-title-custom", 1800, world(Hero.FOX)) {
+                TitleScreen(s.copy(preset = null, custom = hellish, hero = Hero.FOX), records, insets, {}, {}, {}, {}, {})
+            }
+            shot("$device-title-daily", 1800, world()) {
+                TitleScreen(s, records, insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = "37/1,234 CLEARED")
+            }
+            shot("$device-title-daily-cleared", 1800, world()) {
+                TitleScreen(s, records, insets, {}, {}, {}, {}, {}, daily = daily.copy(cleared = true), challengesCaption = "38/1,234 CLEARED")
+            }
+            shot("$device-custom", 900, world()) {
+                CustomScreen(s.copy(preset = null, custom = Difficulty.Preset.BRUTAL.difficulty.copy(hearts = 3)), insets, {}, {}, {}, {})
+            }
+            shot("$device-custom-hell", 900, world(Hero.MONKEY)) {
+                CustomScreen(s.copy(preset = null, custom = Difficulty.Preset.STRAIGHT_TO_HELL.difficulty, hero = Hero.MONKEY), insets, {}, {}, {}, {})
             }
             for (hero in Hero.entries) {
                 shot("$device-heroes-${hero.name.lowercase()}", 1200, world(hero)) {
@@ -115,6 +139,25 @@ class MenuShotsTest {
             shot("$device-gameover-best", 3500, world()) {
                 GameOverScreen(run.copy(floor = 188, zone = Zone.HELL, newBestFloor = true, newBestScore = true), insets, {}, {}, {})
             }
+        }
+        // The smallest phone at a big font size: nothing may wrap or clip (the title scrolls).
+        if (all || only != null) {
+            RuntimeEnvironment.setQualifiers(devices.first { it.first == "small" }.second)
+            RuntimeEnvironment.setFontScale(1.5f)
+            val s = Settings()
+            shot("font-title", 1800, world()) {
+                TitleScreen(s.copy(preset = Difficulty.Preset.BRUTAL), records, insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = "37/1,234 CLEARED")
+            }
+            shot("font-title-custom", 1800, world()) {
+                TitleScreen(s.copy(preset = null, custom = hellish), records, insets, {}, {}, {}, {}, {})
+            }
+            shot("font-custom", 900, world()) {
+                CustomScreen(s.copy(preset = null), insets, {}, {}, {}, {})
+            }
+            shot("font-settings", 900, world()) {
+                SettingsScreen(s, insets, {}, {})
+            }
+            RuntimeEnvironment.setFontScale(1f)
         }
     }
 
@@ -145,7 +188,7 @@ class MenuShotsTest {
         val gfx = AndroidGfx(activity)
         gfx.begin(Canvas(bg))
         val density = dm.density
-        val hud = !name.contains("title") && !name.contains("settings") && !name.contains("heroes")
+        val hud = !name.contains("title") && !name.contains("settings") && !name.contains("heroes") && !name.contains("custom")
         Renderer().render(gfx, world, world.time, 32 * density, 16 * density, showHud = hud)
         // Drive Compose from our own frame clock. Robolectric's Choreographer hands
         // out frames without advancing time, so infinite animations never let idle end.
@@ -210,6 +253,7 @@ class MenuShotsTest {
             "phone-gameover-best" to "menu-gameover",
             "phone-settings-custom" to "menu-settings",
             "phone-heroes-bull" to "menu-heroes",
+            "phone-custom" to "menu-custom",
         )
     }
 }

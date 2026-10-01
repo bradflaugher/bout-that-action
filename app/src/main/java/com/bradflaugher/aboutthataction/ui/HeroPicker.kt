@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -177,7 +178,9 @@ fun HeroBar(hero: Hero, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Row(
         modifier
             .fillMaxWidth()
-            .height(64.dp)
+            // Grows with big font settings instead of clipping the name.
+            .heightIn(min = 64.dp)
+            .height(IntrinsicSize.Min)
             .pressScale(source, 0.97f)
             .semantics { contentDescription = "Playing as ${hero.title}. ${hero.tagline} Change hero" }
             .drawBehind {
@@ -201,8 +204,9 @@ fun HeroBar(hero: Hero, modifier: Modifier = Modifier, onClick: () -> Unit) {
             HeroFigure(hero, Modifier.fillMaxSize(), height = 0.84f, foot = 0.92f) { clock.value }
         }
         Column(Modifier.weight(1f).padding(start = Space.s)) {
-            Kicker("PLAYING AS", Neon.dim)
-            NeonText(hero.title, size = Type.headline, color = c, title = true, letterSpacing = 3.sp, glow = 0.7f, maxLines = 1)
+            FitText("PLAYING AS", Type.micro, Neon.dim, Modifier.fillMaxWidth(), title = false, letterSpacing = 3.sp, glow = 0f,
+                alignment = Alignment.CenterStart)
+            FitText(hero.title, Type.headline, c, Modifier.fillMaxWidth(), letterSpacing = 3.sp, glow = 0.7f, alignment = Alignment.CenterStart)
         }
         Column(horizontalAlignment = Alignment.End) {
             Kicker("CHANGE", c.copy(alpha = 0.9f), align = TextAlign.End)
