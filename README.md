@@ -208,6 +208,46 @@ The game-over card tells the story of the run: a playstyle title
 remains undefeated."). No streaks, no daily rewards, no timers asking
 you back. The building will still be there.
 
+## Challenges
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="docs/screenshots/challenge.png" alt="The HUD's challenge pill: KILLS 23/40"><p><em><b>On the HUD.</b> The goal, ticking up</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/cleared.png" alt="CHALLENGE CLEARED: a gold band, a medal and confetti"><p><em><b>Cleared!</b> Then keep going for score</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/busted.png" alt="BUSTED: an UNTOUCHED challenge took a hit"><p><em><b>Busted.</b> UNTOUCHED, touched</em></p></td>
+  </tr>
+</table>
+
+1,550 challenges, each with a silly name ("VELVET
+LANTERN", "BULL IN A CHINA SHOP", "BARREL OF MONKEYS"), a goal and maybe a
+twist or two:
+
+- **Goals** come from the run's own numbers: reach a floor, take guards out,
+  take them down, silent takeouts, ghosted floors, score, box ambushes, bonks,
+  naps, lamps, blasts, combos, traps, close calls, STASHES, express rides and
+  pickup-gun kills.
+- **Twists:** SILENT ONLY or GUNS HOT ONLY (the mode is locked), ONE HEART,
+  UNTOUCHED (one hit and the challenge is busted; the run goes on), a start
+  zone, or the CHILL or BRUTAL curve.
+- **Heroes** get their own: BULL stomps guards flat and STIFF ARMs them,
+  FOX flying- and spin-kicks, HAWK unplugs robots and delivers from the box,
+  and MONKEY lets shots sail over his head and goes bananas with pickup guns.
+  A challenge never asks the impossible: no takedowns or SILENT for MONKEY,
+  no shots under SILENT ONLY.
+- **Five tiers**, ROOKIE to LEGEND, tuned against the autopilot: it clears
+  most ROOKIEs and the odd LEGEND.
+
+Each challenge always plays the same building, so everyone gets the same
+floors. The goal sits on the HUD under your hearts and pops each time it moves;
+clearing it is a big gold moment, and then the run carries on for score.
+
+**The daily challenge** is the same for everyone on the same (local) day:
+gentle on Monday, building to a LEGEND on Sunday. Already cleared that one on
+an earlier day? You get a stand-in, picked the same way for everyone who's
+cleared the same ones. Clear today's and it stays today's, marked cleared.
+There are no streaks, rewards or countdowns: every challenge is playable any
+day from the board, and nothing nags you to come back.
+
 ## The front end
 
 <table>

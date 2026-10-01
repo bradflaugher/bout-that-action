@@ -2,6 +2,9 @@ package com.bradflaugher.aboutthataction.render
 
 import com.bradflaugher.aboutthataction.engine.Body
 import com.bradflaugher.aboutthataction.engine.Bullet
+import com.bradflaugher.aboutthataction.engine.Challenges
+import com.bradflaugher.aboutthataction.engine.Goal
+import com.bradflaugher.aboutthataction.engine.Tier
 import com.bradflaugher.aboutthataction.engine.Command
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.DoorKind
@@ -77,6 +80,9 @@ class ScreenshotTest {
         Scene("ghost", 7.6f, ::ghost),
         Scene("bonk", 5.7f, ::bonk),
         Scene("lifts", 2.4f, ::lifts),
+        Scene("challenge", 2.2f, ::challengeHud),
+        Scene("cleared", 3.0f, ::challengeCleared),
+        Scene("busted", 3.2f, ::challengeBusted),
     )
 
     @Test
@@ -922,6 +928,89 @@ class ScreenshotTest {
         check(p.state == PlayerState.ELEVATOR) { "didn't board (${p.state})" }
         if (w.fx.texts.none { it.text == "SMOOTH JAZZ" }) w.popup("SMOOTH JAZZ", s.x, Geo.groundY(f) - 2.9f, TextStyle.PICKUP, 1.6f, 0f)
         w.run(0.3f)
+        return w
+    }
+
+    /** A world on a catalog challenge (the first plain one with [goal] at [tier]), moved to start on [start]. */
+    private fun challengeWorld(seed: Long, start: Int, goal: Goal, tier: Tier, silent: Boolean = false): World {
+        val c = Challenges.all.first { it.goal == goal && it.tier == tier && it.rules.isEmpty() && it.hero == null && it.startFloor == 0 && it.preset == Difficulty.Preset.AGENT }
+            .copy(startFloor = start)
+        return World(RunConfig(seed, c.difficulty, silent = silent, challenge = c)).also { it.viewAspect = 2400f / 1080f }
+    }
+
+    /** The HUD on a challenge: the goal line under the perks, mid-pulse from the kill that just landed. */
+    private fun challengeHud(): World {
+        val f = 11
+        val w = challengeWorld(seedWithHalls(f, calmSeed(f, 1900), 3), f, Goal.KILLS, Tier.PRO)
+        w.run(1.6f)
+        w.settle(X(2.2f), 2.2f)
+        w.perks[Perk.RAPID_FIRE] = 1
+        w.scoreCombo(2, X(2.2f), 1)
+        val p = w.player
+        p.x = X(2.2f)
+        p.facing = 1
+        p.state = PlayerState.NORMAL
+        p.sinceShot = 0.03f
+        p.ammo = 4
+        val gy = Geo.groundY(f)
+        val dead = w.enemy(EnemyKind.AGENT, X(5.4f), -1, EnemyState.DEAD, 0.12f)
+        dead.deathVx = 3.5f
+        dead.z = 0.35f
+        dead.hurtFlash = 0f
+        w.enemy(EnemyKind.AGENT, X(8.6f), -1, EnemyState.ALERT, 0.2f).vx = 0f
+        w.fx.burst(ParticleKind.SHARD, X(5.4f), gy - 1f, 16, 6f, 0.7f, 0.12f, upBias = 0.3f, dir = 1f)
+        w.fx.update(0.05f)
+        w.fx.text("+200", X(5.4f), gy - 2.1f, TextStyle.SCORE)
+        val run = w.challenge!!
+        run.progress = (run.target * 0.58f).toInt()
+        run.progressAt = w.time - 0.1f
+        w.visit(0, 1)
+        w.ambient(EnemyKind.AGENT, EnemyKind.HEAVY)
+        return w
+    }
+
+    /** CHALLENGE CLEARED: the takedown that did it, the gold band, the medal and the confetti. */
+    private fun challengeCleared(): World {
+        val f = 18
+        val w = challengeWorld(calmSeed(f, 2000), f, Goal.TAKEDOWNS, Tier.ROOKIE, silent = true)
+        w.run(1.6f)
+        w.settle(X(4.0f), 2.2f)
+        val p = w.player
+        p.x = X(4.0f)
+        p.facing = 1
+        p.state = PlayerState.NORMAL
+        val gy = Geo.groundY(f)
+        val ko = w.enemy(EnemyKind.AGENT, X(5.1f), 1, EnemyState.DEAD, 0.5f)
+        ko.hurtFlash = 0f
+        w.popup("TAKEDOWN", X(5.1f), gy - 2.4f, TextStyle.TAKEDOWN, 1.2f, 0.5f)
+        w.enemy(EnemyKind.AGENT, X(9.0f), 1, EnemyState.PATROL, 0.4f).vx = 0.7f
+        val run = w.challenge!!
+        run.progress = run.target
+        run.cleared = true
+        run.clearedAt = w.time - 0.95f
+        w.visit(0)
+        w.ambient(EnemyKind.AGENT)
+        return w
+    }
+
+    /** BUSTED: an UNTOUCHED challenge, touched. The run goes on; the challenge doesn't. */
+    private fun challengeBusted(): World {
+        val f = 52
+        val w = challengeWorld(calmSeed(f, 2100), f, Goal.KILLS, Tier.ACE)
+        w.run(1.6f)
+        w.settle(X(3.0f), 2.2f)
+        val p = w.player
+        p.x = X(3.0f)
+        p.facing = 1
+        p.hp = p.maxHp - 1
+        p.invuln = 1f
+        w.enemy(EnemyKind.AGENT, X(8.2f), -1, EnemyState.AIM, 0.1f).aimLow = true
+        val run = w.challenge!!
+        run.progress = 7
+        run.failed = true
+        run.failedAt = w.time - 0.5f
+        w.visit(0)
+        w.ambient(EnemyKind.AGENT, EnemyKind.NINJA)
         return w
     }
 

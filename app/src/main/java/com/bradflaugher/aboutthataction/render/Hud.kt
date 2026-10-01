@@ -86,6 +86,9 @@ internal class Hud(private val f: Frame) {
         private const val GOLD = 0xFFFFD24A.toInt()
         private const val PINK = 0xFFFF3D9A.toInt()
         const val LIME = 0xFF9AE040.toInt()
+        /** The challenges' gold (a touch warmer than the score's), and the red of a busted one. */
+        const val CHALLENGE = 0xFFFFC23A.toInt()
+        private const val BUSTED = 0xFFFF4A5E.toInt()
 
         fun unit(width: Float) = width / 100f
 
@@ -272,6 +275,8 @@ internal class Hud(private val f: Frame) {
         val left = MARGIN * u
         depthBlock(left, top, u, neon)
         heartsRow(left, top + 15f * u, u)
+        // The challenge sits under the perks (or where they'd be), and stays for the way out.
+        challengeLine(left, top + (if (w.perks.isEmpty()) 22.5f else 29.5f) * u, u)
         if (f.dying) {
             // On the way out only the story of the run remains: where, and how much.
             scoreBlock(top, u)
@@ -716,6 +721,156 @@ internal class Hud(private val f: Frame) {
                 px += pw + 0.35f * u
             }
         }
+    }
+
+    // -------------------------------------------------------------- challenge
+
+    private var chId = -1
+    private var chKicker = ""
+    private var chProgress = Int.MIN_VALUE
+    private var chState = -1
+    private var chText = ""
+    /** The bar's shown fill, easing toward the real one. */
+    private var chFill = -1f
+
+    /**
+     * The run's challenge, compact: a kicker with its name, then a pill with a target (a tick
+     * once cleared, a cross if busted), the progress ("KILLS 12/30") and a thin gold bar along
+     * its foot. It pops and flares each time the number moves.
+     */
+    private fun challengeLine(x: Float, top: Float, u: Float) {
+        val run = f.w.challenge ?: return
+        val ch = run.challenge
+        if (ch.id != chId) {
+            chId = ch.id
+            chKicker = "CHALLENGE  ·  " + ch.name
+            chFill = -1f
+        }
+        val state = if (run.cleared) 1 else if (run.failed) 2 else 0
+        if (run.progress != chProgress || state != chState) {
+            chProgress = run.progress
+            chState = state
+            chText = when (state) {
+                1 -> "CLEARED"
+                2 -> "BUSTED"
+                else -> run.hudText()
+            }
+        }
+        val col = when (state) {
+            1 -> GOLD
+            2 -> BUSTED
+            else -> CHALLENGE
+        }
+        // Real seconds since it moved, cleared or broke (world clock: it holds still in a pause).
+        val moved = f.wt - run.progressAt
+        val stamp = f.wt - (if (state == 1) run.clearedAt else if (state == 2) run.failedAt else -99f)
+        val pulse = if (run.progressAt >= 0f && moved in 0f..0.5f) HudType.decay(moved / 0.5f) else 0f
+        val flare = if (stamp in 0f..0.8f) HudType.decay(stamp / 0.8f) else 0f
+        val target = if (state == 2) chFill.coerceAtLeast(0f) else run.fraction
+        chFill = if (chFill < 0f || f.dt == 0f) target else chFill + (target - chFill) * min(1f, f.dt * 8f)
+
+        // Kicker: a gold tick and the challenge's name.
+        val ky = top + 1.9f * u
+        g.fillRect(x, ky - 1.6f * u, x + 0.5f * u, ky + 0.1f * u, Col.alpha(col, 0.9f))
+        HudType.tracked(g, chKicker, x + 1.5f * u, ky, 1.9f * u, Col.alpha(Col.lerp(col, WHITE, 0.35f), 0.82f), Gfx.Font.HUD, Gfx.Align.LEFT, 0.3f * u)
+
+        // The pill.
+        val h = 6.2f * u
+        val pt = top + 3.1f * u
+        var ts = 3.2f * u
+        val tracking = 0.22f * u
+        val maxText = 46f * u
+        var tw = HudType.trackedWidth(g, chText, ts, Gfx.Font.TITLE, tracking)
+        if (tw > maxText) {
+            ts *= maxText / tw
+            tw = maxText
+        }
+        val l = x
+        val r = x + h + 1.6f * u + tw + 2.4f * u
+        val b = pt + h
+        val pop = 1f + 0.1f * max(pulse, flare)
+        g.save()
+        g.translate(l, pt + h / 2f)
+        g.scale(pop, pop)
+        g.translate(-l, -(pt + h / 2f))
+        if (pulse > 0f || flare > 0f || state == 1) {
+            val glowA = 0.1f + 0.35f * max(pulse, flare) + if (state == 1) 0.08f * HudType.wave(f.t, 0.6f) else 0f
+            g.blend(Gfx.Blend.ADD)
+            g.save()
+            g.translate((l + r) / 2f, pt + h / 2f)
+            g.scale(1f, 0.38f)
+            g.glow(0f, 0f, (r - l) * 0.62f, Col.alpha(col, glowA))
+            g.restore()
+            g.blend(Gfx.Blend.NORMAL)
+        }
+        g.fillRoundRect(l, pt + 0.3f * u, r, b + 0.3f * u, h / 2f, 0x66000000)
+        g.fillRoundRect(l, pt, r, b, h / 2f, 0xD90C0A14.toInt())
+        g.fillVerticalGradient(l + h / 2f, pt + 0.3f * u, r - h / 2f, pt + h * 0.55f, Col.alpha(col, if (state == 1) 0.24f else 0.12f), Col.alpha(col, 0f))
+        g.strokeRoundRect(l, pt, r, b, h / 2f, 0.22f * u, Col.alpha(col, 0.55f + 0.45f * max(pulse, flare)))
+        // Progress along the foot, inside the rounded ends.
+        val bl = l + h * 0.55f
+        val br = r - h * 0.45f
+        val by = b - 1.05f * u
+        g.fillRoundRect(bl, by, br, by + 0.5f * u, 0.25f * u, 0x2EFFFFFF)
+        val fx = bl + (br - bl) * chFill
+        if (chFill > 0f) {
+            g.fillRoundRect(bl, by, max(bl + 0.5f * u, fx), by + 0.5f * u, 0.25f * u, col)
+            if (state == 0) {
+                g.blend(Gfx.Blend.ADD)
+                g.glow(fx, by + 0.25f * u, (1.4f + 1.6f * pulse) * u, Col.alpha(col, 0.55f + 0.4f * pulse))
+                g.blend(Gfx.Blend.NORMAL)
+            }
+        }
+        // Badge: a target while it's on, a tick once cleared, a cross once busted.
+        val icx = l + h / 2f
+        val icy = pt + h / 2f
+        val ir = h / 2f - 0.75f * u
+        g.fillCircle(icx, icy, ir, Col.alpha(col, if (state == 0) 0.2f else 1f))
+        val ink = 0xFF0C0A14.toInt()
+        when (state) {
+            1 -> {
+                val k = HudType.clamp01(stamp / 0.25f)
+                val sw = 0.55f * u
+                val ax = icx - ir * 0.48f
+                val ay = icy + ir * 0.02f
+                val mx = icx - ir * 0.12f
+                val my = icy + ir * 0.38f
+                g.line(ax, ay, ax + (mx - ax) * min(1f, k * 2f), ay + (my - ay) * min(1f, k * 2f), sw, ink)
+                if (k > 0.5f) {
+                    val e = (k - 0.5f) * 2f
+                    g.line(mx, my, mx + (ir * 0.55f) * e, my - (ir * 0.78f) * e, sw, ink)
+                }
+            }
+            2 -> {
+                val d = ir * 0.42f
+                g.line(icx - d, icy - d, icx + d, icy + d, 0.5f * u, ink)
+                g.line(icx - d, icy + d, icx + d, icy - d, 0.5f * u, ink)
+            }
+            else -> {
+                g.strokeCircle(icx, icy, ir * 0.62f, 0.32f * u, col)
+                g.fillCircle(icx, icy, ir * 0.22f + 0.15f * u * pulse, col)
+            }
+        }
+        val textC = when {
+            state != 0 -> col
+            pulse > 0f -> Col.lerp(INK, CHALLENGE, pulse)
+            else -> INK
+        }
+        HudType.tracked(g, chText, l + h + 1.6f * u, icy + ts * 0.36f - 0.25f * u, ts, textC, Gfx.Font.TITLE, Gfx.Align.LEFT, tracking)
+        // Cleared: a glint sweeps the pill now and then.
+        if (state == 1) {
+            val ph = fract(f.t * 0.35f)
+            if (ph < 0.3f) {
+                val gx = l + (r - l) * (ph / 0.3f)
+                g.save()
+                g.clipRect(l, pt, r, b)
+                g.blend(Gfx.Blend.ADD)
+                poly.quad(g, gx - 1.2f * u, b, gx + 0.4f * u, pt, gx + 1.6f * u, pt, gx, b, Col.alpha(WHITE, 0.18f))
+                g.blend(Gfx.Blend.NORMAL)
+                g.restore()
+            }
+        }
+        g.restore()
     }
 
     // ------------------------------------------------------- score + pause

@@ -49,6 +49,13 @@ the JVM.
     routes through passages to a ride down, calls cars, and plays both modes.
   - `RunStats.kt` (highlights, the hurt log, the fatal hit) and
     `RunReport.kt` (the game-over card: playstyle title, death line, quip).
+  - `Challenge.kt` — challenges: `Goal` (read straight off `World` stats),
+    `Rule`, `Tier`, the generated, append-only catalog (`Challenges.all`, ids
+    1..N, a golden checksum in `ChallengeTest`; new ones go in a new batch
+    after the last id), each hero's bespoke templates, and
+    `Challenges.daily(epochDay, clearedBefore)`. `RunConfig.challenge` makes
+    `World` apply its setup and keep `World.challenge` (progress, cleared,
+    failed) with one-shot `ChallengeCleared` / `ChallengeFailed` events.
     Special floors (`FloorEvent`: blackout, nap time, payday) roll from
     `(seed, floor)` on their own RNG stream in `LevelGen.eventOn`, so they
     never change a floor's layout.
@@ -90,6 +97,14 @@ the JVM.
   STRAIGHT_TO_HELL.
 - Fun, not compulsion: no streaks, daily rewards, timers or "come back"
   nags. Text is short, silly and family-friendly.
+- The daily challenge is a shared pick, nothing more: the same challenge for
+  everyone on the same local day (the date is passed in; no clock in
+  `engine/`), a deterministic stand-in if you cleared it on an earlier day.
+  No streaks, rewards, countdowns or nags; every challenge is playable any
+  day from the board. Never generate an impossible challenge (the catalog
+  tests enforce it: no melee, SILENT or silent-takeout goals for MONKEY, no
+  shot goals under SILENT ONLY), and recalibrate tiers with
+  `ChallengeBotTest` when balance moves.
 - Enums the renderer switches on exhaustively (`Perk`, `PickupKind`,
   `TextStyle`, `ParticleKind`, `ContextAction`, `EnemyKind`, states) need a
   render change alongside any new value; prefer fields and events.

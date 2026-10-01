@@ -29,6 +29,11 @@ data class RunConfig(
     val coach: Boolean = true,
     /** Who's playing: a trait, three hero-only perks, a look and a soundtrack. */
     val hero: Hero = Hero.BULL,
+    /**
+     * The challenge this run is for, if any: [World] applies its setup (preset, start floor,
+     * ONE HEART) and tracks its goal. Build the whole config with [Challenge.runConfig].
+     */
+    val challenge: Challenge? = null,
 )
 
 enum class Phase { PLAYING, PERK_CHOICE, DYING, OVER }
@@ -52,7 +57,8 @@ enum class Flash { NONE, HURT, WHITE, GOLD }
  */
 class World(val config: RunConfig) {
     val seed = config.seed
-    val difficulty = config.difficulty
+    /** A challenge brings its own curve and start floor. */
+    val difficulty = config.challenge?.difficulty ?: config.difficulty
     val hero = config.hero
     private val rng = Rng(seed xor 0x5EED5EEDL)
 
@@ -75,15 +81,20 @@ class World(val config: RunConfig) {
      * SILENT: the player never fires (takedowns, stomps, the box, doorways, grenades and
      * lights only) and silent kills pay a bonus. Otherwise GUNS HOT: auto-fire at threats.
      */
-    var silent = config.silent && config.hero.sneaks
+    var silent = config.hero.sneaks && (config.challenge?.let { it.silentOnly || (config.silent && !it.gunsHotOnly) } ?: config.silent)
         private set
 
-    /** The mode can't change this run: a hero with no SILENT (MONKEY), or a locked run ([RunConfig.lockMode]). */
+    /**
+     * The mode can't change this run: a hero with no SILENT (MONKEY), or a locked run
+     * ([RunConfig.lockMode], set by [Challenge.runConfig] for SILENT ONLY and GUNS HOT ONLY).
+     */
     val modeLocked: Boolean get() = !hero.sneaks || config.lockMode
 
     /** [time] of the last poke at a locked mode button (the HUD gives it a shake), or -9. */
     var lockPokeAt = -9f
-        private set
+
+    /** Where the run stands on its challenge, or null on an endless run. */
+    val challenge: ChallengeRun? = config.challenge?.let { ChallengeRun(it) }
 
     var phase = Phase.PLAYING
         private set
@@ -214,7 +225,8 @@ class World(val config: RunConfig) {
     fun stacks(perk: Perk): Int = perks[perk] ?: 0
 
     init {
-        player.maxHp = difficulty.hearts + hero.extraHearts
+        // ONE HEART means one, whoever you are.
+        player.maxHp = if (config.challenge?.oneHeart == true) 1 else difficulty.hearts + hero.extraHearts
         player.hp = player.maxHp
         player.magSize = magSize
         player.ammo = magSize
@@ -299,6 +311,7 @@ class World(val config: RunConfig) {
 
         camY += (targetCamY() - camY) * min(1f, dt * 7f)
         ensureFloors()
+        challenge?.update(this)?.let { onChallenge(it) }
 
         if (phase == Phase.DYING) {
             dyingTime += dt
@@ -617,6 +630,15 @@ class World(val config: RunConfig) {
         coachTip = tip.text
         coachTipAt = time
         fx.text(tip.text, p.x, Geo.groundY(p.floor) - 2.9f, TextStyle.WARN, 1.8f)
+    }
+
+    /** A challenge just cleared (it doesn't end the run: keep going for score) or failed. */
+    private fun onChallenge(e: GameEvent) {
+        events += e
+        if (e is GameEvent.ChallengeCleared) {
+            flash = Flash.GOLD
+            flashAmount = 0.6f
+        }
     }
 
     /**
@@ -2044,7 +2066,10 @@ class World(val config: RunConfig) {
         comboTimer = COMBO_WINDOW
         stats.bestCombo = max(stats.bestCombo, combo)
         when (method) {
-            KillMethod.SHOT -> stats.shotKills++
+            KillMethod.SHOT -> {
+                stats.shotKills++
+                if (player.weapon != null) stats.gunKills++
+            }
             KillMethod.STOMP -> stats.stomps++
             KillMethod.LIGHT -> stats.lightKills++
             KillMethod.HAZARD -> stats.hazardKills++
