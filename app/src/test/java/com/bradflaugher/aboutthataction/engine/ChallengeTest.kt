@@ -414,7 +414,8 @@ class ChallengeTest {
     }
 
     private companion object {
-        const val GOLDEN_SIZE = 0
-        const val GOLDEN_CHECKSUM = 0L
+        /** The first batch, as shipped. Append-only: these never change. */
+        const val GOLDEN_SIZE = 1550
+        val GOLDEN_CHECKSUM = 0x8732748a8da43d0aUL.toLong()
     }
 }

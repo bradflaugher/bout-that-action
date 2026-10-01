@@ -81,6 +81,7 @@ class ScreenshotTest {
         Scene("lifts", 2.4f, ::lifts),
         Scene("challenge", 2.2f, ::challengeHud),
         Scene("cleared", 3.0f, ::challengeCleared),
+        Scene("busted", 3.2f, ::challengeBusted),
     )
 
     @Test
@@ -981,6 +982,27 @@ class ScreenshotTest {
         run.clearedAt = w.time - 0.95f
         w.visit(0)
         w.ambient(EnemyKind.AGENT)
+        return w
+    }
+
+    /** BUSTED: an UNTOUCHED challenge, touched. The run goes on; the challenge doesn't. */
+    private fun challengeBusted(): World {
+        val f = 52
+        val w = challengeWorld(calmSeed(f, 2100), f, Goal.KILLS, Tier.ACE)
+        w.run(1.6f)
+        w.settle(X(3.0f), 2.2f)
+        val p = w.player
+        p.x = X(3.0f)
+        p.facing = 1
+        p.hp = p.maxHp - 1
+        p.invuln = 1f
+        w.enemy(EnemyKind.AGENT, X(8.2f), -1, EnemyState.AIM, 0.1f).aimLow = true
+        val run = w.challenge!!
+        run.progress = 7
+        run.failed = true
+        run.failedAt = w.time - 0.5f
+        w.visit(0)
+        w.ambient(EnemyKind.AGENT, EnemyKind.NINJA)
         return w
     }
 
