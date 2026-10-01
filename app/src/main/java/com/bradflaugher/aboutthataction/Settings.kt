@@ -11,8 +11,12 @@ enum class SeedMode(val label: String) { RANDOM("RANDOM"), DAILY("DAILY"), CUSTO
 
 /** Everything the player can tweak. Persisted in SharedPreferences. */
 data class Settings(
-    /** Null means the custom curve below. */
+    /**
+     * One of the title's everyday presets ([TITLE_PRESETS]); null means the custom curve below.
+     * (STRAIGHT TO HELL is a template on the CUSTOM screen now, not a preset you sit on.)
+     */
     val preset: Difficulty.Preset? = Difficulty.Preset.AGENT,
+    /** The player's own curve. Kept while a preset is picked, so CUSTOM comes back as they left it. */
     val custom: Difficulty = Difficulty(),
     val seedMode: SeedMode = SeedMode.RANDOM,
     val seedText: String = "",
@@ -37,6 +41,17 @@ data class Settings(
     }
 
     companion object {
+        /** The difficulty row on the title, before CUSTOM. */
+        val TITLE_PRESETS = listOf(Difficulty.Preset.CHILL, Difficulty.Preset.AGENT, Difficulty.Preset.BRUTAL)
+
+        /**
+         * The preset and custom curve from what was saved. A saved STRAIGHT TO HELL (from before
+         * it became a template on the CUSTOM screen) carries on as a custom run with Hell's curve.
+         */
+        fun savedDifficulty(presetName: String?, custom: Difficulty): Pair<Difficulty.Preset?, Difficulty> =
+            if (presetName == Difficulty.Preset.STRAIGHT_TO_HELL.name) null to Difficulty.Preset.STRAIGHT_TO_HELL.difficulty
+            else TITLE_PRESETS.firstOrNull { it.name == presetName } to custom
+
         fun dailySeed(): Long = Rng.seedFromText("DAILY-" + LocalDate.now(ZoneOffset.UTC))
     }
 }
@@ -50,15 +65,17 @@ class Prefs(context: Context) {
     fun loadSettings(): Settings {
         val d = Settings()
         val presetName = sp.getString("preset", d.preset?.name)
+        val saved = Difficulty(
+            start = sp.getFloat("c_start", d.custom.start),
+            ramp = sp.getFloat("c_ramp", d.custom.ramp),
+            cap = sp.getFloat("c_cap", d.custom.cap),
+            hearts = sp.getInt("c_hearts", d.custom.hearts),
+            startFloor = sp.getInt("c_floor", d.custom.startFloor),
+        )
+        val (preset, custom) = Settings.savedDifficulty(presetName, saved)
         return Settings(
-            preset = Difficulty.Preset.entries.firstOrNull { it.name == presetName },
-            custom = Difficulty(
-                start = sp.getFloat("c_start", d.custom.start),
-                ramp = sp.getFloat("c_ramp", d.custom.ramp),
-                cap = sp.getFloat("c_cap", d.custom.cap),
-                hearts = sp.getInt("c_hearts", d.custom.hearts),
-                startFloor = sp.getInt("c_floor", d.custom.startFloor),
-            ),
+            preset = preset,
+            custom = custom,
             seedMode = SeedMode.entries.firstOrNull { it.name == sp.getString("seed_mode", null) } ?: d.seedMode,
             seedText = sp.getString("seed_text", d.seedText) ?: "",
             silent = sp.getBoolean("silent", d.silent),

@@ -5,8 +5,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -14,7 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,7 +23,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -35,16 +31,16 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bradflaugher.aboutthataction.Records
-import com.bradflaugher.aboutthataction.SeedMode
 import com.bradflaugher.aboutthataction.Settings
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.FloorLabel
@@ -77,13 +73,18 @@ data class RunSummary(
 
 internal fun grouped(n: Long): String = String.format(Locale.US, "%,d", n)
 
+/** A preset's short name for a chip: STRAIGHT TO HELL is just HELL there. */
 internal fun presetLabel(p: Difficulty.Preset?): String = when (p) {
     null -> "CUSTOM"
     Difficulty.Preset.STRAIGHT_TO_HELL -> "HELL"
     else -> p.label
 }
 
-/** One line of display text that shrinks to fit its width instead of wrapping. */
+/**
+ * One line of display text that shrinks to fit its width instead of wrapping. It measures the
+ * real text (so big, non-linearly scaled font settings fit too), and its tracking shrinks with
+ * the glyphs. No subcomposition, so it works inside intrinsically measured rows.
+ */
 @Composable
 fun FitText(
     text: String,
@@ -95,21 +96,26 @@ fun FitText(
     glow: Float = 0.6f,
     alignment: Alignment = Alignment.Center,
 ) {
-    val measurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    BoxWithConstraints(modifier, contentAlignment = alignment) {
-        // (fits with a little air, so edge-to-edge titles still breathe)
-        val avail = with(density) { maxWidth.toPx() }
-        val size = remember(text, avail, maxSize) {
-            val probe = measurer.measure(
-                text,
-                TextStyle(fontFamily = if (title) Neon.title else Neon.mono, fontSize = maxSize, letterSpacing = letterSpacing),
-                softWrap = false,
-            )
-            if (probe.size.width <= avail) maxSize else maxSize * (avail / probe.size.width) * 0.94f
-        }
-        NeonText(text, size = size, color = color, title = title, letterSpacing = letterSpacing, glow = glow,
-            align = TextAlign.Center, maxLines = 1)
+    val align = when (alignment) {
+        Alignment.CenterStart, Alignment.TopStart, Alignment.BottomStart -> TextAlign.Start
+        Alignment.CenterEnd, Alignment.TopEnd, Alignment.BottomEnd -> TextAlign.End
+        else -> TextAlign.Center
+    }
+    Box(modifier, contentAlignment = alignment) {
+        BasicText(
+            text,
+            maxLines = 1,
+            softWrap = false,
+            autoSize = TextAutoSize.StepBased(minFontSize = 6.sp, maxFontSize = maxSize, stepSize = 0.25.sp),
+            style = TextStyle(
+                color = color,
+                fontFamily = if (title) Neon.title else Neon.mono,
+                textAlign = align,
+                // In em, so the tracking scales with whatever size fits.
+                letterSpacing = (letterSpacing.value / maxSize.value).em,
+                shadow = if (glow > 0f) Shadow(color.copy(alpha = glow), Offset.Zero, 16f) else null,
+            ),
+        )
     }
 }
 
@@ -140,9 +146,17 @@ internal fun Modifier.veil(tint: Color = Neon.night, alpha: Float = 0.78f): Modi
 
 // ------------------------------------------------------------------ title
 
-/** The title's difficulty row: the everyday presets, then CUSTOM (null) for everything else. */
-private val TITLE_PRESETS: List<Difficulty.Preset?> =
-    listOf(Difficulty.Preset.CHILL, Difficulty.Preset.AGENT, Difficulty.Preset.BRUTAL, null)
+/** The title's difficulty row: the everyday presets, then CUSTOM (null), which opens its own screen. */
+private val TITLE_ROW: List<Difficulty.Preset?> = Settings.TITLE_PRESETS + null
+
+/** The LIVE FEED line: the preset's blurb, or a compact read of the custom curve. */
+internal fun difficultyBlurb(s: Settings): String = s.preset?.blurb ?: customSummary(s.custom)
+
+/** "♥3 · ramp ×1.0 · from the roof": the custom curve in one short line. */
+internal fun customSummary(d: Difficulty): String {
+    val from = if (d.startFloor == 0) "the roof" else Zone.baseZoneOf(d.startFloor).title.lowercase(Locale.US)
+    return String.format(Locale.US, "♥%d · ramp ×%.1f · from %s", d.hearts, d.ramp, from)
+}
 
 @Composable
 fun TitleScreen(
@@ -154,6 +168,12 @@ fun TitleScreen(
     onPreset: (Difficulty.Preset) -> Unit,
     onCustom: () -> Unit,
     onHeroes: () -> Unit,
+    onChallenges: () -> Unit = {},
+    /** Today's challenge, once there is one to show; it slots in between the hero bar and DROP IN. */
+    daily: DailyCard? = null,
+    onDaily: () -> Unit = {},
+    /** Under CHALLENGES, e.g. "37/1,234 CLEARED". */
+    challengesCaption: String? = "PICK A MISSION",
 ) {
     // Logo up top, controls down by the thumbs; at big font sizes or in a short window, it scrolls.
     BoxWithConstraints(Modifier.fillMaxSize().titleScrim().padding(insets).padding(horizontal = Space.l)) {
@@ -173,8 +193,8 @@ fun TitleScreen(
                         Modifier.reveal(850).padding(top = Space.m),
                         horizontalArrangement = Arrangement.spacedBy(Space.xs),
                     ) {
-                        RecordChip("DEEPEST", FloorLabel.of(records.bestFloor))
-                        RecordChip("BEST", grouped(records.bestScore))
+                        RecordChip("DEEPEST", FloorLabel.of(records.bestFloor), Modifier.weight(1f, fill = false))
+                        RecordChip("BEST", grouped(records.bestScore), Modifier.weight(1f, fill = false))
                     }
                 }
             }
@@ -186,29 +206,33 @@ fun TitleScreen(
                 Row(Modifier.fillMaxWidth().reveal(250), verticalAlignment = Alignment.CenterVertically) {
                     LiveDot(Neon.blood)
                     Kicker("LIVE FEED", Neon.blood.copy(alpha = 0.9f), Modifier.padding(start = Space.xs))
-                    Spacer(Modifier.weight(1f))
-                    Kicker((settings.preset?.blurb ?: "Your own curve").uppercase(Locale.US), Neon.dim, align = TextAlign.End)
+                    // One line, always: a long blurb (or a big font) shrinks instead of wrapping.
+                    FitText(
+                        difficultyBlurb(settings).uppercase(Locale.US), Type.micro,
+                        if (settings.preset == null) Neon.hotPink else Neon.dim,
+                        Modifier.weight(1f).padding(start = Space.m),
+                        title = false, letterSpacing = 3.sp, glow = 0f, alignment = Alignment.CenterEnd,
+                    )
                 }
-                // The three everyday presets, then CUSTOM, which opens the full difficulty menu
-                // (and holds STRAIGHT TO HELL, which lights it up as HELL).
-                val hell = settings.preset == Difficulty.Preset.STRAIGHT_TO_HELL
+                // The three everyday presets, then CUSTOM, which opens the curve editor.
                 Segmented(
-                    TITLE_PRESETS,
-                    if (hell) null else settings.preset,
-                    label = { if (it != null) presetLabel(it) else if (hell) "HELL" else "CUSTOM" },
+                    TITLE_ROW,
+                    settings.preset,
+                    label = { it?.label ?: "CUSTOM" },
                     color = Neon.magenta,
                     modifier = Modifier.reveal(300),
                 ) { if (it != null) onPreset(it) else onCustom() }
                 HeroBar(settings.hero, Modifier.reveal(340), onHeroes)
+                if (daily != null) DailyChallengeCard(daily, Modifier.reveal(370), onDaily)
                 NeonButton(
-                    "DROP IN", Neon.magenta, Modifier.fillMaxWidth().reveal(380).padding(top = Space.xxs),
+                    "DROP IN", Neon.magenta, Modifier.fillMaxWidth().reveal(400).padding(top = Space.xxs),
                     style = ButtonStyle.PRIMARY, height = 72.dp, textSize = 26.sp,
                     trailing = { DropChevrons() },
                     onClick = onPlay,
                 )
                 Row(Modifier.fillMaxWidth().reveal(460), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                    NeonButton("SETTINGS", Neon.cyan, Modifier.weight(1f), height = 52.dp, onClick = onSettings)
-                    SeedChip(settings, Modifier.weight(1f), onSettings)
+                    NeonButton("SETTINGS", Neon.cyan, Modifier.weight(1f), height = 56.dp, caption = "SEED · SOUND", onClick = onSettings)
+                    NeonButton("CHALLENGES", Neon.gold, Modifier.weight(1f), height = 56.dp, caption = challengesCaption, onClick = onChallenges)
                 }
             }
         }
@@ -216,19 +240,20 @@ fun TitleScreen(
 }
 
 @Composable
-private fun Tagline(modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+private fun Tagline(modifier: Modifier = Modifier) = BoxWithConstraints(modifier.fillMaxWidth()) {
+    val cap = maxWidth * 0.8f
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f).height(1.dp).drawBehind { drawRect(Brush.horizontalGradient(listOf(Color.Transparent, Neon.lava))) })
-        NeonText("AN ENDLESS DESCENT", size = Type.small, color = Neon.lava, letterSpacing = 4.sp,
-            modifier = Modifier.padding(horizontal = Space.s), glow = 0.7f)
+        FitText("AN ENDLESS DESCENT", Type.small, Neon.lava, Modifier.widthIn(max = cap).padding(horizontal = Space.s),
+            title = false, letterSpacing = 4.sp, glow = 0.7f)
         Box(Modifier.weight(1f).height(1.dp).drawBehind { drawRect(Brush.horizontalGradient(listOf(Neon.lava, Color.Transparent))) })
     }
 }
 
 @Composable
-private fun RecordChip(label: String, value: String) {
+private fun RecordChip(label: String, value: String, modifier: Modifier = Modifier) {
     Row(
-        Modifier
+        modifier
             .drawBehind {
                 val o = Shapes.chip.createOutline(size, layoutDirection, this)
                 drawOutline(o, Neon.ink.copy(alpha = 0.75f))
@@ -237,8 +262,8 @@ private fun RecordChip(label: String, value: String) {
             .padding(horizontal = Space.s, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Kicker(label, Neon.gold.copy(alpha = 0.7f))
-        NeonText(value, size = Type.body, color = Neon.gold, modifier = Modifier.padding(start = Space.xs), glow = 0.6f)
+        FitText(label, Type.micro, Neon.gold.copy(alpha = 0.7f), Modifier.weight(1f, fill = false), title = false, letterSpacing = 3.sp, glow = 0f)
+        FitText(value, Type.body, Neon.gold, Modifier.weight(1f, fill = false).padding(start = Space.xs), title = false, letterSpacing = 0.5.sp)
     }
 }
 
@@ -262,30 +287,6 @@ internal fun RowScope.DropChevrons() {
             }
         },
     )
-}
-
-@Composable
-private fun SeedChip(settings: Settings, modifier: Modifier, onClick: () -> Unit) {
-    val value = when (settings.seedMode) {
-        SeedMode.RANDOM -> "RANDOM"
-        SeedMode.DAILY -> "DAILY"
-        SeedMode.CUSTOM -> settings.seedText.ifBlank { "RANDOM" }.uppercase(Locale.US)
-    }
-    Column(
-        modifier
-            .height(52.dp)
-            .drawBehind {
-                val o = Shapes.button.createOutline(size, layoutDirection, this)
-                drawOutline(o, Neon.ink.copy(alpha = 0.6f))
-                drawOutline(o, Neon.line, style = Stroke(1.dp.toPx()))
-            }
-            .clickable(remember { MutableInteractionSource() }, null, role = Role.Button, onClick = onClick)
-            .padding(horizontal = Space.m),
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Kicker("SEED", Neon.dim)
-        NeonText(value, size = Type.body, color = Neon.soft, maxLines = 1, glow = 0f)
-    }
 }
 
 // ------------------------------------------------------------------ pause

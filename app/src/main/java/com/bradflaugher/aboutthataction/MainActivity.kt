@@ -25,7 +25,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -50,6 +49,7 @@ import com.bradflaugher.aboutthataction.engine.RunConfig
 import com.bradflaugher.aboutthataction.engine.RunReport
 import com.bradflaugher.aboutthataction.engine.World
 import com.bradflaugher.aboutthataction.engine.Zone
+import com.bradflaugher.aboutthataction.ui.CustomScreen
 import com.bradflaugher.aboutthataction.ui.GameOverScreen
 import com.bradflaugher.aboutthataction.ui.HeroPickerScreen
 import com.bradflaugher.aboutthataction.ui.Motion
@@ -61,7 +61,7 @@ import kotlin.random.Random
 
 class MainActivity : ComponentActivity(), GameView.Host {
 
-    private enum class Screen { TITLE, HEROES, SETTINGS, PLAYING, PAUSED, GAME_OVER }
+    private enum class Screen { TITLE, CUSTOM, HEROES, SETTINGS, PLAYING, PAUSED, GAME_OVER }
 
     private lateinit var prefs: Prefs
     private lateinit var sound: SoundEngine
@@ -70,6 +70,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
     private lateinit var gameView: GameView
 
     private var screen by mutableStateOf(Screen.TITLE)
+    /** Where the hero picker goes back to: the title, or the CUSTOM screen that opened it. */
+    private var heroesFrom = Screen.TITLE
     private var settings by mutableStateOf(Settings())
     private var records by mutableStateOf(Records())
     private var lastRun by mutableStateOf<RunSummary?>(null)
@@ -119,7 +121,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
                 when (screen) {
                     Screen.PLAYING -> pause()
                     Screen.PAUSED -> resume()
-                    Screen.HEROES -> heroesToTitle()
+                    Screen.HEROES -> heroesBack()
+                    Screen.CUSTOM -> { screen = Screen.TITLE }
                     Screen.SETTINGS, Screen.GAME_OVER -> toTitle()
                     Screen.TITLE -> Unit
                 }
@@ -145,19 +148,26 @@ class MainActivity : ComponentActivity(), GameView.Host {
                             settings, records, pad,
                             onPlay = ::startRun,
                             onSettings = { screen = Screen.SETTINGS },
-                            onPreset = { updateSettings(settings.copy(preset = it, custom = it.difficulty)) },
+                            // The custom curve is kept while a preset is picked, so CUSTOM comes back as left.
+                            onPreset = { updateSettings(settings.copy(preset = it)) },
                             onCustom = {
-                                // Straight to the curve editor (HELL stays HELL: it lives in that menu too).
-                                if (settings.preset != Difficulty.Preset.STRAIGHT_TO_HELL) updateSettings(settings.copy(preset = null))
-                                screen = Screen.SETTINGS
+                                updateSettings(settings.copy(preset = null))
+                                screen = Screen.CUSTOM
                             },
-                            onHeroes = { screen = Screen.HEROES },
+                            onHeroes = { openHeroes(Screen.TITLE) },
+                            onChallenges = {},
+                        )
+                        Screen.CUSTOM -> CustomScreen(
+                            settings, pad, ::updateSettings,
+                            onHeroes = { openHeroes(Screen.CUSTOM) },
+                            onPlay = ::startRun,
+                            onBack = { screen = Screen.TITLE },
                         )
                         Screen.HEROES -> HeroPickerScreen(
                             settings.hero, pad,
                             onPick = ::pickHero,
                             onPlay = ::startRun,
-                            onBack = ::heroesToTitle,
+                            onBack = ::heroesBack,
                         )
                         Screen.SETTINGS -> SettingsScreen(settings, pad, ::updateSettings) { screen = Screen.TITLE }
                         Screen.PAUSED -> PauseScreen(
@@ -350,8 +360,14 @@ class MainActivity : ComponentActivity(), GameView.Host {
         sound.playHeroTheme(hero)
     }
 
-    private fun heroesToTitle() {
-        screen = Screen.TITLE
+    private fun openHeroes(from: Screen) {
+        heroesFrom = from
+        screen = Screen.HEROES
+    }
+
+    /** Back from the picker to whichever menu opened it, with the title music back on. */
+    private fun heroesBack() {
+        screen = heroesFrom
         sound.playTitle()
     }
 
@@ -448,15 +464,23 @@ class MainActivity : ComponentActivity(), GameView.Host {
         return when {
             // Into play: get out of the way immediately.
             to == Screen.PLAYING -> fadeIn(quick) togetherWith fadeOut(tween(Motion.fast)) + scaleOut(tween(Motion.fast), 1.04f)
-            // Settings and the hero picker slide in over the title and back out.
-            to == Screen.SETTINGS || to == Screen.HEROES -> (slideInHorizontally(tween(Motion.base, easing = Motion.out)) { it / 5 } + fadeIn(base)) togetherWith
+            // Settings, CUSTOM and the hero picker slide in over the menu below them and back out.
+            menuDepth(from) >= 0 && menuDepth(to) > menuDepth(from) -> (slideInHorizontally(tween(Motion.base, easing = Motion.out)) { it / 5 } + fadeIn(base)) togetherWith
                 fadeOut(quick)
-            from == Screen.SETTINGS || from == Screen.HEROES -> fadeIn(base) togetherWith
+            menuDepth(from) > menuDepth(to) && menuDepth(to) >= 0 -> fadeIn(base) togetherWith
                 (slideOutHorizontally(tween(Motion.base, easing = Motion.out)) { it / 5 } + fadeOut(quick))
             // Pause pops in; game over has its own staged entrance.
             to == Screen.PAUSED -> (fadeIn(quick) + scaleIn(tween(Motion.base, easing = Motion.out), 0.94f)) togetherWith fadeOut(quick)
             else -> fadeIn(base) togetherWith fadeOut(quick)
         }
+    }
+
+    /** How deep a menu sits under the title (-1 for screens outside the menu stack). */
+    private fun menuDepth(s: Screen): Int = when (s) {
+        Screen.TITLE -> 0
+        Screen.SETTINGS, Screen.CUSTOM -> 1
+        Screen.HEROES -> if (heroesFrom == Screen.CUSTOM) 2 else 1
+        else -> -1
     }
 
     companion object {

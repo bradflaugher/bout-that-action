@@ -206,16 +206,20 @@ you back. The building will still be there.
 
 <table>
   <tr>
-    <td align="center" width="25%"><img src="docs/screenshots/menu-title.png" alt="Title screen with the neon logo over a live demo run"><p><em><b>Title</b>: a neon sign over a live autopilot run</em></p></td>
-    <td align="center" width="25%"><img src="docs/screenshots/menu-heroes.png" alt="The hero picker"><p><em><b>Heroes</b>: swipe through all four</em></p></td>
-    <td align="center" width="25%"><img src="docs/screenshots/menu-settings.png" alt="Settings with the custom heat curve"><p><em><b>Settings</b>: shape your own heat curve</em></p></td>
-    <td align="center" width="25%"><img src="docs/screenshots/menu-gameover.png" alt="Game over with a new deepest floor"><p><em><b>Game over</b>: the depth counts down the building</em></p></td>
+    <td align="center" width="20%"><img src="docs/screenshots/menu-title.png" alt="Title screen with the neon logo over a live demo run"><p><em><b>Title</b>: a neon sign over a live autopilot run</em></p></td>
+    <td align="center" width="20%"><img src="docs/screenshots/menu-heroes.png" alt="The hero picker"><p><em><b>Heroes</b>: swipe through all four</em></p></td>
+    <td align="center" width="20%"><img src="docs/screenshots/menu-custom.png" alt="The custom run screen with the heat curve"><p><em><b>Custom run</b>: shape your own heat curve</em></p></td>
+    <td align="center" width="20%"><img src="docs/screenshots/menu-settings.png" alt="Settings with a custom seed"><p><em><b>Settings</b>: seed, sound and controls</em></p></td>
+    <td align="center" width="20%"><img src="docs/screenshots/menu-gameover.png" alt="Game over with a new deepest floor"><p><em><b>Game over</b>: the depth counts down the building</em></p></td>
   </tr>
 </table>
 
 The title screen shows who you're playing as and the difficulty (CHILL, AGENT,
-BRUTAL, or **CUSTOM**, which opens Settings to shape your own curve or pick
-Straight to Hell); **DROP IN** is still one tap.
+BRUTAL, or **CUSTOM**); **DROP IN** is still one tap. CUSTOM opens the
+**Custom run** screen: start from any preset's curve (Straight to Hell
+included), tweak it while the chart redraws, see what it feels like next to the
+presets, and drop in from right there. Your curve is kept when you go back to
+a preset. Seeds, sound and controls live in **Settings**.
 Tap the hero bar to open the picker: swipe (or tap the roster) through all
 four heroes, each on their own stage with their theme playing, and see their
 trait and three hero-only perks. The pick sticks between runs, and the demo
@@ -231,12 +235,12 @@ its own bonus, and Hell adds a lot. Pick a preset or shape your own curve:
 - **Chill:** slow ramp, 5 hearts.
 - **Agent:** the intended descent.
 - **Brutal:** hot start, steep ramp, 2 hearts.
-- **Straight to Hell:** start in Hell, at B100. Good luck.
 - **Custom:** starting heat, ramp, heat cap, hearts, and the zone you start in,
-  with a live preview of the curve.
+  with a live preview of the curve. Start from any preset, or from
+  **Straight to Hell**: start in Hell, at B100. Good luck.
 
-Seeds can be **random**, **daily** (same building for everyone, UTC), or any
-word or number you type.
+Seeds (in Settings) can be **random**, **daily** (same building for everyone,
+UTC), or any word or number you type.
 
 ## Sound
 
