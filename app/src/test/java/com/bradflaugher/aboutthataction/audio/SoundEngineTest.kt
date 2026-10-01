@@ -154,7 +154,7 @@ class SoundEngineTest {
     }
 
     @Test
-    fun aSideClearIsASoftTickNotAFanfare() {
+    fun aSideClearIsSilentButTheRunsOwnClearIsAFanfare() {
         val c = com.bradflaugher.aboutthataction.engine.Challenges.all.first()
         fun loud(ev: GameEvent): Double {
             val e = SoundEngine()
@@ -167,8 +167,9 @@ class SoundEngineTest {
         val side = loud(GameEvent.SideCleared(c))
         val big = loud(GameEvent.ChallengeCleared(c))
         println("side clear rms %.4f, challenge cleared rms %.4f".format(side, big))
-        assertTrue("a side clear should be heard ($side)", side > 0.002)
-        assertTrue("a side clear should stay well under the big moment ($side vs $big)", side < big * 0.6)
+        // Side clears wait for the game-over card: no chime mid-run.
+        assertTrue("a side clear should be silent ($side)", side < 1e-4)
+        assertTrue("the run's own clear should be heard ($big)", big > 0.002)
     }
 
     @Test

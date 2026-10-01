@@ -284,6 +284,8 @@ class FloorState(val plan: FloorPlan) {
     var ghostPaid = false
     /** The special floor has been announced. */
     var announced = false
+    /** PAYDAY: the hallway the loot was left in (-1 on any other floor). */
+    var lootHall = -1
     /** Guards placed when the floor was built (a floor with nobody on it can't be ghosted). */
     val guards: Int = plan.halls.sumOf { it.spawns.size }
 

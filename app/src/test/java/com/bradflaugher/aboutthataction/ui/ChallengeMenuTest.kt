@@ -93,9 +93,13 @@ class ChallengeMenuTest {
     @Test
     fun boardFiltersMatchWhatTheyClaim() {
         val log = ChallengeLog().withClear(1, 20_730)
-        for (t in Tier.entries) assertEquals(Challenges.size / Tier.entries.size, Challenges.all.count { BoardFilter(tier = t).matches(it, log) })
+        for (t in Tier.entries) {
+            val shown = Challenges.active.filter { BoardFilter(tier = t).matches(it, log) }
+            assertTrue(shown.isNotEmpty())
+            assertEquals(Challenges.active.count { it.tier == t }, shown.size)
+        }
         for (h in Hero.entries) {
-            val mine = Challenges.all.filter { BoardFilter(hero = h).matches(it, log) }
+            val mine = Challenges.active.filter { BoardFilter(hero = h).matches(it, log) }
             assertTrue(mine.isNotEmpty())
             assertTrue(mine.all { it.allows(h) })
         }

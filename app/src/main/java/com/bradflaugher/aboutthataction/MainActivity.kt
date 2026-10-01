@@ -100,8 +100,6 @@ class MainActivity : ComponentActivity(), GameView.Host {
      */
     private val dayClock = DayClock()
     private val day: Long get() = dayClock.day
-    /** World time of the last side-clear chime (game thread only). */
-    private var sideChimeAt = -9f
     /** The challenge on the BRIEFING screen, and where its back button goes. */
     private var briefing by mutableStateOf<Challenge?>(null)
     private var briefingFrom = Screen.TITLE
@@ -398,14 +396,13 @@ class MainActivity : ComponentActivity(), GameView.Host {
         startAudio()
         runConfig = config
         runSeed = config.seed
-        sideChimeAt = -9f
         if (runSeedLabel.isEmpty()) runSeedLabel = SeedCode.labelOf(config.seed)
         musicZone = null
         musicAlert = AlertPhase.CALM
         sound.setAlert(AlertPhase.CALM)
         // Before the first frame's setZone, so the run opens in this hero's arrangement.
         sound.setHero(config.hero)
-        // Ones already cleared never side-clear again: a toast is always news.
+        // Ones already cleared never side-clear again: ALSO CLEARED is always news.
         gameView.world = World(config.copy(silent = settings.silent, coach = settings.coach, knownCleared = challengeLog.cleared.keys))
         gameView.attract = false
         gameView.paused = false
@@ -519,10 +516,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
     override fun onGameEvent(event: GameEvent, world: World) {
         // (The demo, or a frame still in flight from the world DROP IN just replaced.)
         if (gameView.attract || world !== gameView.world) return
-        // Side clears come in bunches: one soft chime for the bunch.
-        val chime = event !is GameEvent.SideCleared || world.time - sideChimeAt > SIDE_CHIME_GAP
-        if (event is GameEvent.SideCleared && chime) sideChimeAt = world.time
-        if (chime) sound.trigger(event)
+        sound.trigger(event)
         haptics.onEvent(event)
         // A clear counts the moment it happens, even if the run is quit straight after; a side
         // clear (another challenge met on the way) counts just the same.
@@ -601,7 +595,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
             curve = world.difficulty.takeIf { runDifficulty == "CUSTOM" && world.challenge == null },
             startSilent = world.config.silent.takeIf { world.hero.sneaks && world.challenge == null },
             challenge = status,
-            alsoCleared = world.sideCleared.map { SideClear(it.id, it.name, it.tier) },
+            // The toughest first: the card has room to name only a couple.
+            alsoCleared = world.sideCleared.distinctBy { it.id }.sortedByDescending { it.tier }.map { SideClear(it.id, it.name, it.tier) },
         )
         endSlowMo()
         sound.gameOver()
@@ -642,7 +637,5 @@ class MainActivity : ComponentActivity(), GameView.Host {
         /** The squattest window (height / width) the game plays in; wider ones get side bars. */
         private const val MIN_ASPECT = 1.6f
         private const val NIGHT = 0xFF07060F
-        /** World seconds between side-clear chimes. */
-        private const val SIDE_CHIME_GAP = 0.5f
     }
 }

@@ -85,7 +85,7 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   **BLACKOUT** (every light dead, for them too), **NAP TIME** (guards asleep
   at their posts, called out the first time you walk in on one: tiptoe up for
   a NIGHT NIGHT), or **PAYDAY** (somebody left
-  the loot lying around). Some rides come with smooth jazz. The first guard
+  the loot lying around in one hallway, called out only when you find it). Some rides come with smooth jazz. The first guard
   of every run is napping on the roof.
 - **Roguelike runs.** Every gold STASH door offers three perks (it's
   **LOCKED** while anyone in the hallway is hunting or searching for you:
@@ -217,13 +217,13 @@ you back. The building will still be there.
     <td align="center" width="33%"><img src="docs/screenshots/busted.png" alt="BUSTED: an UNTOUCHED challenge took a hit"><p><em><b>Busted.</b> UNTOUCHED, touched</em></p></td>
   </tr>
   <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/menu-challenges.png" alt="The CHALLENGES board: today's daily, tier and hero filters, and every challenge"><p><em><b>The board.</b> All 1,550, any day</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/menu-challenges.png" alt="The CHALLENGES board: today's daily, tier and hero filters, and every challenge"><p><em><b>The board.</b> All 1,234, any day</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/menu-briefing.png" alt="A challenge briefing: the job, its rules, who goes and your best"><p><em><b>Briefing.</b> The job, the rules, who goes</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/menu-cleared.png" alt="Game over after clearing a challenge"><p><em><b>Debrief.</b> Cleared, or how close</em></p></td>
   </tr>
 </table>
 
-1,550 challenges, each with a silly name ("DISCO
+1,234 challenges, each with a silly name ("DISCO
 PRETZEL", "BULL IN A CHINA SHOP", "BARREL OF MONKEYS"), a goal and maybe a
 twist or two:
 
@@ -253,17 +253,18 @@ you're down.
 
 Challenges also tick themselves off when any run meets them — the same
 difficulty, start and rules — so there's nothing to grind. An endless AGENT
-run from the roof that takes a guard down without losing a heart has just
-cleared "take down 1, UNTOUCHED" (any building counts; SILENT ONLY means
+run from the roof that takes 6 guards down without losing a heart has just
+cleared "take down 6, UNTOUCHED" (any building counts; SILENT ONLY means
 SILENT the whole way to the goal, UNTOUCHED means no heart lost before it).
-A small gold plate drops in under the HUD for each one ("5 AT ONCE" when
-they land together), and game over lists them under **ALSO CLEARED**. A
-goal that counts a perk's move counts once you've picked the perk up, too.
+Nothing pops up mid-run: game over lists them under **ALSO CLEARED**, the
+toughest first. A goal that counts a perk's move counts once you've picked
+the perk up, too. There's no padding: a challenge that only restated another
+(the same goal with just a hero or GUNS HOT ONLY stamped on), or that asked
+less than a first decent run under a rule you keep anyway, was retired.
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="docs/screenshots/sideclear.png" alt="A small gold plate under the HUD: CHALLENGE CLEARED and the challenge's name"><p><em><b>Side clear.</b> Ticked off on the way</em></p></td>
-    <td align="center" width="50%"><img src="docs/screenshots/menu-alsocleared.png" alt="Game over with an ALSO CLEARED card listing three challenges and two more"><p><em><b>Also cleared.</b> Everything else the run did</em></p></td>
+    <td align="center" width="50%"><img src="docs/screenshots/menu-alsocleared.png" alt="Game over with an ALSO CLEARED card listing two challenges and a count of the rest"><p><em><b>Also cleared.</b> Everything else the run did</em></p></td>
   </tr>
 </table>
 

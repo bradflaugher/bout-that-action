@@ -426,6 +426,7 @@ class World(val config: RunConfig) {
             FloorEvent.PAYDAY -> {
                 val loot = Rng.forKey(seed, PAYDAY_KEY, f.toLong())
                 val h = loot.nextInt(plan.hallCount)
+                state.lootHall = h
                 val bonus = loot.pick(listOf(PickupKind.MEDKIT, PickupKind.GRENADE, PickupKind.SHIELD, PickupKind.SLOWMO))
                 val xs = listOf(3.2f, 5.8f, 8.4f, 11f).shuffledBy(loot)
                 listOf(PickupKind.CASH, PickupKind.CASH, PickupKind.CASH, bonus).forEachIndexed { i, kind ->
@@ -503,9 +504,13 @@ class World(val config: RunConfig) {
     private fun onHallEntered(f: Int, h: Int) {
         hallTime = 0f
         floors[f]?.let { fs ->
-            // Nap time is only news in a hallway where somebody is actually napping.
-            val worthIt = fs.plan.event != FloorEvent.NAP_TIME ||
-                enemies.any { it.alive && it.asleep && it.floor == f && it.hall == h }
+            // Nap time is only news in a hallway where somebody is actually napping, and PAYDAY
+            // only in the one with the loot: walk past it and you never knew.
+            val worthIt = when (fs.plan.event) {
+                FloorEvent.NAP_TIME -> enemies.any { it.alive && it.asleep && it.floor == f && it.hall == h }
+                FloorEvent.PAYDAY -> h == fs.lootHall
+                else -> true
+            }
             if (!fs.announced && fs.plan.event != FloorEvent.NONE && worthIt) {
                 fs.announced = true
                 stats.floorEvents++
