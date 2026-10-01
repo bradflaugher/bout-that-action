@@ -709,6 +709,41 @@ class HeroTest {
     }
 
     @Test
+    fun theMonkeyHidesInTheBoxButNeverAmbushesFromIt() {
+        for (hero in listOf(Hero.MONKEY, Hero.BULL)) {
+            val w = world(hero, silent = false)
+            w.player.x = 3f
+            val e = enemy(w, EnemyKind.AGENT, 7.5f, facing = -1)
+            e.patrolA = e.x
+            e.patrolB = e.x
+            w.commands += Command.SWIPE_DOWN
+            run(w, 0.5f)
+            assertEquals(PlayerState.BOX, w.player.state)
+            // The box moves in plain view, and he walks right over to check it out.
+            run(w, 0.35f) { it.moveAxis = 1 }
+            assertEquals("$hero", EnemyState.SEARCH, e.state)
+            val events = ArrayList<GameEvent>()
+            run(w, 8f) {
+                it.player.hp = it.player.maxHp
+                events += it.events
+                it.events.clear()
+            }
+            if (hero == Hero.MONKEY) {
+                assertTrue("still standing", e.alive)
+                assertEquals(0, w.stats.boxAmbushes)
+                assertEquals(0, w.takedowns)
+                assertFalse(events.any { it is GameEvent.EnemyKilled || it == GameEvent.Takedown })
+                assertFalse("his gun stays in the box with him", events.any { it is GameEvent.Shot && it.byPlayer })
+                assertFalse(w.fx.texts.any { it.text == Popup.BOXD })
+                assertEquals("still in the box", PlayerState.BOX, w.player.state)
+            } else {
+                assertEquals("BULL ambushes him", 1, w.stats.boxAmbushes)
+                assertFalse(e.alive)
+            }
+        }
+    }
+
+    @Test
     fun guardsAimLowAndDronesDipForTheMonkey() {
         val monkey = world(Hero.MONKEY)
         val bull = world(Hero.BULL)
