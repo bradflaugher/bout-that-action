@@ -100,7 +100,6 @@ enum class Rule(val title: String, val blurb: String) {
     UNTOUCHED("UNTOUCHED", "Get hit once and it's a bust."),
 }
 
-
 /**
  * One challenge: a [goal] to reach [target] on, under up to two [rules], maybe as a set
  * [hero], on a difficulty [preset], from [startFloor]. Everything is data; [Challenges.all]
