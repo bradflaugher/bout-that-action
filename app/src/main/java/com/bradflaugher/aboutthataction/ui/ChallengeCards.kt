@@ -469,20 +469,11 @@ fun AlsoClearedCard(items: List<SideClear>, modifier: Modifier = Modifier, onCli
             Kicker(if (items.size == 1) "ALSO CLEARED" else "ALSO CLEARED  ·  ${items.size}", c, Modifier.weight(1f))
             Box(Modifier.size(9.dp, 14.dp).drawBehind { chevronRight(c.copy(alpha = 0.7f)) })
         }
-        for (it in shown) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                FitText(idLabel(it.id), Type.micro, Neon.dim, Modifier.width(48.dp), title = false, letterSpacing = 1.sp, glow = 0f,
-                    alignment = Alignment.CenterStart)
-                FitText(it.name, Type.body, Color.White, Modifier.weight(1f), letterSpacing = 1.5.sp, glow = 0.2f,
-                    alignment = Alignment.CenterStart)
-                FitText(it.tier.title, 9.sp, tierColor(it.tier), Modifier.width(52.dp), title = false, letterSpacing = 1.sp, glow = 0f,
-                    alignment = Alignment.CenterEnd)
-            }
-        }
-        if (more > 0) {
-            NeonText("+$more MORE ON THE BOARD", size = Type.micro, color = Neon.soft, letterSpacing = 2.sp, glow = 0f)
-        }
+        // One line, so the run's own buttons stay on screen: the first few names, then a count.
+        val line = shown.joinToString("  ·  ") { it.name } + if (more > 0) "  +$more" else ""
+        FitText(line, Type.body, Color.White, Modifier.fillMaxWidth(), letterSpacing = 1.5.sp, glow = 0.2f,
+            alignment = Alignment.CenterStart)
     }
 }
 
-private const val ALSO_SHOWN = 3
+private const val ALSO_SHOWN = 2
