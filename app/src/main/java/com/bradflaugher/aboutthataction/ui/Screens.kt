@@ -45,6 +45,7 @@ import com.bradflaugher.aboutthataction.Settings
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.FloorLabel
 import com.bradflaugher.aboutthataction.engine.Hero
+import com.bradflaugher.aboutthataction.engine.SeedCode
 import com.bradflaugher.aboutthataction.engine.Zone
 import java.util.Locale
 
@@ -69,6 +70,8 @@ data class RunSummary(
     val highlights: List<Pair<String, String>> = emptyList(),
     /** Who ran it. */
     val hero: Hero = Hero.BULL,
+    /** The difficulty by name ("AGENT", "HELL", "CUSTOM"), for the share message. */
+    val difficulty: String = "",
 )
 
 internal fun grouped(n: Long): String = String.format(Locale.US, "%,d", n)
@@ -150,11 +153,12 @@ internal fun Modifier.veil(tint: Color = Neon.night, alpha: Float = 0.78f): Modi
 private val TITLE_ROW: List<Difficulty.Preset?> = Settings.TITLE_PRESETS + null
 
 /** The LIVE FEED line: the preset's blurb, or a compact read of the custom curve. */
-internal fun difficultyBlurb(s: Settings): String = s.preset?.blurb ?: customSummary(s.custom)
+internal fun difficultyBlurb(s: Settings): String = s.preset?.blurb ?: customSummary(s.custom, s.setSeed)
 
-/** "♥3 · ramp ×1.0 · from the roof": the custom curve in one short line. */
-internal fun customSummary(d: Difficulty): String {
+/** "♥3 · ramp ×1.0 · from the roof", or "♥3 · from the roof · seed K7QM 2XAB": the custom run in one short line. */
+internal fun customSummary(d: Difficulty, seed: String? = null): String {
     val from = if (d.startFloor == 0) "the roof" else Zone.baseZoneOf(d.startFloor).title.lowercase(Locale.US)
+    if (seed != null) return String.format(Locale.US, "♥%d · from %s · seed %s", d.hearts, from, SeedCode.labelOf(seed))
     return String.format(Locale.US, "♥%d · ramp ×%.1f · from %s", d.hearts, d.ramp, from)
 }
 
@@ -231,7 +235,7 @@ fun TitleScreen(
                     onClick = onPlay,
                 )
                 Row(Modifier.fillMaxWidth().reveal(460), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                    NeonButton("SETTINGS", Neon.cyan, Modifier.weight(1f), height = 56.dp, caption = "SEED · SOUND", onClick = onSettings)
+                    NeonButton("SETTINGS", Neon.cyan, Modifier.weight(1f), height = 56.dp, caption = "SOUND · CONTROLS", onClick = onSettings)
                     NeonButton("CHALLENGES", Neon.gold, Modifier.weight(1f), height = 56.dp, caption = challengesCaption, onClick = onChallenges)
                 }
             }
@@ -320,11 +324,8 @@ fun PauseScreen(
                     }
                     NeonText("PAUSED", size = Type.display, color = Color.White, title = true, letterSpacing = 3.sp, glow = 0.4f)
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Kicker("SEED", Neon.dim, align = TextAlign.End)
-                    NeonText(seedLabel, size = Type.small, color = Neon.soft, maxLines = 1, glow = 0f)
-                }
             }
+            SeedChip(seedLabel, Modifier.fillMaxWidth(), height = 52.dp, valueSize = Type.body)
             NeonButton("RESUME", Neon.magenta, Modifier.fillMaxWidth().padding(top = Space.xs), style = ButtonStyle.PRIMARY, height = 64.dp,
                 onClick = onResume)
             AudioAndControls(settings, onSettings)

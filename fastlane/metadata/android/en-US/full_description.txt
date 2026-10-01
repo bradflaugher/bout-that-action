@@ -19,7 +19,7 @@ EVERY FLOOR IS NEW
 The building never ends and never repeats. Floors, the soundtrack and every sound effect are generated as you play. Blackouts, nap time and payday floors keep things weird.
 
 YOUR GAME, YOUR RULES
-Pick a difficulty from CHILL to STRAIGHT TO HELL, or tune the heat curve yourself. Share a seed to play the same building as a friend.
+Pick a difficulty from CHILL to STRAIGHT TO HELL, or tune the heat curve yourself. Every run has a short seed code: share it, and a friend plays the very same building.
 
 NO NONSENSE
 Phones, tablets and foldables: it always plays in portrait, and pauses itself when a call, the notification shade or unplugged headphones interrupt.
