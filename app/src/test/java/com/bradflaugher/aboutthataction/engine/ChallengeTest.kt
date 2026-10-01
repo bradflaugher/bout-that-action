@@ -505,6 +505,17 @@ class ChallengeTest {
     }
 
     @Test
+    fun aStashThatMeetsTheGoalClearsBeforeThePerkPick() {
+        // Quitting from the perk overlay mustn't lose the clear: it lands on the way in.
+        val w = atAStash({ custom(Goal.STASHES, 1, start = it) }, Hero.BULL)
+        w.commands += Command.TAP
+        run(w, 0.05f)
+        assertEquals(Phase.PERK_CHOICE, w.phase)
+        assertTrue(w.challenge!!.cleared)
+        assertTrue(w.events.any { it is GameEvent.ChallengeCleared })
+    }
+
+    @Test
     fun oneHeartNeverOffersVitality() {
         val w = atAStash({ custom(Goal.KILLS, 5, Rule.ONE_HEART, start = it) }, Hero.BULL)
         // Everything maxed but VITALITY and RICOCHET: only RICOCHET may come up.

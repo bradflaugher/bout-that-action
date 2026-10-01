@@ -2902,7 +2902,10 @@ class World(val config: RunConfig) {
             return
         }
         perkOffer = offer
-        // Anything met on the way in counts before a perk (VITALITY's heart) changes the run.
+        // Anything met on the way in (a STASHES or SCORE goal) counts now, before the perk
+        // overlay: quitting from it mustn't lose the clear, and a perk (VITALITY's heart) mustn't
+        // change what the run met.
+        challenge?.update(this)?.let { onChallenge(it) }
         side.check(this, events)
         phase = Phase.PERK_CHOICE
         events += GameEvent.PerkOffered

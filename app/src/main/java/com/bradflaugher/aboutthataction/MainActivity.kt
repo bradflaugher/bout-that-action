@@ -64,7 +64,6 @@ import com.bradflaugher.aboutthataction.ui.dailyNumber
 import com.bradflaugher.aboutthataction.ui.idLabel
 import com.bradflaugher.aboutthataction.ui.presetLabel
 import com.bradflaugher.aboutthataction.ui.todaysChallenge
-import java.time.LocalDate
 import com.bradflaugher.aboutthataction.ui.GameOverScreen
 import com.bradflaugher.aboutthataction.ui.HeroPickerScreen
 import com.bradflaugher.aboutthataction.ui.Motion
@@ -72,7 +71,12 @@ import com.bradflaugher.aboutthataction.ui.PauseScreen
 import com.bradflaugher.aboutthataction.ui.RunSummary
 import com.bradflaugher.aboutthataction.ui.SettingsScreen
 import com.bradflaugher.aboutthataction.ui.TitleScreen
+import java.time.Duration
+import java.time.LocalDate
+import java.time.ZonedDateTime
 import kotlin.random.Random
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity(), GameView.Host {
 
@@ -145,9 +149,15 @@ class MainActivity : ComponentActivity(), GameView.Host {
         setContent {
             val density = LocalDensity.current
             val pad = with(density) { PaddingValues(top = insetTop.toDp(), bottom = insetBottom.toDp()) }
+            // Back to the title or the board (or anywhere): the daily follows the date, and a
+            // screen left open past midnight turns the page on its own.
+            LaunchedEffect(screen) {
+                while (true) {
+                    refreshDay()
+                    delay(millisToMidnight())
+                }
+            }
             // Back on the title leaves the app, with the system's predictive back-to-home animation.
-            // Back to the title or the board (or anywhere): the daily follows the date.
-            LaunchedEffect(screen) { refreshDay() }
             BackHandler(enabled = screen != Screen.TITLE) {
                 when (screen) {
                     Screen.PLAYING -> pause()
@@ -432,6 +442,13 @@ class MainActivity : ComponentActivity(), GameView.Host {
     /** Picks up a new day (midnight passed, or the clock moved): the title's daily follows. */
     private fun refreshDay() {
         dayClock.refresh()
+    }
+
+    /** Until just past the next local midnight (a beat late, so the new date has surely arrived). */
+    private fun millisToMidnight(): Long {
+        val now = ZonedDateTime.now()
+        val midnight = now.toLocalDate().plusDays(1).atStartOfDay(now.zone)
+        return Duration.between(now, midnight).toMillis().coerceAtLeast(0L) + 1_000L
     }
 
     private fun openBriefing(c: Challenge, from: Screen) {
