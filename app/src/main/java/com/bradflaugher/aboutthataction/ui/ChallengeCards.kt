@@ -96,7 +96,7 @@ fun DailyChallengeCard(card: DailyCard, modifier: Modifier = Modifier, onClick: 
         Column(Modifier.weight(1f).padding(start = Space.s), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.xxs)) {
                 Kicker(card.kicker, c.copy(alpha = 0.85f), Modifier.padding(end = Space.xxs))
-                for (rule in card.rules.take(2)) RuleChip(rule, c)
+                for (rule in chipsThatFit(card.rules)) RuleChip(rule, c)
             }
             FitText(card.name, Type.title, if (card.cleared) Neon.soft else Color.White, Modifier.fillMaxWidth(),
                 letterSpacing = 2.sp, glow = 0.3f, alignment = Alignment.CenterStart)
@@ -207,11 +207,26 @@ fun shortDate(epochDay: Long): String {
 /** Today's daily number, never below 1 (a phone whose clock is set before day one still gets #1). */
 fun dailyNumber(epochDay: Long): Long = Challenges.dailyNumber(epochDay).coerceAtLeast(1)
 
-/** The title's card for today's [c]. */
-fun dailyCard(c: Challenge, epochDay: Long, log: ChallengeLog): DailyCard = DailyCard(
+/**
+ * The chips that fit beside the card's kicker: the first always, then more while the line
+ * stays short (a perk chip like "STARTS WITH FLYING KICK" goes alone).
+ */
+fun chipsThatFit(chips: List<String>, budget: Int = 26): List<String> {
+    val out = ArrayList<String>(2)
+    var used = 0
+    for (c in chips) {
+        if (out.size == 2 || (out.isNotEmpty() && used + c.length > budget)) break
+        out += c
+        used += c.length + 2
+    }
+    return out
+}
+
+/** The title's card for today's [c], with the goal worded for who'd play it ([pick], if allowed). */
+fun dailyCard(c: Challenge, epochDay: Long, log: ChallengeLog, pick: Hero = Hero.BULL): DailyCard = DailyCard(
     number = dailyNumber(epochDay).toInt(),
     name = c.name,
-    goal = c.goalText(),
+    goal = c.goalText(c.heroFor(pick)),
     rules = c.chips(),
     cleared = log.isCleared(c.id),
     kicker = "TODAY · " + c.tier.title,
@@ -258,13 +273,14 @@ data class ChallengeStatus(
     val clearedBefore: Boolean = false,
 ) {
     companion object {
-        fun of(run: ChallengeRun, log: ChallengeLog): ChallengeStatus {
+        /** Where [run] stands, worded for [hero], who's playing it. */
+        fun of(run: ChallengeRun, log: ChallengeLog, hero: Hero): ChallengeStatus {
             val c = run.challenge
             val best = maxOf(log.best(c.id), run.progress)
             return ChallengeStatus(
-                id = c.id, name = c.name, tier = c.tier, goal = c.goalText(), hud = run.hudText(), fraction = run.fraction,
+                id = c.id, name = c.name, tier = c.tier, goal = c.goalText(hero), hud = run.hudText(hero), fraction = run.fraction,
                 cleared = run.cleared, failed = run.failed,
-                best = if (best > 0) c.hudText(best) else null,
+                best = if (best > 0) c.hudText(best, hero) else null,
                 clearedBefore = log.isCleared(c.id) && !run.cleared,
             )
         }
@@ -351,8 +367,9 @@ fun ChallengeStatusCard(st: ChallengeStatus, modifier: Modifier = Modifier, big:
  * and a check or a sliver of best progress.
  */
 @Composable
-fun ChallengeRow(c: Challenge, log: ChallengeLog, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun ChallengeRow(c: Challenge, log: ChallengeLog, modifier: Modifier = Modifier, pick: Hero = Hero.BULL, onClick: () -> Unit) {
     val tc = tierColor(c.tier)
+    val goal = c.goalText(c.heroFor(pick))
     val cleared = log.isCleared(c.id)
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
@@ -360,7 +377,7 @@ fun ChallengeRow(c: Challenge, log: ChallengeLog, modifier: Modifier = Modifier,
         modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
-            .semantics { contentDescription = "${idLabel(c.id)} ${c.name}, ${c.tier.title}. ${c.goalText()}" + if (cleared) ". Cleared" else "" }
+            .semantics { contentDescription = "${idLabel(c.id)} ${c.name}, ${c.tier.title}. $goal" + if (cleared) ". Cleared" else "" }
             .drawBehind {
                 val o = Shapes.small.createOutline(size, layoutDirection, this)
                 drawOutline(o, if (pressed) tc.copy(alpha = 0.18f) else Neon.ink.copy(alpha = 0.78f))
@@ -381,7 +398,7 @@ fun ChallengeRow(c: Challenge, log: ChallengeLog, modifier: Modifier = Modifier,
         Column(Modifier.weight(1f).padding(horizontal = Space.xs), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             FitText(c.name, Type.body, if (cleared) Neon.soft else Color.White, Modifier.fillMaxWidth(), letterSpacing = 1.5.sp,
                 glow = 0f, alignment = Alignment.CenterStart)
-            NeonText(c.goalText(), size = Type.small, color = Neon.dim, glow = 0f, maxLines = 1)
+            NeonText(goal, size = Type.small, color = Neon.dim, glow = 0f, maxLines = 1)
         }
         Column(Modifier.width(72.dp), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
             val h = c.hero
