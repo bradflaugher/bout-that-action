@@ -27,7 +27,11 @@ import com.bradflaugher.aboutthataction.AndroidGfx
 import com.bradflaugher.aboutthataction.Records
 import com.bradflaugher.aboutthataction.SeedMode
 import com.bradflaugher.aboutthataction.Settings
+import com.bradflaugher.aboutthataction.ChallengeLog
 import com.bradflaugher.aboutthataction.engine.Autopilot
+import com.bradflaugher.aboutthataction.engine.Challenge
+import com.bradflaugher.aboutthataction.engine.Challenges
+import com.bradflaugher.aboutthataction.engine.Tier
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.RunConfig
@@ -67,13 +71,33 @@ class MenuShotsTest {
     private val records = Records(bestScore = 184_250, bestFloor = 67, runs = 12)
 
     /** A custom run on a friend's seed. */
-    private val seeded = Settings(preset = null, seedMode = SeedMode.CUSTOM, seedText = "K7QM 2XAB")
+    private val seeded = Settings(preset = null, seedMode = SeedMode.CUSTOM, seedText = "K7QM2XAB")
 
     /** A custom curve with a long LIVE FEED summary. */
     private val hellish = Difficulty(start = 1.2f, ramp = 2.4f, cap = 6f, hearts = 2, startFloor = 75)
 
     /** A sample daily challenge card (the card is display data; any challenge fills it). */
-    private val daily = DailyCard(37, "VELVET BOX", "Take down 12 guards from your box", listOf("SILENT ONLY", "ONE HEART"))
+    /** A player a couple of weeks in: a few dozen cleared, some progress elsewhere. */
+    private val day = Challenges.FIRST_DAY + 12
+    private val log = ChallengeLog(
+        cleared = (1..Challenges.size step 41).associateWith { day - 1 - it % 9 },
+        best = (3..Challenges.size step 17).associateWith { 1 + it % 7 },
+    )
+    private val today = todaysChallenge(day, log)
+    private val daily = dailyCard(today, day, log)
+    private val caption = clearedCaption(log)
+
+    /** A briefing with a set hero and a rule, and one with a hero pick and someone ruled out. */
+    private val forced = Challenges.all.firstOrNull { it.hero != null && it.rules.isNotEmpty() && it.startFloor > 0 }
+        ?: Challenges.all.first { it.hero != null && it.rules.isNotEmpty() }
+    private val open = Challenges.all.firstOrNull { it.hero == null && it.heroes.size == 3 && it.rules.size == 2 }
+        ?: Challenges.all.first { it.hero == null && it.heroes.size in 2..3 && it.rules.isNotEmpty() }
+
+    private fun status(c: Challenge, progress: Int, cleared: Boolean, best: Int = 0) = ChallengeStatus(
+        id = c.id, name = c.name, tier = c.tier, goal = c.goalText(), hud = c.hudText(progress),
+        fraction = (progress.toFloat() / c.target).coerceAtMost(1f), cleared = cleared, failed = false,
+        best = if (best > 0) c.hudText(best) else null,
+    )
 
     private val run = RunSummary(
         floor = 58, zone = Zone.METRO, score = 142_880, kills = 71, takedowns = 19, seconds = 734f,
@@ -90,25 +114,25 @@ class MenuShotsTest {
             RuntimeEnvironment.setQualifiers(qualifiers)
             val s = Settings()
             shot("$device-title", 1800, world()) {
-                TitleScreen(s, records, insets, {}, {}, {}, {}, {})
+                TitleScreen(s, records, insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = caption)
             }
             shot("$device-title-intro", 450, world()) {
-                TitleScreen(s, Records(), insets, {}, {}, {}, {}, {})
+                TitleScreen(s, Records(), insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = caption)
             }
             shot("$device-title-hawk", 1800, world(Hero.HAWK)) {
-                TitleScreen(s.copy(hero = Hero.HAWK), records, insets, {}, {}, {}, {}, {})
+                TitleScreen(s.copy(hero = Hero.HAWK), records, insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = caption)
             }
             shot("$device-title-brutal", 1800, world()) {
-                TitleScreen(s.copy(preset = Difficulty.Preset.BRUTAL), records, insets, {}, {}, {}, {}, {})
+                TitleScreen(s.copy(preset = Difficulty.Preset.BRUTAL), records, insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = caption)
             }
             shot("$device-title-custom", 1800, world(Hero.FOX)) {
                 TitleScreen(s.copy(preset = null, custom = hellish, hero = Hero.FOX), records, insets, {}, {}, {}, {}, {})
             }
             shot("$device-title-daily", 1800, world()) {
-                TitleScreen(s, records, insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = "37/1,234 CLEARED")
+                TitleScreen(s, records, insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = caption)
             }
             shot("$device-title-daily-cleared", 1800, world()) {
-                TitleScreen(s, records, insets, {}, {}, {}, {}, {}, daily = daily.copy(cleared = true), challengesCaption = "38/1,234 CLEARED")
+                TitleScreen(s, records, insets, {}, {}, {}, {}, {}, daily = daily.copy(cleared = true), challengesCaption = caption)
             }
             shot("$device-custom", 900, world()) {
                 CustomScreen(s.copy(preset = null, custom = Difficulty.Preset.BRUTAL.difficulty.copy(hearts = 3)), insets, {}, {}, {}, {})
@@ -131,6 +155,30 @@ class MenuShotsTest {
                 SettingsScreen(s, insets, {}, {})
             }
 
+            shot("$device-board", 900, world()) {
+                ChallengesScreen(log, today, daily, insets, {}, {})
+            }
+            shot("$device-board-filtered", 900, world()) {
+                ChallengesScreen(log, today, daily, insets, {}, {}, initial = BoardFilter(Tier.LEGEND, Hero.FOX))
+            }
+            shot("$device-briefing", 900, world()) {
+                BriefingScreen(open, Hero.MONKEY, log.withBest(open.id, open.target / 2), insets, onPickHero = {}, onPlay = {}, onBack = {})
+            }
+            shot("$device-briefing-forced", 900, world(forced.hero!!)) {
+                BriefingScreen(forced, Hero.BULL, log.withClear(forced.id, day - 3), insets, onPickHero = {}, onPlay = {}, onBack = {})
+            }
+            shot("$device-briefing-daily", 900, world()) {
+                BriefingScreen(today, Hero.BULL, log, insets, dailyNumber = Challenges.dailyNumber(day), onPickHero = {}, onPlay = {}, onBack = {})
+            }
+            shot("$device-pause-challenge", 700, world()) {
+                PauseScreen(s, "#0001", Hero.FOX, insets, {}, {}, {}, {}, challenge = status(open, open.target / 3, false, open.target / 2))
+            }
+            shot("$device-gameover-cleared", 3500, world()) {
+                GameOverScreen(run.copy(seedLabel = idLabel(today.id), challenge = status(today, today.target + 2, true)), insets, {}, {}, {}, records)
+            }
+            shot("$device-gameover-challenge", 3500, world()) {
+                GameOverScreen(run.copy(seedLabel = idLabel(open.id), challenge = status(open, open.target / 3, false, open.target / 2)), insets, {}, {}, {}, records)
+            }
             shot("$device-pause", 700, world()) {
                 PauseScreen(s, "K7QM 2XAB", Hero.FOX, insets, {}, {}, {}, {})
             }
@@ -153,13 +201,22 @@ class MenuShotsTest {
             RuntimeEnvironment.setFontScale(1.5f)
             val s = Settings()
             shot("font-title", 1800, world()) {
-                TitleScreen(s.copy(preset = Difficulty.Preset.BRUTAL), records, insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = "37/1,234 CLEARED")
+                TitleScreen(s.copy(preset = Difficulty.Preset.BRUTAL), records, insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = caption)
             }
             shot("font-title-custom", 1800, world()) {
                 TitleScreen(s.copy(preset = null, custom = hellish), records, insets, {}, {}, {}, {}, {})
             }
             shot("font-custom", 900, world()) {
                 CustomScreen(s.copy(preset = null), insets, {}, {}, {}, {})
+            }
+            shot("font-board", 900, world()) {
+                ChallengesScreen(log, today, daily, insets, {}, {})
+            }
+            shot("font-briefing", 900, world()) {
+                BriefingScreen(open, Hero.MONKEY, log, insets, onPickHero = {}, onPlay = {}, onBack = {})
+            }
+            shot("font-gameover-cleared", 3500, world()) {
+                GameOverScreen(run.copy(challenge = status(today, today.target, true)), insets, {}, {}, {}, records)
             }
             shot("font-settings", 900, world()) {
                 SettingsScreen(s, insets, {}, {})
@@ -195,7 +252,7 @@ class MenuShotsTest {
         val gfx = AndroidGfx(activity)
         gfx.begin(Canvas(bg))
         val density = dm.density
-        val hud = !name.contains("title") && !name.contains("settings") && !name.contains("heroes") && !name.contains("custom")
+        val hud = !name.contains("title") && !name.contains("settings") && !name.contains("heroes") && !name.contains("custom") && !name.contains("board") && !name.contains("briefing")
         Renderer().render(gfx, world, world.time, 32 * density, 16 * density, showHud = hud)
         // Drive Compose from our own frame clock. Robolectric's Choreographer hands
         // out frames without advancing time, so infinite animations never let idle end.
@@ -262,6 +319,9 @@ class MenuShotsTest {
             "phone-heroes-bull" to "menu-heroes",
             "phone-custom" to "menu-custom",
             "phone-custom-seed" to "menu-seed",
+            "phone-board" to "menu-challenges",
+            "phone-briefing" to "menu-briefing",
+            "phone-gameover-cleared" to "menu-cleared",
         )
     }
 }

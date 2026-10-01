@@ -24,7 +24,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -228,7 +233,7 @@ private fun SeedGroup(s: Settings, onChange: (Settings) -> Unit) {
     ) {
         Row(Modifier.fillMaxWidth().padding(top = Space.xxs), horizontalArrangement = Arrangement.spacedBy(Space.xs),
             verticalAlignment = Alignment.CenterVertically) {
-            SeedField(s.seedText, Modifier.weight(1f)) { note = null; onChange(s.copy(seedText = it.take(24))) }
+            SeedField(s.seedText, Modifier.weight(1f)) { note = null; onChange(s.copy(seedText = it)) }
             NeonButton("PASTE", Neon.cyan, Modifier.width(104.dp), height = 56.dp) {
                 val shared = pasteText(context)?.let(SeedCode::find)
                 val code = shared?.code
@@ -236,7 +241,7 @@ private fun SeedGroup(s: Settings, onChange: (Settings) -> Unit) {
                     note = "No seed code on the clipboard."
                 } else {
                     val curve = shared.preset?.difficulty ?: s.custom
-                    onChange(s.copy(preset = null, seedMode = SeedMode.CUSTOM, seedText = SeedCode.pretty(code),
+                    onChange(s.copy(preset = null, seedMode = SeedMode.CUSTOM, seedText = code,
                         custom = curve, hero = shared.hero ?: s.hero))
                     note = listOfNotNull("Loaded ${SeedCode.pretty(code)}", shared.preset?.let(::presetLabel), shared.hero?.title)
                         .joinToString(" · ") + "."
@@ -250,7 +255,7 @@ private fun SeedGroup(s: Settings, onChange: (Settings) -> Unit) {
             s.seedMode == SeedMode.RANDOM -> "A fresh building every run. Its code is on the game-over card."
             s.seedText.isBlank() -> "Type a code, or paste a friend's brag."
             code -> "Same seed + same curve = same building."
-            else -> "Not a code, but any word builds a building."
+            else -> "Codes are 8 characters. No I, O, 0 or 1."
         },
         size = Type.small, color = if (note != null) Neon.cyan else Neon.dim, glow = 0f,
     )
@@ -261,11 +266,16 @@ internal fun SeedField(text: String, modifier: Modifier = Modifier, onText: (Str
     val focus = LocalFocusManager.current
     BasicTextField(
         value = text,
-        onValueChange = onText,
+        // Only code characters get in: a typo can't make a seed nobody else can type.
+        onValueChange = { v -> onText(SeedCode.normalize(v).filter { it in SeedCode.ALPHABET }.take(SeedCode.LENGTH)) },
+        visualTransformation = CodeSpacing,
         singleLine = true,
         textStyle = TextStyle(color = Color.White, fontSize = 20.sp, fontFamily = Neon.mono, letterSpacing = 2.sp),
         cursorBrush = SolidColor(Neon.cyan),
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Done),
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Characters, autoCorrectEnabled = false,
+            keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Done,
+        ),
         keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
         modifier = modifier,
         decorationBox = { inner ->
@@ -286,14 +296,27 @@ internal fun SeedField(text: String, modifier: Modifier = Modifier, onText: (Str
                     if (text.isEmpty()) NeonText("K7QM 2XAB", size = Type.body, color = Neon.faint, glow = 0f, letterSpacing = 2.sp)
                     inner()
                 }
-                // A real code gets a check; anything else is free text, so show how much room is left.
+                // A whole code gets a check; until then, how far along it is.
                 if (SeedCode.decode(text) != null) {
                     Box(Modifier.size(18.dp).drawBehind { check(ClearedGreen) })
                 } else {
-                    NeonText("${text.length}/24", size = Type.micro, color = Neon.dim, glow = 0f)
+                    NeonText("${text.length}/${SeedCode.LENGTH}", size = Type.micro, color = Neon.dim, glow = 0f)
                 }
             }
         },
     )
 }
 
+
+/** Shows a code as "K7QM 2XAB" while it's stored as "K7QM2XAB". */
+private object CodeSpacing : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val t = text.text
+        if (t.length <= 4) return TransformedText(text, OffsetMapping.Identity)
+        val out = t.substring(0, 4) + " " + t.substring(4)
+        return TransformedText(AnnotatedString(out), object : OffsetMapping {
+            override fun originalToTransformed(offset: Int) = if (offset <= 4) offset else offset + 1
+            override fun transformedToOriginal(offset: Int) = if (offset <= 4) offset else offset - 1
+        })
+    }
+}

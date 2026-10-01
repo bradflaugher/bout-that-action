@@ -216,6 +216,11 @@ you back. The building will still be there.
     <td align="center" width="33%"><img src="docs/screenshots/cleared.png" alt="CHALLENGE CLEARED: a gold band, a medal and confetti"><p><em><b>Cleared!</b> Then keep going for score</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/busted.png" alt="BUSTED: an UNTOUCHED challenge took a hit"><p><em><b>Busted.</b> UNTOUCHED, touched</em></p></td>
   </tr>
+  <tr>
+    <td align="center" width="33%"><img src="docs/screenshots/menu-challenges.png" alt="The CHALLENGES board: today's daily, tier and hero filters, and every challenge"><p><em><b>The board.</b> All 1,550, any day</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/menu-briefing.png" alt="A challenge briefing: the job, its rules, who goes and your best"><p><em><b>Briefing.</b> The job, the rules, who goes</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/menu-cleared.png" alt="Game over after clearing a challenge"><p><em><b>Debrief.</b> Cleared, or how close</em></p></td>
+  </tr>
 </table>
 
 1,550 challenges, each with a silly name ("VELVET
@@ -248,6 +253,20 @@ cleared the same ones. Clear today's and it stays today's, marked cleared.
 There are no streaks, rewards or countdowns: every challenge is playable any
 day from the board, and nothing nags you to come back.
 
+Today's challenge sits on the title as a gold card above **DROP IN**; tap it
+for its **briefing**: the job in big type, each rule spelled out, where it
+starts, who can go (pick from the heroes allowed, with a word on why anyone's
+ruled out, like "MONKEY can't take anyone down"), your best so far or the
+day you cleared it, and a DROP IN of its own. **CHALLENGES** (under DROP IN)
+opens the board: today's pinned on top, then all of them, filtered by tier,
+hero and NOT CLEARED, with a SURPRISE ME for a random one you haven't done.
+A clear counts the moment it happens, even if you quit right after; your best
+progress on each is kept too. Pause shows the goal and where you stand; game
+over shows the result, with RETRY CHALLENGE, SHARE ("I cleared #0274 NAP
+QUEEN in 'Bout That Action. Your move.") and BOARD. Challenge runs bring their
+own curve and start floor, so they don't count toward your endless DEEPEST
+and BEST.
+
 ## The front end
 
 <table>
@@ -260,8 +279,8 @@ day from the board, and nothing nags you to come back.
   </tr>
 </table>
 
-The title screen shows who you're playing as and the difficulty (CHILL, AGENT,
-BRUTAL, or **CUSTOM**); **DROP IN** is still one tap. CUSTOM opens the
+The title screen shows who you're playing as, the difficulty (CHILL, AGENT,
+BRUTAL, or **CUSTOM**) and today's challenge; **DROP IN** is still one tap. CUSTOM opens the
 **Custom run** screen: start from any preset's curve (Straight to Hell
 included), tweak it while the chart redraws, see what it feels like next to the
 presets, and drop in from right there. Your curve is kept when you go back to
@@ -293,8 +312,7 @@ AGENT in 'Bout That Action. Seed K7QM 2XAB. Beat that."). To play a friend's
 building, open **Custom run**, pick **SET SEED** and type the code, or tap
 **PASTE** with their message on the clipboard: it picks up the seed, and the
 difficulty and hero too when the message names them. A set seed only applies
-to custom runs; the presets always get a fresh building. (Any other word works
-as a seed too, it just isn't a code.)
+to custom runs; the presets always get a fresh building.
 
 ## Sound
 

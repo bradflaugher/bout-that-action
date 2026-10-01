@@ -67,6 +67,11 @@ internal fun pasteText(context: Context): String? =
  * needs (the seed, the difficulty and the hero; see SeedCode.find).
  */
 fun shareMessage(run: RunSummary): String {
+    run.challenge?.let { c ->
+        val what = "${idLabel(c.id)} ${c.name}"
+        return if (c.cleared) "I cleared $what in 'Bout That Action. Your move."
+        else "I got ${c.hud} on $what in 'Bout That Action. Your move."
+    }
     val on = if (run.difficulty.isBlank() || run.difficulty == "CUSTOM") "on a custom curve" else "on ${run.difficulty}"
     val dare = listOf("Beat that.", "Your move.", "Bring a box.", "Mind the lamps.")[(run.floor and 0x7fffffff) % 4]
     return "I hit ${FloorLabel.of(run.floor)} as ${run.hero.title} $on in 'Bout That Action. Seed ${run.seedLabel}. $dare"

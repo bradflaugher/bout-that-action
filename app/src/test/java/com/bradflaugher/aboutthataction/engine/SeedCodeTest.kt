@@ -1,7 +1,6 @@
 package com.bradflaugher.aboutthataction.engine
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -31,7 +30,7 @@ class SeedCodeTest {
     fun codesAreForgivingAboutSpacingAndCase() {
         val s = SeedCode.decode("K7QM2XAB")!!
         for (t in listOf("k7qm 2xab", " K7QM-2XAB ", "k7-qm 2x-ab", "K7QM\t2XAB")) assertEquals(t, s, SeedCode.decode(t))
-        assertEquals("K7QM 2XAB", SeedCode.labelOf("k7qm-2xab"))
+        assertEquals("K7QM 2XAB", SeedCode.pretty(SeedCode.normalize("k7qm-2xab")))
     }
 
     @Test
@@ -40,14 +39,6 @@ class SeedCodeTest {
         for (t in listOf("K7QM2XA0", "K7QM2XAO", "K7QM2XA1", "K7QM2XAI", "K7QM2XA", "K7QM2XABC", "CARDBOARD", "")) {
             assertNull(t, SeedCode.decode(t))
         }
-    }
-
-    @Test
-    fun oldTextSeedsKeepTheirBuildings() {
-        assertEquals(Rng.seedFromText("CARDBOARD"), SeedCode.seedOf("CARDBOARD"))
-        assertEquals(Rng.seedFromText("banana"), SeedCode.seedOf("banana"))
-        assertEquals("CARDBOARD", SeedCode.labelOf("cardboard"))
-        assertNotEquals(SeedCode.seedOf("K7QM 2XAB"), Rng.seedFromText("K7QM 2XAB"))
     }
 
     @Test
