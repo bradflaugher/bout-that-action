@@ -218,28 +218,33 @@ you back. The building will still be there.
   </tr>
 </table>
 
-1,550 challenges, each with a silly name ("VELVET
-LANTERN", "BULL IN A CHINA SHOP", "BARREL OF MONKEYS"), a goal and maybe a
+1,550 challenges, each with a silly name ("DISCO
+PRETZEL", "BULL IN A CHINA SHOP", "BARREL OF MONKEYS"), a goal and maybe a
 twist or two:
 
 - **Goals** come from the run's own numbers: reach a floor, take guards out,
   take them down, silent takeouts, ghosted floors, score, box ambushes, bonks,
   naps, lamps, blasts, combos, traps, close calls, STASHES, express rides and
   pickup-gun kills.
-- **Twists:** SILENT ONLY or GUNS HOT ONLY (the mode is locked), ONE HEART,
-  UNTOUCHED (one hit and the challenge is busted; the run goes on), a start
-  zone, or the CHILL or BRUTAL curve.
+- **Twists:** SILENT ONLY or GUNS HOT ONLY (the mode is locked), ONE HEART
+  (and no VITALITY to top it up), UNTOUCHED (lose a heart and the challenge is
+  busted; a SHIELD or VEST soaking the hit is fine, and the run goes on), a
+  start zone, or the CHILL or BRUTAL curve.
 - **Heroes** get their own: BULL stomps guards flat and STIFF ARMs them,
   FOX flying- and spin-kicks, HAWK unplugs robots and delivers from the box,
   and MONKEY lets shots sail over his head and goes bananas with pickup guns.
+  A goal that counts a perk's move (STIFF ARMs, the kicks) starts the run with
+  that perk ("STARTS WITH STIFF ARM").
   A challenge never asks the impossible: no takedowns or SILENT for MONKEY,
   no shots under SILENT ONLY.
 - **Five tiers**, ROOKIE to LEGEND, tuned against the autopilot: it clears
   most ROOKIEs and the odd LEGEND.
 
-Each challenge always plays the same building, so everyone gets the same
-floors. The goal sits on the HUD under your hearts and pops each time it moves;
-clearing it is a big gold moment, and then the run carries on for score.
+Each challenge always plays the same building (a seed with a code, like any
+run's), so everyone gets the same floors. The goal sits on the HUD under your
+hearts and pops each time it moves; clearing it is a big gold moment, and then
+the run carries on for score. Only a live run counts: nothing clears once
+you're down.
 
 **The daily challenge** is the same for everyone on the same (local) day:
 gentle on Monday, building to a LEGEND on Sunday. Already cleared that one on

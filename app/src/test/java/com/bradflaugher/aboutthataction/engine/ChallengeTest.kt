@@ -79,7 +79,7 @@ class ChallengeTest {
             assertTrue(own.map { it.name }.toString(), own.count { it.name in specials.getValue(h) } >= 5)
         }
         assertTrue(all.any { it.hero == Hero.BULL && it.goal == Goal.STIFF_ARMS })
-        assertTrue(all.any { it.hero == Hero.BULL && it.goal == Goal.BONKS && it.goalText().startsWith("Stomp") })
+        assertTrue(all.any { it.hero == Hero.BULL && it.goal == Goal.BONKS && it.goalText(Hero.FOX).startsWith("Stomp") })
         assertTrue(all.any { it.hero == Hero.FOX && it.goal == Goal.FLYING_KICKS })
         assertTrue(all.any { it.hero == Hero.FOX && it.goal == Goal.SPIN_KICKS })
         assertTrue(all.any { it.hero == Hero.HAWK && it.goal == Goal.UNPLUGS })
@@ -152,12 +152,56 @@ class ChallengeTest {
         assertEquals("STOMPS 2/6", stomp.hudText(2))
         assertEquals("Bonk 6 heads", stomp.copy(hero = Hero.FOX).goalText())
         assertEquals("Let 5 shots sail over you", c.copy(goal = Goal.OVERHEADS, hero = Hero.MONKEY, target = 5).goalText())
+        // A generic BONKS challenge reads as whoever plays it: BULL stomps, the rest bonk.
+        val bonks = c.copy(goal = Goal.BONKS, target = 6)
+        assertEquals("Bonk 6 heads", bonks.goalText())
+        assertEquals("Stomp 6 guards flat", bonks.goalText(Hero.BULL))
+        assertEquals("STOMPS 2/6", bonks.hudText(2, Hero.BULL))
+        assertEquals("BONKS 2/6", bonks.hudText(2, Hero.FOX))
+        assertEquals("STOMPS", bonks.hudLabel(Hero.BULL))
+        // A forced hero always wins over the player's pick.
+        assertEquals("Bonk 6 heads", bonks.copy(hero = Hero.FOX).goalText(Hero.BULL))
+        // And the run's own line uses the run's hero.
+        val w = World(bonks.runConfig(Hero.BULL, coach = false))
+        assertEquals("STOMPS 0/6", w.challenge!!.hudText(w.hero))
+    }
+
+    @Test
+    fun perkGoalsSayTheyStartWithThePerk() {
+        assertEquals(Perk.STIFF_ARM, Goal.STIFF_ARMS.perk)
+        assertEquals(Perk.FLYING_KICK, Goal.FLYING_KICKS.perk)
+        assertEquals(Perk.SPIN_KICK, Goal.SPIN_KICKS.perk)
+        for (g in Goal.entries) g.perk?.let { assertTrue("$g's perk is its hero's", it.hero == g.hero) }
+        val c = all.first { it.goal == Goal.STIFF_ARMS }
+        assertTrue(c.chips().toString(), "STARTS WITH STIFF ARM" in c.chips())
+        assertTrue(all.filter { it.goal.perk == null }.none { ch -> ch.chips().any { it.startsWith("STARTS WITH") } })
+    }
+
+    @Test
+    fun theBatchOneInputsAreSpelledOut() {
+        // Batch 1's goals are a literal list, so a goal added later can't reshuffle it.
+        assertEquals(Challenges.batch1Goals.toSet().size, Challenges.batch1Goals.size)
+        assertTrue(Challenges.batch1Goals.all { it.hero == null })
+        assertTrue(Challenges.templates.all { it.goal in Challenges.batch1Goals || it.bespoke })
+    }
+
+    @Test
+    fun namesStayFamilyFriendly() {
+        val words = all.flatMap { it.name.split(' ') }.toSet()
+        for (w in listOf("VELVET", "SATIN", "SPICY", "CUDDLE", "SQUEEZE", "HUG", "SLEEPER", "LEAD", "SHOWER", "PENTHOUSE", "FLASHY", "HOSE")) {
+            assertFalse("$w in a name", w in words)
+        }
     }
 
     @Test
     fun eachChallengeHasItsOwnBuilding() {
         assertEquals(all.size, all.map { it.seed }.toSet().size)
         assertEquals(all[9].seed, Challenges.byId(10)!!.seed)
+        // Every challenge's building is shareable as a code, like any other run's.
+        for (c in all) {
+            assertTrue(c.signature(), c.seed in 0 until SeedCode.LIMIT)
+            assertEquals(c.seed, SeedCode.decode(SeedCode.encode(c.seed)!!))
+        }
     }
 
     // ------------------------------------------------------------ the daily
@@ -354,6 +398,112 @@ class ChallengeTest {
     }
 
     @Test
+    fun aShieldOrVestSoakingAHitDoesntBustUntouched() {
+        for (vest in listOf(false, true)) {
+            val w = world(custom(Goal.KILLS, 40, Rule.UNTOUCHED))
+            val run = w.challenge!!
+            w.player.x = 5f
+            if (vest) {
+                w.perks[Perk.ARMOR] = 1
+                w.player.armorReady = true
+            } else {
+                w.player.shield = true
+            }
+            Bullet(2f, 1.1f, w.player.floor, 9f, 0f, byPlayer = false, damage = 1, pierce = 0, bounces = 0, hall = w.player.hall).also { w.bullets += it }
+            run(w, 0.6f)
+            assertTrue("vest=$vest blocked", w.events.any { it is GameEvent.ShieldBlock })
+            assertEquals(0, w.stats.hurts)
+            assertFalse("vest=$vest", run.failed)
+        }
+    }
+
+    @Test
+    fun theHitThatEndsAnUntouchedRunStillBustsIt() {
+        val w = world(custom(Goal.KILLS, 40, Rule.UNTOUCHED, Rule.ONE_HEART))
+        val run = w.challenge!!
+        w.player.x = 5f
+        Bullet(2f, 1.1f, w.player.floor, 9f, 0f, byPlayer = false, damage = 1, pierce = 0, bounces = 0, hall = w.player.hall).also { w.bullets += it }
+        run(w, 0.6f)
+        assertEquals(Phase.DYING, w.phase)
+        assertTrue(run.failed)
+        assertEquals(1, w.events.count { it is GameEvent.ChallengeFailed })
+    }
+
+    @Test
+    fun noPosthumousClears() {
+        val w = world(custom(Goal.TAKEDOWNS, 1, Rule.ONE_HEART))
+        val run = w.challenge!!
+        w.player.x = 5f
+        Bullet(2f, 1.1f, w.player.floor, 9f, 0f, byPlayer = false, damage = 1, pierce = 0, bounces = 0, hall = w.player.hall).also { w.bullets += it }
+        run(w, 0.6f)
+        assertEquals(Phase.DYING, w.phase)
+        val before = run.progress
+        // Whatever lands on the way out counts for the run, not the challenge.
+        w.takedowns += 3
+        run(w, 1f)
+        assertFalse(run.cleared)
+        assertEquals(before, run.progress)
+        assertTrue(w.events.none { it is GameEvent.ChallengeCleared })
+    }
+
+    /** A world on [c] started on the first floor (from [from]) with a STASH door, standing at it. */
+    private fun atAStash(c: (Int) -> Challenge, hero: Hero, from: Int = 1): World {
+        for (f in from..60) {
+            val w = World(c(f).runConfig(hero, coach = false))
+            run(w, 1.5f)
+            w.enemies.clear()
+            w.bullets.clear()
+            val fs = w.floor(w.player.floor)!!
+            val h = fs.halls.indexOfFirst { hs -> hs.plan.doors.any { it.kind == DoorKind.STASH } }
+            if (h < 0) continue
+            w.player.hall = h
+            w.player.x = fs.halls[h].plan.doors.first { it.kind == DoorKind.STASH }.x
+            return w
+        }
+        error("no STASH")
+    }
+
+    @Test
+    fun oneHeartNeverOffersVitality() {
+        val w = atAStash({ custom(Goal.KILLS, 5, Rule.ONE_HEART, start = it) }, Hero.BULL)
+        // Everything maxed but VITALITY and RICOCHET: only RICOCHET may come up.
+        for (p in Perk.entries) w.perks[p] = p.maxStacks
+        w.perks.remove(Perk.VITALITY)
+        w.perks[Perk.RICOCHET] = 1
+        w.commands += Command.TAP
+        run(w, 0.05f)
+        assertEquals(Phase.PERK_CHOICE, w.phase)
+        assertEquals(listOf(Perk.RICOCHET), w.perkOffer)
+        // Without ONE HEART it's on the table.
+        val free = atAStash({ custom(Goal.KILLS, 5, start = it) }, Hero.BULL)
+        for (p in Perk.entries) free.perks[p] = p.maxStacks
+        free.perks.remove(Perk.VITALITY)
+        free.commands += Command.TAP
+        run(free, 0.05f)
+        assertEquals(listOf(Perk.VITALITY), free.perkOffer)
+    }
+
+    @Test
+    fun aPerkGoalStartsWithItsPerk() {
+        for ((goal, hero) in listOf(Goal.STIFF_ARMS to Hero.BULL, Goal.FLYING_KICKS to Hero.FOX, Goal.SPIN_KICKS to Hero.FOX)) {
+            val c = Challenges.all.first { it.goal == goal }
+            val w = World(c.runConfig(Hero.HAWK, coach = false))
+            assertEquals(hero, w.hero)
+            assertEquals("$goal", 1, w.stacks(goal.perk!!))
+        }
+        // Anything else starts bare.
+        assertTrue(World(custom(Goal.TAKEDOWNS, 5).runConfig(Hero.BULL)).perks.isEmpty())
+        // And it's real: BULL runs straight through an unaware guard face to face, from the start.
+        val w = world(Challenges.all.first { it.goal == Goal.STIFF_ARMS && it.rules.isEmpty() && it.startFloor == 0 }.copy(startFloor = 3), silent = true)
+        w.player.x = 3f
+        w.player.facing = 1
+        val e = enemy(w, 5f, facing = -1)
+        run(w, 1.5f) { it.moveAxis = 1 }
+        assertFalse(e.alive)
+        assertEquals(1, w.challenge!!.progress)
+    }
+
+    @Test
     fun pickupGunKillsAreCounted() {
         val w = world(custom(Goal.GUN_KILLS, 1), silent = false)
         w.player.x = 2f
@@ -416,6 +566,6 @@ class ChallengeTest {
     private companion object {
         /** The first batch, as shipped. Append-only: these never change. */
         const val GOLDEN_SIZE = 1550
-        val GOLDEN_CHECKSUM = 0x8732748a8da43d0aUL.toLong()
+        val GOLDEN_CHECKSUM = 0x45ad0adc8dfb77ecL
     }
 }

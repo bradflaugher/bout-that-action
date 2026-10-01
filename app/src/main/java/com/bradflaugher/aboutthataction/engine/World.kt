@@ -228,6 +228,8 @@ class World(val config: RunConfig) {
         // ONE HEART means one, whoever you are.
         player.maxHp = if (config.challenge?.oneHeart == true) 1 else difficulty.hearts + hero.extraHearts
         player.hp = player.maxHp
+        // A challenge that counts what a perk does (STIFF ARMS, the kicks) starts with that perk.
+        config.challenge?.startPerk?.let { perks[it] = 1 }
         player.magSize = magSize
         player.ammo = magSize
         player.grenades = 1 + hero.extraGrenades
@@ -1670,8 +1672,17 @@ class World(val config: RunConfig) {
         else -> -1
     }
 
-    /** The enemy auto-aim would shoot right now (the renderer aims the gun pose at it). */
-    fun aimTarget(): Enemy? = if (holstered) null else pickTarget(11f, ::fireable)
+    /**
+     * The enemy auto-aim would shoot right now (the renderer aims the gun pose at it): what
+     * [autoFire] picks in its range, else a real threat a little further out (the gun tracks
+     * him as he comes). Never a turned back out of range: MONKEY doesn't aim at a guard he
+     * won't shoot.
+     */
+    fun aimTarget(): Enemy? = if (holstered) null else pickTarget(autoFireRange, ::fireable)
+        ?: pickTarget(11f) { fireable(it) && (threatTier(it) <= 1 || it.kind == EnemyKind.TURRET || it.kind == EnemyKind.DRONE) }
+
+    /** How far [autoFire] reaches: the minigun sees the whole hallway. */
+    private val autoFireRange: Float get() = if (player.weapon == PickupKind.MINIGUN) 11f else AUTO_FIRE_RANGE
 
     /** SHUSH: MONKEY's shots are quiet (nobody hears them) and pick off guards unawares. */
     val shush: Boolean get() = stacks(Perk.SHUSH) > 0
@@ -1756,7 +1767,7 @@ class World(val config: RunConfig) {
         }
         // Threats only: a guard who hasn't noticed you is yours to choose: sneak past, walk in
         // for the takedown, or wait for him to turn.
-        val target = pickTarget(if (p.weapon == PickupKind.MINIGUN) 11f else AUTO_FIRE_RANGE, ::fireable)
+        val target = pickTarget(autoFireRange, ::fireable)
         if (target == null) {
             drawOn = null
             return
@@ -2849,7 +2860,11 @@ class World(val config: RunConfig) {
     // ----------------------------------------------------------------- perks
 
     private fun offerPerks() {
-        val available = Perk.entries.filter { it.offeredTo(hero) && stacks(it) < it.maxStacks }.toMutableList()
+        // ONE HEART holds all run: no VITALITY on it.
+        val oneHeart = config.challenge?.oneHeart == true
+        val available = Perk.entries.filter {
+            it.offeredTo(hero) && stacks(it) < it.maxStacks && !(oneHeart && it == Perk.VITALITY)
+        }.toMutableList()
         val offer = ArrayList<Perk>(3)
         while (offer.size < 3 && available.isNotEmpty()) {
             val p = available.removeAt(rng.nextInt(available.size))

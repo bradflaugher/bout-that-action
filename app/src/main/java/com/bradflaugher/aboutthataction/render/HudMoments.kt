@@ -4,6 +4,8 @@ import com.bradflaugher.aboutthataction.engine.FloatingText
 import com.bradflaugher.aboutthataction.engine.FloorEvent
 import com.bradflaugher.aboutthataction.engine.FloorLabel
 import com.bradflaugher.aboutthataction.engine.Geo
+import com.bradflaugher.aboutthataction.engine.Phase
+import com.bradflaugher.aboutthataction.engine.World
 import com.bradflaugher.aboutthataction.engine.TextStyle
 import kotlin.math.PI
 import kotlin.math.abs
@@ -242,6 +244,7 @@ internal class HudMoments(private val f: Frame) {
 
     // ============================================================ challenges
 
+    private var chWorld: World? = null
     private var chId = -1
     private var chName = ""
     private var chFoot = ""
@@ -256,12 +259,15 @@ internal class HudMoments(private val f: Frame) {
         val run = f.w.challenge ?: return
         val cleared = run.cleared
         if (!cleared && !run.failed) return
+        // No party on the way out: a clear just before the fatal hit keeps its card off the death.
+        if (cleared && f.w.phase != Phase.PLAYING && f.w.phase != Phase.PERK_CHOICE) return
         val at = if (cleared) run.clearedAt else run.failedAt
         val life = if (cleared) CLEAR_TIME else BUST_TIME
         val age = f.wt - at
         if (at < 0f || age < 0f || age > life) return
         val ch = run.challenge
-        if (ch.id != chId) {
+        if (ch.id != chId || f.w !== chWorld) {
+            chWorld = f.w
             chId = ch.id
             chName = ch.name
             chFoot = "#" + ch.id + "  ·  " + ch.tier.title + "  ·  KEEP GOING FOR SCORE"
