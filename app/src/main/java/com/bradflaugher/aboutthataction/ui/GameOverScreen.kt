@@ -15,7 +15,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -144,8 +147,17 @@ fun GameOverScreen(
                         String.format(Locale.US, "%d:%02d", it / 60, it % 60)
                     }
                 }
-                // The hero and seed ride along as the grid's last cells (filling an odd row's gap).
-                Highlights(run.highlights + ("HERO" to run.hero.title) + ("SEED" to run.seedLabel), run.hero.tint, Modifier.padding(top = Space.xs).reveal(1000, 6.dp))
+                // The hero rides along as the grid's last cell.
+                Highlights(run.highlights + ("HERO" to run.hero.title), run.hero.tint, Modifier.padding(top = Space.xs).reveal(1000, 6.dp))
+            }
+
+            // The seed, to copy or brag with: a friend's PASTE on CUSTOM RUN plays this building.
+            val context = LocalContext.current
+            Row(Modifier.fillMaxWidth().reveal(640, 12.dp), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+                SeedChip(run.seedLabel, Modifier.weight(1f), color = Neon.gold)
+                NeonButton("SHARE", Neon.gold, Modifier.width(132.dp), height = 56.dp,
+                    trailing = { Box(Modifier.padding(start = Space.xs).size(16.dp).drawBehind { shareMark(Neon.gold) }) },
+                ) { shareText(context, shareMessage(run)) }
             }
 
             NeonButton("RETRY SEED", Neon.magenta, Modifier.fillMaxWidth().padding(top = Space.xxs).reveal(700, 16.dp),

@@ -98,8 +98,8 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   and gun drops only matter in GUNS HOT; SILENT never fires.
 - **Endless and seeded.** Any floor can be rebuilt from `(seed, floor)`, so
   the building never ends and never uses more memory. The same seed plus the
-  same difficulty gives the same building, so you can share a seed or play
-  the **daily** building.
+  same difficulty gives the same building, and every run has a short seed
+  code (like `K7QM 2XAB`) you can share with friends.
 
 <table>
   <tr>
@@ -215,7 +215,7 @@ you back. The building will still be there.
     <td align="center" width="20%"><img src="docs/screenshots/menu-title.png" alt="Title screen with the neon logo over a live demo run"><p><em><b>Title</b>: a neon sign over a live autopilot run</em></p></td>
     <td align="center" width="20%"><img src="docs/screenshots/menu-heroes.png" alt="The hero picker"><p><em><b>Heroes</b>: swipe through all four</em></p></td>
     <td align="center" width="20%"><img src="docs/screenshots/menu-custom.png" alt="The custom run screen with the heat curve"><p><em><b>Custom run</b>: shape your own heat curve</em></p></td>
-    <td align="center" width="20%"><img src="docs/screenshots/menu-settings.png" alt="Settings with a custom seed"><p><em><b>Settings</b>: seed, sound and controls</em></p></td>
+    <td align="center" width="20%"><img src="docs/screenshots/menu-seed.png" alt="The custom run screen with a friend's seed code set"><p><em><b>Seeds</b>: paste a friend's code</em></p></td>
     <td align="center" width="20%"><img src="docs/screenshots/menu-gameover.png" alt="Game over with a new deepest floor"><p><em><b>Game over</b>: the depth counts down the building</em></p></td>
   </tr>
 </table>
@@ -225,7 +225,8 @@ BRUTAL, or **CUSTOM**); **DROP IN** is still one tap. CUSTOM opens the
 **Custom run** screen: start from any preset's curve (Straight to Hell
 included), tweak it while the chart redraws, see what it feels like next to the
 presets, and drop in from right there. Your curve is kept when you go back to
-a preset. Seeds, sound and controls live in **Settings**.
+a preset. That's also where you set a seed. Sound and controls live in
+**Settings**.
 Tap the hero bar to open the picker: swipe (or tap the roster) through all
 four heroes, each on their own stage with their theme playing, and see their
 trait and three hero-only perks. The pick sticks between runs, and the demo
@@ -245,8 +246,15 @@ its own bonus, and Hell adds a lot. Pick a preset or shape your own curve:
   with a live preview of the curve. Start from any preset, or from
   **Straight to Hell**: start in Hell, at B100. Good luck.
 
-Seeds (in Settings) can be **random**, **daily** (same building for everyone,
-UTC), or any word or number you type.
+Every run has a **seed code**: eight characters like `K7QM 2XAB`, with no
+look-alikes (no I, O, 0 or 1). It's on the pause menu and the game-over card;
+tap it to copy, or hit **SHARE** to send a brag ("I hit B42 as MONKEY on
+AGENT in 'Bout That Action. Seed K7QM 2XAB. Beat that."). To play a friend's
+building, open **Custom run**, pick **SET SEED** and type the code, or tap
+**PASTE** with their message on the clipboard: it picks up the seed, and the
+difficulty and hero too when the message names them. A set seed only applies
+to custom runs; the presets always get a fresh building. (Any other word works
+as a seed too, it just isn't a code.)
 
 ## Sound
 

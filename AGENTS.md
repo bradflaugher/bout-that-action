@@ -57,6 +57,8 @@ the JVM.
   - `Hero.kt` — the four heroes (`RunConfig.hero`): each trait is data on the
     enum, and `Perk.hero` / `Perk.offeredTo` keep three perks per hero.
   - `Entities.kt`, `Perk.kt`, `Fx.kt`, `Events.kt`, `Rng.kt` (SplitMix64).
+  - `SeedCode.kt` — shareable 8-character seed codes (40 bits, no look-alikes)
+    and the parser that pulls a code, difficulty and hero out of a pasted brag.
 - `input/GestureInput.kt` — multi-touch gesture classifier (run drag with
   instant reversal, flicks mid-drag, zero-latency taps; grenades are a HUD button, not a gesture).
 - `render/` — `Gfx.kt` is the tiny drawing interface; `Renderer` draws the

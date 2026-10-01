@@ -1,11 +1,5 @@
 package com.bradflaugher.aboutthataction.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,32 +10,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bradflaugher.aboutthataction.SeedMode
 import com.bradflaugher.aboutthataction.Settings
 
 @Composable
@@ -61,13 +44,12 @@ fun SettingsScreen(settings: Settings, insets: PaddingValues, onChange: (Setting
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 val groupMod = Modifier.fillMaxWidth().widthIn(max = 560.dp)
-                // (The difficulty curve lives on its own CUSTOM screen, off the title.)
-                Panel(groupMod.reveal(40, 12.dp, Motion.base + 80), accent = Neon.cyan) { SeedGroup(s, onChange) }
-                Panel(groupMod.reveal(90, 12.dp, Motion.base + 80), accent = Neon.cyan) {
-                    AudioAndControls(s, onChange, audioIndex = "02", controlsIndex = "03")
+                // (The difficulty curve and the seed live on the CUSTOM RUN screen, off the title.)
+                Panel(groupMod.reveal(40, 12.dp, Motion.base + 80), accent = Neon.cyan) {
+                    AudioAndControls(s, onChange, audioIndex = "01", controlsIndex = "02")
                 }
-                Panel(groupMod.reveal(140, 12.dp, Motion.base + 80), accent = Neon.lava) {
-                    SectionHeader("04", "HOW TO PLAY", Neon.lava)
+                Panel(groupMod.reveal(90, 12.dp, Motion.base + 80), accent = Neon.lava) {
+                    SectionHeader("03", "HOW TO PLAY", Neon.lava)
                     HowToPlay()
                 }
                 NeonButton("DONE", Neon.cyan, groupMod, onClick = onBack)
@@ -95,63 +77,6 @@ private fun PrivacyLink() {
 }
 
 const val PRIVACY_POLICY_URL = "https://bradflaugher.com/privacy/bout-that-action/"
-
-@Composable
-private fun SeedGroup(s: Settings, onChange: (Settings) -> Unit) {
-    SectionHeader("01", "SEED", Neon.cyan)
-    Segmented(SeedMode.entries.toList(), s.seedMode, label = { it.label }) { onChange(s.copy(seedMode = it)) }
-    AnimatedVisibility(
-        s.seedMode == SeedMode.CUSTOM,
-        enter = expandVertically(tween(Motion.base, easing = Motion.out)) + fadeIn(tween(Motion.base)),
-        exit = shrinkVertically(tween(Motion.base, easing = Motion.out)) + fadeOut(tween(Motion.fast)),
-    ) {
-        SeedField(s.seedText) { onChange(s.copy(seedText = it.take(24))) }
-    }
-    NeonText(
-        when (s.seedMode) {
-            SeedMode.RANDOM -> "A fresh building every run."
-            SeedMode.DAILY -> "Everyone gets the same building today (UTC)."
-            SeedMode.CUSTOM -> "Same seed + same difficulty = same building. Share it."
-        },
-        size = Type.small, color = Neon.dim, glow = 0f,
-    )
-}
-
-@Composable
-private fun SeedField(text: String, onText: (String) -> Unit) {
-    val focus = LocalFocusManager.current
-    BasicTextField(
-        value = text,
-        onValueChange = onText,
-        singleLine = true,
-        textStyle = TextStyle(color = Color.White, fontSize = 20.sp, fontFamily = Neon.mono, letterSpacing = 2.sp),
-        cursorBrush = SolidColor(Neon.cyan),
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
-        modifier = Modifier.fillMaxWidth().padding(top = Space.xxs),
-        decorationBox = { inner ->
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp)
-                    .drawBehind {
-                        val o = Shapes.small.createOutline(size, layoutDirection, this)
-                        drawOutline(o, Neon.ink.copy(alpha = 0.9f))
-                        drawOutline(o, Neon.cyan.copy(alpha = 0.8f), style = Stroke(1.5.dp.toPx()))
-                    }
-                    .padding(horizontal = Space.m),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                NeonText("#", size = 20.sp, color = Neon.cyan, modifier = Modifier.padding(end = Space.s))
-                Box(Modifier.weight(1f)) {
-                    if (text.isEmpty()) NeonText("ANY WORD OR NUMBER", size = Type.body, color = Neon.faint, glow = 0f, letterSpacing = 2.sp)
-                    inner()
-                }
-                NeonText("${text.length}/24", size = Type.micro, color = Neon.dim, glow = 0f)
-            }
-        },
-    )
-}
 
 @Composable
 fun HowToPlay() {

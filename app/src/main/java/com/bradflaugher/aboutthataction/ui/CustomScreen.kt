@@ -1,6 +1,31 @@
 package com.bradflaugher.aboutthataction.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -25,7 +50,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bradflaugher.aboutthataction.SeedMode
 import com.bradflaugher.aboutthataction.Settings
+import com.bradflaugher.aboutthataction.engine.SeedCode
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.Zone
 import java.util.Locale
@@ -44,8 +71,17 @@ fun CustomScreen(
     onHeroes: () -> Unit,
     onPlay: () -> Unit,
     onBack: () -> Unit,
+    /** Open scrolled down to the SEED section (for a pasted seed, and the screenshots). */
+    scrollToSeed: Boolean = false,
 ) {
     val c = settings.custom
+    val scroll = rememberScrollState()
+    if (scrollToSeed) {
+        LaunchedEffect(Unit) {
+            snapshotFlow { scroll.maxValue }.first { it in 1 until Int.MAX_VALUE }
+            scroll.scrollTo(scroll.maxValue)
+        }
+    }
     fun set(d: Difficulty) = onChange(settings.copy(preset = null, custom = d))
     val template = Difficulty.Preset.entries.firstOrNull { it.difficulty == c }
     Box(Modifier.fillMaxSize().veil(alpha = 0.9f).padding(insets)) {
@@ -60,7 +96,7 @@ fun CustomScreen(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scroll)
                     .padding(horizontal = Space.m, vertical = Space.m),
                 verticalArrangement = Arrangement.spacedBy(Space.m),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -79,6 +115,9 @@ fun CustomScreen(
                     SectionHeader("02", "HEAT CURVE", Neon.lava)
                     HeatChart(c, Modifier.padding(top = Space.xxs, bottom = Space.xs))
                     CurveSteppers(c, ::set)
+                }
+                Panel(groupMod.reveal(140, 12.dp, Motion.base + 80), accent = Neon.cyan) {
+                    SeedGroup(settings, onChange)
                 }
                 Spacer(Modifier.height(Space.xxs))
             }
@@ -171,3 +210,90 @@ internal fun feelsLike(d: Difficulty): Pair<String, Color> {
     val below = refs.last { it.second < v }.first
     return presetLabel(below) + "+" to tint(below)
 }
+
+/**
+ * RANDOM, or SET SEED: type a code, or PASTE a friend's brag. A pasted message that names a
+ * difficulty (or a hero) brings that along too, so you're on the very same run.
+ */
+@Composable
+private fun SeedGroup(s: Settings, onChange: (Settings) -> Unit) {
+    val context = LocalContext.current
+    var note by remember { mutableStateOf<String?>(null) }
+    SectionHeader("03", "SEED", Neon.cyan)
+    Segmented(SeedMode.entries.toList(), s.seedMode, label = { it.label }) { note = null; onChange(s.copy(seedMode = it)) }
+    AnimatedVisibility(
+        s.seedMode == SeedMode.CUSTOM,
+        enter = expandVertically(tween(Motion.base, easing = Motion.out)) + fadeIn(tween(Motion.base)),
+        exit = shrinkVertically(tween(Motion.base, easing = Motion.out)) + fadeOut(tween(Motion.fast)),
+    ) {
+        Row(Modifier.fillMaxWidth().padding(top = Space.xxs), horizontalArrangement = Arrangement.spacedBy(Space.xs),
+            verticalAlignment = Alignment.CenterVertically) {
+            SeedField(s.seedText, Modifier.weight(1f)) { note = null; onChange(s.copy(seedText = it.take(24))) }
+            NeonButton("PASTE", Neon.cyan, Modifier.width(104.dp), height = 56.dp) {
+                val shared = pasteText(context)?.let(SeedCode::find)
+                val code = shared?.code
+                if (code == null) {
+                    note = "No seed code on the clipboard."
+                } else {
+                    val curve = shared.preset?.difficulty ?: s.custom
+                    onChange(s.copy(preset = null, seedMode = SeedMode.CUSTOM, seedText = SeedCode.pretty(code),
+                        custom = curve, hero = shared.hero ?: s.hero))
+                    note = listOfNotNull("Loaded ${SeedCode.pretty(code)}", shared.preset?.let(::presetLabel), shared.hero?.title)
+                        .joinToString(" · ") + "."
+                }
+            }
+        }
+    }
+    val code = SeedCode.decode(s.seedText) != null
+    NeonText(
+        note ?: when {
+            s.seedMode == SeedMode.RANDOM -> "A fresh building every run. Its code is on the game-over card."
+            s.seedText.isBlank() -> "Type a code, or paste a friend's brag."
+            code -> "Same seed + same curve = same building."
+            else -> "Not a code, but any word builds a building."
+        },
+        size = Type.small, color = if (note != null) Neon.cyan else Neon.dim, glow = 0f,
+    )
+}
+
+@Composable
+internal fun SeedField(text: String, modifier: Modifier = Modifier, onText: (String) -> Unit) {
+    val focus = LocalFocusManager.current
+    BasicTextField(
+        value = text,
+        onValueChange = onText,
+        singleLine = true,
+        textStyle = TextStyle(color = Color.White, fontSize = 20.sp, fontFamily = Neon.mono, letterSpacing = 2.sp),
+        cursorBrush = SolidColor(Neon.cyan),
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
+        modifier = modifier,
+        decorationBox = { inner ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+                    .drawBehind {
+                        val o = Shapes.small.createOutline(size, layoutDirection, this)
+                        drawOutline(o, Neon.ink.copy(alpha = 0.9f))
+                        drawOutline(o, Neon.cyan.copy(alpha = 0.8f), style = Stroke(1.5.dp.toPx()))
+                    }
+                    .padding(horizontal = Space.m),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                NeonText("#", size = 20.sp, color = Neon.cyan, modifier = Modifier.padding(end = Space.s))
+                Box(Modifier.weight(1f)) {
+                    if (text.isEmpty()) NeonText("K7QM 2XAB", size = Type.body, color = Neon.faint, glow = 0f, letterSpacing = 2.sp)
+                    inner()
+                }
+                // A real code gets a check; anything else is free text, so show how much room is left.
+                if (SeedCode.decode(text) != null) {
+                    Box(Modifier.size(18.dp).drawBehind { check(ClearedGreen) })
+                } else {
+                    NeonText("${text.length}/24", size = Type.micro, color = Neon.dim, glow = 0f)
+                }
+            }
+        },
+    )
+}
+

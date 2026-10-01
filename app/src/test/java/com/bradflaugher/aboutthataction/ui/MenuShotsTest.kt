@@ -66,6 +66,9 @@ class MenuShotsTest {
     private val insets = PaddingValues(top = 32.dp, bottom = 16.dp)
     private val records = Records(bestScore = 184_250, bestFloor = 67, runs = 12)
 
+    /** A custom run on a friend's seed. */
+    private val seeded = Settings(preset = null, seedMode = SeedMode.CUSTOM, seedText = "K7QM 2XAB")
+
     /** A custom curve with a long LIVE FEED summary. */
     private val hellish = Difficulty(start = 1.2f, ramp = 2.4f, cap = 6f, hearts = 2, startFloor = 75)
 
@@ -74,7 +77,7 @@ class MenuShotsTest {
 
     private val run = RunSummary(
         floor = 58, zone = Zone.METRO, score = 142_880, kills = 71, takedowns = 19, seconds = 734f,
-        seedLabel = "48213377", newBestScore = false, newBestFloor = false,
+        seedLabel = "K7QM 2XAB", newBestScore = false, newBestFloor = false,
         title = "CARDBOARD ENTHUSIAST", deathLine = "Steamed like a dumpling", quip = "Cardboard remains undefeated.",
         highlights = listOf("BEST COMBO" to "7x", "GHOST FLOORS" to "9", "BOX'D" to "12", "NIGHT NIGHTS" to "3", "CLOSE CALLS" to "14"),
     )
@@ -110,6 +113,12 @@ class MenuShotsTest {
             shot("$device-custom", 900, world()) {
                 CustomScreen(s.copy(preset = null, custom = Difficulty.Preset.BRUTAL.difficulty.copy(hearts = 3)), insets, {}, {}, {}, {})
             }
+            shot("$device-custom-seed", 900, world()) {
+                CustomScreen(seeded, insets, {}, {}, {}, {}, scrollToSeed = true)
+            }
+            shot("$device-title-seed", 1800, world()) {
+                TitleScreen(seeded, records, insets, {}, {}, {}, {}, {})
+            }
             shot("$device-custom-hell", 900, world(Hero.MONKEY)) {
                 CustomScreen(s.copy(preset = null, custom = Difficulty.Preset.STRAIGHT_TO_HELL.difficulty, hero = Hero.MONKEY), insets, {}, {}, {}, {})
             }
@@ -121,11 +130,9 @@ class MenuShotsTest {
             shot("$device-settings", 900, world()) {
                 SettingsScreen(s, insets, {}, {})
             }
-            shot("$device-settings-custom", 900, world()) {
-                SettingsScreen(s.copy(preset = null, seedMode = SeedMode.CUSTOM, seedText = "CARDBOARD"), insets, {}, {})
-            }
+
             shot("$device-pause", 700, world()) {
-                PauseScreen(s, "48213377", Hero.FOX, insets, {}, {}, {}, {})
+                PauseScreen(s, "K7QM 2XAB", Hero.FOX, insets, {}, {}, {}, {})
             }
             shot("$device-gameover", 3500, world()) {
                 GameOverScreen(run, insets, {}, {}, {}, records)
@@ -251,9 +258,10 @@ class MenuShotsTest {
         val README_SHOTS = mapOf(
             "phone-title" to "menu-title",
             "phone-gameover-best" to "menu-gameover",
-            "phone-settings-custom" to "menu-settings",
+            "phone-settings" to "menu-settings",
             "phone-heroes-bull" to "menu-heroes",
             "phone-custom" to "menu-custom",
+            "phone-custom-seed" to "menu-seed",
         )
     }
 }

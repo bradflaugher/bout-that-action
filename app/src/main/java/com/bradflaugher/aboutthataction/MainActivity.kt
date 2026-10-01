@@ -47,6 +47,7 @@ import com.bradflaugher.aboutthataction.engine.GameEvent
 import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.RunConfig
 import com.bradflaugher.aboutthataction.engine.RunReport
+import com.bradflaugher.aboutthataction.engine.SeedCode
 import com.bradflaugher.aboutthataction.engine.World
 import com.bradflaugher.aboutthataction.engine.Zone
 import com.bradflaugher.aboutthataction.ui.CustomScreen
@@ -80,6 +81,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
 
     private var runSeed = 0L
     private var runSeedLabel = ""
+    private var runDifficulty = ""
     private var runConfig: RunConfig? = null
 
     // Music state, driven from the game thread and reset on the main thread between runs.
@@ -158,7 +160,13 @@ class MainActivity : ComponentActivity(), GameView.Host {
                             onChallenges = {},
                         )
                         Screen.CUSTOM -> CustomScreen(
-                            settings, pad, ::updateSettings,
+                            settings, pad,
+                            // A pasted brag can switch heroes: the demo behind the title stars them too.
+                            onChange = { s ->
+                                val heroChanged = s.hero != settings.hero
+                                updateSettings(s)
+                                if (heroChanged) showAttract(music = false)
+                            },
                             onHeroes = { openHeroes(Screen.CUSTOM) },
                             onPlay = ::startRun,
                             onBack = { screen = Screen.TITLE },
@@ -303,12 +311,10 @@ class MainActivity : ComponentActivity(), GameView.Host {
 
     private fun startRun() {
         val s = settings
-        val seed = s.newSeed { Random.nextLong(100_000_000L) }
-        runSeedLabel = when (s.seedMode) {
-            SeedMode.DAILY -> "DAILY " + java.time.LocalDate.now(java.time.ZoneOffset.UTC)
-            SeedMode.CUSTOM -> s.seedText.ifBlank { seed.toString() }.uppercase()
-            SeedMode.RANDOM -> seed.toString()
-        }
+        // 40 bits, so every run has a shareable code.
+        val seed = s.newSeed { Random.nextLong(SeedCode.LIMIT) }
+        runSeedLabel = s.seedLabel(seed)
+        runDifficulty = s.difficultyName
         startRun(RunConfig(seed, s.difficulty, silent = s.silent, coach = s.coach, hero = s.hero))
     }
 
@@ -316,7 +322,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
         startAudio()
         runConfig = config
         runSeed = config.seed
-        if (runSeedLabel.isEmpty()) runSeedLabel = config.seed.toString()
+        if (runSeedLabel.isEmpty()) runSeedLabel = SeedCode.labelOf(config.seed)
         musicZone = null
         musicAlert = AlertPhase.CALM
         sound.setAlert(AlertPhase.CALM)
@@ -451,6 +457,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
             quip = report.quip,
             highlights = report.highlights,
             hero = world.hero,
+            difficulty = runDifficulty,
         )
         endSlowMo()
         sound.gameOver()

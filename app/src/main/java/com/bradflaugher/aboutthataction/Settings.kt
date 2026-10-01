@@ -3,11 +3,10 @@ package com.bradflaugher.aboutthataction
 import android.content.Context
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.Hero
-import com.bradflaugher.aboutthataction.engine.Rng
-import java.time.LocalDate
-import java.time.ZoneOffset
+import com.bradflaugher.aboutthataction.engine.SeedCode
 
-enum class SeedMode(val label: String) { RANDOM("RANDOM"), DAILY("DAILY"), CUSTOM("CUSTOM") }
+/** A fresh building every run, or one you set (on the CUSTOM RUN screen). A saved DAILY loads as RANDOM. */
+enum class SeedMode(val label: String) { RANDOM("RANDOM"), CUSTOM("SET SEED") }
 
 /** Everything the player can tweak. Persisted in SharedPreferences. */
 data class Settings(
@@ -18,7 +17,9 @@ data class Settings(
     val preset: Difficulty.Preset? = Difficulty.Preset.AGENT,
     /** The player's own curve. Kept while a preset is picked, so CUSTOM comes back as they left it. */
     val custom: Difficulty = Difficulty(),
+    /** Only custom runs use a set seed; the presets always get a fresh building. */
     val seedMode: SeedMode = SeedMode.RANDOM,
+    /** A seed code ("K7QM 2XAB") or, from older versions, any text. */
     val seedText: String = "",
     /** SILENT (never fire) instead of GUNS HOT (auto-fire). Flipped by the HUD button, kept between runs. */
     val silent: Boolean = false,
@@ -33,12 +34,23 @@ data class Settings(
 ) {
     val difficulty: Difficulty get() = preset?.difficulty ?: custom
 
-    /** The seed for a new run under these settings. */
-    fun newSeed(random: () -> Long): Long = when (seedMode) {
-        SeedMode.RANDOM -> random()
-        SeedMode.DAILY -> dailySeed()
-        SeedMode.CUSTOM -> if (seedText.isBlank()) random() else Rng.seedFromText(seedText)
-    }
+    /**
+     * The difficulty by name, for a share message: the preset, the template a custom curve
+     * still matches ("HELL"), or CUSTOM.
+     */
+    val difficultyName: String get() = preset?.label
+        ?: Difficulty.Preset.entries.firstOrNull { it.difficulty == custom }
+            ?.let { if (it == Difficulty.Preset.STRAIGHT_TO_HELL) "HELL" else it.label }
+        ?: "CUSTOM"
+
+    /** The seed text a new run will use, or null for a fresh random building. */
+    val setSeed: String? get() = seedText.trim().takeIf { preset == null && seedMode == SeedMode.CUSTOM && it.isNotEmpty() }
+
+    /** The seed for a new run under these settings; [random] should draw below [SeedCode.LIMIT] so it has a code. */
+    fun newSeed(random: () -> Long): Long = setSeed?.let(SeedCode::seedOf) ?: random()
+
+    /** How the next run's seed reads, given the seed it drew. */
+    fun seedLabel(seed: Long): String = setSeed?.let(SeedCode::labelOf) ?: SeedCode.labelOf(seed)
 
     companion object {
         /** The difficulty row on the title, before CUSTOM. */
@@ -51,8 +63,6 @@ data class Settings(
         fun savedDifficulty(presetName: String?, custom: Difficulty): Pair<Difficulty.Preset?, Difficulty> =
             if (presetName == Difficulty.Preset.STRAIGHT_TO_HELL.name) null to Difficulty.Preset.STRAIGHT_TO_HELL.difficulty
             else TITLE_PRESETS.firstOrNull { it.name == presetName } to custom
-
-        fun dailySeed(): Long = Rng.seedFromText("DAILY-" + LocalDate.now(ZoneOffset.UTC))
     }
 }
 
