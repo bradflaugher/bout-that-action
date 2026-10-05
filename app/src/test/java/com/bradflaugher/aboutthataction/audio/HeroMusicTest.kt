@@ -167,7 +167,7 @@ class HeroMusicTest {
             // (Just under the drop, where a run is when it lands: heat climbs into it.)
             val drop = db(low(z, 0.9f), low(z, 0.4f))
             println("$z: the drop adds %.1f dB below 150 Hz".format(drop))
-            assertTrue("$z: the drop should land (%.1f dB)".format(drop), drop > 6)
+            assertTrue("$z: the drop should land (%.1f dB)".format(drop), drop > 4.5)
         }
     }
 

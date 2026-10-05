@@ -495,11 +495,14 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         if (impactPending) {
             kit.kick.trigger(1f); duckEnv = 1f; impactPending = false
         }
+        var stab = false
         if (hitPending && s % 4 == 0 && !gap) {
-            // Crash, kick, snare and clap together, over a sub boom on the chord's root: the band has seen you too.
-            kit.crash.trigger(1f); kit.kick.trigger(1f); kit.snare.trigger(0.8f); kit.clap.trigger(0.7f); duckEnv = 1f; crowdSwell = 1f
+            // The band has seen you too: crash, kick, snare and clap together, the whole band
+            // stabbing the chord (brass, piano, horns: whoever plays it), over a sub boom on its root.
+            kit.crash.trigger(1f); kit.kick.trigger(1f); kit.snare.trigger(0.8f); kit.clap.trigger(0.7f); crowdSwell = 1f
             dropFx.boom(Dsp.midiToHz((nearest(key + chord.root, sp.bassCenter) + 12).toFloat()), 0.25f)
             hitPending = false
+            stab = true
         }
 
         // ---- Bass
@@ -530,19 +533,20 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         val chordChange = s == 0 && bar % sp.barsPerChord == 0
         val prow = if (isB) sp.padRhythmB else sp.padRhythm
         val sustain = if (isB) sp.padSustainB else sp.padSustain
-        val strike = if (sustain) chordChange else prow[s] == 'x'
+        val strike = stab || if (sustain) chordChange else prow[s] == 'x'
         if (strike && !gap) {
             val len = (padLength(sp, bar, s, prow, sustain) * stepSamples).toInt()
+            val v = if (stab) 1f else 0.8f
             pad.releaseAll()
             if (sp.padPower) {
                 // Power chord: root, fifth and octave, stacked up from the root.
                 val root = nearest(key + chord.root, sp.padCenter - 5)
                 val fifth = chord.intervals[min(2, chord.size - 1)]
-                pad.noteOn(root, 0.8f, len); pad.noteOn(root + fifth, 0.8f, len); pad.noteOn(root + 12, 0.7f, len)
+                pad.noteOn(root, v, len); pad.noteOn(root + fifth, v, len); pad.noteOn(root + 12, v * 0.9f, len)
             } else {
                 for (k in 0 until chord.size) {
                     val note = nearest(key + chord.root + chord.intervals[k], sp.padCenter)
-                    pad.noteOn(note, 0.8f, len)
+                    pad.noteOn(note, v, len)
                 }
             }
         }
@@ -830,7 +834,16 @@ internal class MusicDirector(private val sr: Int) {
         // Flips and menu cuts let the old chord ring on under the new song, when it doesn't rub.
         val hold = (flip || t == Transition.BEAT) && clashes(oldChord, chordMask(spec, bar)) == 0
         // (A menu cut between songs that rub gets out of the way quicker.)
-        if (playing) old.stop(if (t == Transition.BEAT && !hold) 0.3f else fadeOut(t, startBpm), release = !hold)
+        val out = when {
+            t == Transition.BEAT && !hold -> 0.3f
+            // Cut over now: the old song fades out along the curve the new one fades in on.
+            t == Transition.NOW || t == Transition.EXIT -> max(fadeIn, MusicPlayer.MIN_FADE)
+            else -> fadeOut(t, startBpm)
+        }
+        // (A cut-over crossfade holds the old notes under its fade: let go, they'd die on their
+        // own release, short of the curve, and leave a hole.)
+        val cut = t == Transition.NOW || t == Transition.EXIT
+        if (playing) old.stop(out, release = !hold && !cut)
         // A player that's done; failing that, the quietest, choked off first.
         var next = -1
         for (i in players.indices) if (i != active && !players[i].audible) {
@@ -875,8 +888,7 @@ internal class MusicDirector(private val sr: Int) {
         // The old chord rings on for a beat of the new groove (the sneak mixes start sparse).
         Transition.FLIP_DOWN -> max(0.8f, 60f / nextBpm * 1.75f)
         Transition.BEAT -> 0.45f
-        Transition.NOW -> 0.8f
-        Transition.EXIT -> EXIT_FADE
+        Transition.NOW, Transition.EXIT -> EXIT_FADE
     }
 
     /**

@@ -209,7 +209,7 @@ internal object HeroSongs {
             drive = 0.25f + t.drive * 0.5f, crush = maxOf(2, t.crush), busCutoff = 6500f * t.dark,
         ),
         bassA = "R......R..R.....", bassB = "R......R..R..F..",
-        arpA = "0.......2..1....", arpB = "0..0....4..2..1.", arpGate = 1f, arpCenter = base.arpCenter - 17,
+        arpA = "0.......2..1....", arpB = "0..0....4..2..1.", arpGate = 1f, arpCenter = base.arpCenter - 12,
         padRhythm = "x...............",
         leadTemplates = arrayOf(bullSig.rhythm, "x.......x.......", "x...........x..."),
         signature = bullSig, answer = bullAns, leadOctave = leadOctave(base, 57),
@@ -277,7 +277,7 @@ internal object HeroSongs {
             pad = 1.5f, bass = 1.25f, arp = 1.6f, lead = 1.7f, drums = 0.45f * zoneDrums(base), padVerb = 0.35f, arpDelay = 0.4f,
             arpVerb = 0.35f, leadDelay = 0.25f, leadVerb = 0.25f, padDuck = 0.4f, bassDuck = 0.12f, arpDuck = 0.1f, arpPan = 0.25f,
         ),
-        crowd = 0f, dropThreshold = 0.45f, dropTease = 0.4f, kickThreshold = HOT_KICK, arpThreshold = 0.3f, leadThreshold = HOT_LEAD, leadFloor = HOT_LEAD_FLOOR,
+        crowd = 0f, dropThreshold = 0.45f, dropTease = 0.33f, kickThreshold = HOT_KICK, arpThreshold = 0.3f, leadThreshold = HOT_LEAD, leadFloor = HOT_LEAD_FLOOR,
     )
 
     // ---- FOX: a late-night swing groove on FM keys, then a breakbeat rave --------------------

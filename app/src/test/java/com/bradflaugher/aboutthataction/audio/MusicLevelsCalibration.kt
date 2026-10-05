@@ -26,7 +26,7 @@ class MusicLevelsCalibration {
             val hot = spec.name
             // The heats to measure at, and the target at each (calm and every point before a
             // drop at the calm target; then up the band's gentle slope to ALERT).
-            val heats = if (spec.dropThreshold >= 0f) MusicLevels.preDropGrid(spec.dropThreshold).map { it to MusicQuality.target("calm") } +
+            val heats = if (spec.dropThreshold >= 0f) MusicLevels.preDropGrid(spec.dropThreshold).mapIndexed { k, it -> it to MusicQuality.target(if (k == 2) "predrop" else "calm") } +
                 MusicLevels.GRID.drop(2).map { it to MusicQuality.targetAt(it) }
             else MusicLevels.GRID.map { it to MusicQuality.targetAt(it) }
             for ((k, ht) in heats.withIndex()) {

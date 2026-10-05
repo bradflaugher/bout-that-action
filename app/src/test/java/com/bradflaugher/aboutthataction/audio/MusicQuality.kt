@@ -19,6 +19,8 @@ internal object MusicQuality {
         "alert" -> 0.25
         "caution" -> 0.0
         "calm", "sneak" -> -0.5
+        // (A trap bed just under its drop breathes in a little: the drop lands a full step up.)
+        "predrop" -> -0.75
         "gameover" -> -0.75
         else -> 0.0
     }
