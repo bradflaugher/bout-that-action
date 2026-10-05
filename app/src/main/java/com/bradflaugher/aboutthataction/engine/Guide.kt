@@ -203,9 +203,16 @@ class Guide internal constructor(private val w: World) {
         }
         for (l in Lesson.walkthrough) {
             if (l in stepsDone) continue
-            if (done(l) || !stepPossible(l)) {
+            if (done(l)) {
+                // Done before it came up: they know it.
                 stepsDone += l
                 if (learned.add(l)) events += GameEvent.LessonTaught(l)
+                continue
+            }
+            if (!stepPossible(l)) {
+                // Can't happen this run (MONKEY's takedown, no box to pop out of): passed over,
+                // but not taught, so a later run or a tip can still teach it.
+                stepsDone += l
                 continue
             }
             return if (stepWanted(l)) l else null

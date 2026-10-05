@@ -141,6 +141,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
         challengeLog = prefs.loadChallenges()
         welcome = !prefs.loadIntroSeen()
         learned = prefs.loadLearned()
+        zonesReached = prefs.loadZonesReached()
         walkthroughDone = prefs.loadWalkthroughDone()
         sound = SoundEngine()
         audio = AudioOutput(sound)
@@ -270,7 +271,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
                         )
                         Screen.SETTINGS -> SettingsScreen(
                             settings, pad, ::updateSettings, onBack = ::settingsBack, onHelp = { openHelp(Screen.SETTINGS) },
-                            jukebox = Zone.entries.filter { it == Zone.TOWER || records.bestFloor >= it.startFloor }.toSet(),
+                            jukebox = jukeboxUnlocked(),
                             playing = jukebox,
                             onJukebox = ::playJukebox,
                         )
@@ -436,6 +437,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
     private fun startRun(config: RunConfig) {
         // Dropping in is answer enough to the title's first-time card.
         introSeen()
+        // A run takes over the music: the jukebox (settings, or settings → HOW TO PLAY → REPLAY) stops.
+        jukebox = null
         startAudio()
         runConfig = config
         runSeed = config.seed
@@ -540,6 +543,12 @@ class MainActivity : ComponentActivity(), GameView.Host {
 
     /** The JUKEBOX in settings: a zone's track playing in the menus, or null for the title theme. */
     private var jukebox by mutableStateOf<Zone?>(null)
+    /** Zones any run has reached (challenges too, which can start deep). */
+    private var zonesReached by mutableStateOf<Set<Zone>>(emptySet())
+
+    /** The tracks the JUKEBOX offers: the Neon Tower always, then every zone reached (or within the endless DEEPEST). */
+    private fun jukeboxUnlocked(): Set<Zone> =
+        Zone.entries.filter { it == Zone.TOWER || it in zonesReached || (it != Zone.ROOFTOP && records.bestFloor >= it.startFloor) }.toSet()
 
     private fun playJukebox(zone: Zone?) {
         jukebox = zone
@@ -591,6 +600,12 @@ class MainActivity : ComponentActivity(), GameView.Host {
     private fun heroesBack() {
         screen = heroesFrom
         sound.playTitle()
+    }
+
+    /** The system font size changed under a running app (fontScale is handled here, no restart): the HUD follows. */
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (::gameView.isInitialized) gameView.textScale = hudTextScale(settings)
     }
 
     private val accessibility by lazy { getSystemService(AccessibilityManager::class.java) }
@@ -645,6 +660,11 @@ class MainActivity : ComponentActivity(), GameView.Host {
                     remember(Lesson.entries.toSet())
                     Toast.makeText(this, "Tutorial skipped. Replay it any time from HOW TO PLAY.", Toast.LENGTH_SHORT).show()
                 }
+            }
+            // The zone's music played: the JUKEBOX has it now (a Void zone counts as the zone it plays).
+            is GameEvent.ZoneEntered -> {
+                val zones = setOf(event.zone, world.musicZone)
+                runOnUiThread { if (!zonesReached.containsAll(zones)) { zonesReached = zonesReached + zones; prefs.saveZonesReached(zonesReached) } }
             }
             is GameEvent.LessonShown -> if (accessibility.isEnabled) {
                 val words = world.guide.kicker + ". " + world.guide.text

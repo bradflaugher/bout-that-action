@@ -125,6 +125,21 @@ class GuideTest {
     }
 
     @Test
+    fun aStepPassedOverBecauseItCantHappenIsNotTaught() {
+        // MONKEY's walkthrough has no takedown: it mustn't count as taught, or BULL would never learn it.
+        val w = tutorial(Hero.MONKEY)
+        val taught = ArrayList<Lesson>()
+        until(w, Lesson.RUN) { it.drainEvents { e -> if (e is GameEvent.LessonTaught) taught += e.lesson } }
+        run(w, 0.5f) { it.moveAxis = 1 }
+        until(w, Lesson.JUMP) { it.moveAxis = 0 }
+        w.commands += Command.SWIPE_UP
+        until(w, Lesson.BOX) { it.drainEvents { e -> if (e is GameEvent.LessonTaught) taught += e.lesson } }
+        w.drainEvents { e -> if (e is GameEvent.LessonTaught) taught += e.lesson }
+        assertTrue(Lesson.JUMP in taught)
+        assertFalse(Lesson.TAKEDOWN in taught)
+    }
+
+    @Test
     fun aStepTimesOutGently() {
         val w = tutorial()
         until(w, Lesson.RUN)
