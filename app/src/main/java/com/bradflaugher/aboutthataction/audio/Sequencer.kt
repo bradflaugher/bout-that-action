@@ -749,6 +749,8 @@ internal class MusicDirector(private val sr: Int) {
     internal class SwitchInfo(
         val frame: Long, val from: String?, val fromBpm: Float, val fromPos: Double, val fromChord: Int,
         val to: String, val toBpm: Float, val toPos: Double,
+        /** The old song's notes ring on under the new one. */
+        val held: Boolean = false,
     )
     internal var onSwitch: ((SwitchInfo) -> Unit)? = null
     internal val activePlayer: MusicPlayer get() = players[active]
@@ -817,9 +819,14 @@ internal class MusicDirector(private val sr: Int) {
         return if (nextBar - a.position < 8.0) nextBar + 16 else nextBar
     }
 
-    /** Accent the next beat of what's playing (spotted in GUNS HOT). */
+    /**
+     * Accent the next beat of what's playing (spotted in GUNS HOT). A switch already pending
+     * takes the accent only if it lands by then (it lands with its own crash); one further off
+     * (a zone change waiting for its bar line) doesn't swallow it.
+     */
     fun hit() {
-        if (pending == null) players[active].hit()
+        val a = players[active]
+        if (pending == null || a.endStep - a.position > HIT_WINDOW) a.hit()
     }
 
     private fun switchTo(spec: SongSpec, t: Transition, fadeIn: Float) {
@@ -832,7 +839,10 @@ internal class MusicDirector(private val sr: Int) {
         val bar = if (playing && flip) alignedBar(spec, old, oldChord) else 0
         val startBpm = if (playing && t != Transition.NOW && t != Transition.EXIT) lockedBpm(spec, oldBpm) else spec.bpm
         // Flips and menu cuts let the old chord ring on under the new song, when it doesn't rub.
-        val hold = (flip || t == Transition.BEAT) && clashes(oldChord, chordMask(spec, bar)) == 0
+        // (VOID reharmonises every phrase at random, so its plan can't say what the new chord
+        // will be: a VOID song never lets the old chord ring.)
+        val glitchy = spec.glitch || (playing && old.spec?.glitch == true)
+        val hold = (flip || t == Transition.BEAT) && !glitchy && clashes(oldChord, chordMask(spec, bar)) == 0
         // (A menu cut between songs that rub gets out of the way quicker.)
         val out = when {
             t == Transition.BEAT && !hold -> 0.3f
@@ -867,7 +877,7 @@ internal class MusicDirector(private val sr: Int) {
         }
         val cb = onSwitch
         if (cb != null) {
-            cb(SwitchInfo(frames, old.spec?.name.takeIf { playing }, oldBpm, oldPos, oldChord, spec.name, startBpm, bar * 16.0))
+            cb(SwitchInfo(frames, old.spec?.name.takeIf { playing }, oldBpm, oldPos, oldChord, spec.name, startBpm, bar * 16.0, playing && hold))
         }
     }
 
@@ -999,6 +1009,8 @@ internal class MusicDirector(private val sr: Int) {
 
     companion object {
         private const val PLAYERS = 3
+        /** Steps: a pending switch further off than this doesn't take a hit's accent (a beat). */
+        private const val HIT_WINDOW = 4.0
         /** Seconds the game-over dirge and the song after it take to cross over. */
         const val EXIT_FADE = 0.4f
         /** Seconds to choke off a still-fading song when every player is busy. */

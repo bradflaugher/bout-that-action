@@ -240,6 +240,63 @@ class TransitionTest {
         }
     }
 
+    /** Spotted while a zone change waits for its bar line: the band still hits the next beat. */
+    @Test
+    fun spottedDuringAPendingZoneChangeStillHits() {
+        for (h in Hero.entries) {
+            var beatAt = 0
+            fun take(alert: Boolean): FloatArray {
+                val e = SoundEngine()
+                e.setHero(h); e.setIntensity(0.6f); e.setZone(Zone.TOWER)
+                AudioTestUtil.render(e, 3f)
+                e.setZone(Zone.LABS)
+                AudioTestUtil.render(e, 0.01f, chunk = 64)
+                val d = e.director
+                val p = d.activePlayer
+                assertTrue("${tag(h)}: the zone change is pending", d.pending != null && p.endStep - p.position > 6.0)
+                beatAt = ((((p.absStep + 4) / 4 * 4) - p.position) * 15.0 / p.bpm * sr).toInt()
+                if (alert) e.setAlert(AlertPhase.ALERT) else e.setIntensity(0.95f)
+                return AudioTestUtil.render(e, 1f)
+            }
+            val a = take(true)
+            val b = take(false)
+            val hit = AudioTestUtil.rms(a, beatAt * 2, (beatAt + sr / 4) * 2)
+            val plain = AudioTestUtil.rms(b, beatAt * 2, (beatAt + sr / 4) * 2)
+            println("pending-zone alert hit ${tag(h)}: %.3f vs %.3f".format(hit, plain))
+            assertTrue("${tag(h)}: no hit while a zone change is pending", hit > plain * 1.05)
+        }
+    }
+
+    /**
+     * VOID reharmonises every phrase at random, so a flip there never lets the old chord ring
+     * (its plan can't say what the new chord is); elsewhere a flip onto a shared chord does.
+     */
+    @Test
+    fun voidFlipsNeverHoldTheOldChord() {
+        var heldElsewhere = 0
+        for (h in Hero.entries) for (z in listOf(Zone.VOID, Zone.TOWER)) {
+            val e = SoundEngine()
+            val sw = ArrayList<MusicDirector.SwitchInfo>()
+            e.director.onSwitch = { sw += it }
+            e.setHero(h); e.setIntensity(0.1f); e.setZone(z)
+            AudioTestUtil.render(e, 16f) // past the first phrase
+            var silent = false
+            repeat(6) {
+                silent = !silent
+                e.setZone(z, silent)
+                AudioTestUtil.render(e, 2.7f)
+            }
+            val flips = sw.filter { it.from != null }
+            assertTrue("$h $z: flips happened", flips.size >= 3)
+            if (z == Zone.VOID) {
+                for (f in flips) assertTrue("$h VOID: ${f.from} -> ${f.to} held the old chord", !f.held)
+            } else {
+                heldElsewhere += flips.count { it.held }
+            }
+        }
+        assertTrue("outside the VOID, flips onto a shared chord still ring on", heldElsewhere > 0)
+    }
+
     @Test
     fun transitionsAreDeterministic() {
         for (name in listOf("flip_rapid", "menus")) {
