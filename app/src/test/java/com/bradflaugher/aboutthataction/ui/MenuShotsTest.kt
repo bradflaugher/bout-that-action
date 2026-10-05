@@ -169,7 +169,7 @@ class MenuShotsTest {
                 }
             }
             shot("$device-settings", 900, world()) {
-                SettingsScreen(s, insets, {}, {}, jukebox = setOf(Zone.TOWER, Zone.LABS, Zone.METRO), playing = Zone.LABS)
+                SettingsScreen(s, insets, {}, {})
             }
 
             shot("$device-board", 900, world()) {
@@ -250,7 +250,7 @@ class MenuShotsTest {
                 GameOverScreen(run.copy(challenge = status(today, today.target, true)), insets, {}, {}, {}, records)
             }
             shot("font-settings", 900, world()) {
-                SettingsScreen(s, insets, {}, {}, jukebox = setOf(Zone.TOWER, Zone.LABS, Zone.METRO), playing = Zone.LABS)
+                SettingsScreen(s, insets, {}, {})
             }
             shot("font-help", 900, world()) {
                 HelpScreen(insets, {}, {})
@@ -271,7 +271,7 @@ class MenuShotsTest {
                 shot("textsize-$tag-title", 1800, world()) {
                     TextSizeScope(k) { TitleScreen(s, records, insets, {}, {}, {}, {}, {}, daily = daily.copy(best = "2/5", bestFraction = 0.4f), challengesCaption = caption) }
                 }
-                shot("textsize-$tag-settings", 900, world()) { TextSizeScope(k) { SettingsScreen(s, insets, {}, {}, jukebox = setOf(Zone.TOWER, Zone.LABS, Zone.METRO), playing = Zone.LABS) } }
+                shot("textsize-$tag-settings", 900, world()) { TextSizeScope(k) { SettingsScreen(s, insets, {}, {}) } }
                 shot("textsize-$tag-help", 900, world()) { TextSizeScope(k) { HelpScreen(insets, {}, {}) } }
                 shot("textsize-$tag-board", 900, world()) { TextSizeScope(k) { ChallengesScreen(log, today, daily, insets, {}, {}) } }
                 shot("textsize-$tag-pause", 700, world()) { TextSizeScope(k) { PauseScreen(s, "K7QM 2XAB", Hero.FOX, insets, {}, {}, {}, {}, onSkipTutorial = {}) } }

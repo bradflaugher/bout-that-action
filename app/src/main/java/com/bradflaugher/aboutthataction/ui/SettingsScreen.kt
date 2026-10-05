@@ -29,8 +29,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bradflaugher.aboutthataction.Settings
-import com.bradflaugher.aboutthataction.engine.FloorLabel
-import com.bradflaugher.aboutthataction.engine.Zone
 
 @Composable
 fun SettingsScreen(
@@ -39,10 +37,6 @@ fun SettingsScreen(
     onChange: (Settings) -> Unit,
     onBack: () -> Unit,
     onHelp: () -> Unit = {},
-    /** The JUKEBOX: zones whose track you've unlocked (reached), the one playing, and play one (null: the title theme). */
-    jukebox: Set<Zone> = emptySet(),
-    playing: Zone? = null,
-    onJukebox: (Zone?) -> Unit = {},
 ) {
     val s = settings
     Box(Modifier.fillMaxSize().veil(alpha = 0.9f).padding(insets)) {
@@ -63,11 +57,8 @@ fun SettingsScreen(
                 Panel(groupMod.reveal(40, 12.dp, Motion.base + 80), accent = Neon.cyan) {
                     AudioAndControls(s, onChange, audioIndex = "01", controlsIndex = "02")
                 }
-                Panel(groupMod.reveal(70, 12.dp, Motion.base + 80), accent = Neon.magenta) {
-                    Jukebox(jukebox, playing, onJukebox)
-                }
                 Panel(groupMod.reveal(90, 12.dp, Motion.base + 80), accent = Neon.lava) {
-                    SectionHeader("04", "HELP & MORE", Neon.lava)
+                    SectionHeader("03", "HELP & MORE", Neon.lava)
                     NeonButton("HOW TO PLAY", Neon.lava, Modifier.fillMaxWidth(), caption = "CONTROLS · FAQ · TUTORIAL", onClick = onHelp)
                     MoreLinks()
                 }
@@ -75,36 +66,6 @@ fun SettingsScreen(
                 PrivacyLink()
                 Spacer(Modifier.height(Space.xs))
             }
-        }
-    }
-}
-
-/**
- * The JUKEBOX: every zone's track, once you've been there (the deeper zones stay ??? until you
- * reach them). Tap one to hear it here, played the way your hero plays it; tap it again, or
- * leave settings, for the title theme.
- */
-@Composable
-private fun Jukebox(unlocked: Set<Zone>, playing: Zone?, onPlay: (Zone?) -> Unit) {
-    SectionHeader("03", "JUKEBOX", Neon.magenta)
-    NeonText("Every zone has its own track. Reach a zone to unlock it here.", size = Type.small, color = Neon.soft, glow = 0f)
-    val zones = Zone.entries.filter { it != Zone.ROOFTOP }
-    for (row in zones.chunked(2)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-            for (z in row) {
-                val open = z in unlocked
-                val on = z == playing
-                NeonButton(
-                    if (open) z.title else "???", if (open) Neon.zone(z) else Neon.faint,
-                    Modifier.weight(1f).semantics {
-                        contentDescription = if (open) "Play the ${z.title} track" + (if (on) ", playing" else "") else "Locked: reach ${FloorLabel.of(z.startFloor)}"
-                    },
-                    style = if (on) ButtonStyle.PRIMARY else ButtonStyle.SECONDARY, height = 52.dp, textSize = Type.body,
-                    caption = if (on) "PLAYING · TAP TO STOP" else if (open) z.subtitle.substringBefore(" ·").uppercase() else "REACH " + FloorLabel.of(z.startFloor),
-                    onClick = { if (open) onPlay(if (on) null else z) },
-                )
-            }
-            if (row.size == 1) Box(Modifier.weight(1f))
         }
     }
 }

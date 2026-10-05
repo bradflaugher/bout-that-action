@@ -184,7 +184,7 @@ class SoundEngine(val sampleRate: Int = 48000) {
                     val spec = HeroSongs.forZone(hero, c.zone, c.silent)
                     // Same zone, other mode: a quick crossfade, not a wait for the bar line.
                     val modeFlip = director.current.let { it != null && it !== spec && HeroSongs.forZone(hero, c.zone, !c.silent) === it }
-                    director.request(spec, immediate = modeFlip)
+                    director.request(spec, immediate = modeFlip || inGameOver())
                 }
                 is HeroCmd -> hero = c.hero
                 is ThemeCmd -> {
@@ -196,7 +196,7 @@ class SoundEngine(val sampleRate: Int = 48000) {
                 }
                 TitleCmd -> {
                     gameOverWait = -1
-                    director.request(Songs.title, immediate = false)
+                    director.request(Songs.title, immediate = inGameOver())
                 }
                 GameOverCmd -> {
                     sfx.gameOverStinger(hero)
@@ -206,6 +206,12 @@ class SoundEngine(val sampleRate: Int = 48000) {
             }
         }
     }
+
+    /**
+     * The game-over dirge is playing: RETRY, NEW RUN or TITLE leaves it with a quick crossfade.
+     * Waiting for its slow bar (up to ~5 s at 72 BPM) played the dirge into the next run.
+     */
+    private fun inGameOver(): Boolean = director.current === Songs.gameOver
 
     private fun renderBlock(out: FloatArray, off: Int, n: Int) {
         if (gameOverWait >= 0) {

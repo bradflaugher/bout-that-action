@@ -389,10 +389,7 @@ ALERT (full drums and lead; in SILENT, the sneak mix gives way to the zone's
 full track). Once they lose you it stays tense through CAUTION for a few
 seconds, then calms down. Takedowns get a strangled grunt. Every sound effect is
 synthesized too, panned to where it happened on screen, with haptics on the
-big moments. The **JUKEBOX** in Settings plays any zone's track you've
-reached (the deeper ones stay ??? until you get there), in your hero's
-arrangement; leave Settings and the title theme comes back. MUSIC and SOUND FX
-each have their own volume.
+big moments. MUSIC and SOUND FX each have their own volume.
 
 Every hero brings their own band to every zone, in both modes, and signs off
 the game over in their own style. **BULL** plays heavy hip-hop: a slow,
