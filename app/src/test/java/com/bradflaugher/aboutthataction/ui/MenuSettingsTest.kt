@@ -84,13 +84,17 @@ class MenuSettingsTest {
     }
 
     @Test
-    fun theShareAndFeedbackLinksPointAtTheGameAndCarryNoEmail() {
+    fun theShareRateAndFeedbackLinksPointAtTheGameAndCarryNoEmail() {
         assertEquals("https://play.google.com/store/apps/details?id=com.bradflaugher.aboutthataction", PLAY_STORE_URL)
+        // RATE opens the Play Store app on the same page, and falls back to PLAY_STORE_URL.
+        assertEquals("market://details?id=com.bradflaugher.aboutthataction", PLAY_STORE_APP_URI)
+        assertEquals(PLAY_STORE_URL.substringAfter("?"), PLAY_STORE_APP_URI.substringAfter("?"))
+        assertTrue(RATE_DESCRIPTION, RATE_DESCRIPTION.contains("Google Play"))
         assertTrue(SHARE_APP_TEXT, SHARE_APP_TEXT.endsWith(PLAY_STORE_URL))
         assertTrue(SHARE_APP_TEXT.length <= 200)
         assertEquals("https://github.com/bradflaugher/bout-that-action/issues/new", FEEDBACK_URL)
         // No email address anywhere the player can see.
-        for (text in listOf(SHARE_APP_TEXT, FEEDBACK_URL, PRIVACY_POLICY_URL) + FAQ.flatMap { listOf(it.first, it.second) }) {
+        for (text in listOf(SHARE_APP_TEXT, FEEDBACK_URL, PRIVACY_POLICY_URL, PLAY_STORE_APP_URI, RATE_DESCRIPTION) + FAQ.flatMap { listOf(it.first, it.second) }) {
             assertTrue(text, '@' !in text)
         }
     }

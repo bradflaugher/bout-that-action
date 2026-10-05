@@ -90,7 +90,7 @@ the JVM.
 - `MainActivity.kt`, `ui/` — Compose menus (title, custom run, challenges board
   and briefing, settings, HOW TO PLAY (`HelpScreen.kt`: controls, FAQ, replay
   tutorial, and the title's one-time FIRST TIME HERE? card), pause, game
-  over), `Links.kt` (share the game, feedback and the privacy policy: intents
+  over), `Links.kt` (share the game, rate it, feedback and the privacy policy: intents
   only, never network), `Settings.kt` (prefs, seeds, the challenge log: first-clear day and best progress per id), `Haptics.kt`.
 - `app/src/test/` — JVM tests: `engine/` (mechanics, level generation,
   fuzzing, a heuristic bot that plays full runs per preset), `input/`
@@ -113,8 +113,9 @@ the JVM.
   changes and keep the difficulty ordering CHILL < AGENT < BRUTAL <
   STRAIGHT_TO_HELL.
 - Fun, not compulsion: no streaks, daily rewards, timers or "come back"
-  nags, and no rating prompts or "please share" reminders (SHARE and FEEDBACK
-  sit quietly in Settings and HOW TO PLAY). Text is short, silly and family-friendly.
+  nags, and no rating prompts or "please share" reminders (SHARE, RATE and
+  FEEDBACK sit quietly in Settings and HOW TO PLAY; RATE just opens the Play
+  page, never the In-App Review API). Text is short, silly and family-friendly.
 - The daily challenge is a shared pick, nothing more: the same challenge for
   everyone on the same local day (the date is passed in; no clock in
   `engine/`), a deterministic stand-in if you cleared it on an earlier day.

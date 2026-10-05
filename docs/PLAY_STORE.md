@@ -48,7 +48,11 @@ one and is always a valid next upload.
    must then run a **Closed test with at least 12 opted-in testers for 14
    days in a row** before it can apply for production access; an
    organization account can go straight to production.
-7. **Pre-launch report.** Play runs every upload on a handful of real devices
+7. **Ratings.** RATE (next to SHARE and FEEDBACK in Settings and HOW TO
+   PLAY) opens `market://details?id=com.bradflaugher.aboutthataction`, or the
+   listing's web page when there's no Play Store app. It's only ever a tap:
+   no In-App Review API, no rating prompts or reminders.
+8. **Pre-launch report.** Play runs every upload on a handful of real devices
    and flags crashes, accessibility and layout issues. Check it before each
    promotion to production.
 

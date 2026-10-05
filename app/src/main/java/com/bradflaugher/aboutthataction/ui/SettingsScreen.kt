@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,12 +70,19 @@ fun SettingsScreen(
     }
 }
 
-/** SHARE THE GAME and SEND FEEDBACK, side by side: one hands the Play link to the share sheet, one opens a GitHub issue. */
+/**
+ * SHARE, RATE and FEEDBACK, side by side: one hands the Play link to the share sheet, one opens the
+ * game's Play page, one opens a GitHub issue. Only ever on a tap; nothing here prompts or reminds.
+ */
 @Composable
 internal fun MoreLinks() {
     val context = LocalContext.current
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
         NeonButton("SHARE", Neon.gold, Modifier.weight(1f), caption = "THE GAME", onClick = { shareApp(context) })
+        NeonButton(
+            "RATE", Neon.cyan, Modifier.weight(1f).semantics { contentDescription = RATE_DESCRIPTION },
+            caption = "ON PLAY", onClick = { rateApp(context) },
+        )
         NeonButton("FEEDBACK", Neon.hotPink, Modifier.weight(1f), caption = "BUGS · IDEAS", onClick = { sendFeedback(context) })
     }
 }

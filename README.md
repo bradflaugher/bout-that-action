@@ -306,7 +306,7 @@ and BEST.
     <td align="center" width="20%"><img src="docs/screenshots/menu-gameover.png" alt="Game over with a new deepest floor"><p><em><b>Game over</b>: the depth counts down the building</em></p></td>
   </tr>
   <tr>
-    <td align="center" width="20%"><img src="docs/screenshots/menu-settings.png" alt="Settings: audio, controls, calm screen, help, share and feedback"><p><em><b>Settings</b>: sound, controls, help</em></p></td>
+    <td align="center" width="20%"><img src="docs/screenshots/menu-settings.png" alt="Settings: audio, controls, calm screen, help, share, rate and feedback"><p><em><b>Settings</b>: sound, controls, help</em></p></td>
     <td align="center" width="20%"><img src="docs/screenshots/menu-help.png" alt="How to play: replay the tutorial, the controls and a FAQ"><p><em><b>How to play</b>: controls, FAQ, tutorial</em></p></td>
   </tr>
 </table>
@@ -318,8 +318,9 @@ included), tweak it while the chart redraws, see what it feels like next to the
 presets, and drop in from right there. Your curve is kept when you go back to
 a preset. That's also where you set a seed. Sound and controls live in
 **Settings**, along with HOW TO PLAY, **SHARE** (the Play link, through the
-system share sheet) and **FEEDBACK** (a new GitHub issue in your browser). The
-game itself still has no network access: both just hand a link to another app.
+system share sheet), **RATE** (the game's Play Store page; it never asks) and
+**FEEDBACK** (a new GitHub issue in your browser). The game itself still has
+no network access: all three just hand a link to another app.
 Tap the hero bar to open the picker: swipe (or tap the roster) through all
 four heroes, each on their own stage with their theme playing, and see their
 trait and three hero-only perks. The pick sticks between runs, and the demo

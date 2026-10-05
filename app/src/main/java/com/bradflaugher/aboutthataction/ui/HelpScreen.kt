@@ -37,7 +37,7 @@ internal val FAQ = listOf(
 
 /**
  * HOW TO PLAY: the controls, a short FAQ, the tutorial again (a CHILL run from the roof with the
- * coach tips on), and the share and feedback links. Reached from settings, the pause menu and
+ * coach tips on), and the share, rate and feedback links. Reached from settings, the pause menu and
  * the title's first-time card.
  */
 @Composable
