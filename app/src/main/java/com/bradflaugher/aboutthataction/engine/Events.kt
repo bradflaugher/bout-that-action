@@ -69,6 +69,14 @@ sealed interface GameEvent {
     data class SideCleared(val challenge: Challenge) : GameEvent
     /** Tapped a STASH door while your hallway is on alert: it won't budge. */
     data object StashLocked : GameEvent
+    /** The guide put [lesson] up (a screen reader reads it out). */
+    data class LessonShown(val lesson: Lesson) : GameEvent
+    /** [lesson] was taught for the first time this run: the app remembers it, so it isn't taught again. */
+    data class LessonTaught(val lesson: Lesson) : GameEvent
+    /** The player just did what the lesson on screen asked (a little chime). */
+    data class LessonDone(val lesson: Lesson) : GameEvent
+    /** The rooftop walkthrough finished, or was skipped. */
+    data class WalkthroughOver(val skipped: Boolean) : GameEvent
 }
 
 enum class KillMethod { SHOT, TAKEDOWN, STOMP, LIGHT, EXPLOSION, HAZARD }

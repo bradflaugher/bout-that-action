@@ -336,7 +336,7 @@ class AwtGfx(private val image: BufferedImage) : Gfx {
         private val baseFonts = HashMap<Gfx.Font, Font>()
 
         private fun base(font: Gfx.Font): Font = baseFonts.getOrPut(font) {
-            val name = if (font == Gfx.Font.TITLE) "audiowide.ttf" else "share_tech_mono.ttf"
+            val name = if (font == Gfx.Font.TITLE) "audiowide.ttf" else "chakra_petch.ttf"
             val file = listOf("src/main/res/font/$name", "app/src/main/res/font/$name", "../app/src/main/res/font/$name")
                 .map(::File).firstOrNull { it.isFile }
             if (file != null) Font.createFont(Font.TRUETYPE_FONT, file) else Font(Font.MONOSPACED, Font.BOLD, 12)

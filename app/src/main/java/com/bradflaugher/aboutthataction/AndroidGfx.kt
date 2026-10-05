@@ -22,7 +22,7 @@ class AndroidGfx(context: Context) : Gfx {
     private val c: Canvas get() = canvas ?: error("AndroidGfx.begin() not called")
 
     private val titleFace: Typeface = runCatching { context.resources.getFont(R.font.audiowide) }.getOrDefault(Typeface.DEFAULT_BOLD)
-    private val hudFace: Typeface = runCatching { context.resources.getFont(R.font.share_tech_mono) }.getOrDefault(Typeface.MONOSPACE)
+    private val hudFace: Typeface = runCatching { context.resources.getFont(R.font.chakra_petch) }.getOrDefault(Typeface.DEFAULT)
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {

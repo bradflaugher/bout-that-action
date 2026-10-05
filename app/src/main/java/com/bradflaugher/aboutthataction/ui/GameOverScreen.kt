@@ -204,7 +204,7 @@ private fun Highlights(items: List<Pair<String, String>>, heroColor: Color, modi
                             "SEED" -> Neon.soft
                             "HERO" -> heroColor
                             else -> Color.White
-                        }, glow = if (label == "HERO") 0.5f else 0.2f, maxLines = 1)
+                        }, glow = if (label == "HERO") 0.5f else 0.2f, maxLines = 1, modifier = Modifier.padding(start = Space.xxs))
                     }
                 }
                 if (pair.size == 1) Box(Modifier.weight(1f))

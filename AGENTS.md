@@ -73,6 +73,12 @@ the JVM.
   - `Hero.kt` — the four heroes (`RunConfig.hero`): each trait is data on the
     enum, and `Perk.hero` / `Perk.offeredTo` keep three perks per hero.
   - `Entities.kt`, `Perk.kt`, `Fx.kt`, `Events.kt`, `Rng.kt` (SplitMix64).
+  - `Guide.kt` — teaching by doing: `Lesson` (every move and HUD part the
+    game teaches), the first run's rooftop walkthrough (`RunConfig.tutorial`:
+    one step at a time, each waiting for the move, skippable with
+    `World.skipTutorial()`) and the one-time tips after it (`RunConfig.coach`,
+    minus `RunConfig.learned`). It reads `World` and never changes it; the app
+    remembers lessons taught from `GameEvent.LessonTaught`.
   - `SeedCode.kt` — shareable 8-character seed codes (40 bits, no look-alikes)
     and the parser that pulls a code, difficulty and hero out of a pasted brag.
 - `input/GestureInput.kt` — multi-touch gesture classifier (run drag with
@@ -82,7 +88,14 @@ the JVM.
   rig, dressed by a `HeroKit` per hero (`HeroBull`, `HeroFox`, `HeroHawk`,
   `HeroMonkey`); `HeroPortrait` draws that same figure for the hero picker.
   `Graffiti` is spray paint (strokes, tags, drips): MONKEY's vandalism on the
-  rooftop billboard.
+  rooftop billboard. `GuideArt` draws the guide: brackets on the target, the
+  prompt plate, the ghost thumb, HUD highlights and the walkthrough's SKIP pill
+  (`Hud.skipRect`). `Renderer.textScale` is TEXT SIZE for the HUD's labels.
+- Fonts: Audiowide (`res/font/audiowide.ttf`, titles, `Gfx.Font.TITLE`,
+  `Neon.title`) and Chakra Petch Medium (`chakra_petch.ttf`, body and HUD
+  labels, `Gfx.Font.HUD`, `Neon.body`), both SIL OFL 1.1 with their licenses in
+  `licenses/`. Any new font must be OFL or Apache 2.0, from google/fonts, with
+  its license committed there and README's License line updated.
 - `audio/` — procedural synth, sequencer, songs per zone, SFX; `SoundEngine`
   is the API. `AudioOutput.kt` streams it to an `AudioTrack`.
 - `AndroidGfx.kt` — `Gfx` on `android.graphics.Canvas`.
@@ -90,7 +103,9 @@ the JVM.
 - `MainActivity.kt`, `ui/` — Compose menus (title, custom run, challenges board
   and briefing, settings, HOW TO PLAY (`HelpScreen.kt`: controls, FAQ, replay
   tutorial, and the title's one-time FIRST TIME HERE? card), pause, game
-  over), `Links.kt` (share the game, rate it, feedback and the privacy policy: intents
+  over; settings has TEXT SIZE (`TextSizeScope` in `Theme.kt`, capped at
+  `MAX_TEXT_SCALE` with the system font size, wrapping the menus but never the
+  game view) and the JUKEBOX), `Links.kt` (share the game, rate it, feedback and the privacy policy: intents
   only, never network), `Settings.kt` (prefs, seeds, the challenge log: first-clear day and best progress per id), `Haptics.kt`.
 - `app/src/test/` — JVM tests: `engine/` (mechanics, level generation,
   fuzzing, a heuristic bot that plays full runs per preset), `input/`
@@ -119,7 +134,8 @@ the JVM.
 - The daily challenge is a shared pick, nothing more: the same challenge for
   everyone on the same local day (the date is passed in; no clock in
   `engine/`), a deterministic stand-in if you cleared it on an earlier day.
-  No streaks, rewards, countdowns or nags; every challenge is playable any
+  Its card may show what you already did (CLEARED TODAY, your best try), but
+  no streaks, rewards, countdowns, leaderboards or nags; every challenge is playable any
   day from the board. Never generate an impossible challenge (the catalog
   tests enforce it: no melee, SILENT or silent-takeout goals for MONKEY, no
   shot goals under SILENT ONLY), and recalibrate tiers with
@@ -129,6 +145,9 @@ the JVM.
   render change alongside any new value; prefer fields and events.
 - Determinism: a run is a pure function of `RunConfig` and the input
   sequence. Never use wall-clock time or unseeded randomness in `engine/`.
+  The guide is text and pointers only (`GuideTest.theGuideNeverChangesTheRun`);
+  `coach` and `tutorial` default to off, so tests and screenshots never show
+  it unless they ask (the `coach`, `walkthrough-*` and `tip-mode` scenes).
 - `android:appCategory="game"` keeps the portrait lock on large screens (API
   36+ ignores it for non-games); `MainActivity` pillarboxes any window squatter
   than `MIN_ASPECT`, so the game view itself is always portrait.

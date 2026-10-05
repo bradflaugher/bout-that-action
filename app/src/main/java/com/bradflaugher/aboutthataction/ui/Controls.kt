@@ -200,7 +200,7 @@ fun LevelMeter(
             },
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        NeonText(label, size = Type.body, color = Neon.soft, modifier = Modifier.width(96.dp), glow = 0f, maxLines = 1)
+        FitText(label, Type.body, Neon.soft, Modifier.width(96.dp), title = false, letterSpacing = 1.sp, glow = 0f, alignment = Alignment.CenterStart)
         Box(
             Modifier
                 .weight(1f)
@@ -222,10 +222,9 @@ fun LevelMeter(
                     }
                 },
         )
-        NeonText(
-            if (lit == 0) "OFF" else "${lit * 100 / steps}%",
-            size = Type.body, color = if (lit == 0) Neon.dim else Color.White, align = TextAlign.End,
-            modifier = Modifier.width(56.dp), glow = 0f,
+        FitText(
+            if (lit == 0) "OFF" else "${lit * 100 / steps}%", Type.body, if (lit == 0) Neon.dim else Color.White,
+            Modifier.width(56.dp), title = false, letterSpacing = 1.sp, glow = 0f, alignment = Alignment.CenterEnd,
         )
     }
 }

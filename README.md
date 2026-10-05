@@ -37,15 +37,32 @@ A chip over your head shows what a tap (or a swipe ↓) will do right now, and
 the hallway map in the corner shows where you've been and which hallways have
 a ride down. An optional thumb guide shows where your run drag started.
 Inputs are forgiving: a gesture made a hair early is buffered, and a bullet
-that lands the same instant you dodge counts as a miss ("CLOSE!"). On a run
-from the roof, **coach tips** pop up the first time each move would help
-("SWIPE DOWN: HIDE"); turn them off in Settings. The very first launch
-shows a one-time FIRST TIME HERE? card on the title with the four gestures.
-**HOW TO PLAY** (in Settings and on the pause menu) has the controls, a short
-FAQ and **REPLAY TUTORIAL**: a CHILL run from the roof with the coach tips back
-on. **Calm screen** in Settings turns off screen shake, softens the
-full-screen flashes and holds flickering lamps steady. Design
-notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
+that lands the same instant you dodge counts as a miss ("CLOSE!").
+
+**Your first run teaches by doing.** The roof walks you through it, one move
+at a time: drag to run, swipe up to jump, walk into the napping guard's back,
+swipe down into a box and out again, then tap the lift. Each step shows the
+move on a prompt, a see-through ghost thumb acting it out where your thumb
+goes, and brackets on what it's about (the guard, the lift, the door), lights
+up the matching row on the rooftop billboard, waits until you do it (or
+quietly moves on after a while), and cheers ("TEXTBOOK.", "GOING DOWN!").
+**SKIP** under the grenade button (or SKIP TUTORIAL on the pause menu) ends it
+in one tap. After the roof, **coach tips** turn up once each, the first time
+they'd help: the green passage doors, a STASH, ducking into a doorway, the
+grenade, GUNS HOT / SILENT, the heat meter, combos and new zones. Each one is
+taught once per device and never again; turn them off in Settings. Anyone who
+played before the walkthrough existed skips it. The title shows a one-time
+FIRST TIME HERE? card with the four gestures. **HOW TO PLAY** (in Settings and
+on the pause menu) has the controls, a short FAQ and **REPLAY TUTORIAL**: a
+CHILL run from the roof with the walkthrough and every tip again.
+
+**Calm screen** in Settings turns off screen shake, softens the full-screen
+flashes and holds flickering lamps steady (the walkthrough's highlights stop
+pulsing too). **Text size** (NORMAL / LARGE / LARGER) grows the menus on top of
+the system font size, up to 1.5x in all, and the HUD's labels, the context
+chip and the walkthrough's prompts up to 1.3x. A screen reader reads each
+walkthrough prompt aloud. Design notes and every threshold are in
+[`docs/CONTROLS.md`](docs/CONTROLS.md).
 
 ## How it plays
 
@@ -129,11 +146,13 @@ notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
   </tr>
   <tr>
     <td align="center" width="33%"><img src="docs/screenshots/lifts.png" alt="A cyan ride down above, a DO NOT ENTER landing below"><p><em><b>Lifts.</b> Cyan goes down; red means no entry</em></p></td>
-    <td align="center" width="33%"><img src="docs/screenshots/coach.png" alt="A coach tip on the first floors"><p><em><b>Coach.</b> Tips, once each</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/coach.png" alt="The rooftop walkthrough's takedown step: brackets on the napping guard, the prompt and a ghost thumb"><p><em><b>Walkthrough.</b> One move at a time</em></p></td>
     <td align="center" width="33%"><img src="docs/screenshots/bonk.png" alt="A lamp swatted onto a guard"><p><em><b>BONK!</b> Mind the lamp</em></p></td>
   </tr>
   <tr>
     <td align="center" width="33%"><img src="docs/screenshots/rooftop-monkey.png" alt="The MONKEY's rooftop billboard, spray-painted: SILENT scribbled out, ALWAYS! GUNS HOT, and NAH. PEW PEW! over the takedown tip"><p><em><b>MONKEY.</b> He got to the billboard first</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/walkthrough-lift.png" alt="The walkthrough's last rooftop step: CALL THE LIFT, the lift bracketed, the billboard's TAP row lit"><p><em><b>Last step.</b> Call the lift</em></p></td>
+    <td align="center" width="33%"><img src="docs/screenshots/tip-mode.png" alt="A one-time tip pointing at the GUNS HOT / SILENT button"><p><em><b>Tips.</b> Once each, when they help</em></p></td>
   </tr>
 </table>
 
@@ -276,9 +295,13 @@ less than a first decent run under a rule you keep anyway, was retired.
 **The daily challenge** is the same for everyone on the same (local) day:
 gentle on Monday, building to a LEGEND on Sunday. Already cleared that one on
 an earlier day? You get a stand-in, picked the same way for everyone who's
-cleared the same ones. Clear today's and it stays today's, marked cleared.
-There are no streaks, rewards or countdowns: every challenge is playable any
-day from the board, and nothing nags you to come back.
+cleared the same ones. Clear today's and it stays today's, with a CLEARED
+TODAY stamp on its card. Had a go and not cleared it yet? The card shows your
+best try at it ("BEST 3/5") with a little bar. There are no streaks, rewards,
+leaderboards or countdowns, on purpose: every challenge is playable any day
+from the board, nothing nags you to come back, and the game has no network
+permission, so there's nothing online to rank against (everything stays on
+your device).
 
 Today's challenge sits on the title as a gold card above **DROP IN**; tap it
 for its **briefing**: the job in big type, each rule spelled out, where it
@@ -366,7 +389,10 @@ ALERT (full drums and lead; in SILENT, the sneak mix gives way to the zone's
 full track). Once they lose you it stays tense through CAUTION for a few
 seconds, then calms down. Takedowns get a strangled grunt. Every sound effect is
 synthesized too, panned to where it happened on screen, with haptics on the
-big moments.
+big moments. The **JUKEBOX** in Settings plays any zone's track you've
+reached (the deeper ones stay ??? until you get there), in your hero's
+arrangement; leave Settings and the title theme comes back. MUSIC and SOUND FX
+each have their own volume.
 
 Every hero brings their own band to every zone, in both modes, and signs off
 the game over in their own style. **BULL** plays heavy hip-hop: a slow,
@@ -435,7 +461,10 @@ Kotlin behind small interfaces, so it's tested on the JVM:
   ever offers a hero their own three.
 - `StealthAndEventsTest`: napping guards, the box double-take and the kick,
   guards who see you hide and come find you, locked stashes, GHOST, special
-  floors, the arrival grace, coach tips, the run report.
+  floors, the arrival grace, the run report.
+- `GuideTest`: the walkthrough waits for each move, passes over what you've
+  already done, times out gently, skips in one tap, never runs on a warp
+  start or a challenge, teaches each tip once, and never changes the run.
 - `LevelGenTest`: determinism, a reachable ride down from every hallway on
   24,000 floors, rides arriving in hallway A, passage pairs, door spacing,
   shaft consistency, zone order, the heat curve.
@@ -457,5 +486,5 @@ Kotlin behind small interfaces, so it's tested on the JVM:
 
 ## License
 
-MIT. Fonts: Audiowide and Share Tech Mono, both under the SIL Open Font
-License (`licenses/`).
+MIT. Fonts: Audiowide (titles) and Chakra Petch Medium (body text and HUD
+labels), both under the SIL Open Font License 1.1 (`licenses/`).

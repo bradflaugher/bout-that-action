@@ -11,6 +11,8 @@ import android.os.Bundle
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.view.accessibility.AccessibilityManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -42,6 +44,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.bradflaugher.aboutthataction.audio.AudioOutput
 import com.bradflaugher.aboutthataction.audio.SoundEngine
 import com.bradflaugher.aboutthataction.engine.AlertPhase
+import com.bradflaugher.aboutthataction.engine.Lesson
+import com.bradflaugher.aboutthataction.ui.TextSizeScope
 import com.bradflaugher.aboutthataction.engine.Autopilot
 import com.bradflaugher.aboutthataction.engine.Challenge
 import com.bradflaugher.aboutthataction.engine.Difficulty
@@ -96,6 +100,9 @@ class MainActivity : ComponentActivity(), GameView.Host {
     private var helpFrom = Screen.SETTINGS
     /** The title's FIRST TIME HERE? card is still to show. */
     private var welcome by mutableStateOf(false)
+    /** Lessons the guide has taught on this device (it won't teach them again), and whether the first run's walkthrough is done. */
+    private var learned: Set<Lesson> = emptySet()
+    private var walkthroughDone = false
     private var settings by mutableStateOf(Settings())
     private var records by mutableStateOf(Records())
     private var challengeLog by mutableStateOf(ChallengeLog())
@@ -133,6 +140,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
         records = prefs.loadRecords()
         challengeLog = prefs.loadChallenges()
         welcome = !prefs.loadIntroSeen()
+        learned = prefs.loadLearned()
+        walkthroughDone = prefs.loadWalkthroughDone()
         sound = SoundEngine()
         audio = AudioOutput(sound)
         haptics = Haptics(this)
@@ -142,6 +151,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
         // (applySettings above ran before the view existed.)
         gameView.touchGuide = settings.touchGuide
         gameView.calm = settings.calm
+        gameView.textScale = hudTextScale(settings)
         gameView.setOnApplyWindowInsetsListener { v, insets ->
             val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
             insetTop = bars.top
@@ -173,7 +183,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
                     Screen.HELP -> { screen = helpFrom }
                     Screen.CUSTOM, Screen.CHALLENGES -> { screen = Screen.TITLE }
                     Screen.BRIEFING -> { screen = briefingFrom }
-                    Screen.SETTINGS, Screen.GAME_OVER -> toTitle()
+                    Screen.SETTINGS -> settingsBack()
+                    Screen.GAME_OVER -> toTitle()
                     Screen.TITLE -> Unit
                 }
             }
@@ -185,6 +196,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
                     factory = { gameView },
                     modifier = if (tall) Modifier.fillMaxSize() else Modifier.align(Alignment.Center).fillMaxHeight().width(maxHeight / MIN_ASPECT),
                 )
+                // TEXT SIZE for the menus only: the game view under them never remounts when it changes.
+                TextSizeScope(settings.textSize.scale) {
                 AnimatedContent(
                     targetState = screen,
                     // Full size even while PLAYING shows nothing, so menus never grow from 0×0.
@@ -255,7 +268,12 @@ class MainActivity : ComponentActivity(), GameView.Host {
                             onPlay = ::startRun,
                             onBack = ::heroesBack,
                         )
-                        Screen.SETTINGS -> SettingsScreen(settings, pad, ::updateSettings, onBack = { screen = Screen.TITLE }, onHelp = { openHelp(Screen.SETTINGS) })
+                        Screen.SETTINGS -> SettingsScreen(
+                            settings, pad, ::updateSettings, onBack = ::settingsBack, onHelp = { openHelp(Screen.SETTINGS) },
+                            jukebox = Zone.entries.filter { it == Zone.TOWER || records.bestFloor >= it.startFloor }.toSet(),
+                            playing = jukebox,
+                            onJukebox = ::playJukebox,
+                        )
                         Screen.HELP -> HelpScreen(pad, onBack = { screen = helpFrom }, onReplayTutorial = ::replayTutorial)
                         Screen.PAUSED -> PauseScreen(
                             settings, runSeedLabel, runConfig?.hero ?: settings.hero, pad,
@@ -271,6 +289,10 @@ class MainActivity : ComponentActivity(), GameView.Host {
                             onSettings = ::updateSettings,
                             challenge = gameView.world?.let { w -> w.challenge?.let { ChallengeStatus.of(it, challengeLog, w.hero) } },
                             onHelp = { openHelp(Screen.PAUSED) },
+                            onSkipTutorial = if (gameView.world?.guide?.walkthrough == true) ({
+                                gameView.skipTutorial()
+                                resume()
+                            }) else null,
                         )
                         Screen.GAME_OVER -> lastRun?.let { run ->
                             GameOverScreen(
@@ -284,6 +306,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
                         }
                         Screen.PLAYING -> Unit
                     }
+                }
                 }
             }
         }
@@ -422,8 +445,16 @@ class MainActivity : ComponentActivity(), GameView.Host {
         sound.setAlert(AlertPhase.CALM)
         // Before the first frame's setZone, so the run opens in this hero's arrangement.
         sound.setHero(config.hero)
+        // A first run from the roof gets the walkthrough (REPLAY TUTORIAL asks for it, and for every lesson again).
+        val firstRun = settings.coach && !walkthroughDone && records.runs == 0 && config.challenge == null && config.difficulty.startFloor == 0
+        val tutorial = config.tutorial || firstRun
         // Ones already cleared never side-clear again: ALSO CLEARED is always news.
-        gameView.world = World(config.copy(silent = settings.silent, coach = settings.coach, knownCleared = challengeLog.cleared.keys))
+        gameView.world = World(
+            config.copy(
+                silent = settings.silent, coach = settings.coach || config.tutorial, knownCleared = challengeLog.cleared.keys,
+                tutorial = tutorial, learned = if (config.tutorial) emptySet() else learned,
+            ),
+        )
         gameView.attract = false
         gameView.paused = false
         screen = Screen.PLAYING
@@ -507,6 +538,25 @@ class MainActivity : ComponentActivity(), GameView.Host {
         sound.playHeroTheme(hero)
     }
 
+    /** The JUKEBOX in settings: a zone's track playing in the menus, or null for the title theme. */
+    private var jukebox by mutableStateOf<Zone?>(null)
+
+    private fun playJukebox(zone: Zone?) {
+        jukebox = zone
+        if (zone == null) {
+            sound.playTitle()
+        } else {
+            sound.setHero(settings.hero)
+            sound.setZone(zone)
+        }
+    }
+
+    /** Out of settings: the title theme comes back if the jukebox was playing something else. */
+    private fun settingsBack() {
+        if (jukebox != null) playJukebox(null)
+        screen = Screen.TITLE
+    }
+
     private fun openHelp(from: Screen) {
         helpFrom = from
         screen = Screen.HELP
@@ -519,7 +569,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
     }
 
     /**
-     * REPLAY TUTORIAL: a CHILL run from the roof (the billboard) with the coach tips back on.
+     * REPLAY TUTORIAL: a CHILL run from the roof with the walkthrough, every lesson taught again
+     * and the coach tips back on.
      * From the pause menu it ends the run on screen, the way RESTART does.
      */
     private fun replayTutorial() {
@@ -528,7 +579,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
         val seed = Random.nextLong(SeedCode.LIMIT)
         runSeedLabel = SeedCode.labelOf(seed)
         runDifficulty = Difficulty.Preset.CHILL.label
-        startRun(RunConfig(seed, Difficulty.Preset.CHILL.difficulty, coach = true, hero = settings.hero))
+        startRun(RunConfig(seed, Difficulty.Preset.CHILL.difficulty, coach = true, tutorial = true, hero = settings.hero))
     }
 
     private fun openHeroes(from: Screen) {
@@ -541,6 +592,17 @@ class MainActivity : ComponentActivity(), GameView.Host {
         screen = heroesFrom
         sound.playTitle()
     }
+
+    private val accessibility by lazy { getSystemService(AccessibilityManager::class.java) }
+
+    private fun remember(set: Set<Lesson>) {
+        if (set == learned) return
+        learned = set
+        prefs.saveLearned(set)
+    }
+
+    /** The HUD's text: the TEXT SIZE setting on top of the system font size (which the HUD's layout can take up to 1.3x of). */
+    private fun hudTextScale(s: Settings): Float = (s.textSize.scale * resources.configuration.fontScale.coerceIn(1f, 1.3f)).coerceAtMost(1.3f)
 
     private fun updateSettings(s: Settings) {
         settings = s
@@ -555,6 +617,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
         if (::gameView.isInitialized) {
             gameView.touchGuide = s.touchGuide
             gameView.calm = s.calm
+            gameView.textScale = hudTextScale(s)
         }
     }
 
@@ -569,6 +632,25 @@ class MainActivity : ComponentActivity(), GameView.Host {
         // clear (another challenge met on the way) counts just the same.
         if (event is GameEvent.ChallengeCleared || event is GameEvent.SideCleared) {
             runOnUiThread { updateChallenges(challengeLog.withEvent(event, today())) }
+        }
+        when (event) {
+            // The guide: what it taught is remembered; a screen reader reads each prompt out.
+            is GameEvent.LessonTaught -> runOnUiThread { remember(learned + event.lesson) }
+            is GameEvent.WalkthroughOver -> runOnUiThread {
+                if (!walkthroughDone) {
+                    walkthroughDone = true
+                    prefs.saveWalkthroughDone()
+                }
+                if (event.skipped) {
+                    remember(Lesson.entries.toSet())
+                    Toast.makeText(this, "Tutorial skipped. Replay it any time from HOW TO PLAY.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            is GameEvent.LessonShown -> if (accessibility.isEnabled) {
+                val words = world.guide.kicker + ". " + world.guide.text
+                gameView.post { gameView.announceForAccessibility(words) }
+            }
+            else -> Unit
         }
         // The GUNS HOT / SILENT choice sticks between runs.
         if (event is GameEvent.ModeToggled) runOnUiThread { if (settings.silent != event.silent) updateSettings(settings.copy(silent = event.silent)) }

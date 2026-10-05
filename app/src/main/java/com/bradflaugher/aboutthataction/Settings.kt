@@ -6,8 +6,12 @@ import com.bradflaugher.aboutthataction.engine.Challenges
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.GameEvent
 import com.bradflaugher.aboutthataction.engine.Hero
+import com.bradflaugher.aboutthataction.engine.Lesson
 import com.bradflaugher.aboutthataction.engine.SeedCode
 import com.bradflaugher.aboutthataction.engine.World
+
+/** TEXT SIZE: menus (on top of the system font size) and the HUD's labels and prompts. */
+enum class TextSize(val label: String, val scale: Float) { NORMAL("NORMAL", 1f), LARGE("LARGE", 1.15f), LARGER("LARGER", 1.3f) }
 
 /** A fresh building every run, or one you set (on the CUSTOM RUN screen). */
 enum class SeedMode(val label: String) { RANDOM("RANDOM"), CUSTOM("SET SEED") }
@@ -29,10 +33,12 @@ data class Settings(
     val silent: Boolean = false,
     val haptics: Boolean = true,
     val touchGuide: Boolean = true,
-    /** One-line hints the first time each move would help, on the first floors of a run from the roof. */
+    /** The guide's one-time tips: each move or HUD part explained once, the first time it would help. */
     val coach: Boolean = true,
     /** CALM SCREEN: no screen shake, softer flashes, steady lamps. Looks only. */
     val calm: Boolean = false,
+    /** TEXT SIZE for the menus and the HUD. */
+    val textSize: TextSize = TextSize.NORMAL,
     val musicVolume: Float = 0.8f,
     val sfxVolume: Float = 1f,
     /** Who drops in. Picked on the title screen, remembered between runs. All four from the start. */
@@ -157,6 +163,7 @@ class Prefs(context: Context) {
             touchGuide = sp.getBoolean("touch_guide", d.touchGuide),
             coach = sp.getBoolean("coach", d.coach),
             calm = sp.getBoolean("calm", d.calm),
+            textSize = TextSize.entries.firstOrNull { it.name == sp.getString("text_size", null) } ?: d.textSize,
             musicVolume = sp.getFloat("music", d.musicVolume),
             sfxVolume = sp.getFloat("sfx", d.sfxVolume),
             hero = Hero.fromSaved(sp.getString("hero", null)) ?: d.hero,
@@ -179,6 +186,7 @@ class Prefs(context: Context) {
             .putBoolean("touch_guide", s.touchGuide)
             .putBoolean("coach", s.coach)
             .putBoolean("calm", s.calm)
+            .putString("text_size", s.textSize.name)
             .putFloat("music", s.musicVolume)
             .putFloat("sfx", s.sfxVolume)
             .putString("hero", s.hero.name)
@@ -202,6 +210,24 @@ class Prefs(context: Context) {
 
     fun saveIntroSeen() {
         sp.edit { putBoolean("intro_seen", true) }
+    }
+
+    /**
+     * Lessons the guide has taught on this device. Anyone who played before the guide existed
+     * already knows the moves: they start with all of them, and REPLAY TUTORIAL is there.
+     */
+    fun loadLearned(): Set<Lesson> =
+        if (sp.contains("learned")) Lesson.decode(sp.getString("learned", "")) else if (sp.getInt("runs", 0) > 0) Lesson.entries.toSet() else emptySet()
+
+    fun saveLearned(set: Set<Lesson>) {
+        sp.edit { putString("learned", Lesson.encode(set)) }
+    }
+
+    /** The first run's rooftop walkthrough is done (finished, skipped, or a run already played). */
+    fun loadWalkthroughDone(): Boolean = sp.getBoolean("walkthrough_done", sp.getInt("runs", 0) > 0)
+
+    fun saveWalkthroughDone() {
+        sp.edit { putBoolean("walkthrough_done", true) }
     }
 
     fun loadRecords() = Records(sp.getLong("best_score", 0), sp.getInt("best_floor", 0), sp.getInt("runs", 0))

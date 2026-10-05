@@ -21,6 +21,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -61,6 +65,12 @@ data class DailyCard(
     val kicker: String = "DAILY",
     /** The small word on the stub, over the number. */
     val stub: String = "NO.",
+    /** Your best try so far ("BEST 3/5"), if you've had a go and not cleared it yet. */
+    val best: String? = null,
+    /** 0..1 of the way to the goal on that best try. */
+    val bestFraction: Float = 0f,
+    /** Cleared today (not on an earlier day): the stamp says so. */
+    val clearedToday: Boolean = false,
 )
 
 /** Cleared, in the menus: the Black Labs green. */
@@ -82,7 +92,8 @@ fun DailyChallengeCard(card: DailyCard, modifier: Modifier = Modifier, onClick: 
             .pressScale(source, 0.97f)
             .semantics {
                 contentDescription = "Daily challenge ${card.number}, ${card.name}. ${card.goal}" +
-                    (if (card.cleared) ". Cleared" else "")
+                    (if (card.cleared) (if (card.clearedToday) ". Cleared today" else ". Cleared") else "") +
+                    (card.best?.let { ". Your best: $it" } ?: "")
             }
             .drawBehind {
                 val o = Shapes.button.createOutline(size, layoutDirection, this)
@@ -96,7 +107,7 @@ fun DailyChallengeCard(card: DailyCard, modifier: Modifier = Modifier, onClick: 
     ) {
         TicketStub(card.stub, card.number, c)
         Column(Modifier.weight(1f).padding(start = Space.s), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.xxs)) {
+            WholeOnlyRow(Modifier.fillMaxWidth(), gap = Space.xxs) {
                 Kicker(card.kicker, c.copy(alpha = 0.85f), Modifier.padding(end = Space.xxs))
                 for (rule in chipsThatFit(card.rules)) RuleChip(rule, c)
             }
@@ -104,14 +115,68 @@ fun DailyChallengeCard(card: DailyCard, modifier: Modifier = Modifier, onClick: 
                 letterSpacing = 2.sp, glow = 0.3f, alignment = Alignment.CenterStart)
             FitText(card.goal, Type.small, Neon.soft, Modifier.fillMaxWidth(), title = false, letterSpacing = 0.5.sp, glow = 0f,
                 alignment = Alignment.CenterStart)
+            if (card.best != null && !card.cleared) {
+                // Your best go at today's: a thin bar and the number, nothing more.
+                Row(Modifier.fillMaxWidth().padding(top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.weight(1f).height(4.dp).drawBehind {
+                            bar(c.copy(alpha = 0.18f), 0f, 0f, size.width, size.height)
+                            bar(c, 0f, 0f, size.width * card.bestFraction.coerceIn(0.04f, 1f), size.height)
+                        },
+                    )
+                    Kicker("  BEST " + card.best, c.copy(alpha = 0.9f))
+                }
+            }
         }
         if (card.cleared) {
-            Column(Modifier.padding(start = Space.xs), horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.size(20.dp).drawBehind { check(ClearedGreen) })
+            // A rubber stamp, a little crooked: CLEARED, and TODAY if it was.
+            Column(
+                Modifier
+                    .padding(start = Space.xs)
+                    .graphicsLayer { rotationZ = -8f }
+                    .drawBehind {
+                        val o = Shapes.small.createOutline(size, layoutDirection, this)
+                        drawOutline(o, ClearedGreen.copy(alpha = 0.1f))
+                        drawOutline(o, ClearedGreen.copy(alpha = 0.85f), style = Stroke(1.5.dp.toPx()))
+                    }
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(Modifier.size(18.dp).drawBehind { check(ClearedGreen) })
                 Kicker("CLEARED", ClearedGreen, align = TextAlign.Center)
+                if (card.clearedToday) Kicker("TODAY", ClearedGreen.copy(alpha = 0.8f), align = TextAlign.Center)
             }
         } else {
             Box(Modifier.padding(start = Space.xs).size(14.dp, 24.dp).drawBehind { chevronRight(c) })
+        }
+    }
+}
+
+/**
+ * A row that only shows the children that fit whole, left to right (the first always): a
+ * chip that would be cut short at a big text size is left off rather than shown as "NO ...".
+ */
+@Composable
+internal fun WholeOnlyRow(modifier: Modifier = Modifier, gap: Dp = 0.dp, content: @Composable () -> Unit) {
+    Layout(content, modifier) { measurables, constraints ->
+        val g = gap.roundToPx()
+        val loose = constraints.copy(minWidth = 0, maxWidth = Constraints.Infinity, minHeight = 0)
+        val placeables = measurables.map { it.measure(loose) }
+        val shown = ArrayList<androidx.compose.ui.layout.Placeable>()
+        var x = 0
+        for ((i, p) in placeables.withIndex()) {
+            val next = x + (if (i > 0) g else 0) + p.width
+            if (i > 0 && next > constraints.maxWidth) break
+            shown += p
+            x = next
+        }
+        val h = shown.maxOfOrNull { it.height } ?: 0
+        layout(if (constraints.hasBoundedWidth) constraints.maxWidth else x, h) {
+            var px = 0
+            for (p in shown) {
+                p.placeRelative(px, (h - p.height) / 2)
+                px += p.width + g
+            }
         }
     }
 }
@@ -233,7 +298,15 @@ fun dailyCard(c: Challenge, epochDay: Long, log: ChallengeLog, pick: Hero = Hero
     cleared = log.isCleared(c.id),
     kicker = "TODAY · " + c.tier.title,
     stub = "DAILY",
+    best = log.best(c.id).takeIf { it > 0 && !log.isCleared(c.id) }?.let { bestText(c, it) },
+    bestFraction = (log.best(c.id).toFloat() / c.target).coerceIn(0f, 1f),
+    clearedToday = log.clearedDay(c.id) == epochDay,
 )
+
+/** "3/5", "8,200/20,000", "41F/38F": a best try in the goal's own terms. */
+fun bestText(c: Challenge, progress: Int): String = c.hudText(progress).substringAfterLast(' ').let {
+    if (it.contains('/')) it else c.hudText(progress)
+}
 
 /**
  * Today on the device's own calendar (days since 1970-01-01), for the daily, as Compose state:

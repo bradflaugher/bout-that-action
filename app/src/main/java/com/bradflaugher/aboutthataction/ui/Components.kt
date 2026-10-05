@@ -86,7 +86,7 @@ fun NeonText(
         style = TextStyle(
             color = color,
             fontSize = size,
-            fontFamily = if (title) Neon.title else Neon.mono,
+            fontFamily = if (title) Neon.title else Neon.body,
             textAlign = align,
             letterSpacing = letterSpacing,
             shadow = if (glow > 0f) Shadow(glowColor.copy(alpha = glow), Offset.Zero, glowRadius) else null,

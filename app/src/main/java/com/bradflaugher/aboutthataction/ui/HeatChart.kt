@@ -51,7 +51,7 @@ fun HeatChart(d: Difficulty, modifier: Modifier = Modifier) {
             morph.animateTo(1f, tween(Motion.slow, easing = Motion.out))
         }
     }
-    val labelStyle = TextStyle(fontFamily = Neon.mono, fontSize = 9.sp, color = Neon.dim, letterSpacing = 1.sp)
+    val labelStyle = TextStyle(fontFamily = Neon.body, fontSize = 9.sp, color = Neon.dim, letterSpacing = 1.sp)
     val zones = Zone.entries.filter { it != Zone.ROOFTOP && it != Zone.VOID }
     val start = d.startFloor
 

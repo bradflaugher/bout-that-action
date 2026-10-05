@@ -101,6 +101,17 @@ internal class SfxPlayer(private val bank: SfxBank, private val rng: Rng) {
             is GameEvent.ChallengeFailed -> challengeFailed()
             // Quiet on purpose: side clears wait for the game-over card.
             is GameEvent.SideCleared -> Unit
+            is GameEvent.LessonDone -> lessonDone()
+            is GameEvent.LessonShown, is GameEvent.LessonTaught, is GameEvent.WalkthroughOver -> Unit
+        }
+    }
+
+    /** A walkthrough move done: a bright little two-note "ding-ding", up a fifth. */
+    private fun lessonDone() {
+        for (k in 0 until 2) voice {
+            wave = Wave.TRIANGLE; wave2 = Wave.SINE; ratio2 = 2f; level2 = 0.35f
+            f0 = 1318.5f * Dsp.semis(if (k == 0) 0f else 7f); f1 = f0
+            attack = 0.002f; decay = if (k == 0) 0.12f else 0.35f; gain = 0.11f; reverb = 0.3f; delay = k * 0.08f; priority = 1.5f
         }
     }
 

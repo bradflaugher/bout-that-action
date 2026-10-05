@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 
 /** Common questions, answered short. Keep them true to the game (and to docs/CONTROLS.md). */
 internal val FAQ = listOf(
+    "Can I skip the tutorial?" to "Yes: tap SKIP under the grenade button, or SKIP TUTORIAL on the pause menu. REPLAY TUTORIAL below plays it again any time.",
     "How do I go down?" to "Only elevators go down. A landing with a ride down has cyan lights and ▼ chevrons: tap it to call the car, tap again to ride. No lift in this hallway? Take a green passage door to the next one.",
     "Why did the guard find my box?" to "He watched you hide, or you moved the box while he was looking. Sit still and a box is just a box.",
     "Why won't my gun fire?" to "You're in SILENT. Tap the mode button under pause for GUNS HOT. Even then it only fires at threats, never at a turned back.",
@@ -37,7 +38,7 @@ internal val FAQ = listOf(
 
 /**
  * HOW TO PLAY: the controls, a short FAQ, the tutorial again (a CHILL run from the roof with the
- * coach tips on), and the share, rate and feedback links. Reached from settings, the pause menu and
+ * walkthrough and every tip again), and the share, rate and feedback links. Reached from settings, the pause menu and
  * the title's first-time card.
  */
 @Composable
@@ -61,12 +62,13 @@ fun HelpScreen(
                 Panel(groupMod.reveal(40, 12.dp, Motion.base + 80), accent = Neon.magenta) {
                     SectionHeader("01", "TUTORIAL", Neon.magenta)
                     NeonText(
-                        "The roof billboard shows the moves, and coach tips pop up the first time each one would help.",
+                        "Your first run starts with a walkthrough on the roof: one move at a time, a ghost thumb shows you how, and it waits for you. " +
+                            "Later, a tip pops up the first time each new thing turns up.",
                         size = Type.small, color = Neon.soft, glow = 0f,
                     )
                     NeonButton(
                         "REPLAY TUTORIAL", Neon.magenta, Modifier.fillMaxWidth(), style = ButtonStyle.PRIMARY, height = 60.dp,
-                        textSize = Type.title, caption = "CHILL · FROM THE ROOF · TIPS ON", onClick = onReplayTutorial,
+                        textSize = Type.title, caption = "CHILL · FROM THE ROOF · STEP BY STEP", onClick = onReplayTutorial,
                     )
                 }
                 Panel(groupMod.reveal(90, 12.dp, Motion.base + 80), accent = Neon.cyan) {
@@ -103,14 +105,16 @@ private fun Faq() {
 }
 
 /**
- * The title's one-time card for a first launch: the four gestures in one glance, GOT IT, and
- * HOW TO PLAY. It sits where the records go (there are none yet) and never blocks DROP IN.
+ * The title's one-time card for a first launch: the four gestures in one glance (the first
+ * run's rooftop walkthrough teaches them for real), GOT IT, and HOW TO PLAY. It sits where the records go (there are none yet) and never blocks DROP IN.
  */
 @Composable
 internal fun WelcomeCard(modifier: Modifier = Modifier, onDone: () -> Unit, onHelp: () -> Unit) {
     Panel(modifier.fillMaxWidth(), accent = Neon.cyan, padding = Space.s, spacing = Space.xs) {
         NeonText("FIRST TIME HERE?", size = Type.title, color = Color.White, title = true, glow = 0.35f, letterSpacing = 2.sp,
             modifier = Modifier.semantics { heading() })
+        FitText("DROP IN: THE ROOF WALKS YOU THROUGH IT", Type.small, Neon.gold, Modifier.fillMaxWidth(), title = false, letterSpacing = 1.sp,
+            glow = 0.2f, alignment = Alignment.CenterStart)
         for ((k, v) in WELCOME_ROWS) {
             Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
                 FitText(k, Type.body, Neon.cyan, Modifier.weight(0.45f), title = false, letterSpacing = 1.sp, glow = 0.3f,

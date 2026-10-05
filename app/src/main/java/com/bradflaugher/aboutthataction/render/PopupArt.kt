@@ -24,7 +24,6 @@ internal class PopupArt(private val f: Frame) {
     fun kind(ft: FloatingText): Int {
         val s = ft.text
         if (s == Popup.SNORE) return HIDE // napping guards draw their own Zs
-        if (ft.style == TextStyle.WARN && s === f.w.coachTip) return HIDE // the coach plate
         if (ft.style == TextStyle.BIG && (s == FloorEvent.BLACKOUT.title || s == FloorEvent.NAP_TIME.title || s == FloorEvent.PAYDAY.title)) return HIDE
         return when (s) {
             Popup.HUH, Popup.OOK -> BUBBLE
