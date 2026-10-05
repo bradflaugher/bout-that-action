@@ -1,30 +1,36 @@
 A helicopter drops you on the roof of a skyscraper. Then you go down, and down, and down.
 
-'Bout That Action is an endless, portrait-only action game: a neon-noir spy caper in the spirit of the 80s arcade, with a cardboard box to hide in. Ride elevators down through the Neon Tower, the Black Labs, the Deep Metro, the Iron Mines and the Magma Core, into Hell, and past it into a Void where anything goes.
+'Bout That Action is an endless stealth action game for one phone and two thumbs: a neon-noir spy caper in the spirit of the 80s arcade, with elevators to catch and a cardboard box to hide in. Ride the lifts down through the Neon Tower, the Black Labs, the Deep Metro, the Iron Mines and the Magma Core, into Hell, and past it into a Void where anything goes. Plays offline, no wifi needed.
 
 BUILT FOR THUMBS
 • Drag to run, swipe up to jump, swipe down to hide in a doorway or pop the box.
-• Tap to ride an elevator, go through a passage or raid a STASH (if nobody's hunting you).
-• Sneak up behind a guard for a silent takedown. Land on his head to daze him first. (The monkey can't: he brought a big gun instead.)
+• Tap to ride an elevator, go through a passage or raid a STASH for an upgrade.
+• Sneak up behind a guard for a silent takedown. Land on his head to daze him first.
+• A one-time tip card, a tutorial billboard on the roof and coach tips teach the rest. HOW TO PLAY has the controls and a FAQ.
 
-TWO WAYS TO PLAY
-• GUNS HOT: you auto-fire at anything in range.
+STEALTH OR SHOOTER: YOUR CALL
+• GUNS HOT: you auto-fire at every threat in range. Pure arcade action.
 • SILENT: you never fire, guards only notice what they see, and quiet kills pay double.
 • Except the monkey. He's always guns hot. He spray-painted the tutorial billboard to make sure you know.
 
-FOUR HEROES
+FOUR HEROES, ALL FREE
 Bull the bruiser, Fox the high-kicking street brawler, Hawk the parcel courier who lives in a box and Monkey the circus runaway with a very big gun. Each has their own trait, three perks of their own and their own take on the music.
 
 1,234 CHALLENGES
-Silly names, real goals: ghost floors, box ambushes, bonk heads, tuck in nappers, survive close calls. Some lock you in SILENT, give you one heart or bust on the first hit. Five tiers, ROOKIE to LEGEND, every one playable any day, and any run that meets one ticks it off, so there's nothing to grind. And a daily challenge that's the same for everyone (no streaks, no rewards, no countdown).
+Silly names, real goals: ghost floors, box ambushes, bonk heads, tuck in nappers, survive close calls. Some lock you in SILENT, give you one heart or bust on the first hit. Five tiers, ROOKIE to LEGEND, every one playable any day, and any run that meets one ticks it off, so there's nothing to grind. Plus a daily challenge that's the same for everyone (no streaks, no rewards, no countdown).
 
 EVERY FLOOR IS NEW
-The building never ends and never repeats. Floors, the soundtrack and every sound effect are generated as you play. Blackouts, nap time and payday floors keep things weird.
+The building never ends and never repeats: procedurally generated floors, roguelite upgrades from STASH doors, and a soundtrack and sound effects synthesized as you play. Blackouts, nap time and payday floors keep things weird.
 
 YOUR GAME, YOUR RULES
-Pick a difficulty from CHILL to STRAIGHT TO HELL, or tune the heat curve yourself. Every run has a short seed code: share it, and a friend plays the very same building.
+• Pick a difficulty from CHILL to STRAIGHT TO HELL, or tune the heat curve yourself.
+• Every run has a short seed code: share it, and a friend plays the very same building.
+• CALM SCREEN turns off screen shake and softens the flashes. Menus follow your font size.
 
 NO NONSENSE
-Phones, tablets and foldables: it always plays in portrait, and pauses itself when a call, the notification shade or unplugged headphones interrupt.
+• No ads. No in-app purchases. No accounts. No network permission at all.
+• No daily rewards or timers nagging you to come back. The only permission is vibration.
+• Phones, tablets and foldables: it always plays in portrait, and pauses itself when a call, the notification shade or unplugged headphones interrupt.
+• Found a bug or have an idea? FEEDBACK in Settings opens a GitHub issue.
 
-No ads. No in-app purchases. No accounts. No network. No daily rewards or timers nagging you to come back. The only permission is vibration.
+Grab a box. The elevator's waiting.

@@ -62,7 +62,8 @@ class MenuShotsTest {
     private val outDir = File(System.getProperty("ata.menushots") ?: "build/menushots")
 
     private val devices = listOf(
-        "phone" to "w411dp-h914dp-420dpi", // 1080x2400
+        // -Pphone=<qualifiers> swaps the phone's size (e.g. w411dp-h731dp-420dpi, 9:16 for the Play listing).
+        "phone" to (System.getProperty("ata.menushots.phone")?.takeIf { it.isNotBlank() } ?: "w411dp-h914dp-420dpi"), // 1080x2400
         "small" to "w360dp-h800dp-xhdpi", // 720x1600
         "big" to "w411dp-h914dp-560dpi", // 1440x3200 (approx)
     )
@@ -125,6 +126,12 @@ class MenuShotsTest {
             }
             shot("$device-title-intro", 450, world()) {
                 TitleScreen(s, Records(), insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = caption)
+            }
+            shot("$device-title-welcome", 1800, world()) {
+                TitleScreen(s, Records(), insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = caption, welcome = true)
+            }
+            shot("$device-help", 900, world()) {
+                HelpScreen(insets, {}, {})
             }
             shot("$device-title-hawk", 1800, world(Hero.HAWK)) {
                 TitleScreen(s.copy(hero = Hero.HAWK), records, insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = caption)
@@ -242,6 +249,12 @@ class MenuShotsTest {
             shot("font-settings", 900, world()) {
                 SettingsScreen(s, insets, {}, {})
             }
+            shot("font-help", 900, world()) {
+                HelpScreen(insets, {}, {})
+            }
+            shot("font-title-welcome", 1800, world()) {
+                TitleScreen(s, Records(), insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = caption, welcome = true)
+            }
             RuntimeEnvironment.setFontScale(1f)
         }
     }
@@ -273,7 +286,7 @@ class MenuShotsTest {
         val gfx = AndroidGfx(activity)
         gfx.begin(Canvas(bg))
         val density = dm.density
-        val hud = !name.contains("title") && !name.contains("settings") && !name.contains("heroes") && !name.contains("custom") && !name.contains("board") && !name.contains("briefing")
+        val hud = !name.contains("title") && !name.contains("settings") && !name.contains("heroes") && !name.contains("custom") && !name.contains("board") && !name.contains("briefing") && !name.contains("help")
         Renderer().render(gfx, world, world.time, 32 * density, 16 * density, showHud = hud)
         // Drive Compose from our own frame clock. Robolectric's Choreographer hands
         // out frames without advancing time, so infinite animations never let idle end.
@@ -337,6 +350,7 @@ class MenuShotsTest {
             "phone-title" to "menu-title",
             "phone-gameover-best" to "menu-gameover",
             "phone-settings" to "menu-settings",
+            "phone-help" to "menu-help",
             "phone-heroes-bull" to "menu-heroes",
             "phone-custom" to "menu-custom",
             "phone-custom-seed" to "menu-seed",

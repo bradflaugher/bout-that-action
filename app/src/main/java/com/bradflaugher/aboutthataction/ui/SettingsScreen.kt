@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -21,14 +22,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bradflaugher.aboutthataction.Settings
 
 @Composable
-fun SettingsScreen(settings: Settings, insets: PaddingValues, onChange: (Settings) -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(
+    settings: Settings,
+    insets: PaddingValues,
+    onChange: (Settings) -> Unit,
+    onBack: () -> Unit,
+    onHelp: () -> Unit = {},
+) {
     val s = settings
     Box(Modifier.fillMaxSize().veil(alpha = 0.9f).padding(insets)) {
         Column(Modifier.fillMaxSize()) {
@@ -49,8 +57,9 @@ fun SettingsScreen(settings: Settings, insets: PaddingValues, onChange: (Setting
                     AudioAndControls(s, onChange, audioIndex = "01", controlsIndex = "02")
                 }
                 Panel(groupMod.reveal(90, 12.dp, Motion.base + 80), accent = Neon.lava) {
-                    SectionHeader("03", "HOW TO PLAY", Neon.lava)
-                    HowToPlay()
+                    SectionHeader("03", "HELP & MORE", Neon.lava)
+                    NeonButton("HOW TO PLAY", Neon.lava, Modifier.fillMaxWidth(), caption = "CONTROLS · FAQ · TUTORIAL", onClick = onHelp)
+                    MoreLinks()
                 }
                 NeonButton("DONE", Neon.cyan, groupMod, onClick = onBack)
                 PrivacyLink()
@@ -60,23 +69,30 @@ fun SettingsScreen(settings: Settings, insets: PaddingValues, onChange: (Setting
     }
 }
 
-/** The Play privacy policy, opened in the browser (the game itself has no network access). */
+/** SHARE THE GAME and SEND FEEDBACK, side by side: one hands the Play link to the share sheet, one opens a GitHub issue. */
 @Composable
-private fun PrivacyLink() {
-    val uri = LocalUriHandler.current
-    NeonText(
-        "PRIVACY POLICY",
-        size = Type.micro,
-        color = Neon.dim,
-        glow = 0f,
-        letterSpacing = 2.sp,
-        modifier = Modifier
-            .clickable(role = Role.Button) { uri.openUri(PRIVACY_POLICY_URL) }
-            .padding(Space.s),
-    )
+internal fun MoreLinks() {
+    val context = LocalContext.current
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
+        NeonButton("SHARE", Neon.gold, Modifier.weight(1f), caption = "THE GAME", onClick = { shareApp(context) })
+        NeonButton("FEEDBACK", Neon.hotPink, Modifier.weight(1f), caption = "BUGS · IDEAS", onClick = { sendFeedback(context) })
+    }
 }
 
-const val PRIVACY_POLICY_URL = "https://bradflaugher.com/privacy/bout-that-action/"
+/** The Play privacy policy, opened in the browser (the game itself has no network access). */
+@Composable
+internal fun PrivacyLink() {
+    val context = LocalContext.current
+    Box(
+        Modifier
+            .heightIn(min = Space.touch)
+            .clickable(role = Role.Button) { openUrl(context, PRIVACY_POLICY_URL) }
+            .padding(horizontal = Space.s),
+        contentAlignment = Alignment.Center,
+    ) {
+        NeonText("PRIVACY POLICY", size = Type.micro, color = Neon.soft, glow = 0f, letterSpacing = 2.sp)
+    }
+}
 
 @Composable
 fun HowToPlay() {
@@ -98,7 +114,8 @@ fun HowToPlay() {
     )
     Column(verticalArrangement = Arrangement.spacedBy(Space.s)) {
         for ((k, v) in rows) {
-            Row(verticalAlignment = Alignment.Top) {
+            // One stop for a screen reader: the gesture, then what it does.
+            Row(Modifier.semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.Top) {
                 Box(
                     Modifier
                         .width(104.dp)
@@ -110,7 +127,8 @@ fun HowToPlay() {
                         .padding(horizontal = Space.xs, vertical = Space.xxs),
                     contentAlignment = Alignment.Center,
                 ) {
-                    NeonText(k, size = Type.micro, color = Neon.cyan, letterSpacing = 1.sp, glow = 0.3f, maxLines = 1)
+                    // Shrinks rather than clipping at big font sizes.
+                    FitText(k, Type.micro, Neon.cyan, letterSpacing = 1.sp, glow = 0.3f, title = false)
                 }
                 NeonText(v, size = Type.small, color = Neon.soft, glow = 0f, modifier = Modifier.padding(start = Space.s).weight(1f))
             }

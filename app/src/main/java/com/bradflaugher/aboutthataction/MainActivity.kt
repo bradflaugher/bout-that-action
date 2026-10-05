@@ -65,6 +65,7 @@ import com.bradflaugher.aboutthataction.ui.idLabel
 import com.bradflaugher.aboutthataction.ui.presetLabel
 import com.bradflaugher.aboutthataction.ui.todaysChallenge
 import com.bradflaugher.aboutthataction.ui.GameOverScreen
+import com.bradflaugher.aboutthataction.ui.HelpScreen
 import com.bradflaugher.aboutthataction.ui.HeroPickerScreen
 import com.bradflaugher.aboutthataction.ui.Motion
 import com.bradflaugher.aboutthataction.ui.PauseScreen
@@ -80,7 +81,7 @@ import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity(), GameView.Host {
 
-    private enum class Screen { TITLE, CUSTOM, HEROES, SETTINGS, CHALLENGES, BRIEFING, PLAYING, PAUSED, GAME_OVER }
+    private enum class Screen { TITLE, CUSTOM, HEROES, SETTINGS, HELP, CHALLENGES, BRIEFING, PLAYING, PAUSED, GAME_OVER }
 
     private lateinit var prefs: Prefs
     private lateinit var sound: SoundEngine
@@ -91,6 +92,10 @@ class MainActivity : ComponentActivity(), GameView.Host {
     private var screen by mutableStateOf(Screen.TITLE)
     /** Where the hero picker goes back to: the title, or the CUSTOM screen that opened it. */
     private var heroesFrom = Screen.TITLE
+    /** Where HOW TO PLAY goes back to: settings, the title's first-time card, or the pause menu. */
+    private var helpFrom = Screen.SETTINGS
+    /** The title's FIRST TIME HERE? card is still to show. */
+    private var welcome by mutableStateOf(false)
     private var settings by mutableStateOf(Settings())
     private var records by mutableStateOf(Records())
     private var challengeLog by mutableStateOf(ChallengeLog())
@@ -127,12 +132,16 @@ class MainActivity : ComponentActivity(), GameView.Host {
         settings = prefs.loadSettings()
         records = prefs.loadRecords()
         challengeLog = prefs.loadChallenges()
+        welcome = !prefs.loadIntroSeen()
         sound = SoundEngine()
         audio = AudioOutput(sound)
         haptics = Haptics(this)
         applySettings(settings)
 
         gameView = GameView(this, this)
+        // (applySettings above ran before the view existed.)
+        gameView.touchGuide = settings.touchGuide
+        gameView.calm = settings.calm
         gameView.setOnApplyWindowInsetsListener { v, insets ->
             val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
             insetTop = bars.top
@@ -161,6 +170,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
                     Screen.PLAYING -> pause()
                     Screen.PAUSED -> resume()
                     Screen.HEROES -> heroesBack()
+                    Screen.HELP -> { screen = helpFrom }
                     Screen.CUSTOM, Screen.CHALLENGES -> { screen = Screen.TITLE }
                     Screen.BRIEFING -> { screen = briefingFrom }
                     Screen.SETTINGS, Screen.GAME_OVER -> toTitle()
@@ -200,6 +210,12 @@ class MainActivity : ComponentActivity(), GameView.Host {
                             daily = dailyCard(daily, day, challengeLog, settings.hero),
                             onDaily = { openBriefing(daily, Screen.TITLE) },
                             challengesCaption = clearedCaption(challengeLog),
+                            welcome = welcome,
+                            onWelcomeDone = ::introSeen,
+                            onHelp = {
+                                introSeen()
+                                openHelp(Screen.TITLE)
+                            },
                         )
                         Screen.CHALLENGES -> ChallengesScreen(
                             challengeLog, daily, dailyCard(daily, day, challengeLog, settings.hero), pad,
@@ -239,7 +255,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
                             onPlay = ::startRun,
                             onBack = ::heroesBack,
                         )
-                        Screen.SETTINGS -> SettingsScreen(settings, pad, ::updateSettings) { screen = Screen.TITLE }
+                        Screen.SETTINGS -> SettingsScreen(settings, pad, ::updateSettings, onBack = { screen = Screen.TITLE }, onHelp = { openHelp(Screen.SETTINGS) })
+                        Screen.HELP -> HelpScreen(pad, onBack = { screen = helpFrom }, onReplayTutorial = ::replayTutorial)
                         Screen.PAUSED -> PauseScreen(
                             settings, runSeedLabel, runConfig?.hero ?: settings.hero, pad,
                             onResume = ::resume,
@@ -253,6 +270,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
                             },
                             onSettings = ::updateSettings,
                             challenge = gameView.world?.let { w -> w.challenge?.let { ChallengeStatus.of(it, challengeLog, w.hero) } },
+                            onHelp = { openHelp(Screen.PAUSED) },
                         )
                         Screen.GAME_OVER -> lastRun?.let { run ->
                             GameOverScreen(
@@ -393,6 +411,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
     }
 
     private fun startRun(config: RunConfig) {
+        // Dropping in is answer enough to the title's first-time card.
+        introSeen()
         startAudio()
         runConfig = config
         runSeed = config.seed
@@ -487,6 +507,30 @@ class MainActivity : ComponentActivity(), GameView.Host {
         sound.playHeroTheme(hero)
     }
 
+    private fun openHelp(from: Screen) {
+        helpFrom = from
+        screen = Screen.HELP
+    }
+
+    private fun introSeen() {
+        if (!welcome) return
+        welcome = false
+        prefs.saveIntroSeen()
+    }
+
+    /**
+     * REPLAY TUTORIAL: a CHILL run from the roof (the billboard) with the coach tips back on.
+     * From the pause menu it ends the run on screen, the way RESTART does.
+     */
+    private fun replayTutorial() {
+        recordBest()
+        if (!settings.coach) updateSettings(settings.copy(coach = true))
+        val seed = Random.nextLong(SeedCode.LIMIT)
+        runSeedLabel = SeedCode.labelOf(seed)
+        runDifficulty = Difficulty.Preset.CHILL.label
+        startRun(RunConfig(seed, Difficulty.Preset.CHILL.difficulty, coach = true, hero = settings.hero))
+    }
+
     private fun openHeroes(from: Screen) {
         heroesFrom = from
         screen = Screen.HEROES
@@ -508,7 +552,10 @@ class MainActivity : ComponentActivity(), GameView.Host {
         sound.setMusicVolume(s.musicVolume)
         sound.setSfxVolume(s.sfxVolume)
         haptics.enabled = s.haptics
-        if (::gameView.isInitialized) gameView.touchGuide = s.touchGuide
+        if (::gameView.isInitialized) {
+            gameView.touchGuide = s.touchGuide
+            gameView.calm = s.calm
+        }
     }
 
     // ------------------------------------------------------------- GameView.Host
@@ -625,6 +672,11 @@ class MainActivity : ComponentActivity(), GameView.Host {
     private fun menuDepth(s: Screen): Int = when (s) {
         Screen.TITLE -> 0
         Screen.SETTINGS, Screen.CUSTOM, Screen.CHALLENGES -> 1
+        Screen.HELP -> when (helpFrom) {
+            Screen.SETTINGS -> 2
+            Screen.TITLE -> 1
+            else -> -1
+        }
         Screen.BRIEFING -> if (briefingFrom == Screen.CHALLENGES) 2 else 1
         Screen.HEROES -> if (heroesFrom == Screen.CUSTOM) 2 else 1
         else -> -1

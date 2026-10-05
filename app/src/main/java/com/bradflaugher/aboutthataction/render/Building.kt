@@ -195,7 +195,7 @@ internal class Building(private val f: Frame) {
             Zone.MINES, Zone.MAGMA -> 0.24f
             Zone.HELL, Zone.VOID -> 0.3f
         }
-        if (hash(fi * 7 + i, 705) >= chance) return true
+        if (f.calm || hash(fi * 7 + i, 705) >= chance) return true
         val tick = (f.t * 14f).toInt()
         val burst = sin(f.t * 0.9f + i * 2.3f + fi) > 0.35f
         return hash(tick, fi * 31 + i) > (if (burst) 0.5f else 0.03f)
@@ -1246,7 +1246,7 @@ internal class Building(private val f: Frame) {
         g.fillRoundRect(x0 - 0.12f, y0 - 0.12f, x1 + 0.12f, y1 + 0.12f, 0.12f, 0xFF0B0716.toInt())
         g.fillVerticalGradient(x0, y0, x1, y1, 0xFF140C2A.toInt(), 0xFF0A0618.toInt())
         // Neon border (flickers once in a while).
-        val flick = if (hash((f.t * 5f).toInt(), 7) > 0.97f) 0.4f else 1f
+        val flick = if (!f.calm && hash((f.t * 5f).toInt(), 7) > 0.97f) 0.4f else 1f
         g.strokeRoundRect(x0 + 0.06f, y0 + 0.06f, x1 - 0.06f, y1 - 0.06f, 0.1f, 0.14f, Col.fade(pal.neon, 0.18f * flick))
         g.strokeRoundRect(x0 + 0.06f, y0 + 0.06f, x1 - 0.06f, y1 - 0.06f, 0.1f, 0.035f, Col.fade(pal.neon, flick))
         // Header.

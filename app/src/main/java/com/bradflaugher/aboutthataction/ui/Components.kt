@@ -1,5 +1,6 @@
 package com.bradflaugher.aboutthataction.ui
 
+import androidx.compose.ui.semantics.heading
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -321,7 +322,7 @@ fun MenuHeader(
         Column(Modifier.weight(1f).padding(start = Space.m)) {
             FitText(kicker, Type.micro, accent.copy(alpha = 0.8f), Modifier.fillMaxWidth(), title = false, letterSpacing = 3.sp,
                 glow = 0f, alignment = Alignment.CenterStart)
-            FitText(title, 28.sp, Color.White, Modifier.fillMaxWidth(), letterSpacing = 3.sp, glow = 0.35f, alignment = Alignment.CenterStart)
+            FitText(title, 28.sp, Color.White, Modifier.fillMaxWidth().semantics { heading() }, letterSpacing = 3.sp, glow = 0.35f, alignment = Alignment.CenterStart)
         }
         trailing()
     }
@@ -360,7 +361,10 @@ fun Panel(
 /** "01 ─ DIFFICULTY ───────" */
 @Composable
 fun SectionHeader(index: String, text: String, color: Color = Neon.magenta, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth().padding(top = Space.xs), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier.fillMaxWidth().padding(top = Space.xs).semantics(mergeDescendants = true) { heading() },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         NeonText(index, size = Type.micro, color = color, letterSpacing = 1.sp, glow = 0.6f)
         Box(Modifier.padding(horizontal = Space.xs).width(12.dp).height(1.dp).drawBehind { drawRect(color) })
         Kicker(text, Neon.soft)

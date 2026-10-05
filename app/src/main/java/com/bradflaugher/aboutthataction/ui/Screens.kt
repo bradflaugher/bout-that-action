@@ -1,5 +1,7 @@
 package com.bradflaugher.aboutthataction.ui
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -189,6 +191,10 @@ fun TitleScreen(
     onDaily: () -> Unit = {},
     /** Under CHALLENGES, e.g. "37/1,234 CLEARED". */
     challengesCaption: String? = "PICK A MISSION",
+    /** The one-time FIRST TIME HERE? card, in the records' place, until it's dismissed or a run is played. */
+    welcome: Boolean = false,
+    onWelcomeDone: () -> Unit = {},
+    onHelp: () -> Unit = {},
 ) {
     // Logo up top, controls down by the thumbs; at big font sizes or in a short window, it scrolls.
     BoxWithConstraints(Modifier.fillMaxSize().titleScrim().padding(insets).padding(horizontal = Space.l)) {
@@ -203,7 +209,9 @@ fun TitleScreen(
             ) {
                 NeonLogo()
                 Tagline(Modifier.reveal(700).padding(top = Space.xs))
-                if (records.runs > 0) {
+                if (welcome) {
+                    WelcomeCard(Modifier.reveal(850).padding(top = Space.m), onDone = onWelcomeDone, onHelp = onHelp)
+                } else if (records.runs > 0) {
                     Row(
                         Modifier.reveal(850).padding(top = Space.m),
                         horizontalArrangement = Arrangement.spacedBy(Space.xs),
@@ -246,7 +254,7 @@ fun TitleScreen(
                     onClick = onPlay,
                 )
                 Row(Modifier.fillMaxWidth().reveal(460), horizontalArrangement = Arrangement.spacedBy(Space.s)) {
-                    NeonButton("SETTINGS", Neon.cyan, Modifier.weight(1f), height = 56.dp, caption = "SOUND · CONTROLS", onClick = onSettings)
+                    NeonButton("SETTINGS", Neon.cyan, Modifier.weight(1f), height = 56.dp, caption = "SOUND · HELP", onClick = onSettings)
                     NeonButton("CHALLENGES", Neon.gold, Modifier.weight(1f), height = 56.dp, caption = challengesCaption, onClick = onChallenges)
                 }
             }
@@ -318,6 +326,7 @@ fun PauseScreen(
     onSettings: (Settings) -> Unit,
     /** The run's challenge, if it's a challenge run: shown instead of the seed (the challenge is the seed). */
     challenge: ChallengeStatus? = null,
+    onHelp: () -> Unit = {},
 ) {
     Box(
         Modifier.fillMaxSize().veil().scanlines(0.06f).padding(insets).padding(horizontal = Space.m),
@@ -335,7 +344,8 @@ fun PauseScreen(
                         Kicker(hero.title, hero.tint)
                         Kicker("  ·  MISSION ON HOLD", Neon.cyan.copy(alpha = 0.8f))
                     }
-                    NeonText("PAUSED", size = Type.display, color = Color.White, title = true, letterSpacing = 3.sp, glow = 0.4f)
+                    NeonText("PAUSED", size = Type.display, color = Color.White, title = true, letterSpacing = 3.sp, glow = 0.4f,
+                        modifier = Modifier.semantics { heading() })
                 }
             }
             if (challenge != null) ChallengeStatusCard(challenge)
@@ -347,6 +357,8 @@ fun PauseScreen(
                 NeonButton("RESTART", Neon.cyan, Modifier.weight(1f), onClick = onRestart)
                 NeonButton("QUIT", Neon.lava, Modifier.weight(1f), onClick = onQuit)
             }
+            NeonButton("HOW TO PLAY", Neon.cyan, Modifier.fillMaxWidth(), style = ButtonStyle.GHOST, height = Space.touch, textSize = Type.body,
+                onClick = onHelp)
         }
     }
 }
@@ -361,4 +373,5 @@ internal fun AudioAndControls(s: Settings, onChange: (Settings) -> Unit, audioIn
     Toggle("Haptics", "Feel hits and pickups", s.haptics) { onChange(s.copy(haptics = it)) }
     Toggle("Thumb guide", "Ring under your running thumb", s.touchGuide) { onChange(s.copy(touchGuide = it)) }
     Toggle("Coach tips", "A one-line hint the first time each move would help", s.coach) { onChange(s.copy(coach = it)) }
+    Toggle("Calm screen", "No screen shake, softer flashes, steady lights", s.calm) { onChange(s.copy(calm = it)) }
 }

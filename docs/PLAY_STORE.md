@@ -32,10 +32,10 @@ one and is always a valid next upload.
 3. **Graphics.** Everything is in `fastlane/metadata/android/en-US/images/`:
    `icon.png` (512×512, same as `docs/screenshots/icon.png`),
    `featureGraphic.png` (1024×500, the hero lineup under the title), eight
-   1080×1920 `phoneScreenshots` and the same eight scenes rendered at tablet
-   size in `sevenInchScreenshots` (1200×1920) and `tenInchScreenshots`
+   captioned 1080×1920 `phoneScreenshots` and the same eight rendered at
+   tablet size in `sevenInchScreenshots` (1200×1920) and `tenInchScreenshots`
    (1600×2560), so the listing shows the game on large screens. Re-render
-   them with the commands below; the feature graphic is
+   them with `tools/store-shots/render.sh` (below); the feature graphic is
    `./gradlew :app:screenshots -x menuShots -Pata.scene=feature -Pata.shots=fastlane/metadata/android/en-US/images`.
 4. **What's new.** `changelogs/default.txt` is the release note `supply`
    uses for every versionCode (≤ 500 chars). Keep it short and silly.
@@ -95,25 +95,30 @@ pushes back, the title is the thing left to look at.
 ## Refreshing the store screenshots
 
 ```sh
-./gradlew :app:screenshots -Pata.full=true -Pata.size=1080x1920 \
-  -Pata.shots=fastlane/metadata/android/en-US/images/phoneScreenshots
+tools/store-shots/render.sh            # render, then caption
+tools/store-shots/render.sh --caption  # re-caption the raw shots only
 ```
 
-That renders every game scene; keep the good ones (the listing takes 2–8).
-For the tablet slots, render the same scenes at tablet size and keep the
-same eight (`-x menuShots` skips the Compose menus):
+Each listing screenshot shows one thing the game does, with a headline and a
+subline over it in the menus' own look (Audiowide and Share Tech Mono on the
+menu near-black, a chamfered neon frame in the shot's accent colour):
 
-```sh
-./gradlew :app:screenshots -x menuShots -Pata.full=true -Pata.size=1200x1920 -Pata.shots=<dir>
-./gradlew :app:screenshots -x menuShots -Pata.full=true -Pata.size=1600x2560 -Pata.shots=<dir>
-```
+| # | Shot | Headline |
+|---|---|---|
+| 1 | Title with the daily | DROP IN. GO DOWN. |
+| 2 | Neon Tower takedown | SNEAK UP. TAKE DOWN. |
+| 3 | The box, a guard wondering | HIDE IN THE BOX |
+| 4 | Calling a lift | TAP A LIFT. GO DOWN. |
+| 5 | Black Labs firefight | GUNS HOT OR SILENT |
+| 6 | Hero picker (MONKEY) | FOUR HEROES, ALL FREE |
+| 7 | Hell | ALL THE WAY TO HELL |
+| 8 | The challenges board | 1,234 CHALLENGES |
 
-The listing mixes in three menu shots (title with DAILY, the CHALLENGES
-board and CUSTOM RUN). `:app:menuShots` renders a 1080x2400 phone, which
-Play rejects (screenshots must be 9:16), so for the listing, temporarily set
-the `"phone"` qualifiers in `MenuShotsTest` to `w411dp-h731dp-420dpi`
-(1078x1918, resize to 1080x1920), `w600dp-h960dp-xhdpi` (1200x1920) or
-`w800dp-h1280dp-xhdpi` (1600x2560), run
-`./gradlew :app:menuShots -Ponly=phone-title-daily,phone-board,phone-custom`,
-take the images from `app/build/menushots/`, then revert the test and
-`docs/screenshots/`.
+`render.sh` renders the real game scenes (`:app:screenshots` at
+1080×1920, 1200×1920 and 1600×2560) and the real Compose menus
+(`:app:menuShots -Pphone=<qualifiers>`, which renders the "phone" menus at a
+9:16 size into `build/store-raw/` and leaves `docs/screenshots/` alone), then
+`tools/store-shots/caption.py` (Python + Pillow, run through `uv`) captions
+them into the three folders. The captions and the scene for each slot are the
+`SHOTS` list at the top of `caption.py`. Look at every image before you upload
+it.

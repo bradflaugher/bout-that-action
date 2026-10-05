@@ -88,8 +88,10 @@ the JVM.
 - `AndroidGfx.kt` — `Gfx` on `android.graphics.Canvas`.
 - `GameView.kt` — `SurfaceView` + game thread; touch → `GestureInput`.
 - `MainActivity.kt`, `ui/` — Compose menus (title, custom run, challenges board
-  and briefing, settings, pause, game
-  over), `Settings.kt` (prefs, seeds, the challenge log: first-clear day and best progress per id), `Haptics.kt`.
+  and briefing, settings, HOW TO PLAY (`HelpScreen.kt`: controls, FAQ, replay
+  tutorial, and the title's one-time FIRST TIME HERE? card), pause, game
+  over), `Links.kt` (share the game, feedback and the privacy policy: intents
+  only, never network), `Settings.kt` (prefs, seeds, the challenge log: first-clear day and best progress per id), `Haptics.kt`.
 - `app/src/test/` — JVM tests: `engine/` (mechanics, level generation,
   fuzzing, a heuristic bot that plays full runs per preset), `input/`
   (gestures), `render/` (AWT `Gfx` backend, headless screenshots), `audio/`.
@@ -97,6 +99,9 @@ the JVM.
   injected touches).
 - `tools/icon/gen_icon.py` — generates the adaptive launcher icon. Edit the
   script, not the XML.
+- `tools/store-shots/` — the Play listing's captioned screenshots:
+  `render.sh` renders raw game scenes and menus, `caption.py` (Pillow, via
+  `uv`) captions them into `fastlane/.../images/`. See `docs/PLAY_STORE.md`.
 
 ## Rules
 
@@ -108,7 +113,8 @@ the JVM.
   changes and keep the difficulty ordering CHILL < AGENT < BRUTAL <
   STRAIGHT_TO_HELL.
 - Fun, not compulsion: no streaks, daily rewards, timers or "come back"
-  nags. Text is short, silly and family-friendly.
+  nags, and no rating prompts or "please share" reminders (SHARE and FEEDBACK
+  sit quietly in Settings and HOW TO PLAY). Text is short, silly and family-friendly.
 - The daily challenge is a shared pick, nothing more: the same challenge for
   everyone on the same local day (the date is passed in; no clock in
   `engine/`), a deterministic stand-in if you cleared it on an earlier day.
