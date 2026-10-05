@@ -392,12 +392,22 @@ creeping in as guards get suspicious. Flipping the mode switches on the next
 beat, like one song opening up or holding its breath: the other mix comes in
 on its downbeat at a tempo locked to the old one, at the same place in the
 song, on the chord that's ringing. A new zone lands on the bar line after a
-drum fill and a riser. Getting spotted plays a sharp "!" sting, the band hits
-the next beat, and the music goes to ALERT (full drums and lead; in SILENT,
+drum fill and a riser. RETRY, NEW RUN or TITLE from the game-over screen never
+waits for a beat: the dirge crossfades straight into what's next. Getting
+spotted plays a sharp "!" sting, the whole band stabs the next beat (crash,
+kick and the chord on brass, piano or horns), and the music goes to ALERT (full drums and lead; in SILENT,
 the sneak mix gives way to the zone's full track). Once they lose you it stays tense through CAUTION for a few
 seconds, then calms down. Takedowns get a strangled grunt. Every sound effect is
 synthesized too, panned to where it happened on screen, with haptics on the
 big moments. MUSIC and SOUND FX each have their own volume.
+
+In GUNS HOT the music never goes thin while nobody's shooting: the calm bed is
+the whole groove (drums, bass and your hero's tune, softer and darker), and
+heat brings in the counter-line, opens up the filters and lands the drop.
+Every track, from the title to the dirge, is mastered to the same loudness
+(about -16 LUFS, peaks under -1 dBTP, with bass that still reads on a phone
+speaker), so nothing jumps or dips as the music moves. The game-over dirge
+brings back the title's hook, slowed down on a glass bell.
 
 Every hero brings their own band to every zone, in both modes, and signs off
 the game over in their own style. **BULL** plays heavy hip-hop: a slow,
@@ -486,8 +496,12 @@ Kotlin behind small interfaces, so it's tested on the JVM:
 - `WorldFuzzTest`: minutes of random thumbs on every preset.
 - `ScreenshotTest`: renders the README screenshots headlessly through the
   real renderer, using a `java.awt` backend.
-- Audio tests: DSP, music theory, levels, determinism, and a check that it
-  renders faster than real time.
+- Audio tests: DSP, music theory, levels, determinism, the title theme and the
+  heroes' arrangements, musical transitions, and a check that it renders faster
+  than real time. `MusicQualityTest` holds the mastering: every hero in every
+  zone at every heat, the title, the themes and game over in one loudness band
+  (-16 ±1.5 LUFS) under -1 dBTP with no DC, a heat sweep without steps,
+  seamless loops, equal-power crossfades, and leaving game over at once.
 - `GameplaySmokeTest` (emulator): drops into a run and plays with injected
   touches. Runs on an API 37 emulator on demand and weekly; not a merge
   gate, since emulators are slow and flaky.

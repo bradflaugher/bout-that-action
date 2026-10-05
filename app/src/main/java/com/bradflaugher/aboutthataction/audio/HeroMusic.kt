@@ -172,7 +172,7 @@ internal object HeroSongs {
     )
     /** A low, dark string bed under the beat: the menace in the room. */
     private val shadowPad = Patch(
-        wave1 = Wave.SAW, supersaw = true, detune = 0.1f, cutoff = 480f, q = 0.9f, keyTrack = 0.1f, a = 1.2f, d = 1.5f,
+        wave1 = Wave.SAW, supersaw = true, detune = 0.1f, cutoff = 480f, q = 0.9f, keyTrack = 0.1f, a = 0.5f, d = 1.5f,
         s = 0.85f, r = 1.4f, vibrato = 0.05f, vibRate = 0.6f, gain = 0.09f, bright = 0.3f,
     )
     /**
