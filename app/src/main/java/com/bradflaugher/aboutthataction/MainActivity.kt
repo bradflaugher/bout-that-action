@@ -555,6 +555,9 @@ class MainActivity : ComponentActivity(), GameView.Host {
         if (zone == null) {
             sound.playTitle()
         } else {
+            // Calm, whatever the last run left the mix at: the menus never update it.
+            sound.setAlert(AlertPhase.CALM)
+            sound.setIntensity(0f)
             sound.setHero(settings.hero)
             sound.setZone(zone)
         }
@@ -649,7 +652,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
             runOnUiThread { updateChallenges(challengeLog.withEvent(event, today())) }
         }
         when (event) {
-            // The guide: what it taught is remembered; a screen reader reads each prompt out.
+            // The guide: what it taught is remembered (a screen reader hears each prompt from onFrame).
             is GameEvent.LessonTaught -> runOnUiThread { remember(learned + event.lesson) }
             is GameEvent.WalkthroughOver -> runOnUiThread {
                 if (!walkthroughDone) {
@@ -665,10 +668,6 @@ class MainActivity : ComponentActivity(), GameView.Host {
             is GameEvent.ZoneEntered -> {
                 val zones = setOf(event.zone, world.musicZone)
                 runOnUiThread { if (!zonesReached.containsAll(zones)) { zonesReached = zonesReached + zones; prefs.saveZonesReached(zonesReached) } }
-            }
-            is GameEvent.LessonShown -> if (accessibility.isEnabled) {
-                val words = world.guide.kicker + ". " + world.guide.text
-                gameView.post { gameView.announceForAccessibility(words) }
             }
             else -> Unit
         }
@@ -694,6 +693,25 @@ class MainActivity : ComponentActivity(), GameView.Host {
             sound.setSlowMo(musicSlowMo)
         }
         if (++musicFrame % 15 == 0) sound.setIntensity(world.intensity)
+        // Every track the run plays goes on the JUKEBOX, the Void's borrowed zones too.
+        val mz = world.musicZone
+        if (mz !in zonesReached) runOnUiThread { if (mz !in zonesReached) { zonesReached = zonesReached + mz; prefs.saveZonesReached(zonesReached) } }
+        speakGuide(world)
+    }
+
+    /** The guide's prompt as last read out to a screen reader (the lift step changes its words as the car comes). */
+    private var spoken: String? = null
+
+    /** With a screen reader on, reads each guide prompt out once, and again whenever its words change. */
+    private fun speakGuide(world: World) {
+        val g = world.guide
+        val text = if (g.lesson != null && g.doneAt < 0f) g.text else null
+        if (text === spoken) return
+        spoken = text
+        if (text != null && accessibility.isEnabled) {
+            val words = g.kicker + ". " + text
+            gameView.post { gameView.announceForAccessibility(words) }
+        }
     }
 
     /** A run can end mid bullet-time; don't let the menus play slowed down. */
