@@ -76,7 +76,7 @@ internal object MusicLevels {
         "fox-theme" to floatArrayOf(1.67f),
         "hawk-theme" to floatArrayOf(-0.61f),
         "monkey-theme" to floatArrayOf(4.41f),
-        "gameover" to floatArrayOf(-0.14f),
+        "gameover" to floatArrayOf(-0.48f),
         "hell-bull" to floatArrayOf(3.96f, 3.87f, 1.77f, 0.61f, -0.03f, 0.07f),
         "hell-fox" to floatArrayOf(4.37f, 4.35f, 3.37f, 3.37f, 2.86f, 2.98f),
         "hell-hawk" to floatArrayOf(1.63f, 1.79f, 1.73f, 0.77f, 0.87f),

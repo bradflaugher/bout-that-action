@@ -184,3 +184,27 @@ class TitleThemeTest {
         assertTrue("the phrase's drums play", AudioTestUtil.rms(kicks) > 0.3 * AudioTestUtil.rms(none))
     }
 }
+
+/** The game-over dirge quotes the title's hook: the same rhythm and contour, a tone lower, in its own chords. */
+class GameOverQuoteTest {
+    @Test
+    fun theDirgeQuotesTheTitleHook() {
+        val title = Songs.title.phrases!![1].melody!!
+        val dirge = Songs.gameOver.hook!!
+        fun cell(m: Melody, bar: Int) = (0 until 16).filter { m.notes[bar][it] >= 0 }.map { it to m.lengths[bar][it] }
+        fun contour(m: Melody, bar: Int) = (0 until 16).filter { m.notes[bar][it] >= 0 }.map { m.notes[bar][it] }.zipWithNext { a, b -> Integer.signum(b - a) }
+        for (b in listOf(0, 2, 4)) {
+            org.junit.Assert.assertEquals("bar $b: the hook's rhythm", cell(title, b), cell(dirge, b))
+            org.junit.Assert.assertEquals("bar $b: the hook's contour", contour(title, b), contour(dirge, b))
+        }
+        // Every note on the beat sits in the chord under it.
+        val spec = Songs.gameOver
+        for (b in 0 until dirge.barCount) {
+            val chord = spec.progA[(b / spec.barsPerChord) % spec.progA.size]
+            for (st in 0 until 16 step 4) {
+                val n = dirge.notes[b][st]
+                if (n >= 0 && dirge.lengths[b][st] >= 3) org.junit.Assert.assertTrue("bar $b step $st", chord.containsPc(n - spec.tonic))
+            }
+        }
+    }
+}

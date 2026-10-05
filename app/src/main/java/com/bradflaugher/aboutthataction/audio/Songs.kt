@@ -675,6 +675,23 @@ internal object Songs {
     )
 
     // ---- GAME OVER: quiet ambient loop (D minor, 72) ------------------------------------
+    //
+    // The dirge carries the title's hook home: the same cell ("dum, dum, DAAH da-da-da", then a
+    // held note) on a glass bell, a tone lower and at 72, sinking a step each time over
+    // i-VI-iv and hanging on the suspended V, so the loop never quite resolves.
+
+    private val gameOverQuote = Melody(
+        arrayOf(
+            "D5:3 D5:3 F5:4 E5:2 D5:2 C5:2",
+            "D5:12 -:4",
+            "Bb4:3 Bb4:3 D5:4 C5:2 Bb4:2 A4:2",
+            "D5:12 -:4",
+            "G4:3 G4:3 Bb4:4 A4:2 G4:2 F4:2",
+            "G4:12 -:4",
+            "A4:3 A4:3 D5:4 E5:2 D5:2 A4:2",
+            "A4:12 -:4",
+        ),
+    )
 
     val gameOver = SongSpec(
         name = "gameover", bpm = 72f, tonic = 50, scale = AEOLIAN,
@@ -684,13 +701,14 @@ internal object Songs {
         arpA = "0.......4.......", arpB = "3.......2.......", arpGate = 4f,
         bassCenter = 38, padCenter = 60, arpCenter = 72, leadOctave = 24,
         leadTemplates = arrayOf("x.......x......."),
-        motifSeed = 9,
+        motifSeed = 9, hook = gameOverQuote,
         pad = supersawPad.copyish(cutoff = 700f, a = 2f, r = 3f, gain = 0.13f),
         bass = Patch(wave1 = Wave.SINE, sub = 0.3f, cutoff = 400f, a = 0.8f, s = 1f, r = 2f, gain = 0.25f, bright = 0f),
         arp = Patch(wave1 = Wave.SINE, wave2 = Wave.SINE, osc2Semi = 31.02f, osc2Level = 0.2f, cutoff = 5000f, a = 0.002f, d = 2.5f, s = 0f, r = 2.5f, gain = 0.15f, bright = 0f),
-        lead = Patch(gain = 0f),
-        mix = Mix(bass = 0.47f, pad = 2.2f, arp = 1.2f, arpDelay = 0.4f, arpVerb = 0.5f, padVerb = 0.45f, padDuck = 0f, bassDuck = 0f),
-        wind = 0.12f, fixedIntensity = 0.15f, arpThreshold = -1f, leadThreshold = 2f,
+        // A glass bell: a sine and its octave, struck, ringing on into the room.
+        lead = Patch(wave1 = Wave.SINE, wave2 = Wave.SINE, osc2Semi = 12f, osc2Level = 0.18f, detune = 0f, cutoff = 5000f, keyTrack = 0f, a = 0.003f, d = 1.6f, s = 0.3f, r = 1.4f, gain = 0.11f, bright = 0f),
+        mix = Mix(bass = 0.47f, pad = 2.2f, arp = 1.2f, lead = 1.1f, arpDelay = 0.4f, arpVerb = 0.5f, padVerb = 0.45f, padDuck = 0f, bassDuck = 0f, leadVerb = 0.5f, leadDelay = 0.4f),
+        wind = 0.12f, fixedIntensity = 0.15f, arpThreshold = -1f, leadThreshold = -1f,
     )
 
     // ---- SILENT: every zone's sneak mix ---------------------------------------------------
