@@ -2,4 +2,5 @@
 • First time here? A one-time card on the title shows the four moves.
 • CALM SCREEN: no screen shake, softer flashes, steady lights.
 • SHARE the game and send FEEDBACK from Settings.
+• RATE it on Google Play from Settings. It never asks.
 • Volume meters work with TalkBack, and the menus read better with it.

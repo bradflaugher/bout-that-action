@@ -10,6 +10,8 @@ import androidx.core.net.toUri
 // and the game itself sends nothing.
 
 const val PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.bradflaugher.aboutthataction"
+/** The Play Store app's page for the game; [PLAY_STORE_URL] is the browser fallback. */
+const val PLAY_STORE_APP_URI = "market://details?id=com.bradflaugher.aboutthataction"
 const val FEEDBACK_URL = "https://github.com/bradflaugher/bout-that-action/issues/new"
 const val PRIVACY_POLICY_URL = "https://bradflaugher.com/privacy/bout-that-action/"
 
@@ -20,6 +22,21 @@ const val SHARE_APP_TEXT = "'Bout That Action: an endless neon spy caper. Ride t
 internal fun shareApp(context: Context) {
     val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, SHARE_APP_TEXT)
     start(context, Intent.createChooser(send, "Share 'Bout That Action"))
+}
+
+/** What TalkBack reads for the RATE button: the bare word doesn't say where it goes. */
+const val RATE_DESCRIPTION = "Rate 'Bout That Action on Google Play"
+
+/**
+ * The game's page in the Play Store app, or in the browser when there's no Play Store. Only ever
+ * opened from a tap on RATE: the game never asks for a rating.
+ */
+internal fun rateApp(context: Context) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, PLAY_STORE_APP_URI.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    } catch (_: ActivityNotFoundException) {
+        openUrl(context, PLAY_STORE_URL)
+    }
 }
 
 /** A new GitHub issue in the browser: bugs, ideas, anything. */

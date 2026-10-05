@@ -11,8 +11,10 @@
   them. They aren't backed up to the cloud.
 - **Permissions:** vibration only, for haptics.
 - **Links out:** SHARE hands the game's Play Store link to your phone's share
-  sheet, and FEEDBACK and PRIVACY POLICY open a page in your browser. Those
-  apps take it from there; the game itself still sends nothing.
+  sheet, RATE opens the game's page in the Play Store app (or your browser),
+  and FEEDBACK and PRIVACY POLICY open a page in your browser. Those apps take
+  it from there; the game itself still sends nothing, and never asks you for
+  a rating.
 - **Children:** the game collects nothing from anyone, children included.
 
 If this ever changes, this page will change first.
