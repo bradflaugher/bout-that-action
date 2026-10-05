@@ -266,10 +266,7 @@ class Guide internal constructor(private val w: World) {
             Lesson.JUMP -> normal && w.stats.jumps == 0 && w.bullets.any {
                 !it.byPlayer && it.floor == p.floor && it.hall == p.hall && it.z < 0.7f && (p.x - it.x) * it.vx > 0f && abs(p.x - it.x) < 4f
             }
-            Lesson.TAKEDOWN -> normal && w.melee && w.takedowns == 0 && w.enemies.any {
-                mine(it) && LevelGen.canNap(it.kind) && abs(it.x - p.x) < 4.5f &&
-                    (it.asleep || it.state == EnemyState.PATROL && it.facing == (if (it.x > p.x) 1 else -1))
-            }
+            Lesson.TAKEDOWN -> normal && w.melee && w.takedowns == 0 && takedownTarget() != null
             Lesson.BOX -> normal && w.stats.boxHides + w.stats.doorHides == 0 && threat(7f)
             Lesson.UNBOX -> p.state == PlayerState.BOX && boxedFor > 3f && !threat(99f)
             Lesson.LIFT -> normal && p.floor >= 1 && w.stats.rides == 0 && hall.plan.downLandings.isNotEmpty() && !threat(99f)
@@ -284,6 +281,18 @@ class Guide internal constructor(private val w: World) {
             Lesson.COMBO -> w.combo >= 2
             Lesson.ZONE -> zonesSeen >= 2 && w.bannerTime <= 0f && w.alertPhase != AlertPhase.ALERT
         }
+    }
+
+    /** The nearest guard in reach of a takedown lesson: napping, or patrolling with his back to you. */
+    private fun takedownTarget(): Enemy? {
+        val p = w.player
+        var best: Enemy? = null
+        for (e in w.enemies) {
+            val open = mine(e) && LevelGen.canNap(e.kind) && abs(e.x - p.x) < 4.5f &&
+                (e.asleep || e.state == EnemyState.PATROL && e.facing == (if (e.x > p.x) 1 else -1))
+            if (open && (best == null || abs(e.x - p.x) < abs(best.x - p.x))) best = e
+        }
+        return best
     }
 
     private fun stashDoor(hall: HallState): Door? {
@@ -357,7 +366,8 @@ class Guide internal constructor(private val w: World) {
             Lesson.RUN, Lesson.JUMP, Lesson.BOX, Lesson.UNBOX -> spot(GuideSpot.PLAYER, p.x)
             Lesson.STEP_OUT -> spot(GuideSpot.PLAYER, p.x)
             Lesson.TAKEDOWN -> {
-                val e = roofGuard()?.takeIf { walkthrough } ?: w.enemies.filter { mine(it) && LevelGen.canNap(it.kind) }.minByOrNull { abs(it.x - p.x) }
+                // The same guard that made the lesson worth showing, never a face-on or alert one.
+                val e = roofGuard()?.takeIf { walkthrough } ?: takedownTarget()
                 if (e != null) spot(GuideSpot.ENEMY, e.x)
                 if (!walkthrough) kicker = "SNEAK UP BEHIND"
             }

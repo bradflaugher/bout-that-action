@@ -141,6 +141,13 @@ data class ChallengeLog(val cleared: Map<Int, Long> = emptyMap(), val best: Map<
     }
 }
 
+/**
+ * Has this device played before the guide existed? A finished run, a started one (the title's
+ * intro_seen), any challenge progress or a best score all say yes.
+ */
+fun returningPlayer(runs: Int, introSeen: Boolean, challenges: Boolean, bestScore: Long): Boolean =
+    runs > 0 || introSeen || challenges || bestScore > 0
+
 class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("about_that_action", Context.MODE_PRIVATE)
 
@@ -217,15 +224,39 @@ class Prefs(context: Context) {
      * Lessons the guide has taught on this device. Anyone who played before the guide existed
      * already knows the moves: they start with all of them, and REPLAY TUTORIAL is there.
      */
-    fun loadLearned(): Set<Lesson> =
-        if (sp.contains("learned")) Lesson.decode(sp.getString("learned", "")) else if (sp.getInt("runs", 0) > 0) Lesson.entries.toSet() else emptySet()
+    fun loadLearned(): Set<Lesson> {
+        migrateGuide()
+        return Lesson.decode(sp.getString("learned", ""))
+    }
+
+    /**
+     * The first launch of a build with the guide decides, once, whether this is a returning
+     * player: anyone who'd started a run (intro_seen), finished one, or touched a challenge
+     * already knows the moves, so they get every lesson learned and no walkthrough. A fresh
+     * install starts with none. Decided before the title can mark anything, and saved.
+     */
+    private fun migrateGuide() {
+        if (sp.contains("learned")) return
+        val veteran = returningPlayer(
+            runs = sp.getInt("runs", 0), introSeen = sp.getBoolean("intro_seen", false),
+            challenges = !sp.getString("ch_cleared", null).isNullOrEmpty() || !sp.getString("ch_best", null).isNullOrEmpty(),
+            bestScore = sp.getLong("best_score", 0),
+        )
+        sp.edit {
+            putString("learned", if (veteran) Lesson.encode(Lesson.entries.toSet()) else "")
+            if (veteran) putBoolean("walkthrough_done", true)
+        }
+    }
 
     fun saveLearned(set: Set<Lesson>) {
         sp.edit { putString("learned", Lesson.encode(set)) }
     }
 
     /** The first run's rooftop walkthrough is done (finished, skipped, or a run already played). */
-    fun loadWalkthroughDone(): Boolean = sp.getBoolean("walkthrough_done", sp.getInt("runs", 0) > 0)
+    fun loadWalkthroughDone(): Boolean {
+        migrateGuide()
+        return sp.getBoolean("walkthrough_done", false)
+    }
 
     fun saveWalkthroughDone() {
         sp.edit { putBoolean("walkthrough_done", true) }

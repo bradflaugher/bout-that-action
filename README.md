@@ -59,7 +59,7 @@ CHILL run from the roof with the walkthrough and every tip again.
 **Calm screen** in Settings turns off screen shake, softens the full-screen
 flashes and holds flickering lamps steady (the walkthrough's highlights stop
 pulsing too). **Text size** (NORMAL / LARGE / LARGER) grows the menus on top of
-the system font size, up to 1.5x in all, and the HUD's labels, the context
+the system font size, up to 1.5x in all (a bigger system size is left as it is), and the HUD's labels, the context
 chip and the walkthrough's prompts up to 1.3x. A screen reader reads each
 walkthrough prompt aloud. Design notes and every threshold are in
 [`docs/CONTROLS.md`](docs/CONTROLS.md).

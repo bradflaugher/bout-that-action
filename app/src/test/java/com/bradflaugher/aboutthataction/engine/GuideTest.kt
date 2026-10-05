@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import com.bradflaugher.aboutthataction.returningPlayer
 import org.junit.Test
 import kotlin.math.abs
 
@@ -236,5 +237,15 @@ class GuideTest {
             assertTrue("${l.name} text", l.text.length <= 22)
             l.praise?.let { assertTrue("${l.name} praise", it.length <= 18) }
         }
+    }
+
+    @Test
+    fun anyoneWhoPlayedBeforeTheGuideCountsAsReturning() {
+        val r = ::returningPlayer
+        assertFalse(r(0, false, false, 0L))
+        assertTrue(r(3, false, false, 0L))
+        assertTrue("started runs but quit them all", r(0, true, false, 0L))
+        assertTrue("only played challenges", r(0, false, true, 0L))
+        assertTrue(r(0, false, false, 150L))
     }
 }

@@ -111,7 +111,11 @@ fun TextSizeScope(requested: Float, content: @Composable () -> Unit) {
 /** The menus are checked up to this much bigger text than default, all settings together. */
 const val MAX_TEXT_SCALE = 1.5f
 
-/** TEXT SIZE's own factor on top of the system's [fontScale], so the two together stay within [MAX_TEXT_SCALE]. */
+/**
+ * TEXT SIZE's own factor on top of the system's [fontScale], so the two together stay within
+ * [MAX_TEXT_SCALE]. It only ever adds: a system font size already past the cap (an accessibility
+ * setting) is honoured as it is, never shrunk, exactly as before TEXT SIZE existed.
+ */
 fun textSizeFactor(requested: Float, fontScale: Float): Float = requested.coerceAtMost(MAX_TEXT_SCALE / fontScale).coerceAtLeast(1f)
 
 private class ScaledTextDensity(private val base: Density, private val k: Float) : Density by base {
