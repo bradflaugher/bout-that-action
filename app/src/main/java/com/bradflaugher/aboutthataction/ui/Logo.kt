@@ -1,5 +1,8 @@
 package com.bradflaugher.aboutthataction.ui
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -100,6 +103,7 @@ fun NeonLogo(modifier: Modifier = Modifier) {
             Modifier
                 .fillMaxWidth()
                 .height(h)
+                .semantics { contentDescription = "'Bout That Action"; heading() }
                 .drawBehind {
                     val t = clock.value
                     val p = power.value

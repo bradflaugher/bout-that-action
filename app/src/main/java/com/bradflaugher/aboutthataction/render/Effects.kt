@@ -584,7 +584,7 @@ internal class Effects(private val f: Frame) {
 
         // --- screen shake and hit-stop get a hint of lens split and an impact flash.
         val shake = min(1f, w.shake)
-        if (playing && (shake > 0.05f || impact > 0.01f)) chroma(W, H, 0.3f * shake + 0.25f * impact, (1.5f + 3f * shake) * u)
+        if (playing && !f.calm && (shake > 0.05f || impact > 0.01f)) chroma(W, H, 0.3f * shake + 0.25f * impact, (1.5f + 3f * shake) * u)
         val close = w.player.sinceCloseCall
         if (playing && close < CLOSE_TIME) {
             val k = 1f - close / CLOSE_TIME
@@ -593,13 +593,13 @@ internal class Effects(private val f: Frame) {
             g.fillRect(0f, 0f, W, H, Col.alpha(0xFF3CF4FF.toInt(), 0.05f * k * k))
             g.blend(Gfx.Blend.NORMAL)
         }
-        if (impact > 0.01f) {
+        if (impact > 0.01f && !f.calm) {
             g.blend(Gfx.Blend.ADD)
             g.fillRect(0f, 0f, W, H, Col.alpha(0xFFFFF4EC.toInt(), 0.045f * impact))
             g.blend(Gfx.Blend.NORMAL)
         }
 
-        if (w.zone == Zone.VOID && playing) {
+        if (w.zone == Zone.VOID && playing && !f.calm) {
             val tick = (f.t * 12f).toInt()
             g.blend(Gfx.Blend.ADD)
             for (i in 0 until 3) {
@@ -640,7 +640,7 @@ internal class Effects(private val f: Frame) {
         }
 
         if (w.flashAmount > 0.01f) {
-            val a = min(1f, w.flashAmount)
+            val a = flashStrength(w.flashAmount, f.calm)
             when (w.flash) {
                 Flash.HURT -> {
                     // Tint the whole frame blood-red without washing it out, then burn the edges.

@@ -140,9 +140,14 @@ tasks.register<Test>("menuShots") {
     val unitTest = tasks.named<Test>("testDebugUnitTest")
     testClassesDirs = unitTest.get().testClassesDirs
     classpath = unitTest.get().classpath
-    systemProperty("ata.menushots", layout.buildDirectory.dir("menushots").get().asFile.absolutePath)
+    // -Pphone=w411dp-h731dp-420dpi renders the "phone" shots at another size (9:16 for the Play
+    // listing) into -Pata.menushots=<dir>, and then leaves docs/screenshots alone.
+    val phone = (project.findProperty("phone") ?: "").toString()
+    val outDir = (project.findProperty("ata.menushots") as String?)?.let { rootProject.file(it) } ?: layout.buildDirectory.dir("menushots").get().asFile
+    systemProperty("ata.menushots", outDir.absolutePath)
+    systemProperty("ata.menushots.phone", phone)
     // The README's menu images are regenerated here too (half size, like the game shots).
-    systemProperty("ata.menushots.docs", rootProject.file("docs/screenshots").absolutePath)
+    if (phone.isEmpty()) systemProperty("ata.menushots.docs", rootProject.file("docs/screenshots").absolutePath)
     systemProperty("robolectric.graphicsMode", "NATIVE")
     // -ea turns on coroutine debug mode, which renames the thread on every dispatch: very slow here.
     systemProperty("kotlinx.coroutines.debug", "off")

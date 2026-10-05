@@ -1,6 +1,7 @@
 package com.bradflaugher.aboutthataction
 
 import android.content.Context
+import androidx.core.content.edit
 import com.bradflaugher.aboutthataction.engine.Challenges
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.GameEvent
@@ -30,6 +31,8 @@ data class Settings(
     val touchGuide: Boolean = true,
     /** One-line hints the first time each move would help, on the first floors of a run from the roof. */
     val coach: Boolean = true,
+    /** CALM SCREEN: no screen shake, softer flashes, steady lamps. Looks only. */
+    val calm: Boolean = false,
     val musicVolume: Float = 0.8f,
     val sfxVolume: Float = 1f,
     /** Who drops in. Picked on the title screen, remembered between runs. All four from the start. */
@@ -153,6 +156,7 @@ class Prefs(context: Context) {
             haptics = sp.getBoolean("haptics", d.haptics),
             touchGuide = sp.getBoolean("touch_guide", d.touchGuide),
             coach = sp.getBoolean("coach", d.coach),
+            calm = sp.getBoolean("calm", d.calm),
             musicVolume = sp.getFloat("music", d.musicVolume),
             sfxVolume = sp.getFloat("sfx", d.sfxVolume),
             hero = Hero.fromSaved(sp.getString("hero", null)) ?: d.hero,
@@ -174,6 +178,7 @@ class Prefs(context: Context) {
             .putBoolean("haptics", s.haptics)
             .putBoolean("touch_guide", s.touchGuide)
             .putBoolean("coach", s.coach)
+            .putBoolean("calm", s.calm)
             .putFloat("music", s.musicVolume)
             .putFloat("sfx", s.sfxVolume)
             .putString("hero", s.hero.name)
@@ -187,6 +192,16 @@ class Prefs(context: Context) {
 
     fun saveChallenges(log: ChallengeLog) {
         sp.edit().putString("ch_cleared", ChallengeLog.encode(log.cleared)).putString("ch_best", ChallengeLog.encode(log.best)).apply()
+    }
+
+    /**
+     * The title's one-time FIRST TIME HERE? card has been dealt with (dismissed, or a run
+     * played). Anyone who has already played a run never sees it.
+     */
+    fun loadIntroSeen(): Boolean = sp.getBoolean("intro_seen", sp.getInt("runs", 0) > 0)
+
+    fun saveIntroSeen() {
+        sp.edit { putBoolean("intro_seen", true) }
     }
 
     fun loadRecords() = Records(sp.getLong("best_score", 0), sp.getInt("best_floor", 0), sp.getInt("runs", 0))

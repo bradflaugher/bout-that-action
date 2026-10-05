@@ -64,6 +64,8 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
     @Volatile var topInset = 0f
     @Volatile var bottomInset = 0f
     @Volatile var touchGuide = true
+    /** CALM SCREEN: no shake, soft flashes, steady lamps ([Renderer.calm]). */
+    @Volatile var calm = false
 
     private val renderer = Renderer()
     private val gfx = AndroidGfx(context)
@@ -84,6 +86,8 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
     init {
         holder.addCallback(this)
         isFocusable = true
+        // The game is drawn, not built from views: tell a screen reader what it is and how it plays.
+        contentDescription = "Game. Drag to run, swipe up to jump, swipe down to hide, tap doors and elevators. Pause is top right."
     }
 
     /**
@@ -224,6 +228,7 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
             if (w == null) {
                 canvas.drawColor(0xFF07060F.toInt())
             } else {
+                renderer.calm = calm
                 renderer.render(gfx, w, time, topInset, bottomInset, showHud = !attract)
                 if (!attract && touchGuide) drawTouchGuide()
             }

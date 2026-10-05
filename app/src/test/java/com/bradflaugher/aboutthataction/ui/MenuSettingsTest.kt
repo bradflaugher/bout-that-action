@@ -82,4 +82,26 @@ class MenuSettingsTest {
         val bites = Difficulty.Preset.entries.map { bite(it.difficulty) }
         assertEquals(bites.sorted(), bites)
     }
+
+    @Test
+    fun theShareAndFeedbackLinksPointAtTheGameAndCarryNoEmail() {
+        assertEquals("https://play.google.com/store/apps/details?id=com.bradflaugher.aboutthataction", PLAY_STORE_URL)
+        assertTrue(SHARE_APP_TEXT, SHARE_APP_TEXT.endsWith(PLAY_STORE_URL))
+        assertTrue(SHARE_APP_TEXT.length <= 200)
+        assertEquals("https://github.com/bradflaugher/bout-that-action/issues/new", FEEDBACK_URL)
+        // No email address anywhere the player can see.
+        for (text in listOf(SHARE_APP_TEXT, FEEDBACK_URL, PRIVACY_POLICY_URL) + FAQ.flatMap { listOf(it.first, it.second) }) {
+            assertTrue(text, '@' !in text)
+        }
+    }
+
+    @Test
+    fun theFaqIsShortAndNeverAsksForARating() {
+        assertTrue(FAQ.size in 5..12)
+        for ((q, a) in FAQ) {
+            assertTrue(q, q.length <= 34)
+            assertTrue(a, a.length <= 220)
+            assertTrue(a, !Regex("\\b(rate|rating|review)\\b", RegexOption.IGNORE_CASE).containsMatchIn(q + " " + a))
+        }
+    }
 }

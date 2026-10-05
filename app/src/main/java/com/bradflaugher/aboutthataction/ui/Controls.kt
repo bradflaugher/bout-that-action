@@ -1,5 +1,8 @@
 package com.bradflaugher.aboutthataction.ui
 
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -183,8 +186,18 @@ fun LevelMeter(
         if (v != current) latest(v)
     }
     Row(
+        // A screen reader hears "MUSIC, 80%" and can step it up and down like a slider.
         Modifier.fillMaxWidth().heightIn(min = Space.touch)
-            .semantics { stateDescription = "${(value * 100).roundToInt()}%" },
+            .semantics(mergeDescendants = true) {
+                contentDescription = label
+                stateDescription = if (lit == 0) "Off" else "${lit * 100 / steps}%"
+                progressBarRangeInfo = ProgressBarRangeInfo(lit / steps.toFloat(), 0f..1f, steps - 1)
+                setProgress { v ->
+                    val next = (v * steps).roundToInt().coerceIn(0, steps) / steps.toFloat()
+                    if (next != current) latest(next)
+                    true
+                }
+            },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         NeonText(label, size = Type.body, color = Neon.soft, modifier = Modifier.width(96.dp), glow = 0f, maxLines = 1)

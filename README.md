@@ -39,7 +39,12 @@ a ride down. An optional thumb guide shows where your run drag started.
 Inputs are forgiving: a gesture made a hair early is buffered, and a bullet
 that lands the same instant you dodge counts as a miss ("CLOSE!"). On a run
 from the roof, **coach tips** pop up the first time each move would help
-("SWIPE DOWN: HIDE"); turn them off in Settings. Design
+("SWIPE DOWN: HIDE"); turn them off in Settings. The very first launch
+shows a one-time FIRST TIME HERE? card on the title with the four gestures.
+**HOW TO PLAY** (in Settings and on the pause menu) has the controls, a short
+FAQ and **REPLAY TUTORIAL**: a CHILL run from the roof with the coach tips back
+on. **Calm screen** in Settings turns off screen shake, softens the
+full-screen flashes and holds flickering lamps steady. Design
 notes and every threshold are in [`docs/CONTROLS.md`](docs/CONTROLS.md).
 
 ## How it plays
@@ -300,6 +305,10 @@ and BEST.
     <td align="center" width="20%"><img src="docs/screenshots/menu-seed.png" alt="The custom run screen with a friend's seed code set"><p><em><b>Seeds</b>: paste a friend's code</em></p></td>
     <td align="center" width="20%"><img src="docs/screenshots/menu-gameover.png" alt="Game over with a new deepest floor"><p><em><b>Game over</b>: the depth counts down the building</em></p></td>
   </tr>
+  <tr>
+    <td align="center" width="20%"><img src="docs/screenshots/menu-settings.png" alt="Settings: audio, controls, calm screen, help, share and feedback"><p><em><b>Settings</b>: sound, controls, help</em></p></td>
+    <td align="center" width="20%"><img src="docs/screenshots/menu-help.png" alt="How to play: replay the tutorial, the controls and a FAQ"><p><em><b>How to play</b>: controls, FAQ, tutorial</em></p></td>
+  </tr>
 </table>
 
 The title screen shows who you're playing as, the difficulty (CHILL, AGENT,
@@ -308,7 +317,9 @@ BRUTAL, or **CUSTOM**) and today's challenge; **DROP IN** is still one tap. CUST
 included), tweak it while the chart redraws, see what it feels like next to the
 presets, and drop in from right there. Your curve is kept when you go back to
 a preset. That's also where you set a seed. Sound and controls live in
-**Settings**.
+**Settings**, along with HOW TO PLAY, **SHARE** (the Play link, through the
+system share sheet) and **FEEDBACK** (a new GitHub issue in your browser). The
+game itself still has no network access: both just hand a link to another app.
 Tap the hero bar to open the picker: swipe (or tap the roster) through all
 four heroes, each on their own stage with their theme playing, and see their
 trait and three hero-only perks. The pick sticks between runs, and the demo

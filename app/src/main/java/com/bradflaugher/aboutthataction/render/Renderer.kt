@@ -38,6 +38,15 @@ class Renderer {
         set(v) { effects.scanlines = v }
 
     /**
+     * CALM SCREEN (a settings toggle): no screen shake, softer full-screen flashes, steady lamps
+     * and no glitch bars, for anyone who'd rather the screen didn't flash or jolt. Looks only;
+     * the run plays exactly the same.
+     */
+    var calm: Boolean
+        get() = f.calm
+        set(v) { f.calm = v }
+
+    /**
      * Draw one frame. [time] = real seconds (for idle anims), insets in px keep HUD clear of
      * status/nav bars. [showHud] = false draws the world only (attract mode behind menus).
      */
@@ -156,6 +165,8 @@ internal class Frame {
     var bottomInset = 0f
     var shakeX = 0f
     var shakeY = 0f
+    /** CALM SCREEN: see [Renderer.calm]. */
+    var calm = false
     var first = 0
     var last = 0
     var dt = 0f
@@ -288,7 +299,7 @@ internal class Frame {
         camY = w.camY
         viewH = g.height / s
         trackSlide()
-        val k = w.shake * w.shake * 0.42f + w.shake * 0.08f
+        val k = shakeAmount(w.shake, calm)
         shakeX = (sin(t * 91f) + sin(t * 57f + 1.3f) * 0.6f) * k * s * 0.5f
         shakeY = (sin(t * 83f + 2.1f) + sin(t * 47f) * 0.6f) * k * s * 0.5f
     }
@@ -397,3 +408,12 @@ internal class Frame {
         const val SLIDE_TIME = 0.26f
     }
 }
+
+/** How far the frame shakes (world units, before the wobble) for [shake]: nothing in CALM SCREEN. */
+internal fun shakeAmount(shake: Float, calm: Boolean): Float = if (calm) 0f else shake * shake * 0.42f + shake * 0.08f
+
+/** How strong a full-screen flash is drawn: CALM SCREEN keeps a soft hint of it, so a hit still reads. */
+internal fun flashStrength(amount: Float, calm: Boolean): Float = min(1f, amount) * if (calm) CALM_FLASH else 1f
+
+/** The share of a full-screen flash CALM SCREEN keeps. */
+internal const val CALM_FLASH = 0.3f

@@ -295,7 +295,7 @@ internal fun SeedField(text: String, modifier: Modifier = Modifier, onText: (Str
             ) {
                 NeonText("#", size = 20.sp, color = Neon.cyan, modifier = Modifier.padding(end = Space.s))
                 Box(Modifier.weight(1f)) {
-                    if (text.isEmpty()) NeonText("K7QM 2XAB", size = Type.body, color = Neon.faint, glow = 0f, letterSpacing = 2.sp)
+                    if (text.isEmpty()) NeonText("K7QM 2XAB", size = Type.body, color = Neon.dim, glow = 0f, letterSpacing = 2.sp)
                     inner()
                 }
                 // A whole code gets a check; until then, how far along it is.
