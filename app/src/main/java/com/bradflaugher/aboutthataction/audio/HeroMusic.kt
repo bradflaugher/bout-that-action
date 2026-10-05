@@ -123,6 +123,21 @@ internal object HeroSongs {
     private val hawkSig = Motif("4:3 2:3 .:2 4:1 5:1 4:1 2:1 0:4")
     private val hawkAns = Motif("2:2 .:1 3:1 4:2 7:2 6:1 4:1 .:2 2:4")
 
+    // ---- Layers: what heat adds -----------------------------------------------------------
+    //
+    // GUNS HOT sits near zero heat whenever nobody is shooting, so its calm bed has to be a
+    // whole groove on its own: the drums and bass play from the first bar (a trap or rave drop
+    // still holds the kick back, its bass line playing soft), and the hero's tune is there,
+    // softer and darker. CAUTION brings the counter-line in and opens the filters; ALERT lands
+    // the drop, the percussion and the lead at full voice. (MONKEY's band keeps its own plan.)
+
+    /** Hot arrangements: kick and snare from zero heat. */
+    private const val HOT_KICK = -0.25f
+    private const val HOT_LEAD = 0.55f
+    private const val HOT_LEAD_FLOOR = 0.5f
+    /** A sneak mix's tune surfaces softly even calm (the hero's motif is always in the room). */
+    private const val SNEAK_LEAD_FLOOR = 0.35f
+
     // ---- Tempos (each genre at its own speed, a notch quicker the deeper you go) -------------
 
     // Zones in order: ROOFTOP, TOWER, LABS, METRO, MINES, MAGMA, HELL, VOID.
@@ -143,21 +158,6 @@ internal object HeroSongs {
         FloatArray(8) { MONKEY_HOT_BPM[it] * 2f / 3f }, // MONKEY: noir-circus tiptoe, hot x 2/3 exactly
     )
 
-    // ---- Loudness trims (measured: each arrangement matches its zone's own track) ----------
-
-    private val HOT_TRIM = arrayOf(
-        floatArrayOf(0.78f, 0.78f, 0.77f, 0.79f, 0.79f, 0.82f, 0.86f, 0.75f), // BULL
-        floatArrayOf(1.12f, 1.12f, 1.11f, 1.10f, 1.11f, 1.15f, 1.28f, 1.05f), // FOX
-        floatArrayOf(0.98f, 0.93f, 0.95f, 0.95f, 0.99f, 0.96f, 1.09f, 0.92f), // HAWK
-        floatArrayOf(1.5f, 1.53f, 1.52f, 1.47f, 1.55f, 1.43f, 1.74f, 1.43f), // MONKEY
-    )
-    private val SNEAK_TRIM = arrayOf(
-        floatArrayOf(0.75f, 0.71f, 0.70f, 0.70f, 0.72f, 0.74f, 0.70f, 0.73f), // BULL
-        floatArrayOf(0.85f, 0.83f, 0.84f, 0.88f, 0.85f, 0.86f, 0.86f, 0.88f), // FOX
-        floatArrayOf(0.93f, 0.90f, 0.92f, 0.89f, 0.91f, 0.94f, 0.92f, 0.93f), // HAWK
-        floatArrayOf(0.9f, 0.9f, 0.93f, 1.03f, 1.07f, 1.08f, 1.08f, 1f), // MONKEY
-    )
-    private val THEME_TRIM = floatArrayOf(0.73f, 1.07f, 0.91f, 1.52f)
 
     /** A drum tuned to the zone's key: its tonic, on or above MIDI note [lo]. */
     private fun keyed(base: SongSpec, lo: Int): Float = Dsp.midiToHz((lo + Math.floorMod(base.tonic - lo, 12)).toFloat())
@@ -175,9 +175,12 @@ internal object HeroSongs {
         wave1 = Wave.SAW, supersaw = true, detune = 0.1f, cutoff = 480f, q = 0.9f, keyTrack = 0.1f, a = 1.2f, d = 1.5f,
         s = 0.85f, r = 1.4f, vibrato = 0.05f, vibRate = 0.6f, gain = 0.09f, bright = 0.3f,
     )
-    /** Deep sub: a sine with a touch of grit (so a phone speaker hears it), dying between kicks. */
+    /**
+     * Deep sub: a sine, dying between kicks, with a quiet saw an octave up under a low filter:
+     * its harmonics are what a phone speaker (nothing below ~150 Hz) hears as the bass line.
+     */
     private val deepSub = Patch(
-        wave1 = Wave.SINE, wave2 = Wave.TRIANGLE, osc2Level = 0.1f, cutoff = 600f, keyTrack = 0f, a = 0.004f, d = 0.6f,
+        wave1 = Wave.SINE, wave2 = Wave.SAW, osc2Semi = 12f, osc2Level = 0.16f, detune = 0f, cutoff = 700f, keyTrack = 0f, a = 0.004f, d = 0.6f,
         s = 0.3f, r = 0.18f, drive = 0.5f, gain = 0.42f, bright = 0.1f, pitchEnv = 3f, pitchDecay = 0.02f,
     )
     private val shadowLead = Patch(
@@ -212,15 +215,19 @@ internal object HeroSongs {
         signature = bullSig, answer = bullAns, leadOctave = leadOctave(base, 57),
         pad = shadowPad.tinted(t, 0.1f), bass = deepSub, arp = darkKeys.tinted(t, 0.1f), lead = shadowLead,
         mix = Mix(
-            pad = 0.8f, bass = 1.1f, arp = 1.4f, lead = 0.8f, drums = 0.75f, padVerb = 0.35f, arpDelay = 0.3f, arpVerb = 0.3f,
+            pad = 1.5f, bass = 0.95f, arp = 1.9f, lead = 1.15f, drums = 0.62f, padVerb = 0.35f, arpDelay = 0.3f, arpVerb = 0.3f,
             leadDelay = 0.3f, leadVerb = 0.3f, padDuck = 0.35f, bassDuck = 0f, arpDuck = 0.1f, arpPan = -0.2f,
         ),
-        crowd = 0f, vinyl = 0.03f,
+        crowd = 0f, vinyl = 0.03f, leadFloor = SNEAK_LEAD_FLOOR,
     )
 
-    /** The star: a distorted 808 that punches in sharp, holds, and glides between tied notes. */
+    /**
+     * The star: a distorted 808 that punches in sharp, holds, and glides between tied notes. A
+     * quiet saw an octave up gives the distortion harmonics to bite on, so the line still reads
+     * on a phone speaker.
+     */
     private val eightOhEight = Patch(
-        wave1 = Wave.SINE, cutoff = 2400f, keyTrack = 0f, a = 0.001f,
+        wave1 = Wave.SINE, wave2 = Wave.SAW, osc2Semi = 12f, osc2Level = 0.3f, detune = 0f, cutoff = 2400f, keyTrack = 0f, a = 0.001f,
         d = 2.2f, s = 0.4f, r = 0.09f, drive = 1.1f, glide = 0.18f, gain = 0.42f, bright = 0.15f,
         pitchEnv = 12f, pitchDecay = 0.018f,
     )
@@ -267,10 +274,10 @@ internal object HeroSongs {
         motifSeed = base.motifSeed + 11, hook = hook, signature = bullSig, answer = bullAns,
         pad = darkBrass.tinted(t, 0.1f), bass = eightOhEight.tinted(t, 0.3f), arp = trapBell, lead = trapLead.tinted(t, 0.3f),
         mix = Mix(
-            pad = 1.2f, bass = 1.6f, arp = 1.2f, lead = 0.9f, drums = 0.45f * zoneDrums(base), padVerb = 0.35f, arpDelay = 0.4f,
+            pad = 1.5f, bass = 1.25f, arp = 1.6f, lead = 1.7f, drums = 0.45f * zoneDrums(base), padVerb = 0.35f, arpDelay = 0.4f,
             arpVerb = 0.35f, leadDelay = 0.25f, leadVerb = 0.25f, padDuck = 0.4f, bassDuck = 0.12f, arpDuck = 0.1f, arpPan = 0.25f,
         ),
-        crowd = 0f, dropThreshold = 0.45f,
+        crowd = 0f, dropThreshold = 0.45f, dropTease = 0.4f, kickThreshold = HOT_KICK, arpThreshold = 0.3f, leadThreshold = HOT_LEAD, leadFloor = HOT_LEAD_FLOOR,
     )
 
     // ---- FOX: a late-night swing groove on FM keys, then a breakbeat rave --------------------
@@ -301,7 +308,7 @@ internal object HeroSongs {
     )
 
     private fun foxSneak(base: SongSpec, t: Tint, name: String, bpm: Float) = base.derive(
-        name = name, bpm = bpm, swing = 0.3f, leadThreshold = FOX_SNEAK_LEAD,
+        name = name, bpm = bpm, swing = 0.3f, leadThreshold = FOX_SNEAK_LEAD, leadFloor = SNEAK_LEAD_FLOOR,
         progA = jazz(base.progA, base.scale, ninth = true), progB = jazz(base.progB, base.scale, ninth = true),
         // A: a swung new-jack beat; B: the kick goes four-to-the-floor under open hats (deep house).
         drumsA = DrumPattern(
@@ -328,7 +335,7 @@ internal object HeroSongs {
         signature = foxSig, answer = foxAns, leadOctave = leadOctave(base, 60),
         pad = foxKeys.tinted(t, 0.1f), bass = foxSlap, arp = foxVelvet.tinted(t, 0f), lead = foxSultry,
         mix = Mix(
-            pad = 1f, bass = 1f, arp = 0.9f, lead = 0.9f, drums = 0.6f, padVerb = 0.35f, arpDelay = 0.2f, arpVerb = 0.45f,
+            pad = 1.35f, bass = 1f, arp = 1f, lead = 1.1f, drums = 0.5f, padVerb = 0.35f, arpDelay = 0.2f, arpVerb = 0.45f,
             leadDelay = 0.35f, leadVerb = 0.35f, padDuck = 0.15f, bassDuck = 0.05f, arpDuck = 0.1f, arpPan = -0.25f,
         ),
         crowd = 0f,
@@ -389,7 +396,7 @@ internal object HeroSongs {
             pad = 0.9f, bass = 1f, arp = 1f, lead = 1.1f, drums = 0.42f * zoneDrums(base), padVerb = 0.3f, arpDelay = 0.35f,
             arpVerb = 0.3f, leadDelay = 0.25f, leadVerb = 0.3f, padDuck = 0.35f, bassDuck = 0.25f, arpDuck = 0.2f, arpPan = 0.3f,
         ),
-        crowd = 0f, dropThreshold = FOX_DROP,
+        crowd = 0f, dropThreshold = FOX_DROP, dropTease = 0.75f, kickThreshold = HOT_KICK, arpThreshold = 0.3f, leadThreshold = HOT_LEAD, leadFloor = HOT_LEAD_FLOOR,
     )
 
     // ---- MONKEY: a noir-circus tiptoe when sneaking, a big-top swing when the guns come out ----
@@ -603,7 +610,7 @@ internal object HeroSongs {
             ),
             kit = DrumTuning(
                 kickHi = 125f, kickLo = 48f, kickPitchDecay = 0.035f, kickDecay = 0.3f, kickClick = 0.2f, kickDrive = 0.2f,
-                kickLevel = if (band.stomp) 0.7f else 0.8f, snareTone = 190f, snareNoiseHz = 3400f, snareDecay = 0.13f,
+                kickLevel = if (band.stomp) 0.6f else 0.8f, snareTone = 190f, snareNoiseHz = 3400f, snareDecay = 0.13f,
                 snareToneMix = 0.45f, snareLevel = 0.65f, snareVerb = 0.22f, clapHz = 1300f, clapDecay = 0.12f, clapLevel = 0.45f,
                 hatTone = 1f, hatDecay = 0.03f, openDecay = 0.16f, hatLevel = 0.26f,
                 tomHz = keyed(base, 60), tomDecay = 0.12f, tomBend = 0.08f, tomLevel = 0.35f,
@@ -679,9 +686,9 @@ internal object HeroSongs {
         wave1 = Wave.SINE, wave2 = Wave.SINE, osc2Semi = 24f, osc2Level = 0.16f, detune = 0f, cutoff = 6000f,
         keyTrack = 0f, a = 0.002f, d = 1.6f, s = 0f, r = 0.9f, trem = 0.35f, tremRate = 5.2f, gain = 0.24f, bright = 0.1f,
     )
-    /** A round upright bass under the guitar. */
+    /** A round upright bass under the guitar; the string's growl (a soft saw an octave up) carries it on a phone. */
     private val uprightBass = Patch(
-        wave1 = Wave.TRIANGLE, wave2 = Wave.SINE, osc2Semi = 12f, osc2Level = 0.2f, sub = 0.1f, cutoff = 700f,
+        wave1 = Wave.TRIANGLE, wave2 = Wave.SAW, osc2Semi = 12f, osc2Level = 0.2f, detune = 0f, sub = 0.1f, cutoff = 800f,
         keyTrack = 0.2f, envAmt = 0.8f, a = 0.005f, d = 0.7f, s = 0.35f, r = 0.12f, fd = 0.12f, gain = 0.3f, bright = 0.1f,
     )
     /** The soft flute that carries HAWK's tune: breathy, tongued notes, a slow vibrato. */
@@ -776,7 +783,7 @@ internal object HeroSongs {
             pad = 1.45f, bass = 1.45f, arp = 1.45f, lead = 1.45f, drums = 0.65f * zoneDrums(base), padVerb = 0.25f, arpDelay = 0.1f,
             arpVerb = 0.15f, leadDelay = 0.25f, leadVerb = 0.3f, padDuck = 0.1f, bassDuck = 0.15f, arpDuck = 0.1f, arpPan = -0.3f,
         ),
-        crowd = 0f, jungle = 0f,
+        crowd = 0f, jungle = 0f, kickThreshold = HOT_KICK, arpThreshold = 0.25f, leadThreshold = HOT_LEAD, leadFloor = HOT_LEAD_FLOOR,
     )
 
     // ---- Themes (hero picker) --------------------------------------------------------------
@@ -834,7 +841,6 @@ internal object HeroSongs {
 
     private fun buildTheme(h: Hero): SongSpec {
         val t = tint(null)
-        val trim = THEME_TRIM[h.ordinal]
         return when (h) {
             Hero.BULL -> bullHot(
                 themeBase("bull-theme", 145f, 50, AEOLIAN, tri(AEOLIAN, 0, 6, 5, 6), arrayOf(Chord.diatonic(AEOLIAN, 3), Chord.diatonic(AEOLIAN, 0), Chord.diatonic(AEOLIAN, 5), Chord.of(AEOLIAN, 4, Quality.MAJ)), 2401),
@@ -856,7 +862,7 @@ internal object HeroSongs {
                 themeBase("hawk-theme", 118f, 52, DORIAN, tri(DORIAN, 0, 3, 0, 3), tri(DORIAN, 2, 3, 6, 4), 3161),
                 t, "hawk-theme", 118f, hawkHook,
             )
-        }.derive(gain = trim, fixedIntensity = 0.85f)
+        }.derive(fixedIntensity = 0.85f)
     }
 
     // ---- Tables ----------------------------------------------------------------------------
@@ -872,7 +878,7 @@ internal object HeroSongs {
             Hero.MONKEY -> if (silent) monkeySneak(base, t, name, bpm, z) else monkeyHot(base, t, name, bpm, z)
             Hero.HAWK -> if (silent) hawkSneak(base, t, name, bpm) else hawkHot(base, t, name, bpm)
         }
-        return spec.derive(gain = (if (silent) SNEAK_TRIM else HOT_TRIM)[h.ordinal][z.ordinal])
+        return spec
     }
 
     private val hot = Array(Hero.entries.size) { h -> Array(Zone.entries.size) { z -> arrange(Hero.entries[h], Zone.entries[z], false) } }
@@ -929,6 +935,7 @@ internal fun SongSpec.derive(
     mix: Mix = this.mix,
     fixedIntensity: Float = this.fixedIntensity,
     leadThreshold: Float = this.leadThreshold,
+    leadFloor: Float = this.leadFloor,
     kickThreshold: Float = this.kickThreshold,
     arpThreshold: Float = this.arpThreshold,
     padPower: Boolean = this.padPower,
@@ -945,6 +952,7 @@ internal fun SongSpec.derive(
     whistleFrom: Int = this.whistleFrom,
     whistleRange: Float = this.whistleRange,
     dropThreshold: Float = this.dropThreshold,
+    dropTease: Float = this.dropTease,
     whistleEvery: Int = this.whistleEvery,
     swing8: Float = this.swing8,
     chromaticSnap: Boolean = this.chromaticSnap,
@@ -958,10 +966,10 @@ internal fun SongSpec.derive(
     arpCenter = arpCenter, leadOctave = leadOctave, leadTemplates = leadTemplates, motifSeed = motifSeed, hook = hook,
     pad = pad, bass = bass, arp = arp, lead = lead, mix = mix, wind = wind, rotor = rotor, glitch = glitch,
     fixedIntensity = fixedIntensity, kickThreshold = kickThreshold, arpThreshold = arpThreshold,
-    leadThreshold = leadThreshold, sections = sections, delayBeats = delayBeats,
+    leadThreshold = leadThreshold, leadFloor = leadFloor, sections = sections, delayBeats = delayBeats,
     padRhythmB = padRhythmB ?: if (padRhythm == this.padRhythm) this.padRhythmB else padRhythm,
     padPower = padPower, crowd = crowd, jungle = jungle, signature = signature,
-    answer = answer, gain = gain, bassSlide = bassSlide, vinyl = vinyl, dropThreshold = dropThreshold,
+    answer = answer, gain = gain, bassSlide = bassSlide, vinyl = vinyl, dropThreshold = dropThreshold, dropTease = dropTease,
     slideWhistle = slideWhistle,
     whistleFrom = whistleFrom, whistleRange = whistleRange, whistleEvery = whistleEvery, swing8 = swing8,
     chromaticSnap = chromaticSnap, hookA2 = hookA2, leadCeiling = leadCeiling, tempoLock = tempoLock,

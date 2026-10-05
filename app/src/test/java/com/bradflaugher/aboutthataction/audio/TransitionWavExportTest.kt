@@ -241,6 +241,16 @@ internal object TransitionScenarios {
                 if (d(t, 5.37)) { mark("died"); e.trigger(GameEvent.PlayerDied); e.gameOver() }
             }
         }
+        // Leaving game over (RETRY, then TITLE): at once, never on the dirge's slow bar.
+        run {
+            val d = once(); val r = once(); val d2 = once(); val q = once()
+            list += Scenario("gameover_exit", 26f, { hot(it, 0.7f) }) { t ->
+                if (d(t, 3.37)) { mark("died"); e.trigger(GameEvent.PlayerDied); e.gameOver() }
+                if (r(t, 9.61)) { mark("retry"); e.setHero(h); e.setIntensity(0.05f); e.setAlert(AlertPhase.CALM); e.setZone(Zone.ROOFTOP) }
+                if (d2(t, 15.37)) { mark("died"); e.trigger(GameEvent.PlayerDied); e.gameOver() }
+                if (q(t, 21.83)) { mark("title"); e.playTitle() }
+            }
+        }
         // The drop: heat builds past the threshold, then a flip lands during the held breath,
         // and a flip back while it's heated.
         run {

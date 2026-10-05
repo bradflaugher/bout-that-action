@@ -173,4 +173,18 @@ internal object AudioTestUtil {
             for (s in stereo) le16((s.coerceIn(-1f, 1f) * 32767f).toInt())
         }
     }
+
+    /** 32-bit float stereo WAV (no clipping, no dither: for measuring). */
+    fun writeWavFloat(file: File, stereo: FloatArray, sr: Int = SR) {
+        file.parentFile?.mkdirs()
+        DataOutputStream(FileOutputStream(file).buffered()).use { o ->
+            val dataLen = stereo.size * 4
+            fun le32(v: Int) = o.writeInt(Integer.reverseBytes(v))
+            fun le16(v: Int) = o.writeShort(java.lang.Short.reverseBytes(v.toShort()).toInt())
+            o.writeBytes("RIFF"); le32(36 + dataLen); o.writeBytes("WAVE")
+            o.writeBytes("fmt "); le32(16); le16(3); le16(2); le32(sr); le32(sr * 8); le16(8); le16(32)
+            o.writeBytes("data"); le32(dataLen)
+            for (s in stereo) le32(java.lang.Float.floatToRawIntBits(s))
+        }
+    }
 }

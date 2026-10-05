@@ -140,6 +140,8 @@ internal class SongSpec(
     val kickThreshold: Float = 0.2f,
     val arpThreshold: Float = 0.3f,
     val leadThreshold: Float = 0.6f,
+    /** The lead's level below [leadThreshold] (0: it waits for the heat; > 0: the tune is always there, softer). */
+    val leadFloor: Float = 0f,
     val sections: Array<Section> = DEFAULT_SECTIONS,
     val delayBeats: Float = 0.75f,
     /** The pad's rhythm in B sections (e.g. palm-muted chugs in A, open chords in B). */
@@ -166,6 +168,8 @@ internal class SongSpec(
      * It only lets go at a bar line, once intensity falls well below. -1: no drop.
      */
     val dropThreshold: Float = -1f,
+    /** Before the drop the bass plays its line at this velocity (its downbeats a little firmer). */
+    val dropTease: Float = 0.4f,
     /** Slide whistle level: it swoops up through every drum fill (a circus gag). */
     val slideWhistle: Float = 0f,
     /** Where the slide whistle starts (the key's tonic nearest this MIDI note) and how far up it goes (a ratio). */

@@ -99,6 +99,10 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     private var lArp = 0f
     private var lLead = 0f
     private var bright = 1f
+    // Loudness trim ([MusicLevels]): followed per sample so a heat change never steps.
+    private var levels = MusicLevels.of("")
+    private var levelTarget = 1f
+    private var levelGain = 1f
 
     // Sidechain
     private var duckEnv = 0f
@@ -163,6 +167,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         dropOn = s.dropThreshold < 0f || heat(s) >= s.dropThreshold
         dropGap = false
         dropFx.kill()
+        levels = MusicLevels.of(s.name)
+        updateLayers(); levelGain = levelTarget
         // Even "at once" takes a few milliseconds, so nothing left in the filters can click.
         fade = 0f; ramp(1f, max(fadeInSeconds, MIN_FADE))
     }
@@ -222,8 +228,10 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         lHat = 0.5f + 0.5f * Dsp.smoothstep(0f, 0.6f, i)
         lPerc = Dsp.smoothstep(0.45f, 0.7f, i)
         lArp = if (s.arpThreshold < 0f) 1f else Dsp.smoothstep(s.arpThreshold - 0.1f, s.arpThreshold + 0.1f, i)
-        lLead = Dsp.smoothstep(s.leadThreshold - 0.1f, s.leadThreshold + 0.1f, i)
+        lLead = max(s.leadFloor, Dsp.smoothstep(s.leadThreshold - 0.1f, s.leadThreshold + 0.1f, i))
         bright = Dsp.smoothstep(-0.1f, 1f, i)
+        // A trap drop's song is two levels: its bed before the drop, and after it as the heat says.
+        levelTarget = MusicLevels.gainAt(levels, i, dropOn, s.dropThreshold)
     }
 
     private fun cutMul(p: Patch): Float = 2f.pow(-2.3f * (1f - bright) * p.bright)
@@ -497,8 +505,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         // ---- Bass
         val brow = plan?.bass ?: if (isB) sp.bassB else sp.bassA
         val bc = brow[s]
-        // Before the drop the bass only teases: a soft note on the downbeat.
-        if (bc != '.' && bc != '~' && !gap && (dropped || s == 0)) {
+        // Before the drop the bass only teases: its line, soft (the downbeat a little firmer).
+        if (bc != '.' && bc != '~' && !gap) {
             val root = nearest(key + chord.root, sp.bassCenter)
             val iv = chord.intervals
             val note = when (bc) {
@@ -511,7 +519,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
                 'A', 'a' -> nearest(key + comp.chordAt(bar + 1).root, sp.bassCenter) - 1
                 else -> root
             }
-            val vel = (if (bc.isLowerCase()) 0.62f else 1f) * (if (brk) 0.8f else 1f) * (if (dropped) 1f else 0.5f)
+            val vel = (if (bc.isLowerCase()) 0.62f else 1f) * (if (brk) 0.8f else 1f) * (if (dropped) 1f else if (s == 0) min(1f, sp.dropTease * 1.3f) else sp.dropTease)
             val len = 1 + ties(brow, s)
             // A slide holds the note into the next one, so the mono voice glides there.
             val slide = sp.bassSlide && s + len < 16 && brow[s + len] != '.'
@@ -642,7 +650,8 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
                 }
                 l = heldL; r = heldR
             }
-            val f = fade * sp.gain
+            levelGain += (levelTarget - levelGain) * levelSmooth
+            val f = fade * sp.gain * levelGain
             dL[off + i] += l * f
             dR[off + i] += r * f
             dRev[off + i] += ((padL[i] + padR[i]) * pd * m.padVerb + a * gArp * m.arpVerb + ld * m.leadVerb +
@@ -652,6 +661,7 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
     }
 
     private val crowdDecay = Dsp.decay60(3.5f, sr)
+    private val levelSmooth = Dsp.onePole(0.08f, sr)
 
     companion object {
         private val VOID_BPMS = floatArrayOf(96f, 110f, 124f, 132f, 140f, 150f, 170f)

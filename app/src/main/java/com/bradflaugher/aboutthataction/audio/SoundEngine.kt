@@ -170,6 +170,10 @@ class SoundEngine(val sampleRate: Int = 48000) {
     /** Fill [out] with [frames] interleaved stereo float frames. */
     fun render(out: FloatArray, frames: Int) {
         paused = pausedIn
+        // A song started by this call's commands starts at the heat it will play at (its drop
+        // landed or not), not at whatever the director last heard.
+        if (first) intensity = max(intensityIn, alertFloor)
+        director.intensity = intensity
         drain()
         var done = 0
         while (done < frames) {
@@ -270,8 +274,12 @@ class SoundEngine(val sampleRate: Int = 48000) {
             val dl = musicDelay.outL
             val dr = musicDelay.outR
             musicVerb.process(mRev[i] + (dl + dr) * 0.12f)
-            var ml = musicLpL.lp(mL[i] + dl + musicVerb.outL)
-            var mr = musicLpR.lp(mR[i] + dr + musicVerb.outR)
+            // The room a little narrower than the reverb makes it, so a phone's one speaker
+            // (or a mono fold) keeps its level.
+            val vm = (musicVerb.outL + musicVerb.outR) * 0.5f
+            val vs = (musicVerb.outL - musicVerb.outR) * (0.5f * VERB_WIDTH)
+            var ml = musicLpL.lp(mL[i] + dl + vm + vs)
+            var mr = musicLpR.lp(mR[i] + dr + vm - vs)
 
             sfxVerb.process(sRev[i])
             val xl = sL[i] + sfxVerb.outL
@@ -327,6 +335,7 @@ class SoundEngine(val sampleRate: Int = 48000) {
         private const val ALERT_INTENSITY = 0.95f
         private const val CAUTION_INTENSITY = 0.5f
         private const val MUSIC_LEVEL = 0.75f
+        private const val VERB_WIDTH = 0.6f
         private const val SFX_LEVEL = 0.95f
         /** Game over: the music fades under the stinger, and the loop swells in from its tail. */
         private const val GAME_OVER_FADE = 0.9f

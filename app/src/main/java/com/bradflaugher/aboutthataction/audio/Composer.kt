@@ -245,7 +245,9 @@ internal class Composer(private val spec: SongSpec) {
         private val HARMONY_ORDER = intArrayOf(3, 4, 8, 9, 5, 7)
         private val VOID_KEYS = intArrayOf(0, 1, 3, 5, -1, -2, -4, -5, -6)
         private val CADENCES = arrayOf("x...x...x.......", "x.x.x...x.......", "x..x..x.x.......")
-        private val PLAN_A = intArrayOf(0, 0, 0, 1, 0, 0, 2, 3)
+        // An A section is a period: the motif, its sequence on the next chord, a variation and a
+        // half close; then the motif twice more, the answer, and the cadence home.
+        private val PLAN_A = intArrayOf(0, 0, 1, 3, 0, 0, 2, 3)
         private val PLAN_A2 = intArrayOf(0, 1, 0, 2, 0, 0, 2, 3)
         private val PLAN_B = intArrayOf(2, 2, 2, 3, 2, 2, 0, 3)
         private val PLAN_B2 = intArrayOf(2, 1, 2, 3, 0, 0, 2, 3)

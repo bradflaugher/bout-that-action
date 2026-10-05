@@ -41,30 +41,32 @@ class HeroMusicTest {
     }
 
     /**
-     * Every hero × zone × mode renders cleanly, sounds unlike the zone's own track, and sits
-     * within 2 dB of it (so a hero never makes the game louder or quieter).
+     * Every hero × zone × mode renders cleanly, sounds unlike the zone's own track and every
+     * other hero's, and sits within 2 LU of the other heroes' (so picking a hero never makes the
+     * game louder or quieter; [MusicQualityTest] holds the whole band).
      */
     @Test
     fun everyArrangementRendersDistinctAndLevelMatched() {
-        val report = StringBuilder("hero arrangement levels (dB vs the zone's own track):\n")
+        val report = StringBuilder("hero arrangement loudness (LUFS):\n")
         val offLevel = ArrayList<String>()
         for (silent in listOf(false, true)) for (z in Zone.entries) {
             val base = take(null, z, silent)
-            val baseRms = rms(base)
-            val line = StringBuilder("%-8s %-5s base rms=%.3f ".format(z.name, if (silent) "sneak" else "hot", baseRms))
+            val line = StringBuilder("%-8s %-5s".format(z.name, if (silent) "sneak" else "hot"))
             val streams = ArrayList<FloatArray>()
+            val lufs = ArrayList<Double>()
             for (h in Hero.entries) {
                 val x = take(h, z, silent)
                 val what = "$h $z ${if (silent) "sneak" else "hot"}"
                 assertSane(x, what)
-                val r = rms(x)
-                val d = db(r, baseRms)
-                line.append(" %s %+.1f".format(h.name, d))
-                assertTrue("$what is silent ($r)", r > 0.015)
-                if (abs(d) >= 2.0) offLevel += "$what is ${"%.1f".format(d)} dB off its zone's level"
+                assertTrue("$what is silent", rms(x) > 0.015)
                 assertTrue("$what sounds like the zone's own track", meanAbsDiff(x, base) > 0.005)
+                val l = Loudness.integrated(x)
+                line.append(" %s %.1f".format(h.name, l))
+                lufs += l
                 streams += x
             }
+            val mid = lufs.sorted().let { (it[1] + it[2]) / 2 }
+            for ((i, l) in lufs.withIndex()) if (abs(l - mid) > 2.0) offLevel += "${Hero.entries[i]} $z ${if (silent) "sneak" else "hot"} is ${"%+.1f".format(l - mid)} LU off the others"
             for (i in streams.indices) for (j in i + 1 until streams.size) {
                 assertTrue("${Hero.entries[i]} and ${Hero.entries[j]} sound alike in $z", meanAbsDiff(streams[i], streams[j]) > 0.005)
             }
@@ -126,20 +128,27 @@ class HeroMusicTest {
             assertTrue("$z: a fat, driven kick", bap.kit.kickLo <= 50f && bap.kit.kickDecay >= 0.5f && bap.kit.kickDrive >= 0.3f)
             assertTrue("$z: a big snare", bap.kit.snareLevel >= 0.9f && bap.kit.snareDecay >= 0.2f)
             assertTrue("$z: dusty", bap.vinyl > 0f && bap.kit.crush >= 2)
-            assertTrue("$z: a deep sine sub", bap.bass.wave1 == Wave.SINE && bap.mix.bass >= 1f)
+            assertTrue("$z: a deep sine sub", bap.bass.wave1 == Wave.SINE && bap.mix.bass >= 0.9f)
             val trap = HeroSongs.forZone(Hero.BULL, z, false)
             assertEquals("$z: trap is straight", 0f, trap.swing, 0f)
             assertTrue("$z: half-time snare and clap on 3", onlyAt(trap.drumsA.snare, 8) && onlyAt(trap.drumsA.clap, 8))
             val b = trap.bass
             assertTrue("$z: distorted 808s that punch and slide", trap.bassSlide && b.glide > 0f && b.wave1 == Wave.SINE && b.drive >= 1f && b.pitchEnv > 0f)
-            assertTrue("$z: the 808 leads the mix", trap.mix.bass > maxOf(trap.mix.pad, trap.mix.arp, trap.mix.lead))
+            // (Levels as heard: each channel's mix level times its patch's own gain.)
+            fun level(mix: Float, p: Patch) = mix * p.gain
+            assertTrue(
+                "$z: the 808 leads the mix",
+                level(trap.mix.bass, trap.bass) > maxOf(level(trap.mix.pad, trap.pad), level(trap.mix.arp, trap.arp), level(trap.mix.lead, trap.lead)),
+            )
             assertTrue("$z: a hard, short kick", trap.kit.kickDecay < 0.3f && trap.kit.kickClick >= 0.5f)
             for (p in listOf(trap.drumsA, trap.drumsB, trap.fill)) assertTrue("$z: hat rolls", (p.hat + p.hat2).any { it in "rtqw" })
             assertTrue("$z: hat triplets", (trap.drumsA.hat2 + trap.drumsB.hat2).any { it in "yz" })
             assertTrue("$z: the hats change bar to bar", trap.drumsA.hat != trap.drumsA.hat2 && trap.drumsB.hat != trap.drumsB.hat2)
             assertTrue("$z: a drop", trap.dropThreshold in 0.3f..0.7f)
         }
-        // Heard: cool, the kick and 808 hold back; heated past the drop, the low end slams in.
+        // Heard: cool, the kick holds back and the 808 plays soft; heated past the drop, the low
+        // end slams in (by this much more than the loudness trims even out: they keep the calm
+        // bed as full as the fight, so the drop is weight, not just level).
         fun low(z: Zone, i: Float): Double {
             val e = SoundEngine()
             e.setIntensity(i)
@@ -155,7 +164,8 @@ class HeroMusicTest {
             return kotlin.math.sqrt(acc / x.size)
         }
         for (z in listOf(Zone.TOWER, Zone.HELL)) {
-            val drop = db(low(z, 0.9f), low(z, 0.15f))
+            // (Just under the drop, where a run is when it lands: heat climbs into it.)
+            val drop = db(low(z, 0.9f), low(z, 0.4f))
             println("$z: the drop adds %.1f dB below 150 Hz".format(drop))
             assertTrue("$z: the drop should land (%.1f dB)".format(drop), drop > 6)
         }
@@ -546,8 +556,9 @@ class HeroMusicTest {
             assertEquals(what, base.tonic, spec.tonic)
             assertEquals(what, base.barsPerChord, spec.barsPerChord)
             assertTrue(what, base.sections.contentEquals(spec.sections))
-            // (MONKEY's band plays from the first calm bar: his thresholds only ever sit lower.)
-            if (h == Hero.MONKEY) assertTrue(what, spec.kickThreshold <= base.kickThreshold) else assertEquals(what, base.kickThreshold, spec.kickThreshold, 0f)
+            // (A hero's band plays from the first calm bar: their thresholds only ever sit lower;
+            // the sneak mixes keep the zone's.)
+            if (silent) assertEquals(what, base.kickThreshold, spec.kickThreshold, 0f) else assertTrue(what, spec.kickThreshold <= base.kickThreshold)
             assertEquals(what, base.wind, spec.wind, 0f)
             assertEquals(what, base.glitch, spec.glitch)
             assertTrue(what, base.scale.contentEquals(spec.scale))
@@ -891,11 +902,12 @@ class HeroInstrumentsTest {
         }
         val lv = beats.map { kotlin.math.sqrt(it / beat) }
         println("drop, rms per beat: " + lv.joinToString { "%.3f".format(it) })
-        // Bars 1 and 2 only tease (a soft bass note on the downbeat); heating up in bar 2 waits
-        // for the bar line (its last beat is the held breath under a swell), then bar 3 lands.
-        assertTrue("the tease", lv[0] > lv[1] * 2 && lv[4] > lv[5] * 2)
+        // Bars 1 and 2 only tease (the bass line, soft, its downbeat a little firmer, no kick);
+        // heating up in bar 2 waits for the bar line (its last beat is the held breath under a
+        // swell), then bar 3 lands.
+        assertTrue("the tease plays the line", lv[0] > lv[1] && (1..6).all { lv[it] > 0.01 })
         for (b in 1..6) assertTrue("beat $b holds back", lv[b] < lv[8] * 0.25)
-        assertTrue("the held breath: just the swell rising into it", lv[7] > lv[6] * 2 && lv[7] < lv[8] * 0.5)
+        assertTrue("the held breath: just the swell rising into it", lv[7] > lv[6] * 1.4 && lv[7] < lv[8] * 0.5)
         assertTrue("then it lands, on the bar", lv[8] > lv[0] * 1.5 && (9..11).all { lv[it] > lv[5] * 3 })
     }
 

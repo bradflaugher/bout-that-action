@@ -37,7 +37,7 @@ SIMPLE = [Fraction(1, 2), Fraction(2, 3), Fraction(3, 4), Fraction(4, 5), Fracti
 
 def load(path):
     sr, x = wavfile.read(path)
-    x = x.astype(np.float64) / 32768.0
+    x = x.astype(np.float64) / (32768.0 if x.dtype == np.int16 else 1.0)
     return sr, x.mean(axis=1)
 
 
@@ -235,7 +235,7 @@ def main():
     only = [a for a in sys.argv[2:] if not a.startswith("--")]
     worst = {"click": [], "dip": [], "bump": [], "beat_ms": [], "tempo_dev": [], "clash": []}
     for f in sorted(os.listdir(d)):
-        if not f.endswith(".json"):
+        if not f.endswith(".json") or not os.path.exists(os.path.join(d, f[:-5] + ".wav")) or f == "manifest.json":
             continue
         base = os.path.join(d, f[:-5])
         if only and not any(o in f for o in only):
