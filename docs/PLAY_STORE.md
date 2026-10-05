@@ -52,7 +52,13 @@ one and is always a valid next upload.
    PLAY) opens `market://details?id=com.bradflaugher.aboutthataction`, or the
    listing's web page when there's no Play Store app. It's only ever a tap:
    no In-App Review API, no rating prompts or reminders.
-8. **Pre-launch report.** Play runs every upload on a handful of real devices
+   No leaderboards either: the game has no network permission, so daily
+   challenge results stay on the device.
+8. **Production access.** The closed-test questionnaire answers are drafted
+   in `docs/tester-feedback/production-access-answers.md`, with the tester
+   report itself and what came of each suggestion in
+   `docs/tester-feedback/README.md`.
+9. **Pre-launch report.** Play runs every upload on a handful of real devices
    and flags crashes, accessibility and layout issues. Check it before each
    promotion to production.
 
@@ -104,7 +110,7 @@ tools/store-shots/render.sh --caption  # re-caption the raw shots only
 ```
 
 Each listing screenshot shows one thing the game does, with a headline and a
-subline over it in the menus' own look (Audiowide and Share Tech Mono on the
+subline over it in the menus' own look (Audiowide and Chakra Petch on the
 menu near-black, a chamfered neon frame in the shot's accent colour):
 
 | # | Shot | Headline |
@@ -112,7 +118,7 @@ menu near-black, a chamfered neon frame in the shot's accent colour):
 | 1 | Title with the daily | DROP IN. GO DOWN. |
 | 2 | Neon Tower takedown | SNEAK UP. TAKE DOWN. |
 | 3 | The box, a guard wondering | HIDE IN THE BOX |
-| 4 | Calling a lift | TAP A LIFT. GO DOWN. |
+| 4 | The walkthrough's lift step | LEARN IT ON THE ROOF |
 | 5 | Black Labs firefight | GUNS HOT OR SILENT |
 | 6 | Hero picker (MONKEY) | FOUR HEROES, ALL FREE |
 | 7 | Hell | ALL THE WAY TO HELL |

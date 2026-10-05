@@ -6,7 +6,7 @@ BUILT FOR THUMBS
 • Drag to run, swipe up to jump, swipe down to hide in a doorway or pop the box.
 • Tap to ride an elevator, go through a passage or raid a STASH for an upgrade.
 • Sneak up behind a guard for a silent takedown. Land on his head to daze him first.
-• A one-time tip card, a tutorial billboard on the roof and coach tips teach the rest. HOW TO PLAY has the controls and a FAQ.
+• Your first run teaches by doing: the roof walks you through every move, one at a time, with a ghost thumb to show you how. Skip it in one tap. HOW TO PLAY has the controls, a FAQ and the tutorial again.
 
 STEALTH OR SHOOTER: YOUR CALL
 • GUNS HOT: you auto-fire at every threat in range. Pure arcade action.
@@ -17,7 +17,7 @@ FOUR HEROES, ALL FREE
 Bull the bruiser, Fox the high-kicking street brawler, Hawk the parcel courier who lives in a box and Monkey the circus runaway with a very big gun. Each has their own trait, three perks of their own and their own take on the music.
 
 1,234 CHALLENGES
-Silly names, real goals: ghost floors, box ambushes, bonk heads, tuck in nappers, survive close calls. Some lock you in SILENT, give you one heart or bust on the first hit. Five tiers, ROOKIE to LEGEND, every one playable any day, and any run that meets one ticks it off, so there's nothing to grind. Plus a daily challenge that's the same for everyone (no streaks, no rewards, no countdown).
+Silly names, real goals: ghost floors, box ambushes, bonk heads, tuck in nappers, survive close calls. Some lock you in SILENT, give you one heart or bust on the first hit. Five tiers, ROOKIE to LEGEND, every one playable any day, and any run that meets one ticks it off, so there's nothing to grind. Plus a daily challenge that's the same for everyone, with a CLEARED TODAY stamp and your best try on its card (no streaks, no rewards, no countdown).
 
 EVERY FLOOR IS NEW
 The building never ends and never repeats: procedurally generated floors, roguelite upgrades from STASH doors, and a soundtrack and sound effects synthesized as you play. Blackouts, nap time and payday floors keep things weird.
@@ -25,7 +25,8 @@ The building never ends and never repeats: procedurally generated floors, roguel
 YOUR GAME, YOUR RULES
 • Pick a difficulty from CHILL to STRAIGHT TO HELL, or tune the heat curve yourself.
 • Every run has a short seed code: share it, and a friend plays the very same building.
-• CALM SCREEN turns off screen shake and softens the flashes. Menus follow your font size.
+• CALM SCREEN turns off screen shake and softens the flashes. TEXT SIZE makes the menus and HUD bigger, on top of your phone's font size.
+• A JUKEBOX plays every zone's track you've reached.
 
 NO NONSENSE
 • No ads. No in-app purchases. No accounts. No network permission at all.

@@ -26,6 +26,7 @@ class Renderer {
     private val actors = Actors(f)
     private val effects = Effects(f)
     private val hud = Hud(f)
+    private val guide = GuideArt(f)
 
     /** Optional film grain over the whole frame (off by default; a settings toggle). */
     var filmGrain: Boolean
@@ -45,6 +46,11 @@ class Renderer {
     var calm: Boolean
         get() = f.calm
         set(v) { f.calm = v }
+
+    /** TEXT SIZE (a settings toggle): scales the HUD's small labels, the context chip and the guide's prompts. */
+    var textScale: Float
+        get() = f.textScale
+        set(v) { f.textScale = v }
 
     /**
      * Draw one frame. [time] = real seconds (for idle anims), insets in px keep HUD clear of
@@ -109,12 +115,12 @@ class Renderer {
         effects.bloom()
         effects.world()
         moments.world()
+        if (showHud && world.phase == Phase.PLAYING) guide.world()
         if (showHud && world.phase == Phase.PLAYING) hud.contextHint()
         g.restore()
 
         effects.screen()
         if (showHud) effects.texts() // attract mode: no popups under the menus
-        if (showHud && world.phase == Phase.PLAYING) hudMoments.coachTip()
         if (showHud) {
             if (world.phase != Phase.PERK_CHOICE) {
                 hud.banner()
@@ -122,6 +128,7 @@ class Renderer {
                 hudMoments.challenge()
             }
             hud.draw()
+            if (world.phase == Phase.PLAYING) guide.screen()
         }
         if (showHud && world.phase == Phase.PERK_CHOICE) hud.perkOverlay()
     }
@@ -133,6 +140,9 @@ class Renderer {
     /** True if (x, y) hits the HUD pause button. */
     fun isPauseButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean =
         Hud.isPauseButton(x, y, width, height, topInset)
+
+    /** True if (x, y) hits the walkthrough's SKIP pill (only while the walkthrough is on). */
+    fun isSkipButton(x: Float, y: Float, width: Float, topInset: Float): Boolean = Hud.isSkipButton(x, y, width, topInset)
 
     /** True if (x, y) hits the HUD's GUNS HOT / SILENT toggle beside the pause button. */
     fun isModeButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean =
@@ -167,6 +177,8 @@ internal class Frame {
     var shakeY = 0f
     /** CALM SCREEN: see [Renderer.calm]. */
     var calm = false
+    /** TEXT SIZE: see [Renderer.textScale]. */
+    var textScale = 1f
     var first = 0
     var last = 0
     var dt = 0f

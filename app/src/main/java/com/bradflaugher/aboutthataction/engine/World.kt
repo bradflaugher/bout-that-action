@@ -23,10 +23,18 @@ data class RunConfig(
     /** Keep the starting mode for the whole run: [Command.TOGGLE_MODE] does nothing ([World.modeLocked]). */
     val lockMode: Boolean = false,
     /**
-     * Coach tips: on a run from the roof, the first few floors pop a one-line hint the first
-     * time each verb would help ("SWIPE DOWN: HIDE"). Text only; never changes the run.
+     * Coach tips: on a run from the roof, each lesson the player hasn't been taught yet
+     * ([learned]) pops up once, the first time it would help ([Guide]). Text only; never
+     * changes the run.
      */
-    val coach: Boolean = true,
+    val coach: Boolean = false,
+    /**
+     * The rooftop walkthrough ([Guide.walkthrough]): the moves one at a time, each waiting until
+     * you do it. A first run, or REPLAY TUTORIAL. Text only; never changes the run.
+     */
+    val tutorial: Boolean = false,
+    /** Lessons the player has already been taught: the guide skips them. Text only. */
+    val learned: Set<Lesson> = emptySet(),
     /** Who's playing: a trait, three hero-only perks, a look and a soundtrack. */
     val hero: Hero = Hero.BULL,
     /**
@@ -158,8 +166,6 @@ class World(val config: RunConfig) {
     var alertPhase = AlertPhase.CALM
         private set
     private var cautionLeft = 0f
-    private var arrivalTipShown = false
-        private set
     var dyingTime = 0f
         private set
     /** Bullets slipped inside the grace window this run. */
@@ -178,13 +184,8 @@ class World(val config: RunConfig) {
         private set
 
     private var hitStop = 0f
-    private val tipsShown = HashSet<Tip>()
-    private var tipCooldown = 0f
-    /** The last coach tip shown (null if none yet), and when: for the HUD and tests. */
-    var coachTip: String? = null
-        private set
-    var coachTipAt = -1f
-        private set
+    /** The walkthrough and coach tips: what's on screen and what it points at. Never changes the run. */
+    val guide = Guide(this)
 
     /** True while the simulation is frozen for impact (hit-stop). */
     val hitStopping: Boolean get() = hitStop > 0f
@@ -303,7 +304,7 @@ class World(val config: RunConfig) {
 
         if (phase == Phase.PLAYING) handleCommands()
         if (phase == Phase.PLAYING) resolveSeenHides()
-        if (phase == Phase.PLAYING) coach(dt)
+        if (phase == Phase.PLAYING) guide.update(dt, events)
         updatePlayer(dtP)
         if (phase == Phase.PLAYING) flushBuffer(dt)
         updateElevators(dtW, dtP)
@@ -615,45 +616,8 @@ class World(val config: RunConfig) {
         return true
     }
 
-    /** One-line hints for a first run, each shown once, the first time it would help. */
-    private enum class Tip(val text: String) {
-        TAKEDOWN("WALK INTO HIM"),
-        HIDE("SWIPE DOWN: HIDE"),
-        JUMP("SWIPE UP: JUMP"),
-        GRENADE("GRENADE BUTTON: THROW"),
-        FIND_LIFT("NO LIFT HERE: GREEN DOORS"),
-    }
-
-    /**
-     * Teach by doing: on a run from the roof, for the first [COACH_FLOORS] floors, the first
-     * time a verb would help (and you haven't used it yet) a tip pops over your head.
-     */
-    private fun coach(dt: Float) {
-        if (!config.coach || difficulty.startFloor != 0 || deepest > COACH_FLOORS) return
-        tipCooldown -= dt
-        val p = player
-        if (tipCooldown > 0f || p.state != PlayerState.NORMAL && p.state != PlayerState.BOX) return
-        val mine = enemies.filter { here(it) && it.alive }
-        fun alerted(e: Enemy) = e.state == EnemyState.ALERT || e.state == EnemyState.AIM
-        fun wants(t: Tip): Boolean = when (t) {
-            Tip.TAKEDOWN -> melee && takedowns == 0 && p.state == PlayerState.NORMAL && mine.any {
-                LevelGen.canNap(it.kind) && abs(it.x - p.x) < 4.5f &&
-                    (it.asleep || it.state == EnemyState.PATROL && it.facing == (if (it.x > p.x) 1 else -1))
-            }
-            Tip.HIDE -> stats.boxHides + stats.doorHides == 0 && p.state == PlayerState.NORMAL && mine.any { alerted(it) && abs(it.x - p.x) < 7f }
-            Tip.JUMP -> stats.jumps == 0 && bullets.any {
-                !it.byPlayer && it.floor == p.floor && it.hall == p.hall && it.z < 0.7f && (p.x - it.x) * it.vx > 0f && abs(p.x - it.x) < 4f
-            }
-            Tip.GRENADE -> stats.grenadesThrown == 0 && p.grenades > 0 && mine.count { alerted(it) } >= 2
-            Tip.FIND_LIFT -> passages == 0 && p.floor >= 1 && hallTime > 1.2f && playerHall()?.plan?.downLandings?.isEmpty() == true
-        }
-        val tip = Tip.entries.firstOrNull { it !in tipsShown && wants(it) } ?: return
-        tipsShown += tip
-        tipCooldown = TIP_GAP
-        coachTip = tip.text
-        coachTipAt = time
-        fx.text(tip.text, p.x, Geo.groundY(p.floor) - 2.9f, TextStyle.WARN, 1.8f)
-    }
+    /** SKIP on the walkthrough: it ends, and the guide stays quiet for the rest of the run. */
+    fun skipTutorial() = guide.skip(events)
 
     /** A challenge just cleared (it doesn't end the run: keep going for score) or failed. */
     private fun onChallenge(e: GameEvent) {
@@ -1213,11 +1177,6 @@ class World(val config: RunConfig) {
         p.anchorX = p.x
         p.vx = 0f
         p.holdAxis = moveAxis
-        // A coach tip like the others: coached runs from the roof, first few floors only.
-        if (!arrivalTipShown && config.coach && difficulty.startFloor == 0 && deepest <= COACH_FLOORS) {
-            arrivalTipShown = true
-            fx.text("TAP: STEP OUT", p.x, Geo.groundY(p.floor) - 2.6f, TextStyle.WARN, 1.6f)
-        }
     }
 
     private fun movePlayer(dt: Float) {
@@ -3041,10 +3000,6 @@ class World(val config: RunConfig) {
         /** VEST comes back this many floors below where it last stopped a hit. */
         const val ARMOR_FLOORS = 3
         const val GHOST_BONUS_PER_FLOOR = 10
-        /** Coach tips only show on the first this-many floors of a run from the roof... */
-        const val COACH_FLOORS = 6
-        /** ...and never closer together than this. */
-        const val TIP_GAP = 4f
         /** Chance a ride down comes with smooth jazz. */
         const val MUZAK_CHANCE = 0.12f
         private const val MUZAK_KEY = 0x302A4L

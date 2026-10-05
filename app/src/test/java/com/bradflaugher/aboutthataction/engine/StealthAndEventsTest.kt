@@ -10,7 +10,7 @@ import kotlin.math.abs
 
 /**
  * The fun layer: napping guards, the box double-take, GHOST floors, special floors, the
- * arrival grace, coach tips and the run report.
+ * arrival grace and the run report (the guide's tips are in GuideTest).
  */
 class StealthAndEventsTest {
     private val dt = 1f / 120f
@@ -115,7 +115,7 @@ class StealthAndEventsTest {
     }
 
     @Test
-    fun theStepOutTipIsForCoachedRunsFromTheRoofOnly() {
+    fun theStepOutTipIsNeverOnAWarpStart() {
         val w = world(floor = 3, silent = true) // a warp start: no coaching
         val door = w.playerHall()!!.plan.doors.first { it.kind == DoorKind.PASSAGE }
         w.player.x = door.x
@@ -123,7 +123,7 @@ class StealthAndEventsTest {
         w.commands += Command.TAP
         run(w, World.PASSAGE_TIME + 0.2f)
         assertEquals(PlayerState.DOOR, w.player.state)
-        assertFalse("TAP: STEP OUT" in texts(w))
+        assertNull(w.guide.lesson)
     }
 
     @Test
@@ -823,43 +823,6 @@ class StealthAndEventsTest {
         val (fresh, clock) = reaction(fresh = true)
         assertTrue(clock < World.ARRIVAL_GRACE)
         assertTrue("fresh $fresh", fresh >= r * 0.8f + (World.ARRIVAL_GRACE - clock) - 3 * dt)
-    }
-
-    // ------------------------------------------------------------ coach tips
-
-    @Test
-    fun coachTipsTeachTheTakedownOnTheRoofOnce() {
-        val w = World(RunConfig(1L))
-        run(w, 2f)
-        run(w, 0.8f) { it.moveAxis = 1 }
-        assertEquals("WALK INTO HIM", w.coachTip)
-        val at = w.coachTipAt
-        run(w, 3f) { it.moveAxis = 1 }
-        assertEquals(at, w.coachTipAt)
-    }
-
-    @Test
-    fun coachTipsCanBeTurnedOffAndNeverShowOnWarpStarts() {
-        val off = World(RunConfig(1L, coach = false))
-        run(off, 2f)
-        run(off, 0.8f) { it.moveAxis = 1 }
-        assertNull(off.coachTip)
-        val warp = world()
-        warp.player.x = 2f
-        enemy(warp, EnemyKind.AGENT, 4f, facing = 1)
-        run(warp, 0.3f)
-        assertNull(warp.coachTip)
-    }
-
-    @Test
-    fun coachTipsNeverChangeTheRun() {
-        fun play(coach: Boolean): Triple<Long, Int, Float> {
-            val w = World(RunConfig(5L, coach = coach))
-            val bot = Autopilot(5L)
-            repeat(120 * 40) { bot.act(w); w.step(dt) }
-            return Triple(w.score, w.deepest, w.player.x)
-        }
-        assertEquals(play(true), play(false))
     }
 
     // ------------------------------------------------------------ the report

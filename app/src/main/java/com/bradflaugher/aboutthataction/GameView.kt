@@ -66,6 +66,8 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
     @Volatile var touchGuide = true
     /** CALM SCREEN: no shake, soft flashes, steady lamps ([Renderer.calm]). */
     @Volatile var calm = false
+    /** TEXT SIZE for the HUD's labels and the guide's prompts ([Renderer.textScale]). */
+    @Volatile var textScale = 1f
 
     private val renderer = Renderer()
     private val gfx = AndroidGfx(context)
@@ -75,6 +77,7 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
     private val pendingPerk = AtomicInteger(-1)
     private val pendingToggle = java.util.concurrent.atomic.AtomicBoolean(false)
     private val pendingGrenade = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val pendingSkip = java.util.concurrent.atomic.AtomicBoolean(false)
     private val main = Handler(Looper.getMainLooper())
 
     /** The one live loop thread; a loop exits as soon as it's no longer this. */
@@ -176,6 +179,7 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
                 if (perk >= 0) w.choosePerk(perk)
                 if (pendingToggle.getAndSet(false) && !attract) w.commands += Command.TOGGLE_MODE
                 if (pendingGrenade.getAndSet(false) && !attract) w.commands += Command.GRENADE
+                if (pendingSkip.getAndSet(false) && !attract) w.skipTutorial()
                 synchronized(inputLock) {
                     if (attract) {
                         w.moveAxis = 0
@@ -229,6 +233,7 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
                 canvas.drawColor(0xFF07060F.toInt())
             } else {
                 renderer.calm = calm
+                renderer.textScale = textScale
                 renderer.render(gfx, w, time, topInset, bottomInset, showHud = !attract)
                 if (!attract && touchGuide) drawTouchGuide()
             }
@@ -250,6 +255,9 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
         gfx.fillPolygon(floatArrayOf(ax + dir * s, ay, ax - dir * s * 0.4f, ay - s, ax - dir * s * 0.4f, ay + s), 0x88FFFFFF.toInt())
     }
 
+    /** SKIP from the pause menu (for TalkBack, where the in-game pill is out of reach): skipped on the next frame. */
+    fun skipTutorial() = pendingSkip.set(true)
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val w = world ?: return true
@@ -263,6 +271,10 @@ class GameView(context: Context, private val host: Host) : SurfaceView(context),
                 val y = event.getY(idx)
                 if (renderer.isPauseButton(x, y, width.toFloat(), height.toFloat(), topInset)) {
                     host.onPauseRequested()
+                    return true
+                }
+                if (w.phase == Phase.PLAYING && w.guide.walkthrough && renderer.isSkipButton(x, y, width.toFloat(), topInset)) {
+                    pendingSkip.set(true)
                     return true
                 }
                 if (w.phase == Phase.PLAYING && renderer.isModeButton(x, y, width.toFloat(), height.toFloat(), topInset)) {

@@ -1,6 +1,5 @@
-• HOW TO PLAY: the controls, a short FAQ and REPLAY TUTORIAL (a CHILL run from the roof with the coach tips back on). In Settings and on the pause menu.
-• First time here? A one-time card on the title shows the four moves.
-• CALM SCREEN: no screen shake, softer flashes, steady lights.
-• SHARE the game and send FEEDBACK from Settings.
-• RATE it on Google Play from Settings. It never asks.
-• Volume meters work with TalkBack, and the menus read better with it.
+• Your first run teaches by doing: the roof walks you through each move, one at a time, with a ghost thumb to show how. SKIP in one tap; replay it from HOW TO PLAY.
+• New things get a one-time tip the first time they turn up.
+• New body font, easier to read, and a TEXT SIZE setting.
+• The daily card shows CLEARED TODAY and your best try.
+• JUKEBOX in Settings: play any zone's track you've reached.

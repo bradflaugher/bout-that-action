@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bradflaugher.aboutthataction.Records
 import com.bradflaugher.aboutthataction.Settings
+import com.bradflaugher.aboutthataction.TextSize
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.FloorLabel
 import com.bradflaugher.aboutthataction.engine.Hero
@@ -125,7 +126,7 @@ fun FitText(
             autoSize = TextAutoSize.StepBased(minFontSize = 6.sp, maxFontSize = maxSize, stepSize = 0.25.sp),
             style = TextStyle(
                 color = color,
-                fontFamily = if (title) Neon.title else Neon.mono,
+                fontFamily = if (title) Neon.title else Neon.body,
                 textAlign = align,
                 // In em, so the tracking scales with whatever size fits.
                 letterSpacing = (letterSpacing.value / maxSize.value).em,
@@ -327,6 +328,8 @@ fun PauseScreen(
     /** The run's challenge, if it's a challenge run: shown instead of the seed (the challenge is the seed). */
     challenge: ChallengeStatus? = null,
     onHelp: () -> Unit = {},
+    /** Set while the rooftop walkthrough runs: SKIP TUTORIAL (TalkBack can't reach the in-game pill). */
+    onSkipTutorial: (() -> Unit)? = null,
 ) {
     Box(
         Modifier.fillMaxSize().veil().scanlines(0.06f).padding(insets).padding(horizontal = Space.m),
@@ -359,6 +362,10 @@ fun PauseScreen(
             }
             NeonButton("HOW TO PLAY", Neon.cyan, Modifier.fillMaxWidth(), style = ButtonStyle.GHOST, height = Space.touch, textSize = Type.body,
                 onClick = onHelp)
+            if (onSkipTutorial != null) {
+                NeonButton("SKIP TUTORIAL", Neon.gold, Modifier.fillMaxWidth(), style = ButtonStyle.GHOST, height = Space.touch, textSize = Type.body,
+                    onClick = onSkipTutorial)
+            }
         }
     }
 }
@@ -372,6 +379,8 @@ internal fun AudioAndControls(s: Settings, onChange: (Settings) -> Unit, audioIn
     SectionHeader(controlsIndex, "CONTROLS", Neon.cyan)
     Toggle("Haptics", "Feel hits and pickups", s.haptics) { onChange(s.copy(haptics = it)) }
     Toggle("Thumb guide", "Ring under your running thumb", s.touchGuide) { onChange(s.copy(touchGuide = it)) }
-    Toggle("Coach tips", "A one-line hint the first time each move would help", s.coach) { onChange(s.copy(coach = it)) }
+    Toggle("Coach tips", "Each move explained once, the first time it would help", s.coach) { onChange(s.copy(coach = it)) }
     Toggle("Calm screen", "No screen shake, softer flashes, steady lights", s.calm) { onChange(s.copy(calm = it)) }
+    NeonText("Text size", size = Type.body, color = Neon.soft, glow = 0f, modifier = Modifier.padding(top = Space.xxs))
+    Segmented(TextSize.entries, s.textSize, { it.label }, Neon.cyan) { onChange(s.copy(textSize = it)) }
 }

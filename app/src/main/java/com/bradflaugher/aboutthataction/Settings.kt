@@ -6,8 +6,13 @@ import com.bradflaugher.aboutthataction.engine.Challenges
 import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.GameEvent
 import com.bradflaugher.aboutthataction.engine.Hero
+import com.bradflaugher.aboutthataction.engine.Lesson
+import com.bradflaugher.aboutthataction.engine.Zone
 import com.bradflaugher.aboutthataction.engine.SeedCode
 import com.bradflaugher.aboutthataction.engine.World
+
+/** TEXT SIZE: menus (on top of the system font size) and the HUD's labels and prompts. */
+enum class TextSize(val label: String, val scale: Float) { NORMAL("NORMAL", 1f), LARGE("LARGE", 1.15f), LARGER("LARGER", 1.3f) }
 
 /** A fresh building every run, or one you set (on the CUSTOM RUN screen). */
 enum class SeedMode(val label: String) { RANDOM("RANDOM"), CUSTOM("SET SEED") }
@@ -29,10 +34,12 @@ data class Settings(
     val silent: Boolean = false,
     val haptics: Boolean = true,
     val touchGuide: Boolean = true,
-    /** One-line hints the first time each move would help, on the first floors of a run from the roof. */
+    /** The guide's one-time tips: each move or HUD part explained once, the first time it would help. */
     val coach: Boolean = true,
     /** CALM SCREEN: no screen shake, softer flashes, steady lamps. Looks only. */
     val calm: Boolean = false,
+    /** TEXT SIZE for the menus and the HUD. */
+    val textSize: TextSize = TextSize.NORMAL,
     val musicVolume: Float = 0.8f,
     val sfxVolume: Float = 1f,
     /** Who drops in. Picked on the title screen, remembered between runs. All four from the start. */
@@ -134,6 +141,13 @@ data class ChallengeLog(val cleared: Map<Int, Long> = emptyMap(), val best: Map<
     }
 }
 
+/**
+ * Has this device played before the guide existed? A finished run, a started one (the title's
+ * intro_seen), any challenge progress or a best score all say yes.
+ */
+fun returningPlayer(runs: Int, introSeen: Boolean, challenges: Boolean, bestScore: Long): Boolean =
+    runs > 0 || introSeen || challenges || bestScore > 0
+
 class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("about_that_action", Context.MODE_PRIVATE)
 
@@ -157,6 +171,7 @@ class Prefs(context: Context) {
             touchGuide = sp.getBoolean("touch_guide", d.touchGuide),
             coach = sp.getBoolean("coach", d.coach),
             calm = sp.getBoolean("calm", d.calm),
+            textSize = TextSize.entries.firstOrNull { it.name == sp.getString("text_size", null) } ?: d.textSize,
             musicVolume = sp.getFloat("music", d.musicVolume),
             sfxVolume = sp.getFloat("sfx", d.sfxVolume),
             hero = Hero.fromSaved(sp.getString("hero", null)) ?: d.hero,
@@ -179,6 +194,7 @@ class Prefs(context: Context) {
             .putBoolean("touch_guide", s.touchGuide)
             .putBoolean("coach", s.coach)
             .putBoolean("calm", s.calm)
+            .putString("text_size", s.textSize.name)
             .putFloat("music", s.musicVolume)
             .putFloat("sfx", s.sfxVolume)
             .putString("hero", s.hero.name)
@@ -202,6 +218,56 @@ class Prefs(context: Context) {
 
     fun saveIntroSeen() {
         sp.edit { putBoolean("intro_seen", true) }
+    }
+
+    /**
+     * Lessons the guide has taught on this device. Anyone who played before the guide existed
+     * already knows the moves: they start with all of them, and REPLAY TUTORIAL is there.
+     */
+    fun loadLearned(): Set<Lesson> {
+        migrateGuide()
+        return Lesson.decode(sp.getString("learned", ""))
+    }
+
+    /**
+     * The first launch of a build with the guide decides, once, whether this is a returning
+     * player: anyone who'd started a run (intro_seen), finished one, or touched a challenge
+     * already knows the moves, so they get every lesson learned and no walkthrough. A fresh
+     * install starts with none. Decided before the title can mark anything, and saved.
+     */
+    private fun migrateGuide() {
+        if (sp.contains("learned")) return
+        val veteran = returningPlayer(
+            runs = sp.getInt("runs", 0), introSeen = sp.getBoolean("intro_seen", false),
+            challenges = !sp.getString("ch_cleared", null).isNullOrEmpty() || !sp.getString("ch_best", null).isNullOrEmpty(),
+            bestScore = sp.getLong("best_score", 0),
+        )
+        sp.edit {
+            putString("learned", if (veteran) Lesson.encode(Lesson.entries.toSet()) else "")
+            if (veteran) putBoolean("walkthrough_done", true)
+        }
+    }
+
+    fun saveLearned(set: Set<Lesson>) {
+        sp.edit { putString("learned", Lesson.encode(set)) }
+    }
+
+    /** The first run's rooftop walkthrough is done (finished, skipped, or a run already played). */
+    fun loadWalkthroughDone(): Boolean {
+        migrateGuide()
+        return sp.getBoolean("walkthrough_done", false)
+    }
+
+    fun saveWalkthroughDone() {
+        sp.edit { putBoolean("walkthrough_done", true) }
+    }
+
+    /** Zones reached in any run (endless or challenge), for the JUKEBOX. */
+    fun loadZonesReached(): Set<Zone> =
+        sp.getString("zones_reached", "").orEmpty().split(',').mapNotNull { n -> Zone.entries.firstOrNull { it.name == n } }.toSet()
+
+    fun saveZonesReached(set: Set<Zone>) {
+        sp.edit { putString("zones_reached", set.sortedBy { it.ordinal }.joinToString(",") { it.name }) }
     }
 
     fun loadRecords() = Records(sp.getLong("best_score", 0), sp.getInt("best_floor", 0), sp.getInt("runs", 0))

@@ -5,6 +5,7 @@ import com.bradflaugher.aboutthataction.engine.HallState
 import com.bradflaugher.aboutthataction.engine.Geo
 import com.bradflaugher.aboutthataction.engine.HazardKind
 import com.bradflaugher.aboutthataction.engine.Hero
+import com.bradflaugher.aboutthataction.engine.Lesson
 import com.bradflaugher.aboutthataction.engine.PlayerState
 import com.bradflaugher.aboutthataction.engine.Shaft
 import com.bradflaugher.aboutthataction.engine.World
@@ -1257,9 +1258,23 @@ internal class Building(private val f: Frame) {
         val pitch = 0.5f
         val colX = x0 + 0.35f
         val actX = x1 - 0.35f
+        // The walkthrough lights the row it's teaching right now.
+        val lit = when (f.w.guide.lesson.takeIf { f.w.guide.walkthrough && f.w.guide.doneAt < 0f }) {
+            Lesson.RUN -> 0
+            Lesson.JUMP -> 1
+            Lesson.BOX, Lesson.UNBOX -> 2
+            Lesson.LIFT -> 3
+            Lesson.TAKEDOWN -> 4
+            else -> -1
+        }
+        val litA = if (f.calm) 0.22f else 0.16f + 0.08f * sin(f.t * 4f)
         for (k in rows.indices) {
             val row = rows[k]
             val y = y0 + 1.15f + k * pitch
+            if (k == lit) {
+                g.fillRoundRect(x0 + 0.18f, y - 0.34f, x1 - 0.18f, y + 0.12f, 0.06f, Col.alpha(0xFFFFC14A.toInt(), litA))
+                g.fillRect(x0 + 0.18f, y - 0.34f, x0 + 0.26f, y + 0.12f, 0xFFFFC14A.toInt())
+            }
             worldRich(row.first, colX, y, size, 0xFFF4ECFF.toInt(), Gfx.Align.LEFT)
             val lead = colX + Glyphs.width(g, row.first, size * f.s, Gfx.Font.HUD) / f.s + 0.18f
             boardAction(row.second, lead, actX, y, size, pal.neon2)
@@ -1290,6 +1305,7 @@ internal class Building(private val f: Frame) {
         val ty0 = y1 + 0.2f
         g.fillRoundRect(x0 + 0.1f, ty0, x1 - 0.1f, ty0 + 0.42f, 0.06f, 0xFF120308.toInt())
         g.strokeRoundRect(x0 + 0.1f, ty0, x1 - 0.1f, ty0 + 0.42f, 0.06f, 0.02f, 0x80FF3048.toInt())
+        if (lit == 4) g.strokeRoundRect(x0 + 0.1f, ty0, x1 - 0.1f, ty0 + 0.42f, 0.06f, 0.05f, 0xFFFFC14A.toInt())
         f.worldText("SNEAK UP BEHIND = TAKEDOWN", (x0 + x1) / 2f, ty0 + 0.3f, 0.27f, 0xFFFF4A5E.toInt())
         // MONKEY has no SILENT and no takedowns, and he got up here with a can of paint.
         if (f.w.hero == Hero.MONKEY) {

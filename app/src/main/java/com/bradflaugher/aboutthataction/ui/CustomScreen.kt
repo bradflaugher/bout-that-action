@@ -272,7 +272,7 @@ internal fun SeedField(text: String, modifier: Modifier = Modifier, onText: (Str
         onValueChange = { v -> onText(SeedCode.normalize(v).filter { it in SeedCode.ALPHABET }.take(SeedCode.LENGTH)) },
         visualTransformation = CodeSpacing,
         singleLine = true,
-        textStyle = TextStyle(color = Color.White, fontSize = 20.sp, fontFamily = Neon.mono, letterSpacing = 2.sp),
+        textStyle = TextStyle(color = Color.White, fontSize = 20.sp, fontFamily = Neon.body, letterSpacing = 2.sp),
         cursorBrush = SolidColor(Neon.cyan),
         keyboardOptions = KeyboardOptions(
             capitalization = KeyboardCapitalization.Characters, autoCorrectEnabled = false,

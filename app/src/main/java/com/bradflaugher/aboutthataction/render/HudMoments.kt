@@ -16,7 +16,7 @@ import kotlin.math.sin
 
 /**
  * Screen-space cards for the fun pass: the special-floor stinger (a snappy cousin of the zone
- * title card) and the coach tip plate. Both keep off the stage, the player's own floor.
+ * title card) and the challenge plates. They keep off the stage, the player's own floor.
  */
 internal class HudMoments(private val f: Frame) {
     private val g get() = f.g
@@ -502,135 +502,6 @@ internal class HudMoments(private val f: Frame) {
         HudType.tracked(g, "UNTOUCHED? NOT ANY MORE.", W / 2f, cy + 6.4f * u, 2f * u, Col.alpha(0xFFE8E4F4.toInt(), 0.8f * a), Gfx.Font.HUD, Gfx.Align.CENTER, 0.35f * u)
     }
 
-    // ============================================================ coach tips
-
-    private var tipSrc: String? = null
-    private var tipKicker = ""
-    private var tipMain = ""
-    private var tipGlyph = GLYPH_TAP
-
-    /** Splits "SWIPE DOWN: HIDE" into gesture and verb once, when the tip changes. */
-    private fun parseTip(tip: String) {
-        if (tip === tipSrc) return
-        tipSrc = tip
-        val cut = tip.indexOf(": ")
-        tipKicker = if (cut > 0) tip.substring(0, cut) else if (tip.startsWith("WALK")) "SNEAK UP BEHIND" else "TIP"
-        tipMain = if (cut > 0) tip.substring(cut + 2) else tip
-        tipGlyph = when {
-            tip.contains("SWIPE DOWN") -> GLYPH_DOWN
-            tip.contains("SWIPE UP") -> GLYPH_UP
-            tip.contains("GRENADE") -> GLYPH_GRENADE
-            tip.startsWith("WALK") -> GLYPH_WALK
-            tip.contains("DOOR") -> GLYPH_DOOR
-            else -> GLYPH_TAP
-        }
-    }
-
-    /**
-     * The coach tip: a small plate hanging just under the player's floor (or over it, when the
-     * floor sits low on screen), pointing at them, with an animated gesture glyph and the move.
-     */
-    fun coachTip() {
-        val w = f.w
-        val tip = w.coachTip ?: return
-        val age = f.wt - w.coachTipAt
-        if (w.coachTipAt < 0f || age < 0f || age > TIP_TIME) return
-        parseTip(tip)
-        val W = g.width
-        val H = g.height
-        val u = Hud.unit(W)
-        val appear = HudType.outBack(HudType.clamp01(age / 0.28f), 1.8f)
-        val a = HudType.clamp01(age / 0.12f) * HudType.clamp01((TIP_TIME - age) / 0.4f)
-        if (a <= 0f) return
-        val p = w.player
-        val px = (p.x + 0.6f) * f.s + f.shakeX
-        val gy = Geo.groundY(p.floorF)
-        val stageBottom = (gy + Building.SLAB - f.camY) * f.s
-        val stageTop = (gy - Geo.FLOOR_H + Building.SLAB - f.camY) * f.s
-
-        val ks = 1.7f * u
-        val ms = 3f * u
-        val kw = HudType.trackedWidth(g, tipKicker, ks, Gfx.Font.HUD, 0.4f * u)
-        val mw = HudType.trackedWidth(g, tipMain, ms, Gfx.Font.TITLE, 0.3f * u)
-        val gd = 5.8f * u
-        val ch = 8.4f * u
-        val cw = 1.3f * u + gd + 1.8f * u + max(kw, mw) + 2.6f * u
-        val below = stageBottom + 3.2f * u + ch < H - f.bottomInset - 24f * u
-        val cy = if (below) stageBottom + 3.2f * u + ch / 2f else stageTop - 3.2f * u - ch / 2f
-        val cx = px.coerceIn(cw / 2f + 4f * u, W - cw / 2f - 4f * u)
-        val color = TIP
-
-        g.save()
-        g.translate(cx, cy)
-        g.scale(appear, appear)
-        val l = -cw / 2f
-        val r = cw / 2f
-        val t = -ch / 2f
-        val b = ch / 2f
-        g.blend(Gfx.Blend.ADD)
-        g.save()
-        g.scale(1f, 0.45f)
-        g.glow(0f, 0f, cw * 0.7f, Col.alpha(color, 0.22f * a))
-        g.restore()
-        g.blend(Gfx.Blend.NORMAL)
-        g.fillRoundRect(l, t + 0.8f * u, r, b + 0.8f * u, 2.2f * u, Col.alpha(0xFF000000.toInt(), 0.55f * a))
-        g.fillRoundRect(l, t, r, b, 2.2f * u, Col.alpha(0xFF0B0913.toInt(), 0.97f * a))
-        g.fillRoundRect(l + 0.3f * u, t + 0.25f * u, r - 0.3f * u, t + ch * 0.42f, 2f * u, Col.alpha(0xFFFFFFFF.toInt(), 0.05f * a))
-        g.strokeRoundRect(l, t, r, b, 2.2f * u, 0.22f * u, Col.alpha(color, 0.85f * a))
-        // Pointer at the player.
-        val tx = (px - cx).coerceIn(l + 3f * u, r - 3f * u) / appear.coerceAtLeast(0.2f)
-        val tipY = if (below) t else b
-        val dirY = if (below) -1f else 1f
-        poly.tri(g, tx - 1.3f * u, tipY, tx + 1.3f * u, tipY, tx, tipY + dirY * 1.6f * u, Col.alpha(color, 0.85f * a))
-
-        // Gesture glyph in its own well.
-        val gx = l + 1.3f * u + gd / 2f
-        g.fillCircle(gx, 0f, gd / 2f, Col.alpha(color, 0.16f * a))
-        g.strokeCircle(gx, 0f, gd / 2f, 0.18f * u, Col.alpha(color, 0.5f * a))
-        gestureGlyph(gx, 0f, gd, color, a, age)
-
-        val x0 = gx + gd / 2f + 1.8f * u
-        HudType.tracked(g, tipKicker, x0, -0.6f * u, ks, Col.alpha(color, 0.9f * a), Gfx.Font.HUD, Gfx.Align.LEFT, 0.4f * u)
-        HudType.tracked(g, tipMain, x0, 2.9f * u, ms, Col.alpha(0xFFFFFFFF.toInt(), a), Gfx.Font.TITLE, Gfx.Align.LEFT, 0.3f * u)
-        g.restore()
-    }
-
-    /** A fingertip acting out the move: swipe down/up, drag across, the grenade button, or a door. */
-    private fun gestureGlyph(cx: Float, cy: Float, d: Float, color: Int, a: Float, age: Float) {
-        val k = d / 2f
-        val white = Col.alpha(0xFFFFFFFF.toInt(), a)
-        val ph = fract(age * 1.1f)
-        when (tipGlyph) {
-            GLYPH_DOWN, GLYPH_UP, GLYPH_WALK -> {
-                val dx = if (tipGlyph == GLYPH_WALK) 1f else 0f
-                val dy = if (tipGlyph == GLYPH_DOWN) 1f else if (tipGlyph == GLYPH_UP) -1f else 0f
-                val e = HudType.outCubic(HudType.clamp01(ph / 0.7f))
-                val fa = HudType.clamp01((1f - ph) / 0.3f) * a
-                val sx = cx - dx * k * 0.55f - dy * 0f
-                val sy = cy - dy * k * 0.55f
-                val ex = sx + dx * k * 1.1f * e
-                val ey = sy + dy * k * 1.1f * e
-                g.line(sx, sy, ex, ey, k * 0.3f, Col.alpha(color, 0.45f * fa))
-                Glyphs.arrow(g, cx + dx * k * 0.25f, cy + dy * k * 0.25f, k * 0.5f, dx, dy, k * 0.12f, Col.alpha(color, 0.35f * a))
-                g.fillCircle(ex, ey, k * 0.26f, Col.alpha(0xFFFFFFFF.toInt(), fa))
-            }
-            GLYPH_GRENADE -> {
-                // The button's grenade, pressed: a ring pulses out of it.
-                HudIcons.grenade(g, cx, cy + k * 0.05f, d * 0.6f, Col.alpha(GRENADE_LIME, a))
-                g.strokeCircle(cx, cy, k * (0.55f + 0.35f * ph), k * 0.08f, Col.alpha(GRENADE_LIME, (1f - ph) * a))
-            }
-            GLYPH_DOOR -> {
-                HudIcons.door(g, cx - k * 0.1f, cy, d * 0.62f, Col.alpha(Building.PASSAGE, a))
-                val nudge = sin(age * 6f) * k * 0.08f
-                Glyphs.arrow(g, cx + k * 0.5f + nudge, cy, k * 0.22f, 1f, 0f, k * 0.09f, Col.alpha(Building.PASSAGE, a))
-            }
-            else -> {
-                g.fillCircle(cx, cy, k * 0.26f, white)
-                g.strokeCircle(cx, cy, k * (0.3f + 0.5f * ph), k * 0.1f, Col.alpha(color, (1f - ph) * a))
-            }
-        }
-    }
-
     private companion object {
         /** Seconds the CHALLENGE CLEARED and BUSTED cards stay up. */
         const val CLEAR_TIME = 3.6f
@@ -642,15 +513,5 @@ internal class HudMoments(private val f: Frame) {
         val CONFETTI = intArrayOf(
             0xFFFFC23A.toInt(), 0xFFFF3D9A.toInt(), 0xFF2BE8FF.toInt(), 0xFFFFFFFF.toInt(), 0xFF9AE040.toInt(), 0xFFFFE08A.toInt(),
         )
-        /** Seconds a coach tip stays up. */
-        const val TIP_TIME = 3.4f
-        const val TIP = 0xFFFFC14A.toInt()
-        const val GLYPH_TAP = 0
-        const val GLYPH_DOWN = 1
-        const val GLYPH_UP = 2
-        const val GLYPH_GRENADE = 3
-        const val GRENADE_LIME = 0xFF9AE040.toInt()
-        const val GLYPH_WALK = 4
-        const val GLYPH_DOOR = 5
     }
 }

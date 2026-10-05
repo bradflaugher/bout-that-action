@@ -265,6 +265,51 @@ the others 1.6× their radius) and where two overlap the nearer centre wins
 ("NO GRENADES") and does nothing else; with one already in the air the press
 is ignored (the button greys out for both). It never falls back to a door.
 
+## Teaching the controls (`Guide`, `GuideArt`)
+
+The first run teaches by doing. With `RunConfig.tutorial` (a first run from
+the roof, or REPLAY TUTORIAL), the roof is a walkthrough, one step at a time:
+RUN (drag 1.6 u), JUMP, TAKEDOWN (the napping guard; MONKEY skips it), BOX,
+UNBOX, LIFT ("GET TO THE LIFT", then "CALL THE LIFT", "IT'S COMING", "HOP IN"
+as the car moves). Each step:
+
+- shows a plate with the gesture and the verb, hanging off the player's floor
+  like the coach tips did, plus step dots;
+- acts the gesture out with a **ghost thumb** low and centred, where the thumb
+  plays (a drag left-right, a flick up or down, a tap with a ripple), or on the
+  HUD button itself;
+- brackets what it's about in the world (the guard, the lift, a door), with a
+  bobbing arrow, and lights the matching billboard row;
+- waits until the move is done (counted from when it went up, so it has to be
+  a fresh one), then shows a check and a line of praise for 1.1 s;
+- moves on by itself after 25 s if you never do it (the lift step waits as
+  long as you're on the roof);
+- is passed over if you did it before it came up, or it can't happen (no
+  guard left to take down).
+
+**SKIP** sits under the grenade button and its label, in the right-hand column
+with the other buttons and well clear of the run thumb; where its touch area
+meets the grenade button's, SKIP wins. The pause menu has SKIP TUTORIAL too,
+which a screen reader can reach. Skipping ends the walkthrough, silences the
+guide for the rest of that run and marks the rooftop steps learned; the later
+tips still turn up once each on later runs, unless Coach tips is off.
+
+After the roof, and on any later run from the roof with **Coach tips** on,
+each lesson the player hasn't been taught (`RunConfig.learned`) turns up once
+when it would help: STEP OUT (arrived hidden in a doorway), PASSAGE (no ride
+down in this hallway), STASH (an open STASH door here), DOORWAY (someone's on
+to you and a door's close), GRENADE (two or more onto you), MODE (a quiet
+hallway from 2F on), HEAT (from 3F), COMBO (the first ×2) and ZONE (the second
+zone change, after its title card). Tips are 4 s apart, never over a zone's
+title card, and wait a few seconds for their move. The app remembers every
+lesson taught, so none is taught twice; players from before the guide start
+with all of them learned and no walkthrough.
+
+The guide reads the world and never writes to it: the same `RunConfig` and
+inputs play the same run with it, without it, or skipped
+(`GuideTest.theGuideNeverChangesTheRun`). Tests and screenshots leave it off
+(`coach` and `tutorial` default to false).
+
 ## Considered and rejected
 
 - **Swipe up in an elevator to ride up.** The game is an endless descent
@@ -284,5 +329,9 @@ is ignored (the button greys out for both). It never falls back to a door.
 - **A dead zone at the screen edges.** See "Edges" above.
 - **Palm rejection by contact size.** `touchMajor` varies too much across
   devices. The platform's own palm rejection (`FLAG_CANCELED`) is honoured.
+- **A tutorial that freezes the game until you do the move.** It would change
+  the run (and determinism), and a returning player would have to sit through
+  it. The roof is safe anyway; below it, prompts only show when they're
+  relevant and never stop the clock.
 - **Variable jump height.** A flick has no "hold" to measure, and a
   velocity-scaled jump would make low-shot dodges inconsistent.

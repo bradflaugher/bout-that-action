@@ -146,7 +146,10 @@ class MenuShotsTest {
                 TitleScreen(s, records, insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = caption)
             }
             shot("$device-title-daily-cleared", 1800, world()) {
-                TitleScreen(s, records, insets, {}, {}, {}, {}, {}, daily = daily.copy(cleared = true), challengesCaption = caption)
+                TitleScreen(s, records, insets, {}, {}, {}, {}, {}, daily = daily.copy(cleared = true, clearedToday = true), challengesCaption = caption)
+            }
+            shot("$device-title-daily-best", 1800, world()) {
+                TitleScreen(s, records, insets, {}, {}, {}, {}, {}, daily = daily.copy(best = "2/5", bestFraction = 0.4f), challengesCaption = caption)
             }
             shot("$device-custom", 900, world()) {
                 CustomScreen(s.copy(preset = null, custom = Difficulty.Preset.BRUTAL.difficulty.copy(hearts = 3)), insets, {}, {}, {}, {})
@@ -166,7 +169,7 @@ class MenuShotsTest {
                 }
             }
             shot("$device-settings", 900, world()) {
-                SettingsScreen(s, insets, {}, {})
+                SettingsScreen(s, insets, {}, {}, jukebox = setOf(Zone.TOWER, Zone.LABS, Zone.METRO), playing = Zone.LABS)
             }
 
             shot("$device-board", 900, world()) {
@@ -247,13 +250,35 @@ class MenuShotsTest {
                 GameOverScreen(run.copy(challenge = status(today, today.target, true)), insets, {}, {}, {}, records)
             }
             shot("font-settings", 900, world()) {
-                SettingsScreen(s, insets, {}, {})
+                SettingsScreen(s, insets, {}, {}, jukebox = setOf(Zone.TOWER, Zone.LABS, Zone.METRO), playing = Zone.LABS)
             }
             shot("font-help", 900, world()) {
                 HelpScreen(insets, {}, {})
             }
             shot("font-title-welcome", 1800, world()) {
                 TitleScreen(s, Records(), insets, {}, {}, {}, {}, {}, daily = daily, challengesCaption = caption, welcome = true)
+            }
+            RuntimeEnvironment.setFontScale(1f)
+        }
+        // TEXT SIZE at LARGER on the smallest phone (and on top of a big system font): nothing may clip.
+        if (all || only != null) {
+            RuntimeEnvironment.setQualifiers(devices.first { it.first == "small" }.second)
+            for (scale in listOf(1f, 1.3f)) {
+                RuntimeEnvironment.setFontScale(scale)
+                val tag = if (scale == 1f) "larger" else "larger-font"
+                val s = Settings(textSize = com.bradflaugher.aboutthataction.TextSize.LARGER)
+                val k = s.textSize.scale
+                shot("textsize-$tag-title", 1800, world()) {
+                    TextSizeScope(k) { TitleScreen(s, records, insets, {}, {}, {}, {}, {}, daily = daily.copy(best = "2/5", bestFraction = 0.4f), challengesCaption = caption) }
+                }
+                shot("textsize-$tag-settings", 900, world()) { TextSizeScope(k) { SettingsScreen(s, insets, {}, {}, jukebox = setOf(Zone.TOWER, Zone.LABS, Zone.METRO), playing = Zone.LABS) } }
+                shot("textsize-$tag-help", 900, world()) { TextSizeScope(k) { HelpScreen(insets, {}, {}) } }
+                shot("textsize-$tag-board", 900, world()) { TextSizeScope(k) { ChallengesScreen(log, today, daily, insets, {}, {}) } }
+                shot("textsize-$tag-pause", 700, world()) { TextSizeScope(k) { PauseScreen(s, "K7QM 2XAB", Hero.FOX, insets, {}, {}, {}, {}, onSkipTutorial = {}) } }
+                shot("textsize-$tag-gameover", 3500, world()) { TextSizeScope(k) { GameOverScreen(run, insets, {}, {}, {}, records) } }
+                shot("textsize-$tag-briefing", 900, world()) {
+                    TextSizeScope(k) { BriefingScreen(open, Hero.MONKEY, log, insets, onPickHero = {}, onPlay = {}, onBack = {}) }
+                }
             }
             RuntimeEnvironment.setFontScale(1f)
         }

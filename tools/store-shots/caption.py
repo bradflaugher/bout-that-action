@@ -5,7 +5,7 @@
 """Captions the Play listing's screenshots in the game's own look.
 
 Each shot is a raw frame from tools/store-shots/render.sh (build/store-raw/<device>/), set in
-a chamfered neon frame under a headline (Audiowide) and a subline (Share Tech Mono), the two
+a chamfered neon frame under a headline (Audiowide) and a subline (Chakra Petch), the two
 faces the menus use, on the menus' near-black. Output goes straight into
 fastlane/metadata/android/en-US/images/<device>Screenshots/ at Play's 9:16.
 
@@ -49,7 +49,7 @@ SHOTS = [
     ("1_descent", "phone-title-daily", "DROP IN. GO DOWN.", "Off the roof, down the lifts, floor after floor. Forever.", MAGENTA),
     ("2_takedown", "tower", "SNEAK UP. TAKE DOWN.", "Walk into a guard's back and he's out cold.", CYAN),
     ("3_box", "box", "HIDE IN THE BOX", "Swipe down. Guards see a box. Just a box.", GOLD),
-    ("4_lifts", "lifts", "TAP A LIFT. GO DOWN.", "Call the car, ride it down, find the next one.", CYAN),
+    ("4_learn", "walkthrough-lift", "LEARN IT ON THE ROOF", "One move at a time, then tap a lift and go down.", CYAN),
     ("5_guns_hot", "labs", "GUNS HOT OR SILENT", "Auto-fire at threats, or never fire and score double.", LABS),
     ("6_heroes", "phone-heroes-monkey", "FOUR HEROES, ALL FREE", "Each with a trait, three perks and their own music.", HOT_PINK),
     ("7_hell", "hell", "ALL THE WAY TO HELL", "Neon Tower, Black Labs, Magma Core, Hell and the Void.", BLOOD),
@@ -87,10 +87,10 @@ def subline(draw: ImageDraw.ImageDraw, text: str, width: float, u: float):
     """One line if a slightly smaller size fits it, else two lines of about the same length."""
     base = round(40 * u)
     for size in range(base, round(34 * u) - 1, -1):
-        f = font("share_tech_mono.ttf", size)
+        f = font("chakra_petch.ttf", size)
         if tracked_width(draw, text, f, 0.04 * size) <= width:
             return f, [text]
-    f = font("share_tech_mono.ttf", base)
+    f = font("chakra_petch.ttf", base)
     words = text.split()
     best = min(
         (([" ".join(words[:i]), " ".join(words[i:])]) for i in range(1, len(words))),

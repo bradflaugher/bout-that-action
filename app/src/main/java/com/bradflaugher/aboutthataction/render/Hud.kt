@@ -123,6 +123,29 @@ internal class Hud(private val f: Frame) {
         fun isGrenadeButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean =
             buttonAt(x, y, width, topInset) == GRENADE
 
+        /**
+         * The walkthrough's SKIP pill (l, t, r, b): under the grenade button and its label, in the
+         * right-hand column with the other buttons, well clear of the run thumb.
+         */
+        fun skipRect(width: Float, topInset: Float, out: FloatArray) {
+            val u = unit(width)
+            val c = FloatArray(3)
+            grenadeCenter(width, topInset, c)
+            val cy = c[1] + 14f * u
+            out[0] = width - MARGIN * u - 15f * u
+            out[1] = cy - 2.6f * u
+            out[2] = width - MARGIN * u
+            out[3] = cy + 2.6f * u
+        }
+
+        /** Is (x, y) on the SKIP pill? Generous: about 48 dp tall on a phone. */
+        fun isSkipButton(x: Float, y: Float, width: Float, topInset: Float): Boolean {
+            val r = FloatArray(4)
+            skipRect(width, topInset, r)
+            val u = unit(width)
+            return x >= r[0] - 2f * u && x <= r[2] + 2f * u && y >= r[1] - 3f * u && y <= r[3] + 3f * u
+        }
+
         private const val PAUSE = 0
         private const val MODE = 1
         private const val GRENADE = 2
@@ -254,6 +277,9 @@ internal class Hud(private val f: Frame) {
         return f.palette(w.floors[w.player.floor]).neon
     }
 
+    /** TEXT SIZE for the labels under the right-hand buttons: they sit by the screen edge, so it stops at 1.15x. */
+    private fun labelScale(): Float = min(f.textScale, 1.15f)
+
     /** Seconds since [at] in real (menu-independent) time. */
     private fun since(at: Float) = f.t - at
 
@@ -355,7 +381,8 @@ internal class Hud(private val f: Frame) {
         }
         // ALWAYS HOT is the longest label: tracked a little tighter so it keeps clear of the edge.
         val track = if (label.length > 8) 0.18f * u else 0.3f * u
-        HudType.tracked(g, label, cx, cy + r + 2.6f * u, 2.1f * u, Col.alpha(col, if (locked) 0.85f else 1f), Gfx.Font.HUD, Gfx.Align.CENTER, track)
+        val lk = labelScale()
+        HudType.tracked(g, label, cx, cy + r + 2.6f * u * lk, 2.1f * u * lk, Col.alpha(col, if (locked) 0.85f else 1f), Gfx.Font.HUD, Gfx.Align.CENTER, track)
     }
 
     /**
@@ -408,12 +435,6 @@ internal class Hud(private val f: Frame) {
         g.fillCircle(cx, cy + 0.3f * u, r, 0x55000000)
         g.fillCircle(cx, cy, r * pop, 0x8C0C0A14.toInt())
         g.strokeCircle(cx, cy, (r - 0.12f * u) * pop, 0.3f * u, Col.alpha(col, 0.85f))
-        // While the coach is teaching it, the button calls out with a pulsing ring.
-        val tipAge = f.wt - w.coachTipAt
-        if (ready && w.coachTip?.contains("GRENADE") == true && w.coachTipAt >= 0f && tipAge in 0f..3.4f) {
-            val q = (tipAge * 1.4f) % 1f
-            g.strokeCircle(cx, cy, r * (1f + q * 0.7f), 0.35f * u, Col.alpha(LIME, 0.8f * (1f - q)))
-        }
         HudIcons.grenade(g, cx - r * 0.12f, cy + r * 0.08f, r * 1.25f, col)
         // Count badge on the rim.
         val bx = cx + r * 0.72f
@@ -421,7 +442,8 @@ internal class Hud(private val f: Frame) {
         val br = 1.7f * u
         g.fillCircle(bx, by, br, if (ready) LIME else 0xFF3A3648.toInt())
         g.text(countText(n), bx, by + 0.75f * u, 2.2f * u, if (ready) 0xFF0C0A14.toInt() else DIM, Gfx.Font.HUD, Gfx.Align.CENTER)
-        HudType.tracked(g, "GRENADE", cx, cy + r + 2.6f * u, 2.1f * u, col, Gfx.Font.HUD, Gfx.Align.CENTER, 0.3f * u)
+        val lk = labelScale()
+        HudType.tracked(g, "GRENADE", cx, cy + r + 2.6f * u * lk, 2.1f * u * lk, col, Gfx.Font.HUD, Gfx.Align.CENTER, 0.3f * u)
     }
 
     private val counts = Array(10) { it.toString() }
@@ -547,7 +569,7 @@ internal class Hud(private val f: Frame) {
         val ky = top + 2.4f * u
         g.fillRect(x, ky - 1.9f * u, x + 0.6f * u, ky + 0.1f * u, neon)
         // Lifted toward white so dim zone neons still read on the dark band.
-        HudType.tracked(g, zoneLabel, x + 1.8f * u, ky, 2.5f * u, Col.lerp(neon, WHITE, 0.22f), Gfx.Font.HUD, Gfx.Align.LEFT, 0.45f * u)
+        HudType.tracked(g, zoneLabel, x + 1.8f * u, ky, 2.5f * u * f.textScale, Col.lerp(neon, WHITE, 0.22f), Gfx.Font.HUD, Gfx.Align.LEFT, 0.45f * u)
 
         // Depth: the hero number, with a neon backlight.
         val ds = 7.6f * u
@@ -601,7 +623,7 @@ internal class Hud(private val f: Frame) {
                 g.fillRect(sx, hy, sx + sw, hy + sh, 0x2EFFFFFF)
             }
         }
-        HudType.tracked(g, "HEAT", x + bw + 1.4f * u, hy + sh + 0.1f * u, 2f * u, FAINT, Gfx.Font.HUD, Gfx.Align.LEFT, 0.3f * u)
+        HudType.tracked(g, "HEAT", x + bw + 1.4f * u, hy + sh + 0.1f * u, 2f * u * f.textScale, FAINT, Gfx.Font.HUD, Gfx.Align.LEFT, 0.3f * u)
     }
 
     private fun heatColor(t: Float): Int = when {
@@ -906,7 +928,7 @@ internal class Hud(private val f: Frame) {
         val w = f.w
         val W = g.width
         val right = W - MARGIN * u - PAUSE_R * 2f * u - 2.4f * u
-        HudType.tracked(g, "SCORE", right, top + 2.4f * u, 2.5f * u, FAINT, Gfx.Font.HUD, Gfx.Align.RIGHT, 0.45f * u)
+        HudType.tracked(g, "SCORE", right, top + 2.4f * u, 2.5f * u * f.textScale, FAINT, Gfx.Font.HUD, Gfx.Align.RIGHT, 0.45f * u)
         // Fit: never reach into the depth block, however many digits.
         var ss = 6f * u
         val maxW = right - W * 0.44f
@@ -944,7 +966,7 @@ internal class Hud(private val f: Frame) {
         val pop = if (age in 0f..0.35f) HudType.outBack(age / 0.35f, 3f) * 0.25f + 0.75f else 1f
         val tier = ((w.combo - 2) / 8f).coerceIn(0f, 1f)
         val c = Col.lerp(PINK, 0xFFFFB02E.toInt(), tier)
-        HudType.tracked(g, "COMBO", right, top + 2.4f * u, 2.5f * u, Col.alpha(c, 0.85f), Gfx.Font.HUD, Gfx.Align.RIGHT, 0.45f * u)
+        HudType.tracked(g, "COMBO", right, top + 2.4f * u, 2.5f * u * f.textScale, Col.alpha(c, 0.85f), Gfx.Font.HUD, Gfx.Align.RIGHT, 0.45f * u)
         val cs = (6.8f + min(2.4f, w.combo * 0.15f)) * u
         val by = top + 3.2f * u + cs * 0.74f
         val tw = Glyphs.width(g, comboText, cs, Gfx.Font.TITLE)
@@ -1519,7 +1541,8 @@ internal class Hud(private val f: Frame) {
         val swipe = gesture != 0
         val e = HudType.outBack(appear, 2.2f)
         val s = f.s
-        val px = 0.0116f * g.width // the chip's own grid unit, in px (screen-relative, like the HUD)
+        // The chip's own grid unit, in px (screen-relative, like the HUD), grown with TEXT SIZE.
+        val px = 0.0116f * g.width * f.textScale
         val ts = (if (swipe) 1.9f else 1.5f) * px
         val track = 0.25f * px
         val lw = HudType.trackedWidth(g, label, ts, Gfx.Font.HUD, track)

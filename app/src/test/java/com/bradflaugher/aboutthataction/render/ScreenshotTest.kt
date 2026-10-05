@@ -22,6 +22,7 @@ import com.bradflaugher.aboutthataction.engine.HazardKind
 import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.Heat
 import com.bradflaugher.aboutthataction.engine.LevelGen
+import com.bradflaugher.aboutthataction.engine.Lesson
 import com.bradflaugher.aboutthataction.engine.ParticleKind
 import com.bradflaugher.aboutthataction.engine.Perk
 import com.bradflaugher.aboutthataction.engine.Phase
@@ -52,7 +53,7 @@ class ScreenshotTest {
      * A scene: [build] sets it up; if [then] is given, one frame is drawn first and [then] runs
      * before the frame that's kept (so transitions like the hallway slide are mid-flight).
      */
-    private class Scene(val name: String, val time: Float, val build: () -> World, val then: ((World) -> Unit)? = null)
+    private class Scene(val name: String, val time: Float, val build: () -> World, val then: ((World) -> Unit)? = null, val textScale: Float = 1f)
 
     private val scenes = listOf(
         Scene("rooftop", 1.3f, ::rooftop),
@@ -71,6 +72,12 @@ class ScreenshotTest {
         Scene("darkness", 10.1f, ::darkness),
         Scene("dying", 11.0f, ::dying),
         Scene("coach", 1.9f, ::coach),
+        Scene("walkthrough-run", 1.2f, ::walkthroughRun),
+        Scene("walkthrough-lift", 2.6f, ::walkthroughLift),
+        Scene("walkthrough-done", 2.6f, ::walkthroughDone),
+        Scene("tip-mode", 2.6f, ::tipMode),
+        // TEXT SIZE at its biggest on the HUD: the labels, the chip and the guide's plate.
+        Scene("larger-hud", 2.0f, ::tower, textScale = 1.3f),
         Scene("naptime", 3.4f, ::naptime),
         Scene("boxd", 3.6f, ::boxd),
         Scene("ambush", 3.8f, ::ambush),
@@ -216,6 +223,7 @@ class ScreenshotTest {
         val g = AwtGfx(img)
         val k = width / 1080f
         val r = Renderer()
+        r.textScale = scene.textScale
         val then = scene.then
         if (then != null) {
             // Before, the moment it changes (a slide starts), then a beat into it.
@@ -758,15 +766,85 @@ class ScreenshotTest {
         return w
     }
 
-    /** First run, on the roof: the dozing guard, and the coach telling you what to do about him. */
-    private fun coach(): World {
-        val w = newWorld(7)
+    /** A first run's walkthrough on the roof (seed 7). */
+    private fun tutorialWorld(hero: Hero = Hero.BULL): World =
+        World(RunConfig(7, Difficulty(), coach = true, tutorial = true, hero = hero)).also { it.viewAspect = 2400f / 1080f }
+
+    /** Steps until the guide puts [l] up (and it isn't done yet), holding [hold] each frame. */
+    private fun World.untilLesson(l: Lesson, hold: (World) -> Unit = {}) {
         var t = 0f
-        while (w.player.state != PlayerState.NORMAL && t < 6f) { w.step(1f / 60f); w.events.clear(); t += 1f / 60f }
-        w.run(0.6f) { it.player.x = X(4.2f); it.player.vx = 0f; it.moveAxis = 0 }
-        var guard = 0f
-        while (w.coachTip == null && guard < 3f) { w.player.x = X(4.6f); w.step(1f / 60f); w.events.clear(); guard += 1f / 60f }
-        w.run(0.5f) { it.player.x = X(4.6f); it.player.facing = 1 }
+        while (!(guide.lesson == l && guide.doneAt < 0f) && t < 12f) { hold(this); step(1f / 60f); events.clear(); t += 1f / 60f }
+        assertTrue("guide never got to $l (at ${guide.lesson})", guide.lesson == l)
+    }
+
+    /** The walkthrough's first steps done: the run and the jump, up to the dozing guard. */
+    private fun World.walkToTakedown() {
+        untilLesson(Lesson.RUN)
+        run(0.5f) { it.moveAxis = 1 }
+        untilLesson(Lesson.JUMP) { it.moveAxis = 0 }
+        commands += Command.SWIPE_UP
+        untilLesson(Lesson.TAKEDOWN)
+    }
+
+    /** First run, on the roof: the walkthrough on its takedown step, pointing at the dozing guard. */
+    private fun coach(): World {
+        val w = tutorialWorld()
+        w.walkToTakedown()
+        w.run(1.2f) { it.player.x = X(4.3f); it.player.vx = 0f; it.moveAxis = 0; it.player.facing = 1 }
+        return w
+    }
+
+    /** The very first prompt: drag to run, the ghost thumb showing how. */
+    private fun walkthroughRun(): World {
+        val w = tutorialWorld()
+        w.untilLesson(Lesson.RUN)
+        w.run(0.9f)
+        return w
+    }
+
+    /** Last step on the roof: at the lift, tap to call it. */
+    private fun World.walkToLift() {
+        walkToTakedown()
+        // Into his back, then the box, and out of it.
+        untilLesson(Lesson.BOX) { it.moveAxis = 1 }
+        moveAxis = 0
+        run(0.3f)
+        commands += Command.SWIPE_DOWN
+        untilLesson(Lesson.UNBOX)
+        run(0.4f)
+        commands += Command.SWIPE_DOWN
+        untilLesson(Lesson.LIFT)
+        val lift = playerHall()!!.plan.downLandings.first().x
+        while (kotlin.math.abs(player.x - lift) > 0.3f) run(1f / 60f) { it.moveAxis = if (lift > it.player.x) 1 else -1 }
+        moveAxis = 0
+    }
+
+    private fun walkthroughLift(): World {
+        val w = tutorialWorld()
+        w.walkToLift()
+        w.run(1.4f)
+        return w
+    }
+
+    /** A step just done: the takedown, cheered. */
+    private fun walkthroughDone(): World {
+        val w = tutorialWorld()
+        w.walkToTakedown()
+        var t = 0f
+        while (w.guide.doneAt < 0f && t < 6f) { w.moveAxis = 1; w.step(1f / 60f); w.events.clear(); t += 1f / 60f }
+        w.moveAxis = 0
+        w.run(0.35f)
+        return w
+    }
+
+    /** A later tip on a quiet floor: GUNS HOT / SILENT, pointing at the button. */
+    private fun tipMode(): World {
+        val seed = calmSeed(3, 300)
+        // (A warp start never tips; the tutorial flag lets this one, with only MODE left to learn.)
+        val w = World(RunConfig(seed, Difficulty(startFloor = 3), coach = true, tutorial = true, learned = Lesson.entries.toSet() - Lesson.MODE))
+            .also { it.viewAspect = 2400f / 1080f }
+        w.untilLesson(Lesson.MODE)
+        w.run(1f)
         return w
     }
 
