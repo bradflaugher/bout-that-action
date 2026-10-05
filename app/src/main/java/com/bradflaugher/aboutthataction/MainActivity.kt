@@ -660,7 +660,8 @@ class MainActivity : ComponentActivity(), GameView.Host {
                     prefs.saveWalkthroughDone()
                 }
                 if (event.skipped) {
-                    remember(Lesson.entries.toSet())
+                    // Skipped the roof's moves, not the tips: those still come once each while Coach tips is on.
+                    remember(learned + Lesson.walkthrough)
                     Toast.makeText(this, "Tutorial skipped. Replay it any time from HOW TO PLAY.", Toast.LENGTH_SHORT).show()
                 }
             }

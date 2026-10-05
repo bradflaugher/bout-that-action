@@ -291,7 +291,8 @@ as the car moves). Each step:
 with the other buttons and well clear of the run thumb; where its touch area
 meets the grenade button's, SKIP wins. The pause menu has SKIP TUTORIAL too,
 which a screen reader can reach. Skipping ends the walkthrough, silences the
-guide for the run and marks every lesson learned.
+guide for the rest of that run and marks the rooftop steps learned; the later
+tips still turn up once each on later runs, unless Coach tips is off.
 
 After the roof, and on any later run from the roof with **Coach tips** on,
 each lesson the player hasn't been taught (`RunConfig.learned`) turns up once
