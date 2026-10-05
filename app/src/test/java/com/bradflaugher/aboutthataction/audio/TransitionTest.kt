@@ -297,6 +297,70 @@ class TransitionTest {
         assertTrue("outside the VOID, flips onto a shared chord still ring on", heldElsewhere > 0)
     }
 
+    /** Dying right after a switch: the song still fading out of it stops with the band, under the stinger, not under the dirge. */
+    @Test
+    fun gameOverStopsEverySongStillFading() {
+        for (h in Hero.entries) {
+            val e = SoundEngine()
+            e.setHero(h); e.setIntensity(0.6f); e.setZone(Zone.TOWER)
+            AudioTestUtil.render(e, 3f)
+            e.setZone(Zone.LABS)
+            // Until the zone change lands (the old song now fading for over a second), then die.
+            var k = 0
+            while (e.currentSong != HeroSongs.forZone(h, Zone.LABS, false).name || e.director.activePlayer.spec?.name != e.currentSong) {
+                AudioTestUtil.render(e, 0.01f, chunk = 64); k++
+                assertTrue("the zone change never landed", k < 1000)
+            }
+            assertTrue("${tag(h)}: the old song is still fading", e.director.audibleCount >= 2)
+            e.gameOver()
+            AudioTestUtil.render(e, 1.05f, chunk = 64)
+            assertEquals("${tag(h)}: game over plays alone once the band has stopped", 1, e.director.audibleCount)
+            assertEquals("gameover", e.currentSong)
+        }
+    }
+
+    /**
+     * A request that arrives while a player is being choked off (every player busy) is planned
+     * afresh: a menu cut starts its song from the top, not at the bar the superseded flip aligned to.
+     */
+    @Test
+    fun aRequestDuringAChokeIsPlannedAfresh() {
+        val hot = HeroSongs.forZone(Hero.BULL, Zone.TOWER, false)
+        val sneak = HeroSongs.forZone(Hero.BULL, Zone.TOWER, true)
+        val theme = HeroSongs.theme(Hero.FOX)
+        val d = MusicDirector(sr)
+        d.intensity = 0.1f
+        val n = 64
+        val l = FloatArray(n)
+        val r = FloatArray(n)
+        val rev = FloatArray(n)
+        val dly = FloatArray(n)
+        fun play(seconds: Float) = repeat((seconds * sr / n).toInt()) { d.render(n, l, r, rev, dly) }
+        d.request(hot, Transition.NOW, 0.01f)
+        play(20f) // well into the song, so a flip aligns to a later bar
+        var asked = false
+        var t = Transition.FLIP_DOWN
+        var target = sneak
+        for (step in 0 until 40000) {
+            if (!d.choking && d.pending == null) {
+                d.request(target, t)
+                target = if (target === sneak) hot else sneak
+                t = if (t == Transition.FLIP_DOWN) Transition.FLIP_UP else Transition.FLIP_DOWN
+            }
+            d.render(n, l, r, rev, dly)
+            if (d.choking) {
+                d.request(theme, Transition.BEAT)
+                asked = true
+                break
+            }
+        }
+        assertTrue("never caught a choke", asked)
+        play(0.05f)
+        val p = d.activePlayer
+        assertEquals(theme, p.spec)
+        assertTrue("the theme starts from its top, not at the flip's bar (step ${p.absStep})", p.absStep < 16)
+    }
+
     @Test
     fun transitionsAreDeterministic() {
         for (name in listOf("flip_rapid", "menus")) {

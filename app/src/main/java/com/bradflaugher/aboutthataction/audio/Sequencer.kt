@@ -189,6 +189,12 @@ internal class MusicPlayer(private val sr: Int, id: Int) {
         ramp(0f, fadeSeconds)
     }
 
+    /** Stop, if still sounding, within [seconds]: a fade already shorter than that is left alone. */
+    fun stopWithin(seconds: Float) {
+        if (!audible) return
+        if (sequencing || fadeTo > 0f || rampLeft > seconds * sr) stop(seconds)
+    }
+
     /** Head for gain [to] along a quarter sine over [seconds]. */
     private fun ramp(to: Float, seconds: Float) {
         fadeFrom = fade; fadeTo = to
@@ -733,6 +739,11 @@ internal class MusicDirector(private val sr: Int) {
     private var dFade = 0f
     private var dBar = 0
     private var dBpm = 0f
+    // The song a deferred start replaces (to plan a replacement request against).
+    private var dFrom = 0
+    private var dOldPlaying = false
+    private var dOldBpm = 0f
+    private var dOldChord = 0
 
     var current: SongSpec? = null; private set
     var pending: SongSpec? = null; private set
@@ -754,12 +765,21 @@ internal class MusicDirector(private val sr: Int) {
     )
     internal var onSwitch: ((SwitchInfo) -> Unit)? = null
     internal val activePlayer: MusicPlayer get() = players[active]
+    /** Players still sounding (diagnostics). */
+    internal val audibleCount: Int get() = players.count { it.audible }
+
+    /** A start is waiting for its player to choke off what it was still fading (diagnostics). */
+    internal val choking: Boolean get() = dSpec != null
+
     /** Switches that had to choke off a still-fading song (diagnostics). */
     internal var steals = 0; private set
 
     /** Fade the music out entirely. */
     fun stop(fadeSeconds: Float) {
+        // Every player, not just the active one: a song still fading out of a switch a moment
+        // ago would otherwise play on under the stinger and the dirge.
         players[active].stop(fadeSeconds)
+        for (i in players.indices) if (i != active) players[i].stopWithin(fadeSeconds)
         current = null
         pending = null
         deferredLeft = 0; dSpec = null
@@ -774,8 +794,18 @@ internal class MusicDirector(private val sr: Int) {
     /** Move to [spec] by [t]; [fadeIn] is how long a [Transition.NOW] takes to fade in. */
     fun request(spec: SongSpec, t: Transition, fadeIn: Float = 0.8f) {
         if (dSpec != null) {
-            // Mid-choke (a few ms): whatever was asked last starts when it's done.
+            // Mid-choke (a few ms): whatever was asked last starts when it's done, planned
+            // afresh against the song it replaces (its own bar, tempo and fade, not the last ask's).
+            val old = players[dFrom]
+            val flip = t == Transition.FLIP_UP || t == Transition.FLIP_DOWN
             dSpec = spec; dImpact = t == Transition.BAR || t == Transition.FLIP_UP; current = spec
+            dBar = if (dOldPlaying && flip) alignedBar(spec, old, dOldChord) else 0
+            dBpm = if (dOldPlaying && t != Transition.NOW && t != Transition.EXIT) lockedBpm(spec, dOldBpm) else spec.bpm
+            dFade = when (t) {
+                Transition.NOW -> fadeIn
+                Transition.EXIT -> EXIT_FADE
+                else -> 0.05f
+            }
             return
         }
         val a = players[active]
@@ -863,6 +893,7 @@ internal class MusicDirector(private val sr: Int) {
         if (choke) {
             for (i in players.indices) if (i != active && (next < 0 || players[i].level < players[next].level)) next = i
         }
+        dFrom = active; dOldPlaying = playing; dOldBpm = oldBpm; dOldChord = oldChord
         active = next
         current = spec
         pending = null
