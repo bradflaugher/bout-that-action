@@ -85,8 +85,7 @@ provider suggested 10K-100K)]**
   streaks and leaderboards: the game has no internet permission and collects
   no data, and I don't want it pressuring anyone to come back every day.
 - **Also:** a How to play screen with an FAQ, a Calm screen option (no screen
-  shake, softer flashes), a jukebox to play each zone's music, and better
-  screen reader support.
+  shake, softer flashes) and better screen reader support.
 
 **[BRAD: trim this to fit the form's character limit if it complains]**
 

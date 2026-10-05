@@ -2,4 +2,4 @@
 • New things get a one-time tip the first time they turn up.
 • New body font, easier to read, and a TEXT SIZE setting.
 • The daily card shows CLEARED TODAY and your best try.
-• JUKEBOX in Settings: play any zone's track you've reached.
+• Tidier Settings: the jukebox is gone. Your hero's band already plays every zone.

@@ -141,7 +141,6 @@ class MainActivity : ComponentActivity(), GameView.Host {
         challengeLog = prefs.loadChallenges()
         welcome = !prefs.loadIntroSeen()
         learned = prefs.loadLearned()
-        zonesReached = prefs.loadZonesReached()
         walkthroughDone = prefs.loadWalkthroughDone()
         sound = SoundEngine()
         audio = AudioOutput(sound)
@@ -184,7 +183,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
                     Screen.HELP -> { screen = helpFrom }
                     Screen.CUSTOM, Screen.CHALLENGES -> { screen = Screen.TITLE }
                     Screen.BRIEFING -> { screen = briefingFrom }
-                    Screen.SETTINGS -> settingsBack()
+                    Screen.SETTINGS -> { screen = Screen.TITLE }
                     Screen.GAME_OVER -> toTitle()
                     Screen.TITLE -> Unit
                 }
@@ -270,10 +269,7 @@ class MainActivity : ComponentActivity(), GameView.Host {
                             onBack = ::heroesBack,
                         )
                         Screen.SETTINGS -> SettingsScreen(
-                            settings, pad, ::updateSettings, onBack = ::settingsBack, onHelp = { openHelp(Screen.SETTINGS) },
-                            jukebox = jukeboxUnlocked(),
-                            playing = jukebox,
-                            onJukebox = ::playJukebox,
+                            settings, pad, ::updateSettings, onBack = { screen = Screen.TITLE }, onHelp = { openHelp(Screen.SETTINGS) },
                         )
                         Screen.HELP -> HelpScreen(pad, onBack = { screen = helpFrom }, onReplayTutorial = ::replayTutorial)
                         Screen.PAUSED -> PauseScreen(
@@ -437,8 +433,6 @@ class MainActivity : ComponentActivity(), GameView.Host {
     private fun startRun(config: RunConfig) {
         // Dropping in is answer enough to the title's first-time card.
         introSeen()
-        // A run takes over the music: the jukebox (settings, or settings → HOW TO PLAY → REPLAY) stops.
-        jukebox = null
         startAudio()
         runConfig = config
         runSeed = config.seed
@@ -541,34 +535,6 @@ class MainActivity : ComponentActivity(), GameView.Host {
         sound.playHeroTheme(hero)
     }
 
-    /** The JUKEBOX in settings: a zone's track playing in the menus, or null for the title theme. */
-    private var jukebox by mutableStateOf<Zone?>(null)
-    /** Zones any run has reached (challenges too, which can start deep). */
-    private var zonesReached by mutableStateOf<Set<Zone>>(emptySet())
-
-    /** The tracks the JUKEBOX offers: the Neon Tower always, then every zone reached (or within the endless DEEPEST). */
-    private fun jukeboxUnlocked(): Set<Zone> =
-        Zone.entries.filter { it == Zone.TOWER || it in zonesReached || (it != Zone.ROOFTOP && records.bestFloor >= it.startFloor) }.toSet()
-
-    private fun playJukebox(zone: Zone?) {
-        jukebox = zone
-        if (zone == null) {
-            sound.playTitle()
-        } else {
-            // Calm, whatever the last run left the mix at: the menus never update it.
-            sound.setAlert(AlertPhase.CALM)
-            sound.setIntensity(0f)
-            sound.setHero(settings.hero)
-            sound.setZone(zone)
-        }
-    }
-
-    /** Out of settings: the title theme comes back if the jukebox was playing something else. */
-    private fun settingsBack() {
-        if (jukebox != null) playJukebox(null)
-        screen = Screen.TITLE
-    }
-
     private fun openHelp(from: Screen) {
         helpFrom = from
         screen = Screen.HELP
@@ -665,11 +631,6 @@ class MainActivity : ComponentActivity(), GameView.Host {
                     Toast.makeText(this, "Tutorial skipped. Replay it any time from HOW TO PLAY.", Toast.LENGTH_SHORT).show()
                 }
             }
-            // The zone's music played: the JUKEBOX has it now (a Void zone counts as the zone it plays).
-            is GameEvent.ZoneEntered -> {
-                val zones = setOf(event.zone, world.musicZone)
-                runOnUiThread { if (!zonesReached.containsAll(zones)) { zonesReached = zonesReached + zones; prefs.saveZonesReached(zonesReached) } }
-            }
             else -> Unit
         }
         // The GUNS HOT / SILENT choice sticks between runs.
@@ -694,9 +655,6 @@ class MainActivity : ComponentActivity(), GameView.Host {
             sound.setSlowMo(musicSlowMo)
         }
         if (++musicFrame % 15 == 0) sound.setIntensity(world.intensity)
-        // Every track the run plays goes on the JUKEBOX, the Void's borrowed zones too.
-        val mz = world.musicZone
-        if (mz !in zonesReached) runOnUiThread { if (mz !in zonesReached) { zonesReached = zonesReached + mz; prefs.saveZonesReached(zonesReached) } }
         speakGuide(world)
     }
 

@@ -105,7 +105,7 @@ the JVM.
   tutorial, and the title's one-time FIRST TIME HERE? card), pause, game
   over; settings has TEXT SIZE (`TextSizeScope` in `Theme.kt`, capped at
   `MAX_TEXT_SCALE` with the system font size, wrapping the menus but never the
-  game view) and the JUKEBOX), `Links.kt` (share the game, rate it, feedback and the privacy policy: intents
+  game view)), `Links.kt` (share the game, rate it, feedback and the privacy policy: intents
   only, never network), `Settings.kt` (prefs, seeds, the challenge log: first-clear day and best progress per id), `Haptics.kt`.
 - `app/src/test/` — JVM tests: `engine/` (mechanics, level generation,
   fuzzing, a heuristic bot that plays full runs per preset), `input/`

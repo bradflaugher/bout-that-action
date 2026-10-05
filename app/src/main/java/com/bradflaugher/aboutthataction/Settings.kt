@@ -7,7 +7,6 @@ import com.bradflaugher.aboutthataction.engine.Difficulty
 import com.bradflaugher.aboutthataction.engine.GameEvent
 import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.Lesson
-import com.bradflaugher.aboutthataction.engine.Zone
 import com.bradflaugher.aboutthataction.engine.SeedCode
 import com.bradflaugher.aboutthataction.engine.World
 
@@ -189,6 +188,7 @@ class Prefs(context: Context) {
             .putString("seed_mode", s.seedMode.name)
             .putString("seed_text", s.seedText)
             .remove("auto_fire") // retired by the GUNS HOT / SILENT mode
+            .remove("zones_reached") // only the retired JUKEBOX read it
             .putBoolean("silent", s.silent)
             .putBoolean("haptics", s.haptics)
             .putBoolean("touch_guide", s.touchGuide)
@@ -260,14 +260,6 @@ class Prefs(context: Context) {
 
     fun saveWalkthroughDone() {
         sp.edit { putBoolean("walkthrough_done", true) }
-    }
-
-    /** Zones reached in any run (endless or challenge), for the JUKEBOX. */
-    fun loadZonesReached(): Set<Zone> =
-        sp.getString("zones_reached", "").orEmpty().split(',').mapNotNull { n -> Zone.entries.firstOrNull { it.name == n } }.toSet()
-
-    fun saveZonesReached(set: Set<Zone>) {
-        sp.edit { putString("zones_reached", set.sortedBy { it.ordinal }.joinToString(",") { it.name }) }
     }
 
     fun loadRecords() = Records(sp.getLong("best_score", 0), sp.getInt("best_floor", 0), sp.getInt("runs", 0))

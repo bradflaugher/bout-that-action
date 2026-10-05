@@ -26,7 +26,6 @@ YOUR GAME, YOUR RULES
 • Pick a difficulty from CHILL to STRAIGHT TO HELL, or tune the heat curve yourself.
 • Every run has a short seed code: share it, and a friend plays the very same building.
 • CALM SCREEN turns off screen shake and softens the flashes. TEXT SIZE makes the menus and HUD bigger, on top of your phone's font size.
-• A JUKEBOX plays every zone's track you've reached.
 
 NO NONSENSE
 • No ads. No in-app purchases. No accounts. No network permission at all.

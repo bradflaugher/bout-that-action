@@ -5,6 +5,7 @@ import com.bradflaugher.aboutthataction.audio.AudioTestUtil.maxWindowRms
 import com.bradflaugher.aboutthataction.audio.AudioTestUtil.render
 import com.bradflaugher.aboutthataction.audio.AudioTestUtil.rms
 import com.bradflaugher.aboutthataction.engine.GameEvent
+import com.bradflaugher.aboutthataction.engine.Hero
 import com.bradflaugher.aboutthataction.engine.Zone
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -384,5 +385,77 @@ class SoundEngineTest {
         val full = level(1f, 1f)
         assertTrue(level(0f, 0f) < 1e-4)
         assertTrue(level(0.3f, 1f) < full)
+    }
+
+    /**
+     * The whole trip the app takes the music on, as MainActivity sends it, for every hero: the
+     * title, the hero picker's theme and back, a run in the hero's own arrangement (zone change,
+     * pause, resume), game over, retry, game over again and back to the title.
+     */
+    @Test
+    fun theMenusAndARunPlayTheRightTrackForEveryHero() {
+        fun settle(e: SoundEngine, want: String, seconds: Float = 6f) {
+            render(e, seconds)
+            assertEquals(want, e.currentSong)
+        }
+        for (h in Hero.entries) {
+            val tag = h.name.lowercase()
+            val e = SoundEngine()
+            e.playTitle()
+            settle(e, "title", 1f)
+            e.playHeroTheme(h)
+            settle(e, "$tag-theme")
+            e.playTitle()
+            settle(e, "title")
+            // DROP IN: the hero first, then the run's first zone.
+            e.setHero(h); e.setZone(Zone.ROOFTOP)
+            settle(e, "rooftop-$tag")
+            e.setZone(Zone.TOWER)
+            settle(e, "tower-$tag")
+            e.setPaused(true)
+            settle(e, "tower-$tag", 1f)
+            e.setPaused(false)
+            e.gameOver()
+            settle(e, "gameover", 3f)
+            // RETRY: the new run's track takes over at once, not after the dirge's slow bar.
+            e.setHero(h); e.setZone(Zone.ROOFTOP)
+            settle(e, "rooftop-$tag", 0.1f)
+            e.gameOver()
+            settle(e, "gameover", 4f)
+            // TITLE from the game-over screen: the same.
+            e.playTitle()
+            settle(e, "title", 0.1f)
+        }
+    }
+
+    /** The menus' music doesn't follow the heat: the title sounds the same whatever the last run left behind. */
+    @Test
+    fun menuMusicIgnoresTheLastRunsHeat() {
+        fun title(heat: Float): FloatArray {
+            val e = SoundEngine()
+            e.setIntensity(heat)
+            e.playTitle()
+            return render(e, 4f)
+        }
+        assertArrayEquals(title(0f), title(1f), 0f)
+    }
+
+    /** Leaving the game-over dirge never waits for its slow bar line, however far into it you are. */
+    @Test
+    fun leavingGameOverIsImmediate() {
+        for (wait in listOf(2f, 3f, 4f, 5f, 6f, 8f, 10f)) {
+            for (title in listOf(false, true)) {
+                val e = SoundEngine()
+                e.setZone(Zone.TOWER)
+                render(e, 3f)
+                e.gameOver()
+                render(e, wait)
+                assertEquals("gameover", e.currentSong)
+                if (title) e.playTitle() else e.setZone(Zone.ROOFTOP)
+                val out = render(e, 1f)
+                assertEquals("${if (title) "title" else "retry"} after ${wait}s of game over", if (title) "title" else "rooftop", e.currentSong)
+                assertSane(out, "leave game over")
+            }
+        }
     }
 }
