@@ -99,8 +99,8 @@ class HeroMusicTest {
     /** Each hero plays their own genre at its own tempo; sneaking is always the slower one. */
     @Test
     fun eachHeroPlaysTheirGenreAtItsTempo() {
-        val hot = mapOf(Hero.BULL to 138f..152f, Hero.FOX to 128f..145f, Hero.MONKEY to 168f..192f, Hero.HAWK to 110f..128f)
-        val sneak = mapOf(Hero.BULL to 70f..84f, Hero.FOX to 98f..115f, Hero.MONKEY to 86f..102f, Hero.HAWK to 88f..102f)
+        val hot = mapOf(Hero.BULL to 138f..152f, Hero.FOX to 128f..145f, Hero.MONKEY to 136f..160f, Hero.HAWK to 110f..128f)
+        val sneak = mapOf(Hero.BULL to 70f..84f, Hero.FOX to 98f..115f, Hero.MONKEY to 90f..107f, Hero.HAWK to 88f..102f)
         for (h in Hero.entries) for (z in Zone.entries) {
             val loud = HeroSongs.forZone(h, z, false)
             val quiet = HeroSongs.forZone(h, z, true)
@@ -191,40 +191,136 @@ class HeroMusicTest {
     }
 
     /**
-     * MONKEY: the runaway circus monkey back in the jungle. Sneaking is a jungle night (key-tuned
-     * hand drums, a shaker, crickets, a marimba always carrying the tune, a monkey "hoo"); hot is
-     * a stampede in the major (war drums in a galop, shakers, snare rolls, balafon runs, the
-     * circus's steam calliope screaming on top and a slide whistle up every fill).
+     * MONKEY: the circus band he ran away with, one song in two moods. GUNS HOT is a big-top
+     * electro-swing (swung 8ths, a kick on 1 and 3, snare and clap on 2 and 4, an oom-pah tuba
+     * that walks in B, brass on the backbeat, a glockenspiel counter-line, a clean calliope);
+     * SILENT a noir-circus tiptoe at 2/3 the tempo (the heartbeat, brushes and snaps, a
+     * pizzicato bass, a celesta, a warm pad, a clarinet). Both in the zone's key and chords (with
+     * swing-era sevenths and sixths, never a grinding maj7), both carrying his tune, and the
+     * slide whistle is a rare, octave-or-less accent on a phrase end, never a gag on every fill.
      */
     @Test
-    fun monkeyIsJungleCircus() {
-        for (z in Zone.entries) for (silent in listOf(false, true)) {
-            val spec = HeroSongs.forZone(Hero.MONKEY, z, silent)
-            val what = "$z${if (silent) " sneak" else ""}"
-            val pitch = 12.0 * kotlin.math.ln(spec.kit.tomHz / 440.0) / kotlin.math.ln(2.0) + 69
-            assertEquals("$what: the drums are tuned to the key", 0, Math.floorMod(Math.round(pitch).toInt() - spec.tonic, 12))
-            assertTrue("$what: shakers", hits(spec.drumsB.jingle) >= 8 && spec.kit.jingleNoise >= 1f)
-            for (p in listOf(spec.drumsA, spec.drumsB)) assertEquals("$what: no hi-hats", 0, hits(p.hat) + hits(p.open))
-            assertTrue("$what: log drums", hits(spec.drumsB.perc) >= 3)
-            assertTrue("$what: a monkey's whistle", spec.slideWhistle > 0f)
-            if (silent) {
-                assertTrue("$what: on tiptoe", spec.bpm < 101f && onlyAt(spec.drumsA.kick, 0, 8))
-                assertTrue("$what: crickets", spec.jungle > 0f)
-                assertTrue("$what: hand drums with a bend", spec.kit.tomDecay < 0.3f && spec.kit.tomBend > 0.1f && hits(spec.drumsB.tom) >= 4)
-                assertTrue("$what: a marimba carries the tune at zero heat", spec.lead.s < 0.3f && spec.leadThreshold < -0.1f)
-                assertTrue("$what: a hoot, not a whistle", spec.whistleRange <= 2f)
-            } else {
-                assertTrue("$what: a major key", spec.scale.contentEquals(Scales.IONIAN))
-                val degrees = (spec.progA + spec.progB).map { it.degree }.toSet()
-                assertTrue("$what: I, IV and V", degrees.containsAll(listOf(0, 3, 4)))
-                assertTrue("$what: a stampede", spec.bpm >= 170f && hits(spec.drumsA.kick) == 4)
-                assertTrue("$what: war drums", hits(spec.drumsB.tom) >= 8 && spec.kit.tomLevel > 0.9f && spec.kit.tomHz < 200f)
-                assertTrue("$what: snare rolls", listOf(spec.drumsB, spec.fill).all { p -> p.snare.count { it == 'r' } >= 4 })
-                assertTrue("$what: balafon runs", hits(spec.arpB) == 16 && spec.arp.s == 0f)
-                assertTrue("$what: a steam calliope", spec.lead.vibrato > 0f && spec.lead.trem > 0f && spec.lead.noise > 0f)
-                assertTrue("$what: a slide whistle up", spec.whistleRange >= 4f)
+    fun monkeyIsBigTopSwingAndNoirCircus() {
+        for (z in Zone.entries) {
+            val hot = HeroSongs.forZone(Hero.MONKEY, z, false)
+            val sneak = HeroSongs.forZone(Hero.MONKEY, z, true)
+            val base = Songs.forZone(z)
+            for ((spec, what) in listOf(hot to "$z", sneak to "$z sneak")) {
+                assertTrue("$what: the zone's own key", spec.tonic == base.tonic && spec.scale.contentEquals(base.scale))
+                val zoneChords = (if (spec === sneak) Songs.forZone(z, true) else base).let { it.progA + it.progB }
+                for ((i, c) in (spec.progA + spec.progB).withIndex()) {
+                    val added = c.intervals.drop(zoneChords[i].size)
+                    for (iv in added) assertTrue("$what: added tone $iv is in key", Scales.contains(spec.scale, c.root + iv))
+                    assertTrue("$what: no added major sevenths", added.none { it == 11 })
+                }
+                assertTrue("$what: swung 8ths", spec.swing8 in 0.5f..0.7f && spec.swing == 0f)
+                for (p in listOf(spec.drumsA, spec.drumsB)) assertTrue("$what: on the swing grid", listOf(p.kick, p.hat, p.jingle, p.tom).all { r -> r.indices.all { r[it] == '.' || it % 2 == 0 } })
+                val pitch = 12.0 * kotlin.math.ln(spec.kit.tomHz / 440.0) / kotlin.math.ln(2.0) + 69
+                assertEquals("$what: the bongos are tuned to the key", 0, Math.floorMod(Math.round(pitch).toInt() - spec.tonic, 12))
+                assertTrue("$what: light bongos", hits(spec.drumsB.tom) >= 2 && spec.kit.tomLevel <= 0.4f && spec.kit.tomBend <= 0.1f)
+                assertTrue("$what: his tune, two strains", spec.signature != null && (spec.hook != null) != spec.glitch && (spec.hookA2 != null) != spec.glitch)
+                assertTrue("$what: the band and the tune from the first calm bar", spec.kickThreshold <= 0f && spec.leadThreshold < 0f)
+                val comp = Composer(spec)
+                for (phrase in 0 until 16) {
+                    comp.begin(phrase)
+                    for (b in 0 until 8) for (s in 0 until 16) {
+                        val n = comp.leadAt(phrase * 8 + b, s)
+                        assertTrue("$what: lead note $n above C6", n <= 84)
+                    }
+                }
+                assertTrue("$what: no crickets", spec.jungle == 0f)
+                assertTrue("$what: a rare whistle", spec.slideWhistle in 0.001f..0.04f && spec.whistleEvery >= 4 && spec.whistleRange <= 2f)
             }
+            assertEquals("$z: sneaking is exactly 2/3 the tempo", hot.bpm * 2f / 3f, sneak.bpm, 0f)
+            assertTrue("$z: the same tune", sneak.signature === hot.signature && sneak.answer === hot.answer)
+            // GUNS HOT: the big top.
+            assertTrue("$z: a kick on 1 and 3", hot.drumsA.kick[0] == 'X' && hot.drumsA.kick[8] == 'X' && hits(hot.drumsA.kick) <= 5)
+            for (p in listOf(hot.drumsA, hot.drumsB)) {
+                assertTrue("$z: snare and clap on 2 and 4", p.snare[4] == 'X' && p.snare[12] == 'X' && p.clap[4] != '.' && p.clap[12] != '.')
+                assertEquals("$z: swung 8th hats", 8, hits(p.hat))
+                assertTrue("$z: a tambourine on the backbeat", p.jingle[4] != '.' && p.jingle[12] != '.')
+            }
+            assertTrue("$z: oom-pah", onlyAt(hot.bassA, 0, 8, 14) && hot.bassA[14] == 'A')
+            assertTrue("$z: the tuba walks in B", hits(hot.bassB) == 4 && hot.bassB.contains('T'))
+            assertTrue("$z: brass on the backbeat", hot.padRhythm[4] == 'x' && hot.padRhythm[12] == 'x' && hot.pad.a < 0.02f)
+            assertTrue("$z: a glockenspiel, xylophone or accordion counter-line", hits(hot.arpB) >= 4 && hot.arp.detune == 0f && hot.arp.vibrato == 0f)
+            assertTrue("$z: a clean calliope", hot.lead.trem == 0f && hot.lead.noise < 0.01f && hot.leadThreshold < 0.3f)
+            // SILENT: on tiptoe.
+            assertTrue("$z sneak: the heartbeat", onlyAt(sneak.drumsA.kick, 0, 2, 8, 10) && sneak.kit.hatLevel == 0f)
+            assertTrue("$z sneak: brushes", hits(sneak.drumsA.jingle) == 8 && sneak.kit.jingleNoise >= 1f)
+            assertTrue("$z sneak: finger snaps on 2 and 4", onlyAt(sneak.drumsA.snare, 4, 12) && sneak.kit.snareDecay < 0.08f)
+            assertTrue("$z sneak: pizzicato", sneak.bass.pluck > 0f && sneak.bass.s == 0f)
+            assertTrue("$z sneak: a celesta", sneak.arp.s == 0f && sneak.arp.detune == 0f && sneak.arp.vibrato == 0f && sneak.arp.trem == 0f)
+            assertTrue("$z sneak: a clarinet or a muted trumpet always carries the tune", sneak.leadThreshold < 0f && sneak.lead.wave1 in listOf(Wave.SQUARE, Wave.SAW))
         }
+    }
+
+    /** [patch] holding MIDI [note] for [seconds] (mono). */
+    private fun holdNote(patch: Patch, note: Int, seconds: Float): FloatArray {
+        val sr = AudioTestUtil.SR
+        val v = SynthVoice(sr, 7)
+        v.patch = patch
+        val n = (seconds * sr).toInt()
+        v.noteOn(note, 1f, n, legato = false, age = 1)
+        val l = FloatArray(n)
+        val r = FloatArray(n)
+        var i = 0
+        while (i < n) {
+            val k = minOf(64, n - i)
+            v.render(l, r, i, k, 1f, 1f); i += k
+        }
+        return l
+    }
+
+    /** Pitch (Hz) by normalised autocorrelation over [from, from + len), with parabolic interpolation. */
+    private fun acPitch(x: FloatArray, from: Int, len: Int): Double {
+        val sr = AudioTestUtil.SR
+        val minLag = sr / 2000
+        val maxLag = sr / 60
+        val ac = DoubleArray(maxLag + 2)
+        for (lag in minLag..maxLag + 1) {
+            var acc = 0.0
+            for (i in from until from + len) acc += x[i].toDouble() * x[i + lag]
+            ac[lag] = acc
+        }
+        var lag = minLag
+        while (lag < maxLag && ac[lag] > 0) lag++
+        val best = (lag..maxLag).maxOf { ac[it] }
+        while (lag < maxLag && !(ac[lag] >= best * 0.9 && ac[lag] >= ac[lag - 1] && ac[lag] >= ac[lag + 1])) lag++
+        val a = ac[lag - 1]
+        val b = ac[lag]
+        val c = ac[lag + 1]
+        return sr / (lag + 0.5 * (a - c) / (a - 2 * b + c))
+    }
+
+    /**
+     * The fixes for the "broken music box": MONKEY's voices are in tune (no detuned octave, a
+     * few cents of ensemble at most), their vibrato is gentle and never fights a tremolo, and
+     * the calliope measures in tune (its pitch, tracked, sits on the note and barely wobbles).
+     */
+    @Test
+    fun monkeysBandPlaysInTune() {
+        val specs = Zone.entries.flatMap { listOf(HeroSongs.forZone(Hero.MONKEY, it, false), HeroSongs.forZone(Hero.MONKEY, it, true)) } + HeroSongs.theme(Hero.MONKEY)
+        for (s in specs) for ((part, p) in listOf("lead" to s.lead, "arp" to s.arp, "pad" to s.pad, "bass" to s.bass)) {
+            val what = "${s.name} $part"
+            val detuned = p.osc2Level > 0f || p.supersaw
+            if (detuned) assertTrue("$what: detune ${p.detune * 100} cents", p.detune * 100 <= if (part == "pad") 4f else 0.01f)
+            // Unison, octaves, the twelfth (3rd harmonic, 2 cents off) or the 6th harmonic: nothing that beats sour.
+            assertTrue("$what: osc 2 at ${p.osc2Semi} semitones is off the harmonics", p.osc2Semi in listOf(0f, 12f, 19f, 24f, 31f, 36f))
+            assertTrue("$what: vibrato ${p.vibrato * 100} cents", p.vibrato <= 0.1f)
+            assertTrue("$what: no tremolo against the vibrato", p.trem == 0f || p.vibrato == 0f)
+        }
+        // Heard: hold the calliope's A4 for a second and track its pitch.
+        val lead = HeroSongs.forZone(Hero.MONKEY, Zone.TOWER, false).lead
+        val x = holdNote(lead, 69, 1.2f)
+        val sr = AudioTestUtil.SR
+        val cents = (0 until 8).map { k ->
+            val from = (0.35f * sr).toInt() + k * sr / 10
+            1200 * kotlin.math.ln(acPitch(x, from, 4096) / 440.0) / kotlin.math.ln(2.0)
+        }
+        println("MONKEY calliope A4, cents: " + cents.joinToString { "%+.1f".format(it) })
+        assertTrue("the calliope sits on the note (${cents.average()} c)", abs(cents.average()) < 3.0)
+        assertTrue("the calliope's vibrato is gentle (${cents.max() - cents.min()} c p-p)", cents.max() - cents.min() < 20.0)
     }
 
     /** HAWK: elevator bossa nova sneaking (nylon guitar, vibes, clave); 70s funk hot (ghost notes, slap, clav, horns). */
@@ -297,10 +393,10 @@ class HeroMusicTest {
         render(e, 2f)
         assertEquals("tower-fox", e.songName)
         e.setZone(Zone.TOWER, silent = true)
-        render(e, 0.2f)
-        assertEquals("the mode flip doesn't wait for the bar line", "tower-fox-sneak", e.songName)
+        render(e, 0.46f) // a beat at 134 BPM
+        assertEquals("the mode flip doesn't wait for the bar line, just the beat", "tower-fox-sneak", e.songName)
         e.setZone(Zone.TOWER, silent = false)
-        render(e, 0.2f)
+        render(e, 0.6f) // a beat of the sneak mix, locked at 3:4
         assertEquals("tower-fox", e.songName)
         e.setZone(Zone.LABS)
         render(e, 0.2f)
@@ -330,8 +426,8 @@ class HeroMusicTest {
         val themes = ArrayList<FloatArray>()
         for (h in Hero.entries) {
             e.playHeroTheme(h)
-            // Browsing: from the title it waits for the bar; from theme to theme it's immediate.
-            val x = render(e, if (h == Hero.BULL) 6f else 0.1f)
+            // Browsing: from the title, and from theme to theme, it comes in on the next beat.
+            val x = render(e, 0.6f)
             assertEquals("${h.name.lowercase()}-theme", e.songName)
             assertSane(x, "$h theme")
         }
@@ -366,11 +462,12 @@ class HeroMusicTest {
             e.setHero(h)
             e.setZone(Zone.TOWER)
             render(e, 2f)
+            // The sign-off rings after the chord (the music, which swells up under it, muted).
+            e.setMusicVolume(0f)
             e.gameOver()
             val x = render(e, 3.5f)
             assertSane(x, "$h game over")
             assertEquals("gameover", e.songName)
-            // The sign-off rings between the chord and the ambient loop.
             levels[h] = rms(x, AudioTestUtil.SR * 2, AudioTestUtil.SR * 2 * 3)
         }
         println("game over 1-3 s: " + levels.entries.joinToString { "%s=%.3f".format(it.key, it.value) })
@@ -449,17 +546,10 @@ class HeroMusicTest {
             assertEquals(what, base.tonic, spec.tonic)
             assertEquals(what, base.barsPerChord, spec.barsPerChord)
             assertTrue(what, base.sections.contentEquals(spec.sections))
-            assertEquals(what, base.kickThreshold, spec.kickThreshold, 0f)
+            // (MONKEY's band plays from the first calm bar: his thresholds only ever sit lower.)
+            if (h == Hero.MONKEY) assertTrue(what, spec.kickThreshold <= base.kickThreshold) else assertEquals(what, base.kickThreshold, spec.kickThreshold, 0f)
             assertEquals(what, base.wind, spec.wind, 0f)
             assertEquals(what, base.glitch, spec.glitch)
-            if (h == Hero.MONKEY && !silent) {
-                // The stampede: the parallel major, its own chords, every chord tone in that key.
-                assertTrue(what, spec.scale.contentEquals(Scales.IONIAN))
-                for (c in spec.progA + spec.progB) for (iv in c.intervals) {
-                    assertTrue("$what: chord tone out of key", Scales.contains(spec.scale, c.root + iv))
-                }
-                continue
-            }
             assertTrue(what, base.scale.contentEquals(spec.scale))
             for ((bp, hp) in listOf(base.progA to spec.progA, base.progB to spec.progB)) {
                 assertEquals(what, bp.size, hp.size)
@@ -849,6 +939,108 @@ class HeroInstrumentsTest {
         println("drop gap: " + with.indices.joinToString { "%.3f".format(with[it] - without[it]) })
         assertTrue("the arp plays before the gap", arpBeat > 0.0)
         assertTrue("and holds its breath in it", arpGap < arpBeat * 0.2)
+    }
+
+    /** Onset sample positions of a hat row in bar 1 (tower at 118 BPM), sample-accurate. */
+    private fun hatTimes(row: String, swing8: Float): List<Int> {
+        val spec = Songs.tower.derive(
+            name = "swing-test", swing = 0f, swing8 = swing8,
+            drumsA = DrumPattern(hat = row), drumsB = DrumPattern(hat = row), fill = DrumPattern(hat = row),
+            mix = Mix(pad = 0f, bass = 0f, arp = 0f, lead = 0f, drums = 1f), rotor = 0f, wind = 0f,
+            kit = DrumTuning(hatDecay = 0.004f, hatLevel = 1f),
+        )
+        val d = MusicDirector(sr)
+        d.intensity = 1f
+        d.request(spec, immediate = false)
+        val n = 64
+        val l = FloatArray(n)
+        val r = FloatArray(n)
+        val rev = FloatArray(n)
+        val dly = FloatArray(n)
+        val bar = (60.0 / 118 * 4 * sr).toInt()
+        val out = ArrayList<Int>()
+        var env = 0.0
+        var armed = true
+        var done = 0
+        while (done < 2 * bar) {
+            d.render(n, l, r, rev, dly)
+            for (k in 0 until n) {
+                env = maxOf(abs(l[k]).toDouble(), env * 0.99)
+                if (armed && env > 0.03) {
+                    if (done + k in bar until 2 * bar) out += done + k
+                    armed = false
+                }
+                if (env < 0.006) armed = true
+            }
+            done += n
+        }
+        return out
+    }
+
+    /** Swung 8ths: the "and" of every beat lands late by the swing, every beat stays dead on the grid. */
+    @Test
+    fun swungEighthsShuffleTheOffbeatsOnly() {
+        val step = 60.0 / 118 / 4 * sr
+        val straight = hatTimes("x.x.x.x.x.x.x.x.", 0f)
+        val swung = hatTimes("x.x.x.x.x.x.x.x.", 0.6f)
+        assertEquals(8, straight.size)
+        assertEquals(8, swung.size)
+        for (k in 0 until 8) {
+            val shift = swung[k] - straight[k]
+            if (k % 2 == 0) assertTrue("beat ${k / 2} stays on the grid ($shift samples)", abs(shift) <= 1)
+            else assertEquals("the and of beat ${k / 2} swings late", 0.6 * step, shift.toDouble(), 2.0)
+        }
+        // 16ths either side of the "and" move half as far.
+        val sixteenths = hatTimes("xxxx............", 0.6f).zip(hatTimes("xxxx............", 0f)) { a, b -> a - b }
+        for ((k, want) in listOf(0.0, 0.3, 0.6, 0.3).withIndex()) assertEquals("16th $k", want * step, sixteenths[k].toDouble(), 4.0)
+    }
+
+    /** A whistle on every [SongSpec.whistleEvery]-th phrase's closing fill only: count the swoops over 8 phrases. */
+    @Test
+    fun theSlideWhistleIsARareAccent() {
+        fun swoops(every: Int): Int {
+            val spec = Songs.tower.derive(
+                name = "whistle-test", mix = Mix(pad = 0f, bass = 0f, arp = 0f, lead = 0f, drums = 0f), rotor = 0f, wind = 0f,
+                slideWhistle = 0.3f, whistleRange = 2f, whistleFrom = 69, whistleEvery = every,
+            )
+            val d = MusicDirector(sr)
+            d.intensity = 1f
+            d.request(spec, immediate = false)
+            val n = 256
+            val l = FloatArray(n)
+            val r = FloatArray(n)
+            val rev = FloatArray(n)
+            val dly = FloatArray(n)
+            val total = (64 * 4 * 60.0 / 118 * sr).toInt()
+            var count = 0
+            var on = false
+            var done = 0
+            while (done < total) {
+                d.render(n, l, r, rev, dly)
+                val lvl = rms(l)
+                if (!on && lvl > 0.01) count++
+                on = lvl > 0.003
+                done += n
+            }
+            return count
+        }
+        val every = swoops(1)
+        val rare = swoops(4)
+        println("slide whistles in 64 bars: every fill $every, every 4th phrase $rare")
+        assertEquals(8, every)
+        assertEquals(2, rare)
+    }
+
+    /** Over a chord with a borrowed tone, the scale's note a semitone off it moves onto it; nothing else moves. */
+    @Test
+    fun chromaticSnapLandsOnBorrowedTones() {
+        val v = Chord.of(Scales.AEOLIAN, 4, Quality.MAJ) // G major in C minor: B natural is borrowed
+        assertEquals(11, Composer.chromaticSnap(10, v, Scales.AEOLIAN)) // B flat -> B
+        assertEquals(11, Composer.chromaticSnap(12, v, Scales.AEOLIAN)) // C -> B
+        assertEquals(7, Composer.chromaticSnap(7, v, Scales.AEOLIAN)) // G stays
+        assertEquals(5, Composer.chromaticSnap(5, v, Scales.AEOLIAN)) // F (not next to B) stays
+        val i = Chord.diatonic(Scales.AEOLIAN, 0)
+        for (s in 0 until 12) assertEquals("diatonic chords leave the tune alone", s, Composer.chromaticSnap(s, i, Scales.AEOLIAN))
     }
 
     /** MONKEY's slide whistle swoops up (slow, then a rush to the top), then stops; silent unless asked. */

@@ -65,7 +65,32 @@ internal class Mix(
     val bassDuck: Float = 0.45f,
     val arpDuck: Float = 0.25f,
     val arpPan: Float = 0.2f,
+    /** The harmony voice under the lead ([Phrase.harmony]), relative to the lead. */
+    val harmony: Float = 0.6f,
 )
+
+/**
+ * One 8-bar phrase of a through-composed song ([SongSpec.phrases]): its [section] picks the
+ * chords (A sections play progA, B sections progB) and the defaults for everything it leaves
+ * null. [melody] replaces the lead (in any section but BREAK); [drums] replace the section's
+ * pattern, [build] the drums of the phrase's last two bars (a lift into the next phrase),
+ * [fill] its fills; [bass] and [arp] replace the section's rows. [harmony] adds a second lead
+ * voice a chord tone below every melody note (a third where the chord has one).
+ */
+internal class Phrase(
+    val section: Section,
+    val melody: Melody? = null,
+    val drums: DrumPattern? = null,
+    val build: DrumPattern? = null,
+    val fill: DrumPattern? = null,
+    val bass: String? = null,
+    val arp: String? = null,
+    val harmony: Boolean = false,
+) {
+    init {
+        for (row in listOfNotNull(bass, arp)) require(row.length == 16) { "Bad phrase row '$row'" }
+    }
+}
 
 /**
  * A procedural track. Bass/arp/pad rows are 16-step strings (one bar):
@@ -146,6 +171,33 @@ internal class SongSpec(
     /** Where the slide whistle starts (the key's tonic nearest this MIDI note) and how far up it goes (a ratio). */
     val whistleFrom: Int = 74,
     val whistleRange: Float = 4f,
+    /** The slide whistle only sounds on the fill closing every this-many-th phrase (1: every fill). */
+    val whistleEvery: Int = 1,
+    /**
+     * > 0: swung 8ths (a shuffle) instead of [swing]'s swung 16ths. The "and" of every beat
+     * (step 2 of 4) lands this fraction of a step late, the 16ths either side of it half that
+     * (2/3: a triplet swing). 0 leaves the timing exactly as it was.
+     */
+    val swing8: Float = 0f,
+    /** Lead notes a semitone off a chord's borrowed (out-of-key) tone move onto it ([Composer.chromaticSnap]). */
+    val chromaticSnap: Boolean = false,
+    /** A variation of [hook] for A2 sections (null: A2 plays [hook] too). */
+    val hookA2: Melody? = null,
+    /** The highest lead note (MIDI); anything above folds down an octave. */
+    val leadCeiling: Int = Int.MAX_VALUE,
+    /**
+     * How far (a fraction) a transition may bend this song's tempo so it starts locked to the
+     * old song's grid at a simple ratio (1:2, 2:3, 3:4, 1:1 and back), before it glides home to
+     * [bpm] over a few seconds. Sneak and hot mixes a simple ratio apart need no bend at all;
+     * 0 never bends.
+     */
+    val tempoLock: Float = 0.13f,
+    /**
+     * A through-composed arrangement: phrase by phrase, looping, in place of [sections] (which
+     * arrangements derived from this spec keep; they don't inherit the phrases). Null: the
+     * [Composer] plays [sections] with its generated motifs.
+     */
+    val phrases: Array<Phrase>? = null,
 ) {
     /** A single strike at step 0 means "sustain for the whole chord". */
     val padSustain = sustains(padRhythm)
@@ -154,6 +206,7 @@ internal class SongSpec(
     init {
         for (row in arrayOf(bassA, bassB, arpA, arpB, padRhythm, padRhythmB)) require(row.length == 16) { "$name: bad row '$row'" }
         for (t in leadTemplates) require(t.length == 16) { "$name: bad template '$t'" }
+        require(phrases == null || phrases.isNotEmpty()) { "$name: no phrases" }
     }
 
     private fun sustains(row: String) = row.count { it == 'x' } == 1 && row[0] == 'x'
@@ -427,25 +480,171 @@ internal object Songs {
         mix = Mix(drums = 0.46f, bass = 0.73f, pad = 1.0f, arp = 1.54f, lead = 0.75f),
     )
 
-    // ---- TITLE: the hook ---------------------------------------------------------------
+    // ---- TITLE: "Going Down" (E minor, 120) ----------------------------------------------
+    //
+    // The main theme, through-composed and looping every 56 bars (112 s): an intro on the bass
+    // ostinato, the hook, the hook again turning towards the B section, the B section, a lift
+    // that reharmonises the hook's cell and climbs, then the hook back bigger (a harmony voice
+    // under it, busier drums), twice, the second time up to its peak. Then round to the intro.
+    //
+    // The hook is a question and its answer, both built from one cell: two repeated notes, a
+    // leap up a third and three steps down ("dum, dum, DAAH da-da-da"), then a held note. The
+    // question climbs E-C-Am to hang on the leading tone over B7; the answer comes back a
+    // third higher and resolves home. The bass ostinato bounces octaves in 3+3+2, locked to
+    // the hook's own syncopation; a tremolo twang guitar answers on the off-beats.
+
+    /** The intro: the lead waits, then closes in on the hook from either side (as the hook itself does). */
+    private val titleIntro = Melody(arrayOf("-:16", "-:16", "-:16", "-:16", "-:16", "-:16", "-:16", "-:12 D5:2 F#5:2"))
 
     private val titleHook = Melody(
         arrayOf(
-            "E5:3 B4:1 E5:2 F#5:2 G5:4 F#5:2 E5:2",
-            "G5:3 E5:1 G5:2 A5:2 B5:4 A5:2 G5:2",
-            "B5:3 G5:1 B5:2 C6:2 D6:4 C6:2 B5:2",
-            "A5:6 F#5:2 D5:4 E5:2 F#5:2",
-            "E5:3 B4:1 E5:2 F#5:2 G5:4 F#5:2 E5:2",
-            "G5:3 E5:1 G5:2 A5:2 B5:4 A5:2 G5:2",
-            "B5:3 G5:1 B5:2 C6:2 D6:2 E6:2 D6:2 B5:2",
-            "D6:4 C6:2 B5:2 A5:4 F#5:4",
+            "E5:3 E5:3 G5:4 F#5:2 E5:2 D5:2",
+            "E5:10 -:2 B4:2 D5:2",
+            "C5:3 C5:3 E5:4 D5:2 C5:2 B4:2",
+            "D#5:10 -:2 F#5:2 A5:2",
+            "G5:3 G5:3 B5:4 A5:2 G5:2 F#5:2",
+            "G5:10 -:2 E5:2 G5:2",
+            "F#5:3 F#5:3 A5:4 G5:2 F#5:2 D#5:2",
+            "E5:12 -:4",
         ),
     )
 
+    /** The hook's second time round: the answer turns aside and walks down into the B section. */
+    private val titleHookTurn = Melody(
+        arrayOf(
+            "E5:3 E5:3 G5:4 F#5:2 E5:2 D5:2",
+            "E5:10 -:2 B4:2 D5:2",
+            "C5:3 C5:3 E5:4 D5:2 C5:2 B4:2",
+            "D#5:10 -:2 F#5:2 A5:2",
+            "G5:3 G5:3 B5:4 A5:2 G5:2 F#5:2",
+            "G5:10 -:2 E5:2 G5:2",
+            "F#5:3 F#5:3 A5:4 B5:2 A5:2 F#5:2",
+            "E5:8 D5:2 C5:2 B4:2 A4:2",
+        ),
+    )
+
+    /** B: a long-short-long-long line that climbs out of the low register. */
+    private val titleB = Melody(
+        arrayOf(
+            "G4:6 A4:2 C5:4 E5:4",
+            "F#5:6 E5:2 D5:4 A4:4",
+            "B4:6 D5:2 F#5:4 E5:4",
+            "G5:12 F#5:2 E5:2",
+            "E5:6 D5:2 C5:4 G4:4",
+            "A4:6 B4:2 D5:4 F#5:4",
+            "D#5:6 E5:2 F#5:4 A5:4",
+            "B5:8 A5:4 F#5:4",
+        ),
+    )
+
+    /** The lift: the hook's cell over the B chords, climbing to the top, hanging on B7. */
+    private val titleLift = Melody(
+        arrayOf(
+            "E5:3 E5:3 G5:4 F#5:2 E5:2 D5:2",
+            "F#5:3 F#5:3 A5:4 G5:2 F#5:2 E5:2",
+            "F#5:3 F#5:3 B5:4 A5:2 G5:2 F#5:2",
+            "G5:8 E5:4 B4:4",
+            "E5:2 G5:2 C6:4 B5:2 G5:2 E5:2 G5:2",
+            "F#5:2 A5:2 D6:4 C6:2 A5:2 F#5:2 A5:2",
+            "B5:4 A5:4 F#5:4 D#5:4",
+            "F#5:12 -:2 D#5:2",
+        ),
+    )
+
+    /** The hook's last time round: the answer reaches up to its peak before it comes home. */
+    private val titleHookPeak = Melody(
+        arrayOf(
+            "E5:3 E5:3 G5:4 F#5:2 E5:2 D5:2",
+            "E5:10 -:2 B4:2 D5:2",
+            "C5:3 C5:3 E5:4 D5:2 C5:2 B4:2",
+            "D#5:10 -:2 F#5:2 A5:2",
+            "G5:3 G5:3 B5:4 D6:2 B5:2 G5:2",
+            "C6:10 -:2 B5:2 A5:2",
+            "B5:3 B5:3 A5:4 G5:2 F#5:2 D#5:2",
+            "E5:12 -:4",
+        ),
+    )
+
+    private val titleOstinato = "R..O..R.R..O.7.F"
+
+    private val titlePhrases = arrayOf(
+        // Intro: the ostinato, a rim-shot backbeat and the twang guitar teasing the hook's rhythm.
+        Phrase(
+            Section.A, melody = titleIntro, bass = titleOstinato, arp = "3..3..4...3.2.3.",
+            drums = DrumPattern(kick = "X.....x.X.......", snare = "....o.......o...", hat = "x.x.x.x.x.x.x.x.", open = "..............x."),
+        ),
+        // The hook, twice: the second time it turns towards the B section.
+        Phrase(
+            Section.A, melody = titleHook, bass = titleOstinato, arp = "..2...3...2...4.",
+            drums = DrumPattern(
+                kick = "X.....x.X..x....", snare = "....X..o....X..o", clap = "....x.......x...",
+                hat = "x.x.x.xox.x.x.xo", open = "..............x.",
+            ),
+        ),
+        Phrase(
+            Section.A, melody = titleHookTurn, bass = titleOstinato, arp = "..2...3...2...4.",
+            drums = DrumPattern(
+                kick = "X.....x.X..x....", snare = "....X..o....X..o", clap = "....x.......x...",
+                hat = "x.x.x.xox.x.x.xo", open = "..............x.",
+            ),
+        ),
+        // B: half time, the bass lets its notes ring.
+        Phrase(
+            Section.B, melody = titleB, bass = "R~~~~.R.O~~.F~R.", arp = "3.......2.......",
+            drums = DrumPattern(
+                kick = "X.........x.....", snare = "........X.......", clap = "........x.......",
+                hat = "x.xox.xox.xox.xo", open = "..............x.", perc = "......o.......o.",
+            ),
+        ),
+        // The lift: four on the floor, sixteenth-note bass, a snare build into the hook.
+        Phrase(
+            Section.B2, melody = titleLift, bass = "RrrrRrrrRrrrOrrr", arp = "0123012301230123",
+            drums = DrumPattern(
+                kick = "X...X...X...X...", snare = "....X.......X...", clap = "....x.......x...",
+                hat = "xoxoxoxoxoxoxoxo", open = "..x...x...x...x.",
+            ),
+            build = DrumPattern(kick = "X...X...X...X...", snare = "o.o.x.x.x.x.XxXx", hat = "x.x.x.x.x.x.x.x.", crash = "X..............."),
+        ),
+        // The hook back bigger: a harmony voice, open hats on the off-beats, a walking bass.
+        Phrase(
+            Section.A2, melody = titleHook, bass = "R.rO.rR.R.rO.7.F", arp = "0.2.3.2.0.2.4.2.", harmony = true,
+            drums = DrumPattern(
+                kick = "X.....x.X..x..x.", snare = "....X..o....X.oo", clap = "....x.......x...",
+                hat = "xoxoxoxoxoxoxoxo", open = "..x...x...x...x.",
+            ),
+        ),
+        Phrase(
+            Section.A2, melody = titleHookPeak, bass = "R.rO.rR.R.rO.7.F", arp = "0.2.3.2.0.2.4.2.", harmony = true,
+            drums = DrumPattern(
+                kick = "X.....x.X..x..x.", snare = "....X..o....X.oo", clap = "....x.......x...",
+                hat = "xoxoxoxoxoxoxoxo", open = "..x...x...x...x.",
+            ),
+        ),
+    )
+
+    private val titleLead = Patch(
+        wave1 = Wave.SAW, wave2 = Wave.PULSE, osc2Level = 0.45f, pw = 0.35f, detune = 0.06f,
+        cutoff = 1500f, q = 0.9f, envAmt = 1.2f, keyTrack = 0.3f, a = 0.008f, d = 0.45f, s = 0.75f, r = 0.22f,
+        fd = 0.3f, fs = 0.3f, vibrato = 0.1f, vibRate = 5.2f, gain = 0.16f, bright = 0.5f,
+    )
+    private val twangGuitar = Patch(
+        wave1 = Wave.SAW, pluck = 0.5f, ring = 0.9f, cutoff = 2200f, q = 0.8f, keyTrack = 0.2f,
+        a = 0.001f, d = 0.5f, s = 0.6f, r = 0.25f, gain = 0.18f, bright = 0.4f,
+        trem = 0.3f, tremRate = 6f, // eighth-note triplets at 120
+    )
+
     val title = SongSpec(
-        name = "title", bpm = 112f, tonic = 52, scale = AEOLIAN,
-        progA = tri(AEOLIAN, 0, 5, 2, 6),
-        progB = arrayOf(Chord.diatonic(AEOLIAN, 3), Chord.diatonic(AEOLIAN, 5), Chord.diatonic(AEOLIAN, 6), Chord.of(AEOLIAN, 4, Quality.MAJ)),
+        name = "title", bpm = 120f, tonic = 52, scale = AEOLIAN,
+        progA = arrayOf(
+            Chord.diatonic(AEOLIAN, 0), Chord.diatonic(AEOLIAN, 5), Chord.diatonic(AEOLIAN, 3), Chord.of(AEOLIAN, 4, Quality.DOM7),
+            Chord.diatonic(AEOLIAN, 0), Chord.diatonic(AEOLIAN, 5), Chord.of(AEOLIAN, 4, Quality.DOM7), Chord.diatonic(AEOLIAN, 0),
+        ),
+        progB = arrayOf(
+            Chord.diatonic(AEOLIAN, 5), Chord.diatonic(AEOLIAN, 6), Chord.diatonic(AEOLIAN, 4), Chord.diatonic(AEOLIAN, 0),
+            Chord.diatonic(AEOLIAN, 5), Chord.diatonic(AEOLIAN, 6), Chord.of(AEOLIAN, 4, Quality.DOM7), Chord.of(AEOLIAN, 4, Quality.DOM7),
+        ),
+        // (The hero themes are built on the title's frame and keep these drums, rows, templates
+        // and sections; the title itself plays [titlePhrases].)
         drumsA = DrumPattern(
             kick = "X.......X.......", snare = "....X.......X...", clap = "....x.......x...",
             hat = "x.x.x.x.x.x.x.x.", open = "..............x.",
@@ -461,10 +660,14 @@ internal object Songs {
         bassCenter = 38, padCenter = 62, arpCenter = 62, leadOctave = 12,
         leadTemplates = arrayOf("x..x..x.x..x.x..", "x...x...x.x.x...", "x.x.x...x.x.x..."),
         motifSeed = 1986, hook = titleHook,
-        pad = supersawPad, bass = drivingBass, arp = sawPluck, lead = synthLead.copyish(gain = 0.16f),
+        pad = supersawPad, bass = drivingBass, arp = twangGuitar, lead = titleLead,
         fixedIntensity = 0.85f, arpThreshold = 0.2f, leadThreshold = 0.5f,
         sections = arrayOf(Section.A, Section.A, Section.B, Section.A2, Section.BREAK, Section.A, Section.B2, Section.A2),
-        mix = Mix(drums = 0.64f, bass = 0.7f, pad = 0.89f, arp = 1.17f, lead = 0.82f),
+        phrases = titlePhrases,
+        // (mix.drums sets the hero themes' drum level too: the title's own balance comes from
+        // the other channels and the trim.)
+        mix = Mix(drums = 0.64f, bass = 0.75f, pad = 0.95f, arp = 2.03f, lead = 1.01f, harmony = 0.65f),
+        gain = 0.9375f,
     )
 
     // ---- GAME OVER: quiet ambient loop (D minor, 72) ------------------------------------

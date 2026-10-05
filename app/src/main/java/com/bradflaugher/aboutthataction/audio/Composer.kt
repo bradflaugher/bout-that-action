@@ -21,6 +21,12 @@ internal class Composer(private val spec: SongSpec) {
     /** Semitone transposition of everything (VOID reharmonisation). */
     var transpose = 0; private set
 
+    /** The current phrase of a through-composed song ([SongSpec.phrases]), else null. */
+    var phrase: Phrase? = null; private set
+
+    /** Phrases in one pass of the arrangement (it loops). */
+    val loopPhrases: Int = spec.phrases?.size ?: spec.sections.size
+
     private val deg = Array(MOTIFS) { IntArray(16) }
     private val len = Array(MOTIFS) { IntArray(16) }
     private var cycle = -1
@@ -54,13 +60,16 @@ internal class Composer(private val spec: SongSpec) {
         transpose = 0
         scale = spec.scale
         progression = spec.progA
-        section = spec.sections[0]
+        phrase = spec.phrases?.get(0)
+        section = phrase?.section ?: spec.sections[0]
     }
 
     /** Start of 8-bar phrase number [phrase]. */
     fun begin(phrase: Int) {
-        section = spec.sections[phrase % spec.sections.size]
-        val c = phrase / spec.sections.size
+        val plan = spec.phrases
+        this.phrase = plan?.get(phrase % plan.size)
+        section = this.phrase?.section ?: spec.sections[phrase % spec.sections.size]
+        val c = phrase / loopPhrases
         if (c != cycle) {
             cycle = c
             generateMotifs(spec.motifSeed, c)
@@ -94,13 +103,14 @@ internal class Composer(private val spec: SongSpec) {
     /** MIDI note for the lead at [bar]/[step], or -1 if none starts there. */
     fun leadAt(bar: Int, step: Int): Int {
         val b = bar % 8
-        val hook = spec.hook
-        if (hook != null && (section == Section.A || section == Section.A2)) {
+        val own = if (section == Section.A2) spec.hookA2 ?: spec.hook else spec.hook
+        val hook = phrase?.melody ?: own?.takeIf { section == Section.A || section == Section.A2 }
+        if (hook != null) {
             val hb = b % hook.barCount
             val n = hook.notes[hb][step]
             if (n < 0) return -1
             leadLen = hook.lengths[hb][step]
-            return n + transpose
+            return ceiling(n + transpose)
         }
         val m = motifFor(b)
         if (m < 0) return -1
@@ -113,9 +123,26 @@ internal class Composer(private val spec: SongSpec) {
         val cd = if (chord.degree > 3) chord.degree - 7 else chord.degree
         var semis = Scales.note(scale, cd + d + octaveUp)
         if (step % 8 == 0 || leadLen >= 4) semis = snap(semis, chord)
+        if (spec.chromaticSnap) semis = chromaticSnap(semis, chord, scale)
         while (semis > 22) semis -= 12
         while (semis < -9) semis += 12
-        return spec.tonic + spec.leadOctave + transpose + semis
+        return ceiling(spec.tonic + spec.leadOctave + transpose + semis)
+    }
+
+    private fun ceiling(n: Int): Int {
+        var m = n
+        while (m > spec.leadCeiling) m -= 12
+        return m
+    }
+
+    /**
+     * The harmony voice's note under lead [note] over [chord]: the nearest tone of the chord
+     * a third below (else a sixth, else a fourth or fifth), never a second or a tritone off.
+     */
+    fun harmonyFor(note: Int, chord: Chord): Int {
+        val rel = note - spec.tonic - transpose
+        for (iv in HARMONY_ORDER) if (chord.containsPc(rel - iv)) return note - iv
+        return -1
     }
 
     private fun snap(semis: Int, chord: Chord): Int {
@@ -185,6 +212,24 @@ internal class Composer(private val spec: SongSpec) {
     }
 
     companion object {
+        /**
+         * [semis] moved onto the borrowed tone of [chord] it rubs a semitone against, if any: over
+         * a chord with a note outside [scale] (a major V's leading tone, a borrowed diminished
+         * chord), the scale's own note a semitone away would clash with it.
+         */
+        fun chromaticSnap(semis: Int, chord: Chord, scale: IntArray): Int {
+            if (chord.containsPc(semis)) return semis
+            for (iv in chord.intervals) {
+                val t = chord.root + iv
+                if (Scales.contains(scale, t)) continue
+                when (Math.floorMod(t - semis, 12)) {
+                    1 -> return semis + 1
+                    11 -> return semis - 1
+                }
+            }
+            return semis
+        }
+
         const val NONE = Int.MIN_VALUE
         private const val MOTIFS = 4
         private const val MOTIF_MAIN = 0
@@ -197,6 +242,7 @@ internal class Composer(private val spec: SongSpec) {
         private val END_TONES = intArrayOf(0, 2, 4, 7)
         private val END_ROOT_TONES = intArrayOf(0, 7)
         private val SNAP_ORDER = intArrayOf(-1, 1, -2, 2)
+        private val HARMONY_ORDER = intArrayOf(3, 4, 8, 9, 5, 7)
         private val VOID_KEYS = intArrayOf(0, 1, 3, 5, -1, -2, -4, -5, -6)
         private val CADENCES = arrayOf("x...x...x.......", "x.x.x...x.......", "x..x..x.x.......")
         private val PLAN_A = intArrayOf(0, 0, 0, 1, 0, 0, 2, 3)

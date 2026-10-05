@@ -117,6 +117,10 @@ the JVM.
 - `tools/store-shots/` — the Play listing's captioned screenshots:
   `render.sh` renders raw game scenes and menus, `caption.py` (Pillow, via
   `uv`) captions them into `fastlane/.../images/`. See `docs/PLAY_STORE.md`.
+- `tools/audio/transitions.py` — measures the music's transitions (clicks,
+  loudness holes and pile-ups, beat and tempo lock, chord clashes) in the WAVs
+  `ATA_TRANS_WAV=<dir>` makes `TransitionWavExportTest` write; `TransitionTest`
+  pins the same things.
 
 ## Rules
 
