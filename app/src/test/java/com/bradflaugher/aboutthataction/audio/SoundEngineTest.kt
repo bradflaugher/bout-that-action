@@ -199,8 +199,8 @@ class SoundEngineTest {
         render(e, 3f)
         assertEquals("tower", e.songName)
         e.setZone(Zone.TOWER, silent = true)
-        val out = render(e, 0.2f)
-        assertEquals("no waiting for the bar line", "tower-sneak", e.songName)
+        val out = render(e, 0.52f) // a beat at 118 BPM
+        assertEquals("no waiting for the bar line, just the beat", "tower-sneak", e.songName)
         assertSane(out, "flip")
         e.setZone(Zone.LABS, silent = true)
         render(e, 0.2f)

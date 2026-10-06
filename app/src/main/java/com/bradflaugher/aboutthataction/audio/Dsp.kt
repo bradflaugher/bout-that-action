@@ -322,6 +322,11 @@ internal class StereoDelay(private val sr: Int) {
     private val dampR = OnePole().apply { setHz(3800f, sr) }
     private var time = sr * 0.3f
     private var target = time
+    // A jump in time (a new song's tempo) crossfades to a second tap instead of sliding the
+    // one tap there, which would chirp every echo still ringing.
+    private var nextTime = time
+    private var xf = 1f
+    private val xfStep = 1f / (0.05f * sr)
     var feedback = 0.42f
     var outL = 0f; private set
     var outR = 0f; private set
@@ -331,9 +336,22 @@ internal class StereoDelay(private val sr: Int) {
     }
 
     fun process(inL: Float, inR: Float) {
-        time += (target - time) * 0.0004f
-        val dl = left.read(time)
-        val dr = right.read(time)
+        if (xf >= 1f && kotlin.math.abs(target - time) > time * 0.02f) {
+            nextTime = target; xf = 0f
+        }
+        val dl: Float
+        val dr: Float
+        if (xf < 1f) {
+            nextTime += (target - nextTime) * 0.0004f
+            xf = kotlin.math.min(1f, xf + xfStep)
+            dl = left.read(time) * (1f - xf) + left.read(nextTime) * xf
+            dr = right.read(time) * (1f - xf) + right.read(nextTime) * xf
+            if (xf >= 1f) time = nextTime
+        } else {
+            time += (target - time) * 0.0004f
+            dl = left.read(time)
+            dr = right.read(time)
+        }
         left.write((inL + inR) * 0.5f + Dsp.flush(dampR.lp(dr)) * feedback)
         right.write(Dsp.flush(dampL.lp(dl)) * feedback)
         outL = dl
@@ -412,13 +430,24 @@ internal class Reverb(private val sr: Int, rt60: Float, size: Float, dampHz: Flo
 }
 
 /**
- * Master bus: DC blocker, instant-attack peak limiter, soft knee clipper and a final clamp.
- * Output is guaranteed finite and within [-1, 1].
+ * Master bus: DC blocker, a look-ahead peak limiter and a soft safety knee, then a final clamp.
+ *
+ * The limiter sees every peak [LOOKAHEAD] samples (1 ms) before it plays, holds the gain it
+ * needs for that long and glides down to it in time, so a loud hit is turned down smoothly
+ * instead of being clipped; it lets go over [RELEASE] seconds. Its ceiling sits at -1.6 dBFS
+ * so the reconstructed (true) peak stays under -1 dBTP; the knee above it only catches the
+ * last per cent the glide leaves. Output is guaranteed finite and within [-1, 1].
  */
 internal class MasterBus(sr: Int) {
-    private val threshold = 0.9f
-    private val release = Dsp.onePole(0.15f, sr)
+    private val release = Dsp.onePole(RELEASE, sr)
+    private val attack = 1f - kotlin.math.exp(-4f / LOOKAHEAD)
+    private val holdRelease = Dsp.decay60(RELEASE * 2f, sr)
     private var gain = 1f
+    private var hold = 0f
+    private var holdLeft = 0
+    private val bufL = FloatArray(LOOKAHEAD)
+    private val bufR = FloatArray(LOOKAHEAD)
+    private var at = 0
     private var xl = 0f
     private var yl = 0f
     private var xr = 0f
@@ -429,24 +458,44 @@ internal class MasterBus(sr: Int) {
     /** Returns false if the input was non-finite (caller should reset its DSP state). */
     fun process(inL: Float, inR: Float): Boolean {
         if (!inL.isFinite() || !inR.isFinite()) {
-            outL = 0f; outR = 0f; xl = 0f; yl = 0f; xr = 0f; yr = 0f; gain = 1f
+            outL = 0f; outR = 0f; xl = 0f; yl = 0f; xr = 0f; yr = 0f; gain = 1f; hold = 0f; holdLeft = 0
+            bufL.fill(0f); bufR.fill(0f)
             return false
         }
         yl = inL - xl + 0.9995f * yl; xl = inL
         yr = inR - xr + 0.9995f * yr; xr = inR
-        var l = yl
-        var r = yr
-        val peak = max(abs(l), abs(r))
-        if (peak * gain > threshold) gain = threshold / peak else gain += (1f - gain) * release
-        l *= gain; r *= gain
-        outL = softClip(l)
-        outR = softClip(r)
+        // The loudest sample still in the look-ahead window (held for its length, then let go).
+        val peak = max(abs(yl), abs(yr))
+        if (peak >= hold) {
+            hold = peak; holdLeft = LOOKAHEAD
+        } else if (holdLeft > 0) {
+            holdLeft--
+        } else {
+            hold = max(peak, hold * holdRelease)
+        }
+        val want = if (hold > CEILING) CEILING / hold else 1f
+        gain += (want - gain) * (if (want < gain) attack else release)
+        val l = bufL[at] * gain
+        val r = bufR[at] * gain
+        bufL[at] = yl; bufR[at] = yr
+        if (++at == LOOKAHEAD) at = 0
+        outL = knee(l)
+        outR = knee(r)
         return true
     }
 
-    private fun softClip(x: Float): Float {
+    private fun knee(x: Float): Float {
         val a = abs(x)
-        val y = if (a <= 0.8f) a else 0.8f + 0.2f * Dsp.tanh((a - 0.8f) * 5f)
+        val y = if (a <= CEILING) a else CEILING + KNEE * Dsp.tanh((a - CEILING) / KNEE)
         return (if (x < 0f) -y else y).coerceIn(-1f, 1f)
+    }
+
+    companion object {
+        /** -1.6 dBFS. */
+        const val CEILING = 0.832f
+        /** The safety knee's headroom above the ceiling (to -1.2 dBFS at most). */
+        private const val KNEE = 0.04f
+        const val LOOKAHEAD = 48
+        private const val RELEASE = 0.12f
     }
 }

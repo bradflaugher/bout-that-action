@@ -39,12 +39,13 @@ class SoundEngine(val sampleRate: Int = 48000) {
     private class ThemeCmd(val hero: Hero)
     private object TitleCmd
     private object GameOverCmd
+    private object AlertHitCmd
     private val heroCmds = Hero.entries.map { HeroCmd(it) }
     private val noHeroCmd = HeroCmd(null)
     private val themeCmds = Hero.entries.map { ThemeCmd(it) }
 
     // ---- Audio-thread state -------------------------------------------------------------
-    private val director = MusicDirector(sr)
+    internal val director = MusicDirector(sr)
     private val bank = SfxBank(sr, SFX_VOICES)
     private val sfx = SfxPlayer(bank, Rng(0xB0A7L))
     private val musicDelay = StereoDelay(sr)
@@ -87,7 +88,8 @@ class SoundEngine(val sampleRate: Int = 48000) {
 
     /**
      * Move the music to [zone]'s track (on the next bar line, with a fill and riser); [silent]
-     * picks its sneak mix. Flipping only the mode crossfades right away, in the same key.
+     * picks its sneak mix. Flipping only the mode switches on the next beat, in the same key,
+     * picking up at the same place in the phrase on the nearest chord.
      */
     fun setZone(zone: Zone, silent: Boolean = false) {
         queue.add((if (silent) sneakCmds else zoneCmds)[zone.ordinal])
@@ -104,6 +106,8 @@ class SoundEngine(val sampleRate: Int = 48000) {
      * full track outside CALM.)
      */
     fun setAlert(phase: AlertPhase) {
+        // Spotted: the band hits the next beat (a SILENT run's flip to the full track lands its own).
+        if (phase == AlertPhase.ALERT && alertFloor != ALERT_INTENSITY) queue.add(AlertHitCmd)
         alertFloor = when (phase) {
             AlertPhase.ALERT -> ALERT_INTENSITY
             AlertPhase.CAUTION -> CAUTION_INTENSITY
@@ -127,8 +131,8 @@ class SoundEngine(val sampleRate: Int = 48000) {
 
     /**
      * [hero]'s signature theme, for the hero picker; also makes them the hero ([setHero]).
-     * From the title (or anything else) it lands on the next bar line; flicking between
-     * heroes' themes crossfades right away.
+     * From the title or another hero's theme it comes in on the next beat; from anything else,
+     * on the next bar line.
      */
     fun playHeroTheme(hero: Hero) {
         queue.add(heroCmds[hero.ordinal])
@@ -166,6 +170,10 @@ class SoundEngine(val sampleRate: Int = 48000) {
     /** Fill [out] with [frames] interleaved stereo float frames. */
     fun render(out: FloatArray, frames: Int) {
         paused = pausedIn
+        // A song started by this call's commands starts at the heat it will play at (its drop
+        // landed or not), not at whatever the director last heard.
+        if (first) intensity = max(intensityIn, alertFloor)
+        director.intensity = intensity
         drain()
         var done = 0
         while (done < frames) {
@@ -182,26 +190,40 @@ class SoundEngine(val sampleRate: Int = 48000) {
                 is ZoneCmd -> {
                     gameOverWait = -1
                     val spec = HeroSongs.forZone(hero, c.zone, c.silent)
-                    // Same zone, other mode: a quick crossfade, not a wait for the bar line.
-                    val modeFlip = director.current.let { it != null && it !== spec && HeroSongs.forZone(hero, c.zone, !c.silent) === it }
-                    director.request(spec, immediate = modeFlip || inGameOver())
+                    // Same zone, other mode: on the next beat, not a wait for the bar line.
+                    val cur = director.current
+                    val modeFlip = cur != null && cur !== spec && HeroSongs.forZone(hero, c.zone, !c.silent) === cur
+                    val t = when {
+                        inGameOver() -> Transition.EXIT
+                        !modeFlip -> Transition.BAR
+                        c.silent -> Transition.FLIP_DOWN
+                        else -> Transition.FLIP_UP
+                    }
+                    director.request(spec, t)
                 }
                 is HeroCmd -> hero = c.hero
                 is ThemeCmd -> {
                     gameOverWait = -1
                     val spec = HeroSongs.theme(c.hero)
                     val cur = director.current
-                    // Browsing the picker: one hero's theme to the next without waiting.
-                    director.request(spec, immediate = cur !== spec && HeroSongs.isTheme(cur))
+                    // The picker: from the title, or one hero's theme to the next, on the beat.
+                    director.request(spec, menuWay(cur))
                 }
                 TitleCmd -> {
                     gameOverWait = -1
-                    director.request(Songs.title, immediate = inGameOver())
+                    director.request(Songs.title, menuWay(director.current))
                 }
                 GameOverCmd -> {
                     sfx.gameOverStinger(hero)
-                    director.stop(0.5f)
-                    gameOverWait = (1.6f * sr).toInt()
+                    // The band stops under the stinger; the game-over loop swells up out of its tail.
+                    director.stop(GAME_OVER_FADE)
+                    gameOverWait = (GAME_OVER_WAIT * sr).toInt()
+                }
+                AlertHitCmd -> {
+                    // Spotted: the heat jumps at once, so a flip to the full track lands its drop.
+                    intensity = max(intensity, ALERT_INTENSITY)
+                    director.intensity = intensity
+                    director.hit()
                 }
             }
         }
@@ -216,7 +238,7 @@ class SoundEngine(val sampleRate: Int = 48000) {
     private fun renderBlock(out: FloatArray, off: Int, n: Int) {
         if (gameOverWait >= 0) {
             gameOverWait -= n
-            if (gameOverWait < 0) director.request(Songs.gameOver, immediate = true)
+            if (gameOverWait < 0) director.request(Songs.gameOver, Transition.NOW, GAME_OVER_SWELL)
         }
         val slow = slowMoIn
         val blockSec = n.toFloat() / sr
@@ -252,8 +274,12 @@ class SoundEngine(val sampleRate: Int = 48000) {
             val dl = musicDelay.outL
             val dr = musicDelay.outR
             musicVerb.process(mRev[i] + (dl + dr) * 0.12f)
-            var ml = musicLpL.lp(mL[i] + dl + musicVerb.outL)
-            var mr = musicLpR.lp(mR[i] + dr + musicVerb.outR)
+            // The room a little narrower than the reverb makes it, so a phone's one speaker
+            // (or a mono fold) keeps its level.
+            val vm = (musicVerb.outL + musicVerb.outR) * 0.5f
+            val vs = (musicVerb.outL - musicVerb.outR) * (0.5f * VERB_WIDTH)
+            var ml = musicLpL.lp(mL[i] + dl + vm + vs)
+            var mr = musicLpR.lp(mR[i] + dr + vm - vs)
 
             sfxVerb.process(sRev[i])
             val xl = sL[i] + sfxVerb.outL
@@ -287,6 +313,15 @@ class SoundEngine(val sampleRate: Int = 48000) {
 
     private fun k(dt: Float, tau: Float): Float = 1f - exp(-dt / tau)
 
+    private fun inMenus(s: SongSpec?): Boolean = s === Songs.title || HeroSongs.isTheme(s)
+
+    /** How a menu track takes over from [cur]: on the beat between menus, at once out of game over, else on the bar. */
+    private fun menuWay(cur: SongSpec?): Transition = when {
+        inGameOver() -> Transition.EXIT
+        inMenus(cur) -> Transition.BEAT
+        else -> Transition.BAR
+    }
+
     /** Number of SFX voices currently sounding (for tests/diagnostics). */
     internal val activeSfxVoices: Int get() = bank.activeCount
 
@@ -300,6 +335,11 @@ class SoundEngine(val sampleRate: Int = 48000) {
         private const val ALERT_INTENSITY = 0.95f
         private const val CAUTION_INTENSITY = 0.5f
         private const val MUSIC_LEVEL = 0.75f
+        private const val VERB_WIDTH = 0.6f
         private const val SFX_LEVEL = 0.95f
+        /** Game over: the music fades under the stinger, and the loop swells in from its tail. */
+        private const val GAME_OVER_FADE = 0.9f
+        private const val GAME_OVER_WAIT = 0.1f
+        private const val GAME_OVER_SWELL = 2f
     }
 }

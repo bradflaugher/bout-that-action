@@ -98,6 +98,25 @@ the JVM.
   its license committed there and README's License line updated.
 - `audio/` — procedural synth, sequencer, songs per zone, SFX; `SoundEngine`
   is the API. `AudioOutput.kt` streams it to an `AudioTrack`.
+  - `Songs.kt` — `SongSpec` (a song as data: key, chords, 16-step rows, patches,
+    mix, layer thresholds, a trap drop), the zone tracks, the title "Going Down"
+    (through-composed `Phrase`s) and the game-over dirge (it quotes the title
+    hook). `HeroMusic.kt` — every hero's arrangement of every zone (GUNS HOT and
+    the SILENT sneak mix, `HeroSongs.forZone`) and their picker themes; in the
+    app a hero is always set, so these (plus title and game over) are all that
+    plays. `Composer.kt` — chords and motif-based melodies per 8-bar phrase.
+  - `Sequencer.kt` — `MusicPlayer` plays one song (layers follow heat,
+    `leadFloor` keeps the tune in a calm bed); `MusicDirector` moves between
+    songs musically (`Transition`): BAR (zones, a fill and riser), FLIP_UP /
+    FLIP_DOWN (the mode, next beat, tempo-locked, on the ringing chord), BEAT
+    (menus), NOW, and EXIT (leaving game over: at once, an equal-power
+    crossfade; never on the dirge's slow grid).
+  - `MusicLevels.kt` — **generated** loudness trims per song (along heat; a
+    trap drop has its own before/after points). Rerun
+    `ATA_MUSIC_CALIBRATE=1 ./gradlew :app:testDebugUnitTest --tests '*MusicLevelsCalibration*'`
+    after any change to an arrangement, patch, mix or master; never hand-edit it.
+  - `Dsp.kt` `MasterBus` — DC blocker and a 1 ms look-ahead limiter at
+    -1.6 dBFS (true peak under -1 dBTP) for music and SFX together.
 - `AndroidGfx.kt` — `Gfx` on `android.graphics.Canvas`.
 - `GameView.kt` — `SurfaceView` + game thread; touch → `GestureInput`.
 - `MainActivity.kt`, `ui/` — Compose menus (title, custom run, challenges board
@@ -117,6 +136,16 @@ the JVM.
 - `tools/store-shots/` — the Play listing's captioned screenshots:
   `render.sh` renders raw game scenes and menus, `caption.py` (Pillow, via
   `uv`) captions them into `fastlane/.../images/`. See `docs/PLAY_STORE.md`.
+- `tools/audio/` — the music's measuring tape (run with
+  `uv run --with numpy --with scipy`). `ATA_MUSIC_WAV=<dir>` makes
+  `MusicRenderExportTest` render every scene (`MusicMatrix`: title, themes,
+  every hero × zone × heat, game over) and every transition scenario as float
+  WAVs; `music_qa.py <dir>` reports BS.1770 loudness, true peak, LRA, holes,
+  DC, clicks, spectral balance, mono fold-down and phone-speaker loss, and
+  `transitions.py <dir>` the transitions (clicks, holes and pile-ups, beat and
+  tempo lock, chord clashes). `ATA_MUSIC_PREVIEW=<dir>` (`MusicPreviewExportTest`)
+  writes a listening reel; `ATA_MUSIC_BENCH=1` (`MusicBenchTest`) times a render
+  buffer. Never commit audio files.
 
 ## Rules
 
@@ -140,6 +169,12 @@ the JVM.
   tests enforce it: no melee, SILENT or silent-takeout goals for MONKEY, no
   shot goals under SILENT ONLY), and recalibrate tiers with
   `ChallengeBotTest` when balance moves.
+- Music: `MusicQualityTest` is the mastering bar (one loudness band of
+  -16 ±1.5 LUFS for everything that plays, true peak ≤ -1 dBTP, no DC, a
+  heat sweep without steps, seamless loops, equal-power crossfades, leaving
+  game over at once). After changing a song, recalibrate `MusicLevels`, rerun
+  `music_qa.py` on a full render, and keep the render cost per buffer
+  (`MusicBenchTest`) where it was. Every melody is original.
 - Enums the renderer switches on exhaustively (`Perk`, `PickupKind`,
   `TextStyle`, `ParticleKind`, `ContextAction`, `EnemyKind`, states) need a
   render change alongside any new value; prefer fields and events.

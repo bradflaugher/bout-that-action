@@ -434,6 +434,9 @@ internal class Instrument(private val sr: Int, voices: Int, seed: Int) {
         pick.noteOn(note, vel, gateSamples, legato = false, age = counter)
     }
 
+    /** Any voice still sounding. */
+    val active: Boolean get() = pool.any { it.active }
+
     fun releaseAll() = pool.forEach { it.release() }
     fun kill() = pool.forEach { it.kill() }
     fun sanitize() = pool.forEach { it.sanitize() }
@@ -587,7 +590,7 @@ internal class Riser(private val sr: Int) {
         val hz = 180f * 8f.pow(p)
         val step = (targetLevel - level) / n
         for (i in 0 until n) {
-            level += if (on) step else -level * 0.02f
+            level += if (on) step else -level * 0.002f
             phase += hz / sr; if (phase >= 1f) phase -= 1f
             val x = (bp.bp(noise.next()) * 1.6f + Dsp.sin01(phase) * 0.12f) * level
             l[off + i] += x

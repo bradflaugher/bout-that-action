@@ -379,17 +379,35 @@ to custom runs; the presets always get a fresh building.
 
 The soundtrack is synthesized live: band-limited oscillators, filters,
 drums, delay and reverb. Every zone gets its own procedural track, with its
-own key, tempo and motif-based melodies. The music gets more intense in a
+own key, tempo and motif-based melodies. The title screen plays the main
+theme, "Going Down": a hand-written spy hook (a question that hangs, an
+answer that comes home) over a bouncing octave bass ostinato and a tremolo
+twang guitar, arranged like a real song, with an intro, a B section and a lift
+before the hook comes back bigger with a harmony, looping seamlessly after
+just under two minutes. The music gets more intense in a
 fight and pitches down in slow-mo. SILENT gets its own sneak mix of every
 zone: the same key and chords at a slow tempo over a heartbeat kick, a roomy
 snare, ticking hats and glassy bell notes in a long echo, with rim clicks
-creeping in as guards get suspicious. Flipping the mode crossfades between
-the two. Getting spotted plays a sharp "!" sting and throws the music into
-ALERT (full drums and lead; in SILENT, the sneak mix gives way to the zone's
-full track). Once they lose you it stays tense through CAUTION for a few
+creeping in as guards get suspicious. Flipping the mode switches on the next
+beat, like one song opening up or holding its breath: the other mix comes in
+on its downbeat at a tempo locked to the old one, at the same place in the
+song, on the chord that's ringing. A new zone lands on the bar line after a
+drum fill and a riser. RETRY, NEW RUN or TITLE from the game-over screen never
+waits for a beat: the dirge crossfades straight into what's next. Getting
+spotted plays a sharp "!" sting, the whole band stabs the next beat (crash,
+kick and the chord on brass, piano or horns), and the music goes to ALERT (full drums and lead; in SILENT,
+the sneak mix gives way to the zone's full track). Once they lose you it stays tense through CAUTION for a few
 seconds, then calms down. Takedowns get a strangled grunt. Every sound effect is
 synthesized too, panned to where it happened on screen, with haptics on the
 big moments. MUSIC and SOUND FX each have their own volume.
+
+In GUNS HOT the music never goes thin while nobody's shooting: the calm bed is
+the whole groove (drums, bass and your hero's tune, softer and darker), and
+heat brings in the counter-line, opens up the filters and lands the drop.
+Every track, from the title to the dirge, is mastered to the same loudness
+(about -16 LUFS, peaks under -1 dBTP, with bass that still reads on a phone
+speaker), so nothing jumps or dips as the music moves. The game-over dirge
+brings back the title's hook, slowed down on a glass bell.
 
 Every hero brings their own band to every zone, in both modes, and signs off
 the game over in their own style. **BULL** plays heavy hip-hop: a slow,
@@ -404,12 +422,15 @@ heat climbs. **HAWK**'s radio is stuck on the courier's
 station: elevator-muzak bossa nova (nylon guitar, vibraphone, a cross-stick
 clave and a soft flute), then 70s delivery-van funk with ghost-note breakbeats,
 slap bass, wah clavinet, horn stabs and a cop-show lead; his game over is a
-van-horn beep-beep and a doorbell. Delivered. **MONKEY** ran away from the circus back to the jungle, and
-brought the calliope: sneaking is a jungle night of key-tuned bongos and congas,
-a shaker, crickets, a wooden marimba and the odd monkey "hoo"; with guns hot it's
-a stampede of pounding war drums, log drums and balafon runs with the circus's
-steam calliope screaming on top and slide whistles through every fill. His game
-over goes "ooh-ooh-AAH!", then "ta-DAAA!", then a sad slide whistle.
+van-horn beep-beep and a doorbell. Delivered. **MONKEY** brought the circus
+band he ran away with, tight and in tune, one song in two moods: with guns hot
+it's a big-top electro-swing (swung hats, snare and clap on the backbeat, an
+oom-pah tuba that walks, brass stabs, a glockenspiel, xylophone or accordion
+counter-line and a clean calliope playing his tune); sneaking, the same tune
+tiptoes at two-thirds the tempo on a clarinet or a muted trumpet, over brushes,
+finger snaps, a pizzicato bass and a celesta. A slide whistle sneaks in now and
+then. His game over is a sad trombone ("wah, wah, wah, waaah") and his tune once
+more on the glockenspiel.
 The hero picker plays each one's theme. Every tune is original.
 
 ## Install
@@ -475,8 +496,12 @@ Kotlin behind small interfaces, so it's tested on the JVM:
 - `WorldFuzzTest`: minutes of random thumbs on every preset.
 - `ScreenshotTest`: renders the README screenshots headlessly through the
   real renderer, using a `java.awt` backend.
-- Audio tests: DSP, music theory, levels, determinism, and a check that it
-  renders faster than real time.
+- Audio tests: DSP, music theory, levels, determinism, the title theme and the
+  heroes' arrangements, musical transitions, and a check that it renders faster
+  than real time. `MusicQualityTest` holds the mastering: every hero in every
+  zone at every heat, the title, the themes and game over in one loudness band
+  (-16 ±1.5 LUFS) under -1 dBTP with no DC, a heat sweep without steps,
+  seamless loops, equal-power crossfades, and leaving game over at once.
 - `GameplaySmokeTest` (emulator): drops into a run and plays with injected
   touches. Runs on an API 37 emulator on demand and weekly; not a merge
   gate, since emulators are slow and flaky.
