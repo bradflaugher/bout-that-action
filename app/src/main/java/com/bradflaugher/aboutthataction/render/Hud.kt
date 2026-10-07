@@ -70,6 +70,13 @@ internal class Hud(private val f: Frame) {
         private const val PAUSE_R = 4.6f
         /** Mode button centre sits this many units under the pause button's. */
         private const val MODE_GAP = 12.5f
+        /**
+         * Grenade button centre sits this many units under the mode button's: more than
+         * [MODE_GAP] because the mode's label hangs between them, and its bottom keeps the same
+         * ~3u of air above the grenade ring (even at the biggest label size and mid-pop) that
+         * the mode ring has under pause.
+         */
+        private const val GRENADE_GAP = 15f
         /** GUNS HOT orange, SILENT violet and grenade lime: the billboard draws the buttons in these too. */
         const val HOT = 0xFFFF6A3A.toInt()
         const val QUIET = 0xFF9C8CFF.toInt()
@@ -114,10 +121,10 @@ internal class Hud(private val f: Frame) {
         fun isModeButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean =
             buttonAt(x, y, width, topInset) == MODE
 
-        /** The grenade button: the same size again, right under the mode button. */
+        /** The grenade button: the same size again, under the mode button and its label. */
         fun grenadeCenter(width: Float, topInset: Float, out: FloatArray) {
             modeCenter(width, topInset, out)
-            out[1] += MODE_GAP * unit(width)
+            out[1] += GRENADE_GAP * unit(width)
         }
 
         fun isGrenadeButton(x: Float, y: Float, width: Float, height: Float, topInset: Float): Boolean =
