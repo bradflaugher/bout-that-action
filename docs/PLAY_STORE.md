@@ -39,9 +39,10 @@ one and is always a valid next upload.
    `./gradlew :app:screenshots -x menuShots -Pata.scene=feature -Pata.shots=fastlane/metadata/android/en-US/images`.
 4. **What's new.** `changelogs/default.txt` is the release note `supply`
    uses for every versionCode (≤ 500 chars). Keep it short and silly.
-5. **Privacy policy.** The listing links
-   <https://bradflaugher.com/privacy/bout-that-action/>, which says the same
-   as `docs/PRIVACY.md`. Change both together.
+5. **Privacy policy.** The listing (Play Console › App content › Privacy
+   policy) and the game's PRIVACY POLICY button both link
+   <https://bradflaugher.github.io/bout-that-action/privacy/>, the
+   website's page, from `site/privacy/index.html`.
 6. **Testing tracks.** Upload the first `.aab` by hand (Play only accepts API
    uploads after that) to **Internal testing** and install it from Play on a
    phone and a tablet. A personal developer account made after November 2023

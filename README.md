@@ -9,6 +9,7 @@ past it into a Void where anything goes.
 
 Everything is generated: procedural floors, procedural soundtrack,
 procedural sound effects. No asset files, no ads, no network.
+Website: <https://bradflaugher.github.io/bout-that-action/>.
 
 <div align="center">
   <img src="docs/screenshots/rooftop.png" width="32%" alt="Rooftop insertion with the tutorial billboard">
@@ -109,7 +110,7 @@ walkthrough prompt aloud. Design notes and every threshold are in
   a NIGHT NIGHT), or **PAYDAY** (somebody left
   the loot lying around in one hallway, called out only when you find it). Some rides come with smooth jazz. The first guard
   of every run is napping on the roof.
-- **Roguelike runs.** Every gold STASH door offers three perks (it's
+- **Roguelike runs.** Every gold STASH door offers up to three perks (it's
   **LOCKED** while anyone in the hallway is hunting or searching for you:
   drop them or lose them first), and they
   stack: Rapid Fire, Hollow Point, Pierce, Ricochet, Split Shot, Vitality,
@@ -207,12 +208,12 @@ building, and the zone (and its music and heat) comes from the floor.
 | Floors | Zone | Vibe |
 |---|---|---|
 | ROOF | **Rooftop** | Helicopter drop, skyline, the tutorial on a billboard, the penthouse lift |
-| 49F–26F | **Neon Tower** | Corporate synthwave, 118 BPM |
+| 49F–26F | **Neon Tower** | Corporate synthwave |
 | 25F–1F | **Black Labs** | Laser grids, drones, cold techno |
 | B0–B24 | **Deep Metro** | Steam vents, turrets, breakbeats |
 | B25–B49 | **Iron Mines** | The crust. Industrial clank |
 | B50–B99 | **Magma Core** | Lava vents, darksynth |
-| B100–B149 | **Hell** | Demons and fireballs at 165 BPM. Built to be (nearly) impossible |
+| B100–B149 | **Hell** | Demons and fireballs. Built to be (nearly) impossible |
 | B150+ | **The Void** | Every block of floors rolls a random zone and a random, brutal heat |
 
 <table>
@@ -444,7 +445,7 @@ they're set, CI builds and tests but publishes nothing. Every merge to `main` al
 
 Android 12 (API 31) or newer. It's built for the latest Android and runs on
 older versions only where that needs no compatibility code (see `AGENTS.md`). The only permission is vibration, and it collects nothing
-([privacy policy](docs/PRIVACY.md)).
+([privacy policy](https://bradflaugher.github.io/bout-that-action/privacy/)).
 
 It's a game to Android (`appCategory="game"`), so it keeps its portrait lock on
 tablets and unfolded foldables too; a window that still isn't tall enough (a

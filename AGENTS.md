@@ -131,6 +131,12 @@ the JVM.
   (gestures), `render/` (AWT `Gfx` backend, headless screenshots), `audio/`.
 - `app/src/androidTest/` — emulator smoke tests (launch, and 20 s of real
   injected touches).
+- `site/` — the website, <https://bradflaugher.github.io/bout-that-action/>:
+  hand-written static HTML and CSS (no build step, no JavaScript, nothing
+  loaded from another origin), in the menus' palette and fonts, with the
+  privacy policy at `site/privacy/`. `.github/workflows/pages.yml` checks it
+  (`.github/scripts/check_site.py`) and deploys it from `main`. Keep its copy
+  true to the game, like `README.md`.
 - `tools/icon/gen_icon.py` — generates the adaptive launcher icon. Edit the
   script, not the XML.
 - `tools/store-shots/` — the Play listing's captioned screenshots:
@@ -211,8 +217,10 @@ the JVM.
 
 - **No network, no storage permissions.** Only `VIBRATE`. No backups
   (`allowBackup=false`, empty extraction rules).
-  `docs/PRIVACY.md` (the Play privacy policy) and the Data safety answers in
-  `docs/PLAY_STORE.md` promise this; change them together.
+  The privacy policy (`site/privacy/index.html`, live at
+  https://bradflaugher.github.io/bout-that-action/privacy/, which the app and Play both link)
+  and the Data safety answers in `docs/PLAY_STORE.md` promise this; change
+  them together.
 - The Play listing text lives in `fastlane/metadata/android/en-US/`. Keep it
   true to the game, like `README.md`.
 - CI actions stay pinned to commit SHAs.
