@@ -174,7 +174,10 @@ class ScreenshotTest {
         val dir = outDir ?: return
         if (System.getProperty("ata.scene") != "feature") return
         dir.mkdirs()
-        ImageIO.write(img, "png", File(dir, "featureGraphic.png"))
+        // Play wants the feature graphic opaque, so it's written without the (unused) alpha channel.
+        val opaque = BufferedImage(1024, 500, BufferedImage.TYPE_INT_RGB)
+        opaque.createGraphics().apply { drawImage(img, 0, 0, null); dispose() }
+        ImageIO.write(opaque, "png", File(dir, "featureGraphic.png"))
         println("wrote ${File(dir, "featureGraphic.png")}")
     }
 
