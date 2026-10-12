@@ -5,7 +5,7 @@ Every local href and src (and CSS url() and @import) must resolve to a file
 in the site, every #fragment to an id on its page, and nothing may load from
 another origin: links out are fine, but styles, fonts and images all ship
 with the site. There is no JavaScript at all (no <script>, no on* handlers,
-no javascript: URLs), and the pages other places link to (the landing page,
+no javascript: URLs), no <base>, CSS only in stylesheets, and the pages other places link to (the landing page,
 the privacy policy the app and Play open, the 404 page) must exist. Paths starting with the
 Pages base (/bout-that-action/) map onto the site root, as GitHub Pages
 serves them.
@@ -24,7 +24,11 @@ REQUIRED = ["index.html", "privacy/index.html", "404.html"]
 
 # Attributes that make the browser fetch something (as opposed to <a href>).
 LOADS = {("img", "src"), ("script", "src"), ("source", "src"), ("source", "srcset"),
-         ("img", "srcset"), ("iframe", "src"), ("video", "src"), ("audio", "src")}
+         ("img", "srcset"), ("iframe", "src"), ("video", "src"), ("audio", "src"),
+         ("video", "poster"), ("object", "data"), ("embed", "src"), ("track", "src"),
+         ("input", "src")}
+URL_ATTRS = {"href", "src", "srcset", "poster", "data"}
+CSS_URLS = re.compile(r"url\(\s*['\"]?([^'\")]+)|@import\s+['\"]([^'\"]+)['\"]")
 
 
 class Refs(HTMLParser):
@@ -38,6 +42,12 @@ class Refs(HTMLParser):
         a = dict(attrs)
         if tag == "script":
             self.scripts.append("<script>")
+        if tag == "base":
+            self.scripts.append("<base> (it re-points every relative URL)")
+        if tag == "style":
+            self.scripts.append("<style> block (keep CSS in assets/, where it's checked)")
+        if "url(" in a.get("style", "") or "@import" in a.get("style", ""):
+            self.scripts.append(f"url() in a style attribute on <{tag}>")
         for name, value in attrs:
             if name.startswith("on"):
                 self.scripts.append(f"{name}= on <{tag}>")
@@ -48,7 +58,7 @@ class Refs(HTMLParser):
         for name, value in attrs:
             if value is None:
                 continue
-            if name in ("href", "src", "srcset"):
+            if name in URL_ATTRS and not (name == "data" and tag != "object"):
                 loads = (tag, name) in LOADS or (tag == "link" and a.get("rel") not in ("canonical",))
                 for url in ([v.strip().split(" ")[0] for v in value.split(",")] if name == "srcset" else [value]):
                     self.refs.append((url, loads))
@@ -82,7 +92,7 @@ def main() -> int:
         parsed[page.resolve()] = parser
     for page, parser in parsed.items():
         for js in parser.scripts:
-            errors.append(f"{page.relative_to(site)}: JavaScript: {js}")
+            errors.append(f"{page.relative_to(site)}: not allowed: {js}")
         for url, loads in parser.refs:
             scheme = urlsplit(url).scheme
             if scheme in ("http", "https") or url.startswith("//"):
@@ -103,13 +113,13 @@ def main() -> int:
                     errors.append(f"{page.relative_to(site)}: no id for fragment: {url}")
     for css in sorted(site.rglob("*.css")):
         text = css.read_text(encoding="utf-8")
-        imports = re.findall(r"@import\s+['\"]([^'\"]+)['\"]", text)
-        for url in re.findall(r"url\(\s*['\"]?([^'\")]+)", text) + imports:
+        for url in (a or b for a, b in CSS_URLS.findall(text)):
             if urlsplit(url).scheme or url.startswith("//"):
                 if not url.startswith("data:"):
                     errors.append(f"{css.relative_to(site)}: loads from another origin: {url}")
                 continue
-            if not (css.parent / url).is_file():
+            target = (css.parent / unquote(urlsplit(url).path)).resolve()
+            if not target.is_relative_to(site) or not target.is_file():
                 errors.append(f"{css.relative_to(site)}: broken url(): {url}")
     for e in errors:
         print(f"::error::{e}")
