@@ -37,3 +37,4 @@ google-services.json
 tools/icon/preview.html
 .claude/worktrees/
 __pycache__/
+/vendor/bundle
