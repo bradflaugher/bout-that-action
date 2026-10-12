@@ -26,9 +26,10 @@ REQUIRED = ["index.html", "privacy/index.html", "404.html"]
 LOADS = {("img", "src"), ("script", "src"), ("source", "src"), ("source", "srcset"),
          ("img", "srcset"), ("iframe", "src"), ("video", "src"), ("audio", "src"),
          ("video", "poster"), ("object", "data"), ("embed", "src"), ("track", "src"),
-         ("input", "src")}
-URL_ATTRS = {"href", "src", "srcset", "poster", "data"}
-CSS_URLS = re.compile(r"url\(\s*['\"]?([^'\")]+)|@import\s+['\"]([^'\"]+)['\"]")
+         ("input", "src"), ("image", "href"), ("use", "href"), ("image", "xlink:href"),
+         ("use", "xlink:href"), ("feimage", "href")}
+URL_ATTRS = {"href", "xlink:href", "src", "srcset", "poster", "data"}
+CSS_URLS = re.compile(r"url\(\s*['\"]?([^'\")]+)|@import\s+['\"]([^'\"]+)['\"]", re.IGNORECASE)
 
 
 class Refs(HTMLParser):
@@ -44,9 +45,11 @@ class Refs(HTMLParser):
             self.scripts.append("<script>")
         if tag == "base":
             self.scripts.append("<base> (it re-points every relative URL)")
+        if "srcdoc" in a:
+            self.scripts.append(f"srcdoc on <{tag}> (a whole page nobody checks)")
         if tag == "style":
             self.scripts.append("<style> block (keep CSS in assets/, where it's checked)")
-        if "url(" in a.get("style", "") or "@import" in a.get("style", ""):
+        if CSS_URLS.search(a.get("style") or ""):
             self.scripts.append(f"url() in a style attribute on <{tag}>")
         for name, value in attrs:
             if name.startswith("on"):

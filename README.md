@@ -110,7 +110,7 @@ walkthrough prompt aloud. Design notes and every threshold are in
   a NIGHT NIGHT), or **PAYDAY** (somebody left
   the loot lying around in one hallway, called out only when you find it). Some rides come with smooth jazz. The first guard
   of every run is napping on the roof.
-- **Roguelike runs.** Every gold STASH door offers three perks (it's
+- **Roguelike runs.** Every gold STASH door offers up to three perks (it's
   **LOCKED** while anyone in the hallway is hunting or searching for you:
   drop them or lose them first), and they
   stack: Rapid Fire, Hollow Point, Pierce, Ricochet, Split Shot, Vitality,
