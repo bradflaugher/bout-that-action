@@ -3,8 +3,10 @@
 
 Every local href and src (and CSS url() and @import) must resolve to a file
 in the site, every #fragment to an id on its page, and nothing may load from
-another origin: links out are fine, but scripts,
-styles, fonts and images all ship with the site. Paths starting with the
+another origin: links out are fine, but styles, fonts and images all ship
+with the site. There is no JavaScript at all (no <script>, no on* handlers,
+no javascript: URLs), and the pages other places link to (the landing page,
+the privacy policy the app and Play open, the 404 page) must exist. Paths starting with the
 Pages base (/bout-that-action/) map onto the site root, as GitHub Pages
 serves them.
 
@@ -18,6 +20,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, unquote
 
 BASE = "/bout-that-action/"
+REQUIRED = ["index.html", "privacy/index.html", "404.html"]
 
 # Attributes that make the browser fetch something (as opposed to <a href>).
 LOADS = {("img", "src"), ("script", "src"), ("source", "src"), ("source", "srcset"),
@@ -29,9 +32,17 @@ class Refs(HTMLParser):
         super().__init__()
         self.refs = []  # (url, loads)
         self.ids = set()
+        self.scripts = []
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
+        if tag == "script":
+            self.scripts.append("<script>")
+        for name, value in attrs:
+            if name.startswith("on"):
+                self.scripts.append(f"{name}= on <{tag}>")
+            elif value and value.strip().lower().startswith("javascript:"):
+                self.scripts.append(f"javascript: URL on <{tag}>")
         if "id" in a:
             self.ids.add(a["id"])
         for name, value in attrs:
@@ -62,18 +73,23 @@ def main() -> int:
     site = Path(sys.argv[1]).resolve()
     errors = []
     parsed = {}
+    for name in REQUIRED:
+        if not (site / name).is_file():
+            errors.append(f"missing {name}")
     for page in sorted(site.rglob("*.html")):
         parser = Refs()
         parser.feed(page.read_text(encoding="utf-8"))
         parsed[page.resolve()] = parser
     for page, parser in parsed.items():
+        for js in parser.scripts:
+            errors.append(f"{page.relative_to(site)}: JavaScript: {js}")
         for url, loads in parser.refs:
             scheme = urlsplit(url).scheme
             if scheme in ("http", "https") or url.startswith("//"):
                 if loads:
                     errors.append(f"{page.relative_to(site)}: loads from another origin: {url}")
                 continue
-            if scheme in ("mailto", "data"):
+            if scheme in ("mailto", "data", "javascript"):
                 continue
             target = resolve(site, page, url)
             if target is None:

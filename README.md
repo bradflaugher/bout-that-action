@@ -208,12 +208,12 @@ building, and the zone (and its music and heat) comes from the floor.
 | Floors | Zone | Vibe |
 |---|---|---|
 | ROOF | **Rooftop** | Helicopter drop, skyline, the tutorial on a billboard, the penthouse lift |
-| 49F–26F | **Neon Tower** | Corporate synthwave, 118 BPM |
+| 49F–26F | **Neon Tower** | Corporate synthwave |
 | 25F–1F | **Black Labs** | Laser grids, drones, cold techno |
 | B0–B24 | **Deep Metro** | Steam vents, turrets, breakbeats |
 | B25–B49 | **Iron Mines** | The crust. Industrial clank |
 | B50–B99 | **Magma Core** | Lava vents, darksynth |
-| B100–B149 | **Hell** | Demons and fireballs at 165 BPM. Built to be (nearly) impossible |
+| B100–B149 | **Hell** | Demons and fireballs. Built to be (nearly) impossible |
 | B150+ | **The Void** | Every block of floors rolls a random zone and a random, brutal heat |
 
 <table>
