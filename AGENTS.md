@@ -232,8 +232,12 @@ and uploads screenshots and logcat.
 
 Every push to `main` builds a signed APK and a signed Play bundle (`.aab`,
 plus the R8 `mapping.txt`) and publishes them as the single date-labeled
-GitHub release `vYYYY.MM.DD.<run>`, deleting all older releases. The
-versionCode is the run number, so it only goes up. Pull requests build unsigned and publish nothing. Signing uses the
+GitHub release `vYYYY.MM.DD.<run>`, deleting all older releases. The same
+run uploads the bundle to Google Play's Closed testing - Alpha track and
+syncs the store listing (text, icon, graphics, screenshots) from
+`fastlane/metadata/android`; production is the manual `play-promote.yml`
+(see `MAINTAINING.md`). The versionCode is the run number, so it only goes
+up. Pull requests build unsigned and publish nothing. Signing uses the
 repository secrets `ATA_KEYSTORE_BASE64`, `ATA_STORE_PASSWORD`,
 `ATA_KEY_ALIAS` and `ATA_KEY_PASSWORD`; until they exist, pushes to `main`
 still build and test but skip the release (with a warning). Never commit a
