@@ -67,6 +67,21 @@ subline outside the framed capture, never bare captures. Only images that
 changed are uploaded (Play's copies are compared by checksum), and each change
 goes through Play's review.
 
+### Changing the website
+
+The website, <https://bradflaugher.github.io/bout-that-action/>, is the
+static files in `site/`: the landing page, the privacy policy
+(`site/privacy/index.html`, which the app's PRIVACY POLICY button and Play
+both link) and a 404 page. Edit them and preview with
+`python3 -m http.server -d site`. A pull request that touches `site/` runs
+the `Site check` (`.github/scripts/check_site.py`: every local link
+resolves, nothing loads from another origin); the push to `main` deploys it
+with `.github/workflows/pages.yml`. Images in `site/assets/img/` are
+downscaled WebP copies of the store and README screenshots; re-export them
+when those change. If the privacy policy changes in substance, bump its
+"Last updated" date and check the Data safety answers in
+`docs/PLAY_STORE.md`.
+
 ### Going to production
 
 Production needs Play's production access first: for a personal developer
@@ -121,6 +136,7 @@ recreate them:
 | Ruleset `Main` (default branch) | No deletion or force push, linear history, changes through a squash-merged PR, required checks: `build`, `Unit tests`, `Android lint`, `Analyze (java-kotlin)`, `Analyze (actions)`, `Analyze (python)`, `store listing` |
 | Merge buttons | Squash only, PR title as the commit title, branches deleted after merge |
 | Actions permissions | GitHub-owned actions plus `android-actions/setup-android`, `gradle/actions/*` and `reactivecircus/android-emulator-runner`; full-SHA pinning required |
+| GitHub Pages | Source: GitHub Actions (`pages.yml` deploys `site/` through the `github-pages` environment, from `main`) |
 | Google Play API access | Service account `github-play-publisher@play-publishing-511400.iam.gserviceaccount.com` (Google Cloud project `play-publishing-511400`), invited in Play Console › Users and permissions with account-wide: view app information, release to production, release to testing tracks, manage store presence. Its JSON key is the `PLAY_SERVICE_ACCOUNT_JSON` secret of the `google-play` environment |
 | Environment `google-play` | Deployable from `main` only; holds `PLAY_SERVICE_ACCOUNT_JSON`; the `Google Play` job and `play-promote.yml` run in it |
 | Default `GITHUB_TOKEN` | Read-only; jobs ask for more themselves |

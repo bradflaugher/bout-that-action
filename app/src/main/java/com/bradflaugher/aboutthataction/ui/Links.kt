@@ -13,7 +13,8 @@ const val PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.br
 /** The Play Store app's page for the game; [PLAY_STORE_URL] is the browser fallback. */
 const val PLAY_STORE_APP_URI = "market://details?id=com.bradflaugher.aboutthataction"
 const val FEEDBACK_URL = "https://github.com/bradflaugher/bout-that-action/issues/new"
-const val PRIVACY_POLICY_URL = "https://bradflaugher.com/privacy/bout-that-action/"
+/** The game's website (`site/` in the repo, on GitHub Pages). */
+const val PRIVACY_POLICY_URL = "https://bradflaugher.github.io/bout-that-action/privacy/"
 
 /** The line the share sheet carries: short, and the link does the talking. */
 const val SHARE_APP_TEXT = "'Bout That Action: an endless neon spy caper. Ride the elevators down, hide in a box. No ads. $PLAY_STORE_URL"

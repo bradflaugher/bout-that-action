@@ -93,6 +93,8 @@ class MenuSettingsTest {
         assertTrue(SHARE_APP_TEXT, SHARE_APP_TEXT.endsWith(PLAY_STORE_URL))
         assertTrue(SHARE_APP_TEXT.length <= 200)
         assertEquals("https://github.com/bradflaugher/bout-that-action/issues/new", FEEDBACK_URL)
+        // The policy page Play links to too: site/privacy/index.html, on GitHub Pages.
+        assertEquals("https://bradflaugher.github.io/bout-that-action/privacy/", PRIVACY_POLICY_URL)
         // No email address anywhere the player can see.
         for (text in listOf(SHARE_APP_TEXT, FEEDBACK_URL, PRIVACY_POLICY_URL, PLAY_STORE_APP_URI, RATE_DESCRIPTION) + FAQ.flatMap { listOf(it.first, it.second) }) {
             assertTrue(text, '@' !in text)

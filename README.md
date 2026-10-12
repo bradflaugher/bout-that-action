@@ -9,6 +9,7 @@ past it into a Void where anything goes.
 
 Everything is generated: procedural floors, procedural soundtrack,
 procedural sound effects. No asset files, no ads, no network.
+Website: <https://bradflaugher.github.io/bout-that-action/>.
 
 <div align="center">
   <img src="docs/screenshots/rooftop.png" width="32%" alt="Rooftop insertion with the tutorial billboard">
@@ -444,7 +445,7 @@ they're set, CI builds and tests but publishes nothing. Every merge to `main` al
 
 Android 12 (API 31) or newer. It's built for the latest Android and runs on
 older versions only where that needs no compatibility code (see `AGENTS.md`). The only permission is vibration, and it collects nothing
-([privacy policy](docs/PRIVACY.md)).
+([privacy policy](https://bradflaugher.github.io/bout-that-action/privacy/)).
 
 It's a game to Android (`appCategory="game"`), so it keeps its portrait lock on
 tablets and unfolded foldables too; a window that still isn't tall enough (a
