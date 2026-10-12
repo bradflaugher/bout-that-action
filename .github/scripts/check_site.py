@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Checks the static website in site/ before it's published.
 
-Every local href and src (and CSS url()) must resolve to a file in the site,
-and nothing may load from another origin: links out are fine, but scripts,
+Every local href and src (and CSS url() and @import) must resolve to a file
+in the site, every #fragment to an id on its page, and nothing may load from
+another origin: links out are fine, but scripts,
 styles, fonts and images all ship with the site. Paths starting with the
 Pages base (/bout-that-action/) map onto the site root, as GitHub Pages
 serves them.
@@ -60,24 +61,34 @@ def resolve(site: Path, page: Path, url: str) -> Path | None:
 def main() -> int:
     site = Path(sys.argv[1]).resolve()
     errors = []
+    parsed = {}
     for page in sorted(site.rglob("*.html")):
         parser = Refs()
         parser.feed(page.read_text(encoding="utf-8"))
+        parsed[page.resolve()] = parser
+    for page, parser in parsed.items():
         for url, loads in parser.refs:
             scheme = urlsplit(url).scheme
             if scheme in ("http", "https") or url.startswith("//"):
                 if loads:
                     errors.append(f"{page.relative_to(site)}: loads from another origin: {url}")
                 continue
-            if scheme in ("mailto", "data") or url.startswith("#"):
+            if scheme in ("mailto", "data"):
                 continue
             target = resolve(site, page, url)
             if target is None:
                 errors.append(f"{page.relative_to(site)}: absolute path outside {BASE}: {url}")
             elif not target.resolve().is_relative_to(site) or not target.is_file():
                 errors.append(f"{page.relative_to(site)}: broken link: {url}")
+            else:
+                fragment = urlsplit(url).fragment
+                ids = parsed[target.resolve()].ids if target.suffix == ".html" else None
+                if fragment and ids is not None and unquote(fragment) not in ids:
+                    errors.append(f"{page.relative_to(site)}: no id for fragment: {url}")
     for css in sorted(site.rglob("*.css")):
-        for url in re.findall(r"url\(\s*['\"]?([^'\")]+)", css.read_text(encoding="utf-8")):
+        text = css.read_text(encoding="utf-8")
+        imports = re.findall(r"@import\s+['\"]([^'\"]+)['\"]", text)
+        for url in re.findall(r"url\(\s*['\"]?([^'\")]+)", text) + imports:
             if urlsplit(url).scheme or url.startswith("//"):
                 if not url.startswith("data:"):
                     errors.append(f"{css.relative_to(site)}: loads from another origin: {url}")
