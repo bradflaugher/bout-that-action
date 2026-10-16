@@ -6,6 +6,9 @@ cardboard-box hiding. Sideloaded, and headed for Google Play
 (`docs/PLAY_STORE.md`). Read `README.md` for the
 player-facing overview and keep it in sync with any behavior you change.
 
+Do not add a `CLAUDE.md` or `CLAUDE.local.md` here (or above the checkout):
+Claude Code then loads those instead and skips this file.
+
 ## Latest-only platform policy
 
 Like bf-12c and Blauncher, this project builds with **only the latest stable
