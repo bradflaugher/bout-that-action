@@ -6,8 +6,8 @@ cardboard-box hiding. Sideloaded, and headed for Google Play
 (`docs/PLAY_STORE.md`). Read `README.md` for the
 player-facing overview and keep it in sync with any behavior you change.
 
-Do not add a `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` here, or a `CLAUDE.md` above the checkout:
-Claude Code then loads those instead and skips this file.
+Do not add a `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` here or in any
+parent directory: Claude Code then loads those instead and skips this file.
 
 ## Latest-only platform policy
 
