@@ -75,8 +75,12 @@ static files in `site/`: the landing page, the privacy policy
 both link) and a 404 page. Edit them and preview with
 `python3 -m http.server -d site`. A pull request that touches `site/` runs
 the `Site check` (`.github/scripts/check_site.py`: every local link
-resolves, nothing loads from another origin); the push to `main` deploys it
-with `.github/workflows/pages.yml`. Images in `site/assets/img/` are
+resolves, nothing loads from another origin, and every stylesheet link
+carries the stylesheet's content hash); the push to `main` deploys it
+with `.github/workflows/pages.yml`. After editing `site/assets/site.css`,
+run `python3 .github/scripts/check_site.py site --fix` to stamp the new
+hash into the pages (`site.css?v=…`), so no browser pairs a new page with
+a stale cached stylesheet. Images in `site/assets/img/` are
 downscaled WebP copies of the store and README screenshots; re-export them
 when those change. If the privacy policy changes in substance, bump its
 "Last updated" date and check the Data safety answers in

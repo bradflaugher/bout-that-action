@@ -166,14 +166,14 @@ h3 { font-size: 20px; text-transform: uppercase; letter-spacing: 0.06em; }
 }
 .btn .stack { display: flex; flex-direction: column; align-items: flex-start; }
 
-/* The official Google Play badge, the height of a .btn, with the same neon glow. */
-.play {
-  display: inline-flex; border-radius: 8px;
-  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--magenta) 45%, transparent));
-  transition: transform 0.12s ease, filter 0.12s ease;
-}
-.play:hover { transform: translateY(-1px);
-  filter: drop-shadow(0 0 26px color-mix(in srgb, var(--magenta) 70%, transparent)); }
+/* The official Google Play badge, untouched. Google's guidelines forbid
+   recoloring it and keep a clear space of a quarter of its height (14px)
+   around it, so no glow of its own. The 14px .ctas gap keeps neighbors off;
+   the extra margin and row gap add room for the next button's 14px hover
+   glow (and its 1px hover lift), beside it or wrapped below it. */
+.play { display: inline-flex; margin-right: 14px; transition: transform 0.12s ease; }
+.ctas:has(.play) { row-gap: 30px; }
+.play:hover { transform: translateY(-1px); }
 .play img { display: block; width: auto; height: 56px; }
 
 /* ---- header ------------------------------------------------------------ */
