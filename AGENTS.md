@@ -2,8 +2,9 @@
 
 'Bout That Action is an endless, portrait-only
 Android action game: a stylized, hyper-modern elevator spy caper with
-cardboard-box hiding. Sideloaded, and headed for Google Play
-(`docs/PLAY_STORE.md`). Read `README.md` for the
+cardboard-box hiding. On Google Play
+(<https://play.google.com/store/apps/details?id=com.bradflaugher.aboutthataction>,
+see `docs/PLAY_STORE.md`) and sideloadable from the GitHub release. Read `README.md` for the
 player-facing overview and keep it in sync with any behavior you change.
 
 Do not add a `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` here or in any
