@@ -9,7 +9,17 @@ past it into a Void where anything goes.
 
 Everything is generated: procedural floors, procedural soundtrack,
 procedural sound effects. No asset files, no ads, no network.
-Website: <https://bradflaugher.github.io/bout-that-action/>.
+
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=com.bradflaugher.aboutthataction"><img src="docs/google-play-badge.png" alt="Get it on Google Play" height="64"></a>
+</p>
+
+<p align="center">
+  <b>Free on <a href="https://play.google.com/store/apps/details?id=com.bradflaugher.aboutthataction">Google Play</a></b> · no ads · no network · Android 12+<br>
+  <a href="https://bradflaugher.github.io/bout-that-action/">Website</a> ·
+  <a href="https://bradflaugher.github.io/bout-that-action/privacy/">Privacy policy</a> ·
+  <a href="../../releases/latest">Latest APK</a>
+</p>
 
 <div align="center">
   <img src="docs/screenshots/rooftop.png" width="32%" alt="Rooftop insertion with the tutorial billboard">
@@ -436,8 +446,13 @@ The hero picker plays each one's theme. Every tune is original.
 
 ## Install
 
-Grab `bout-that-action.apk` from the [latest release](../../releases/latest)
-and sideload it. The release also carries `bout-that-action.aab`, the same
+<a href="https://play.google.com/store/apps/details?id=com.bradflaugher.aboutthataction"><img src="docs/google-play-badge.png" alt="Get it on Google Play" height="56"></a>
+
+'Bout That Action is free on [Google Play](https://play.google.com/store/apps/details?id=com.bradflaugher.aboutthataction),
+which keeps it up to date.
+
+Prefer to sideload? Grab `bout-that-action.apk` from the
+[latest release](../../releases/latest). The release also carries `bout-that-action.aab`, the same
 build as a Google Play bundle; see [`docs/PLAY_STORE.md`](docs/PLAY_STORE.md). Every push to `main` publishes a single date-labeled release
 (`vYYYY.MM.DD.N`) and deletes the previous one; verify it with the attached
 `.sha256`. Releases need the signing secrets described in `AGENTS.md`. Until
