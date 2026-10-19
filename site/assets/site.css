@@ -168,8 +168,11 @@ h3 { font-size: 20px; text-transform: uppercase; letter-spacing: 0.06em; }
 
 /* The official Google Play badge, untouched. Google's guidelines forbid
    recoloring it and keep a clear space of a quarter of its height (14px)
-   around it, so no glow; the 14px .ctas gap already holds neighbors off. */
-.play { display: inline-flex; transition: transform 0.12s ease; }
+   around it, so no glow of its own. The 14px .ctas gap keeps neighbors off;
+   the extra margin and row gap add room for the next button's 14px hover
+   glow, beside it or wrapped below it. */
+.play { display: inline-flex; margin-right: 14px; transition: transform 0.12s ease; }
+.ctas:has(.play) { row-gap: 28px; }
 .play:hover { transform: translateY(-1px); }
 .play img { display: block; width: auto; height: 56px; }
 
