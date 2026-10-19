@@ -65,7 +65,7 @@ class Refs(HTMLParser):
                 self.scripts.append(f"javascript: URL on <{tag}>")
         if "id" in a:
             self.ids.add(a["id"])
-        if tag == "link" and a.get("rel") == "stylesheet" and a.get("href"):
+        if tag == "link" and "stylesheet" in (a.get("rel") or "").lower().split() and a.get("href"):
             self.styles.append(a["href"])
         for name, value in attrs:
             if value is None:
@@ -92,22 +92,22 @@ def resolve(site: Path, page: Path, url: str) -> Path | None:
 
 
 def version(css: Path) -> str:
-    return hashlib.sha256(css.read_bytes()).hexdigest()[:10]
+    # LF-normalized, so a CRLF checkout stamps the hash CI computes.
+    return hashlib.sha256(css.read_bytes().replace(b"\r\n", b"\n")).hexdigest()[:10]
 
 
 def fix_versions(site: Path) -> None:
     """Rewrites each local stylesheet href to carry its file's current hash."""
     for page in site.rglob("*.html"):
-        html = page.read_text(encoding="utf-8")
-
-        def stamp(m: re.Match) -> str:
-            path = m.group(2).split("?", 1)[0]
+        html = new = page.read_text(encoding="utf-8")
+        parser = Refs()
+        parser.feed(html)
+        for href in parser.styles:
+            path = urlsplit(href).path
             target = resolve(site, page, path)
-            if target is None or not target.is_file():
-                return m.group(0)
-            return f"{m.group(1)}{path}?v={version(target)}{m.group(3)}"
-
-        new = re.sub(r'(<link rel="stylesheet" href=")([^"]+)(")', stamp, html)
+            if target is not None and target.is_file():
+                new = re.sub(r'(href=["\'])' + re.escape(href) + r'(["\'])',
+                             lambda m: f"{m.group(1)}{path}?v={version(target)}{m.group(2)}", new)
         if new != html:
             page.write_text(new, encoding="utf-8")
 
@@ -143,7 +143,7 @@ def main() -> int:
                 errors.append(f"{page.relative_to(site)}: broken link: {url}")
             else:
                 if url in parser.styles and urlsplit(url).query != f"v={version(target)}":
-                    errors.append(f"{page.relative_to(site)}: {url} should end ?v={version(target)} (run check_site.py site --fix)")
+                    errors.append(f"{page.relative_to(site)}: {url} should end ?v={version(target)} (run python3 .github/scripts/check_site.py site --fix)")
                 fragment = urlsplit(url).fragment
                 ids = parsed[target.resolve()].ids if target.suffix == ".html" else None
                 if fragment and ids is not None and unquote(fragment) not in ids:
