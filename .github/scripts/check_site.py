@@ -10,9 +10,15 @@ the privacy policy the app and Play open, the 404 page) must exist. Paths starti
 Pages base (/bout-that-action/) map onto the site root, as GitHub Pages
 serves them.
 
-Usage: check_site.py <site dir>
+Each stylesheet link carries the stylesheet's content hash (`site.css?v=…`),
+so a page never pairs with a stale cached copy: Pages lets browsers cache
+for ten minutes, and a new page on an old stylesheet renders broken. Run
+with --fix to write the current hashes into the pages after a CSS change.
+
+Usage: check_site.py <site dir> [--fix]
 """
 
+import hashlib
 import re
 import sys
 from html.parser import HTMLParser
@@ -38,6 +44,7 @@ class Refs(HTMLParser):
         self.refs = []  # (url, loads)
         self.ids = set()
         self.scripts = []
+        self.styles = []
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
@@ -58,6 +65,8 @@ class Refs(HTMLParser):
                 self.scripts.append(f"javascript: URL on <{tag}>")
         if "id" in a:
             self.ids.add(a["id"])
+        if tag == "link" and a.get("rel") == "stylesheet" and a.get("href"):
+            self.styles.append(a["href"])
         for name, value in attrs:
             if value is None:
                 continue
@@ -82,8 +91,31 @@ def resolve(site: Path, page: Path, url: str) -> Path | None:
     return target
 
 
+def version(css: Path) -> str:
+    return hashlib.sha256(css.read_bytes()).hexdigest()[:10]
+
+
+def fix_versions(site: Path) -> None:
+    """Rewrites each local stylesheet href to carry its file's current hash."""
+    for page in site.rglob("*.html"):
+        html = page.read_text(encoding="utf-8")
+
+        def stamp(m: re.Match) -> str:
+            path = m.group(2).split("?", 1)[0]
+            target = resolve(site, page, path)
+            if target is None or not target.is_file():
+                return m.group(0)
+            return f"{m.group(1)}{path}?v={version(target)}{m.group(3)}"
+
+        new = re.sub(r'(<link rel="stylesheet" href=")([^"]+)(")', stamp, html)
+        if new != html:
+            page.write_text(new, encoding="utf-8")
+
+
 def main() -> int:
     site = Path(sys.argv[1]).resolve()
+    if "--fix" in sys.argv[2:]:
+        fix_versions(site)
     errors = []
     parsed = {}
     for name in REQUIRED:
@@ -110,6 +142,8 @@ def main() -> int:
             elif not target.resolve().is_relative_to(site) or not target.is_file():
                 errors.append(f"{page.relative_to(site)}: broken link: {url}")
             else:
+                if url in parser.styles and urlsplit(url).query != f"v={version(target)}":
+                    errors.append(f"{page.relative_to(site)}: {url} should end ?v={version(target)} (run check_site.py site --fix)")
                 fragment = urlsplit(url).fragment
                 ids = parsed[target.resolve()].ids if target.suffix == ".html" else None
                 if fragment and ids is not None and unquote(fragment) not in ids:
