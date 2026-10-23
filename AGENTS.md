@@ -25,7 +25,7 @@ everything**, and never carries code just for older devices:
 - AGP, Kotlin, Compose BOM and libraries (`gradle/libs.versions.toml`) and
   Gradle (`gradle/wrapper/gradle-wrapper.properties`, checksum-pinned) track
   the latest stable releases. Dependabot keeps them current; `MAINTAINING.md`
-  covers the weekly update routine and the repository's security settings.
+  covers the quarterly update routine and the repository's security settings.
 
 ## Layout
 
