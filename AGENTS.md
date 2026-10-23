@@ -243,7 +243,7 @@ deliberately not a merge gate because emulators are slow and flaky) boots an
 API 37 emulator, runs the instrumented tests, plays a little with `adb input`
 and uploads screenshots and logcat.
 
-Every push to `main` builds a signed APK and a signed Play bundle (`.aab`,
+Every push to `main` that changes the app builds a signed APK and a signed Play bundle (`.aab`,
 plus the R8 `mapping.txt`) and publishes them as the single date-labeled
 GitHub release `vYYYY.MM.DD.<run>`, deleting all older releases. The same
 run uploads the bundle to Google Play's Closed testing - Alpha track and
