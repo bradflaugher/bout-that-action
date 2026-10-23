@@ -453,10 +453,10 @@ which keeps it up to date.
 
 Prefer to sideload? Grab `bout-that-action.apk` from the
 [latest release](../../releases/latest). The release also carries `bout-that-action.aab`, the same
-build as a Google Play bundle; see [`docs/PLAY_STORE.md`](docs/PLAY_STORE.md). Every push to `main` publishes a single date-labeled release
+build as a Google Play bundle; see [`docs/PLAY_STORE.md`](docs/PLAY_STORE.md). Every push to `main` that changes the app publishes a single date-labeled release
 (`vYYYY.MM.DD.N`) and deletes the previous one; verify it with the attached
 `.sha256`. Releases need the signing secrets described in `AGENTS.md`. Until
-they're set, CI builds and tests but publishes nothing. Every merge to `main` also goes to Google Play's closed testing, with the store listing; how to ship an update, change the listing or go to production is in [MAINTAINING.md › Releasing](MAINTAINING.md#releasing).
+they're set, CI builds and tests but publishes nothing. Every merge to `main` that changes the app also goes to Google Play's closed testing, with the store listing (a listing-only change just syncs the listing); how to ship an update, change the listing or go to production is in [MAINTAINING.md › Releasing](MAINTAINING.md#releasing).
 
 Android 12 (API 31) or newer. It's built for the latest Android and runs on
 older versions only where that needs no compatibility code (see `AGENTS.md`). The only permission is vibration, and it collects nothing
