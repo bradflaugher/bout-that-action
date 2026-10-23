@@ -24,8 +24,9 @@ everything**, and never carries code just for older devices:
   `NewApi` error keeps the code honest about `minSdk`.
 - AGP, Kotlin, Compose BOM and libraries (`gradle/libs.versions.toml`) and
   Gradle (`gradle/wrapper/gradle-wrapper.properties`, checksum-pinned) track
-  the latest stable releases. Dependabot keeps them current; `MAINTAINING.md`
-  covers the quarterly update routine and the repository's security settings.
+  the latest stable releases: Dependabot moves them in one combined PR per
+  quarter. "Latest" means never holding a version back, not chasing every
+  release the week it lands. `MAINTAINING.md` covers the quarterly update routine and the repository's security settings.
 
 ## Layout
 
